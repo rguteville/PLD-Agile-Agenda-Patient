@@ -8,7 +8,7 @@ on:
 
 env:
   # À ALIGNER sur la VM de développement (commande `php -v` sur la VM)
-  PHP_VERSION: '8.2'
+  PHP_VERSION: '8.4'
 
 jobs:
   ci:
@@ -20,7 +20,7 @@ jobs:
     services:
       mariadb:
         # À ALIGNER sur la VM de développement (commande `mariadb --version`)
-        image: mariadb:10.11
+        image: mariadb:11.8
         env:
           MARIADB_ROOT_PASSWORD: root_ci
           MARIADB_DATABASE: aura_test
@@ -59,7 +59,7 @@ jobs:
         run: composer cs
 
       - name: Charger le schéma dans MariaDB
-        run: mysql -h 127.0.0.1 -P 3306 -u aura -paura_ci aura_test < database/schema.sql
+        run: docker exec -i ${{ job.services.mariadb.id }} mariadb -u aura -paura_ci aura_test < database/schema.sql
 
       - name: Tests
         run: |
