@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  # À ALIGNER sur la VM de développement (commande `php -v` sur la VM)
+  PHP_VERSION: '8.2'
+
+jobs:
+  ci:
+    name: CI
+    runs-on: ubuntu-latest
+
+    # Base MariaDB jetable pour vérifier database/schema.sql.
+    # Ces mots de passe ne protègent rien : ce ne sont PAS des secrets.
+    services:
+      mariadb:
+        # À ALIGNER sur la VM de développement (commande `mariadb --version`)
+        image: mariadb:10.11
+        env:
+          MARIADB_ROOT_PASSWORD: root_ci
+          MARIADB_DATABASE: aura_test
+          MARIADB_USER: aura
+          MARIADB_PASSWORD: aura_ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Installer PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: pdo_mysql
+          tools: composer:v2
+          coverage: none
+
+      - name: Valider composer.json
+        run: composer validate --strict
+
+      - name: Installer les dépendances
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Vérifier la syntaxe PHP
+        run: find src tests public config -name '*.php' -print0 | xargs -0 -r -n1 php -l
+
+      - name: Style de code (PSR-12)
+        run: composer cs
+
+      - name: Charger le schéma dans MariaDB
+        run: mysql -h 127.0.0.1 -P 3306 -u aura -paura_ci aura_test < database/schema.sql
+
+      - name: Tests
+        run: |
+          if find tests -name '*Test.php' | grep -q .; then
+            composer test
+          else
+            echo "Aucun test pour l'instant."
+          fi
