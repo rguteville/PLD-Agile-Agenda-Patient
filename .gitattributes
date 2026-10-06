@@ -1,0 +1,6 @@
+# Fins de ligne Unix dans le dépôt, quel que soit l'OS de chacun
+* text=auto eol=lf
+*.sh text eol=lf
+*.png binary
+*.jpg binary
+*.pdf binary
