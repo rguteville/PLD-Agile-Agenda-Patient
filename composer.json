@@ -1,0 +1,33 @@
+{
+  "name": "insa-4if/aura",
+  "description": "AURA - SI miroir de réanimation : agenda patient et organisation des soins",
+  "type": "project",
+  "license": "proprietary",
+  "require": {
+    "php": ">=8.1",
+    "ext-pdo": "*",
+    "ext-pdo_mysql": "*"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^10.5",
+    "squizlabs/php_codesniffer": "^3.7"
+  },
+  "autoload": {
+    "psr-4": {
+      "Aura\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Aura\\Tests\\": "tests/"
+    }
+  },
+  "scripts": {
+    "test": "phpunit",
+    "cs": "phpcs",
+    "cs:fix": "phpcbf"
+  },
+  "config": {
+    "sort-packages": true
+  }
+}

@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<ruleset name="AURA">
+    <description>Style de code PSR-12</description>
+    <file>src</file>
+    <file>tests</file>
+    <file>public</file>
+    <arg name="colors"/>
+    <arg value="sp"/>
+    <rule ref="PSR12"/>
+</ruleset>

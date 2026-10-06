@@ -1,0 +1,4 @@
+-- Schéma de la base AURA (V1).
+-- Mettez ici les CREATE TABLE du modèle validé (section 8 du dossier de cadrage).
+-- La CI charge ce fichier dans une base MariaDB vide : une erreur SQL fait échouer la CI.
+-- Règles : moteur InnoDB, encodage utf8mb4, aucune donnée réelle de patient.
