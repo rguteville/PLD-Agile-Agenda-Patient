@@ -1,0 +1,18 @@
+# Dépendances (réinstallées par composer install)
+/vendor/
+
+# Configuration locale avec les vrais identifiants : ne JAMAIS committer
+/config/config.php
+.env
+
+# Caches de tests
+/.phpunit.cache/
+
+# Sujet du projet : captures du SI hospitalier et identifiants des VM
+/sujet/
+
+# Éditeurs et systèmes
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
