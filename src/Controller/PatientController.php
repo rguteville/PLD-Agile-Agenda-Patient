@@ -12,6 +12,6 @@ class PatientController
 
     public function list(): void
     {
-        require dirname(__DIR__) . '/View/layout.php';
+        require dirname(__DIR__) . '/View/layout.html';
     }
 }
