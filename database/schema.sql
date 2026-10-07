@@ -3,8 +3,8 @@
 -- Mettez ici les CREATE TABLE du modèle validé (section 8 du dossier de cadrage).
 -- La CI charge ce fichier dans une base MariaDB vide : une erreur SQL fait échouer la CI.
 -- Règles : moteur InnoDB, encodage utf8mb4, aucune donnée réelle de patient.
-CREATE DATABASE DBaura;
-use DBaura;
+#CREATE DATABASE DBaura;
+#use DBaura;
 CREATE TABLE Patient(
     id_patient VARCHAR(20) PRIMARY KEY,
     ipp INT CHECK (100000<=ipp<1000000000),
