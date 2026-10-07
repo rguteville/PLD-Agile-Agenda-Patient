@@ -59,7 +59,7 @@ jobs:
         run: composer cs
 
       - name: Charger le schéma dans MariaDB
-        run: docker exec -i ${{ job.services.mariadb.id }} mariadb -u aura -paura_ci aura_test < database/schema.sql
+        run: docker exec -i ${{ job.services.mariadb.id }} mariadb -u aura -p aura_ci aura_test < database/schema.sql
 
       - name: Tests
         run: |
