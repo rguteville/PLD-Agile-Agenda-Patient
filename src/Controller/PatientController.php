@@ -5,7 +5,9 @@ namespace Aura\Controller;
 
 class PatientController
 {
-    public function __construct() {}
+    public function __construct()
+    {
+    }
 
     public function list(): void
     {

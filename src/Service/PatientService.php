@@ -8,7 +8,9 @@ use Aura\Model\Patient;
 
 class PatientService
 {
-    public function __construct(private PatientDao $patientDao) {}
+    public function __construct(private PatientDao $patientDao)
+    {
+    }
 
     /** @return Patient[] */
     public function getAllPatients(): array

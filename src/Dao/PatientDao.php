@@ -8,7 +8,9 @@ use PDO;
 
 class PatientDao
 {
-    public function __construct(private PDO $pdo) {}
+    public function __construct(private PDO $pdo)
+    {
+    }
 
     /** @return Patient[] */
     public function findAll(): array
