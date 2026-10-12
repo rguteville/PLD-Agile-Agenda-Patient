@@ -14,7 +14,7 @@ class PatientController
     {
         require dirname(__DIR__) . '/View/layout.html';
     }
-    
+
     public function create(): void
     {
         error_log('Appel createPatient');
