@@ -21,5 +21,5 @@ use Aura\Core\View;
             'options' => ['H' => 'H', 'F' => 'F']
         ],
     ],
-]) 
-?>
+]);
+

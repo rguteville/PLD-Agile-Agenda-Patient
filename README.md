@@ -184,10 +184,10 @@ Ce fichier est ignoré par Git : il ne doit pas apparaître dans un commit.
 En local, PHP a un serveur intégré :
  
 ```bash
-php -S localhost:8000 -t public
+php -S localhost:8000 -t public public/index.php
 ```
  
-Ouvrez **http://localhost:8000**. Arrêt : `Ctrl + C`.
+Ouvrez **http://localhost:8000**. Arrêt : `Ctrl + C`. Le dernier argument (`public/index.php`) est nécessaire : il sert les fichiers CSS et JS de `public/` et envoie toutes les autres URL au routeur.
  
 ---
  
@@ -226,7 +226,7 @@ Pour récupérer les nouveautés de `main` dans votre branche : `git fetch origi
 | `composer test` | Lancer les tests |
 | `composer cs` | Vérifier le style PSR-12 |
 | `composer cs:fix` | Corriger automatiquement le style |
-| `php -S localhost:8000 -t public` | Lancer le site en local |
+| `php -S localhost:8000 -t public public/index.php` | Lancer le site en local |
  
 ---
  

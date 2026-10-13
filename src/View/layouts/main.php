@@ -1,7 +1,7 @@
 <?php
 
 use Aura\Core\View;
- 
+
 ?>
 
 <!DOCTYPE html>
