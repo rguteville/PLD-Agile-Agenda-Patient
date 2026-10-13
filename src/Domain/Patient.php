@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Aura\Model;
+namespace Aura\Domain;
 
 class Patient
 {

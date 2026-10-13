@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Aura\Dao;
 
-use Aura\Model\Patient;
+use Aura\Domain\Patient;
 use PDO;
 
 class PatientDao
