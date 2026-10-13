@@ -1,4 +1,5 @@
 <?php use Aura\Core\View; ?>
+
 <!DOCTYPE html>
 <html lang="fr">
 
@@ -18,7 +19,7 @@
     </main>
 
     <script src="/js/layout.js"></script>
-    <?php foreach ($scripts as $script): ?>
+    <?php foreach ($scripts as $script) : ?>
         <script src="<?= View::e($script) ?>"></script>
     <?php endforeach; ?>
 </body>
