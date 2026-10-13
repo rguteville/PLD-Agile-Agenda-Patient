@@ -18,8 +18,19 @@ class PatientController
     public function create(): void
     {
         error_log('Appel createPatient');
-        $useName = trim($_POST['useName'] ?? '');
-        $birthName = trim($_POST['birthName'] ?? '');
+        $firstname = trim($_POST['firstname'] ?? '');
+        $lastname = trim($_POST['lastname'] ?? '');
+        $birthDate = trim($_POST['birthDate'] ?? '');
+        $gender = trim($_POST['gender'] ?? '');
+        $phonenumber = trim($_POST['phonenumber'] ?? '');
+        $email = trim($_POST['email'] ?? 'mail');
+
+        error_log($firstname);
+        error_log($lastname);
+        error_log($birthDate);
+        error_log($gender);
+        error_log($phonenumber);
+        error_log($email);
 
         // TODO
         // $patients = $this->patientService->search($useName, $birthName);
