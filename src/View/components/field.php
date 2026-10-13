@@ -26,7 +26,8 @@ $value    = $field['value'] ?? '';
     <?php elseif ($type === 'select') : ?>
         <select id="<?= View::e($name) ?>" name="<?= View::e($name) ?>" <?= $required ? 'required' : '' ?>>
             <?php foreach ($field['options'] as $optValue => $optLabel) : ?>
-                <option value="<?= View::e($optValue) ?>" <?= (string) $optValue === (string) $value ? 'selected' : '' ?>>
+                <option value="<?= View::e($optValue) ?>" 
+                    <?= (string) $optValue === (string) $value ? 'selected' : '' ?>>
                     <?= View::e($optLabel) ?>
                 </option>
             <?php endforeach; ?>

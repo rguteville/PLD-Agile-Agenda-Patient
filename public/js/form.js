@@ -1,5 +1,5 @@
 document.querySelectorAll('form[data-ajax]').forEach(form => {
-    form.addEventListener('submit', async (event) => {
+    form.addEventListener('submit', async event => {
         event.preventDefault();
 
         const url = form.action;

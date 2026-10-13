@@ -1,4 +1,8 @@
-<?php use Aura\Core\View; ?>
+<?php
+
+use Aura\Core\View;
+ 
+?>
 
 <!DOCTYPE html>
 <html lang="fr">
