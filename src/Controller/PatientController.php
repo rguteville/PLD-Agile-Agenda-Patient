@@ -14,4 +14,18 @@ class PatientController
     {
         require dirname(__DIR__) . '/View/layout.html';
     }
+
+    public function create(): void
+    {
+        error_log('Appel createPatient');
+        $useName = trim($_POST['useName'] ?? '');
+        $birthName = trim($_POST['birthName'] ?? '');
+
+        // TODO
+        // $patients = $this->patientService->search($useName, $birthName);
+        $patients = [];
+
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['success' => true, 'data' => $patients]);
+    }
 }
