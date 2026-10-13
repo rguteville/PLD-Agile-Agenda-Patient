@@ -1,4 +1,5 @@
 <?php
+
 use Aura\Core\View;
 
 $type     = $field['type'] ?? 'text';
@@ -11,9 +12,9 @@ $value    = $field['value'] ?? '';
     <label<?= $type !== 'radio' ? ' for="' . View::e($name) . '"' : '' ?>><?= View::e($label) ?></label>
     <span class="req"><?= $required ? '*' : '' ?></span>
 
-    <?php if ($type === 'radio'): ?>
+    <?php if ($type === 'radio') : ?>
         <div class="radio-group">
-            <?php foreach ($field['options'] as $optValue => $optLabel): ?>
+            <?php foreach ($field['options'] as $optValue => $optLabel) : ?>
                 <label>
                     <input type="radio" name="<?= View::e($name) ?>" value="<?= View::e($optValue) ?>"
                         <?= (string) $optValue === (string) $value ? 'checked' : '' ?>>
@@ -22,16 +23,16 @@ $value    = $field['value'] ?? '';
             <?php endforeach; ?>
         </div>
 
-    <?php elseif ($type === 'select'): ?>
+    <?php elseif ($type === 'select') : ?>
         <select id="<?= View::e($name) ?>" name="<?= View::e($name) ?>" <?= $required ? 'required' : '' ?>>
-            <?php foreach ($field['options'] as $optValue => $optLabel): ?>
+            <?php foreach ($field['options'] as $optValue => $optLabel) : ?>
                 <option value="<?= View::e($optValue) ?>" <?= (string) $optValue === (string) $value ? 'selected' : '' ?>>
                     <?= View::e($optLabel) ?>
                 </option>
             <?php endforeach; ?>
         </select>
 
-    <?php else: ?>
+    <?php else : ?>
         <input type="<?= View::e($type) ?>" id="<?= View::e($name) ?>" name="<?= View::e($name) ?>"
             value="<?= View::e($value) ?>" <?= $required ? 'required' : '' ?>>
     <?php endif; ?>
