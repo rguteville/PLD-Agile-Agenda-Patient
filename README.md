@@ -267,7 +267,7 @@ Le script récupère `main`, installe les dépendances et vérifie que le site r
 ```bash
 mariadb -u aura -p -e "DROP DATABASE aura; CREATE DATABASE aura CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 mariadb -u aura -p aura < database/schema.sql
-mariadb -u aura -p aura < database/seed_fictif.sql
+mariadb -u aura -p aura < database/test.sql
 ```
  
 ### Checklist avant une démo
