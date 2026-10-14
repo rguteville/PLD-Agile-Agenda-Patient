@@ -314,6 +314,55 @@ body, html {
     font-style: italic;
 }
 
+/* ---------- Liste des patients (AURA-12.1) ---------- */
+.recherche-patients {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 14px;
+}
+
+.recherche-patients input {
+    padding: 5px 8px;
+    border: 1px solid #bbb;
+    min-width: 260px;
+}
+
+.liste-patients {
+    border-collapse: collapse;
+    min-width: 600px;
+    max-width: 900px;
+}
+
+.liste-patients caption {
+    text-align: left;
+    color: #555;
+    padding: 0 0 6px;
+}
+
+.liste-patients th,
+.liste-patients td {
+    padding: 6px 10px;
+    border-bottom: 1px solid #ddd;
+    text-align: left;
+}
+
+.liste-patients th {
+    color: #555;
+    font-weight: 600;
+    background: #f3f6fa;
+}
+
+.liste-patients tbody tr:hover {
+    background: #c9dbf0;
+}
+
+.liste-patients .hors-service,
+.liste-vide {
+    color: #777;
+    font-style: italic;
+}
+
 /* ---------- Page d'erreur applicative ---------- */
 .erreur {
     max-width: 600px;

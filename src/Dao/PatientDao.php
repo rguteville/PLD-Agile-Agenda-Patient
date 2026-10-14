@@ -30,6 +30,31 @@ class PatientDao
         return array_map(fn(array $r) => $this->mapToEntity($r), $rows);
     }
 
+    /**
+     * Patients dont le nom, le prénom ou l'IPP contient le terme saisi (AURA-12.1),
+     * triés par nom puis prénom. Le terme est passé en paramètre préparé et ses
+     * caractères joker (% et _) sont échappés : il est impossible d'injecter du SQL
+     * ni d'élargir la recherche avec un joker.
+     *
+     * @return Patient[]
+     */
+    public function search(string $terme): array
+    {
+        $motif = '%' . addcslashes($terme, '\\%_') . '%';
+
+        // Sans émulation des requêtes préparées, un paramètre nommé ne peut servir qu'une fois.
+        $stmt = $this->pdo->prepare(
+            'SELECT ' . self::COLUMNS . ' FROM Patient
+             WHERE lastName LIKE :nom ESCAPE \'\\\\\'
+                OR firstName LIKE :prenom ESCAPE \'\\\\\'
+                OR CAST(ipp AS CHAR) LIKE :ipp ESCAPE \'\\\\\'
+             ORDER BY lastName, firstName'
+        );
+        $stmt->execute(['nom' => $motif, 'prenom' => $motif, 'ipp' => $motif]);
+
+        return array_map(fn(array $r) => $this->mapToEntity($r), $stmt->fetchAll(PDO::FETCH_ASSOC));
+    }
+
     public function findById(int $id): ?Patient
     {
         $stmt = $this->pdo->prepare('SELECT ' . self::COLUMNS . ' FROM Patient WHERE idPatient = :id');

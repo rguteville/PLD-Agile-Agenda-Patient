@@ -6,6 +6,8 @@ namespace Aura\Controller;
 
 use Aura\Core\View;
 use Aura\Service\AdmissionService;
+use Aura\Service\ListePatientsService;
+use LogicException;
 
 class PatientController
 {
@@ -32,14 +34,30 @@ class PatientController
     private const TITRE_ADMISSION = 'AURA - Admission';
     private const SCRIPTS_ADMISSION = ['/js/form.js'];
 
-    public function __construct(private AdmissionService $admissionService = new AdmissionService())
-    {
+    /**
+     * Le service de liste lit la base : il n'est fourni que par la route GET /patients
+     * (voir public/index.php), pour que l'admission reste utilisable sans connexion.
+     */
+    public function __construct(
+        private AdmissionService $admissionService = new AdmissionService(),
+        private ?ListePatientsService $listePatientsService = null
+    ) {
     }
 
+    /** GET /patients?q=… : liste des patients avec leur séjour en cours (AURA-12.1). */
     public function list(): void
     {
-        // Liste des patients : à implémenter dans AURA-12.1 (lecture via PatientDao).
-        View::page('patient/list', [], 'AURA - Patients');
+        if ($this->listePatientsService === null) {
+            throw new LogicException('PatientController::list() requiert un ListePatientsService.');
+        }
+
+        $saisie = $_GET['q'] ?? null;
+        $recherche = ListePatientsService::nettoyerRecherche(is_string($saisie) ? $saisie : null);
+
+        View::page('patient/list', [
+            'patients' => $this->listePatientsService->lister($recherche),
+            'recherche' => $recherche,
+        ], 'AURA - Patients');
     }
 
     /**
