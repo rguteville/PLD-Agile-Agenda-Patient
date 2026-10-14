@@ -60,6 +60,9 @@ jobs:
 
       - name: Charger le schéma dans MariaDB
         run: docker exec -i ${{ job.services.mariadb.id }} mariadb -u aura -paura_ci aura_test < database/schema.sql
+      
+      - name: Charger les données de test dans MariaDB                                 
+        run: docker exec -i ${{ job.services.mariadb.id }} mariadb -u aura -paura_ci aura_test < database/test.sql
 
       - name: Tests
         run: |
