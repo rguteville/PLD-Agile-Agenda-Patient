@@ -17,12 +17,12 @@ final class SejourController
     public function show(): void
     {
         $id = $_GET['id'] ?? null;
-        if (!is_string($id) || preg_match('/^[A-Za-z0-9_-]{1,20}$/', $id) !== 1) {
+        if (!is_string($id) || preg_match('/^[1-9][0-9]{0,17}$/', $id) !== 1) {
             View::erreur(400, 'Identifiant de séjour manquant ou invalide.');
             return;
         }
 
-        $dossier = $this->dossierPatientService->dossier($id);
+        $dossier = $this->dossierPatientService->dossier((int) $id);
         if ($dossier === null) {
             View::erreur(404, sprintf('Aucun séjour ne porte l\'identifiant « %s ».', $id));
             return;

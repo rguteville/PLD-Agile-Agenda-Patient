@@ -4,45 +4,53 @@ declare(strict_types=1);
 
 namespace Aura\Service;
 
-use Aura\Dao\SejourDaoInterface;
+use Aura\Dao\AllergieDao;
+use Aura\Dao\PatientDao;
+use Aura\Dao\SejourDao;
+use Aura\Domain\Allergie;
+use Aura\Domain\Patient;
+use Aura\Domain\Sejour;
 use DateTimeImmutable;
-use Exception;
+use DateTimeInterface;
 
 /**
  * Prépare l'affichage du dossier d'un séjour (AURA-14) : le bandeau identité + allergies
  * imposé par RG2 en tête de tout écran lié au séjour, et les informations du séjour.
  *
- * Les méthodes presenter*() sont pures (pas d'accès aux données) pour être testables.
+ * Les données viennent de la base via les DAO (AURA-11) ; les méthodes presenter*()
+ * sont pures (pas d'accès aux données) pour être testables sans base.
  */
 final class DossierPatientService
 {
     public function __construct(
-        private SejourDaoInterface $sejourDao,
+        private SejourDao $sejourDao,
+        private PatientDao $patientDao,
+        private AllergieDao $allergieDao,
         private DateTimeImmutable $aujourdhui,
     ) {
     }
 
     /**
      * @return array{bandeau: array<string, mixed>, sejour: array<string, mixed>}|null
-     *         null si le séjour n'existe pas
+     *         null si le séjour n'existe pas (ou si son patient a disparu : données incohérentes)
      */
-    public function dossier(string $idSejour): ?array
+    public function dossier(int $idSejour): ?array
     {
-        $resultat = $this->sejourDao->findAvecPatient($idSejour);
-        if ($resultat === null) {
+        $sejour = $this->sejourDao->findById($idSejour);
+        if ($sejour === null) {
             return null;
         }
 
-        $allergies = $this->sejourDao->findAllergies((string) $resultat['patient']['id_patient']);
+        $patient = $this->patientDao->findById($sejour->getIdPatient());
+        if ($patient === null) {
+            return null;
+        }
+
+        $allergies = $this->allergieDao->findByPatient($patient->getIdPatient() ?? $sejour->getIdPatient());
 
         return [
-            'bandeau' => self::presenterBandeau(
-                $resultat['patient'],
-                $resultat['sejour'],
-                $allergies,
-                $this->aujourdhui
-            ),
-            'sejour' => self::presenterSejour($resultat['sejour'], $resultat['patient']),
+            'bandeau' => self::presenterBandeau($patient, $sejour, $allergies, $this->aujourdhui),
+            'sejour' => self::presenterSejour($sejour, $patient),
         ];
     }
 
@@ -50,60 +58,56 @@ final class DossierPatientService
      * Vue-modèle du bandeau : identité (nom, prénom, date de naissance, IPP) et allergies
      * connues (RG2). Composant src/View/components/bandeau_patient.php.
      *
-     * @param array<string, mixed> $patient ligne Patient
-     * @param array<string, mixed> $sejour ligne Sejour
-     * @param list<array{libelle: string, criticite: string|null}> $allergies
+     * @param Allergie[] $allergies
      * @return array<string, mixed>
      */
     public static function presenterBandeau(
-        array $patient,
-        array $sejour,
+        Patient $patient,
+        Sejour $sejour,
         array $allergies,
         DateTimeImmutable $aujourdhui
     ): array {
-        $naissance = self::date($patient['date_de_naissance'] ?? null);
+        $naissance = $patient->getDateNaissance();
 
         return [
-            'nom' => trim((string) ($patient['nom'] ?? '')),
-            'prenom' => trim((string) ($patient['prenom'] ?? '')),
-            'sexe' => self::texteOuNull($patient['sexe'] ?? null),
+            'nom' => trim($patient->getNom()),
+            'prenom' => trim($patient->getPrenom()),
+            'sexe' => self::texteOuNull($patient->getSexe()),
             'dateNaissance' => $naissance?->format('d/m/Y'),
             'age' => $naissance === null ? null : self::age($naissance, $aujourdhui),
-            'ipp' => self::texteOuNull($patient['ipp'] ?? null),
-            'numeroSejour' => trim((string) ($sejour['num_sejour'] ?? $sejour['id_sejour'] ?? '')),
-            'dateAdmission' => self::date($sejour['date_admission'] ?? null)?->format('d/m/Y H:i'),
+            'ipp' => self::texteOuNull($patient->getIpp()),
+            'numeroSejour' => trim($sejour->getNumSejour()) !== ''
+                ? trim($sejour->getNumSejour())
+                : (string) $sejour->getIdSejour(),
+            'dateAdmission' => $sejour->getDateAdmission()->format('d/m/Y H:i'),
             'allergies' => array_values(array_map(
-                static fn (array $a): array => [
-                    'libelle' => trim((string) $a['libelle']),
-                    'criticite' => self::texteOuNull($a['criticite'] ?? null),
+                static fn (Allergie $a): array => [
+                    'libelle' => trim($a->getSubstance()),
+                    'criticite' => self::texteOuNull($a->getCriticite()),
                 ],
                 $allergies
             )),
         ];
     }
 
-    /**
-     * @param array<string, mixed> $sejour ligne Sejour
-     * @param array<string, mixed> $patient ligne Patient
-     * @return array<string, mixed>
-     */
-    public static function presenterSejour(array $sejour, array $patient): array
+    /** @return array<string, mixed> */
+    public static function presenterSejour(Sejour $sejour, Patient $patient): array
     {
-        $sortie = self::date($sejour['date_sortie'] ?? null);
+        $sortie = $sejour->getDateSortie();
 
         return [
             'enCours' => $sortie === null,
             'dateSortie' => $sortie?->format('d/m/Y H:i'),
-            'service' => self::texteOuNull($sejour['id_service'] ?? null),
-            'lit' => self::texteOuNull($sejour['num_lit'] ?? null),
-            'box' => self::texteOuNull($sejour['num_box'] ?? null),
-            'telephone' => self::texteOuNull($patient['telephone'] ?? null),
-            'email' => self::texteOuNull($patient['email'] ?? null),
+            'service' => self::texteOuNull($sejour->getIdService()),
+            'lit' => self::texteOuNull($sejour->getNumLit()),
+            'box' => self::texteOuNull($sejour->getNumBox()),
+            'telephone' => self::texteOuNull($patient->getTelephone()),
+            'email' => self::texteOuNull($patient->getEmail()),
         ];
     }
 
     /** Âge révolu à la date donnée ; null si la date de naissance est dans le futur. */
-    public static function age(DateTimeImmutable $naissance, DateTimeImmutable $aujourdhui): ?int
+    public static function age(DateTimeInterface $naissance, DateTimeInterface $aujourdhui): ?int
     {
         if ($naissance > $aujourdhui) {
             return null;
@@ -112,25 +116,12 @@ final class DossierPatientService
         return $naissance->diff($aujourdhui)->y;
     }
 
-    private static function date(mixed $valeur): ?DateTimeImmutable
-    {
-        if (!is_string($valeur) || trim($valeur) === '') {
-            return null;
-        }
-
-        try {
-            return new DateTimeImmutable($valeur);
-        } catch (Exception) {
-            return null;
-        }
-    }
-
-    private static function texteOuNull(mixed $valeur): ?string
+    private static function texteOuNull(?string $valeur): ?string
     {
         if ($valeur === null) {
             return null;
         }
-        $texte = trim((string) $valeur);
+        $texte = trim($valeur);
 
         return $texte === '' ? null : $texte;
     }
