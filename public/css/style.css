@@ -82,6 +82,26 @@ form {
     border-color: #2b7bb9;
 }
 
+/* Erreur de validation serveur (AURA-10.2) : message sous le champ, dans la colonne du champ */
+.form-row .field-error {
+    grid-column: 3;
+    margin: 4px 0 0;
+    color: #c0222b;
+    font-size: 13px;
+}
+
+.form-row.has-error input[type="text"],
+.form-row.has-error input[type="date"],
+.form-row.has-error select {
+    border-color: #c0222b;
+}
+
+/* Erreur globale du formulaire (réponse serveur illisible) */
+.form-error {
+    margin: 0 8px 10px;
+    color: #c0222b;
+}
+
 /* Boutons radio */
 .radio-group {
     grid-column: 3;
