@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Aura\Domain;
 
+use DateTimeImmutable;
+
 /**
  * Allergie connue d'un patient, choisie dans le référentiel des allergènes (RG2, AURA-13).
  * Lecture seule pour l'instant (bandeau AURA-14) ; la saisie viendra avec AURA-13.2.
@@ -15,7 +17,8 @@ class Allergie
         private int $idPatient,
         private string $idAllergene,
         private string $substance,
-        private ?string $criticite = null
+        private ?string $criticite = null,
+        private ?DateTimeImmutable $dateSaisie = null
     ) {
     }
 
@@ -43,5 +46,14 @@ class Allergie
     public function getCriticite(): ?string
     {
         return $this->criticite;
+    }
+
+    /**
+     * Date d'enregistrement dans AURA, fixée par la base à l'insertion (null tant que l'allergie
+     * n'est pas enregistrée). Pas la date d'apparition de l'allergie.
+     */
+    public function getDateSaisie(): ?DateTimeImmutable
+    {
+        return $this->dateSaisie;
     }
 }
