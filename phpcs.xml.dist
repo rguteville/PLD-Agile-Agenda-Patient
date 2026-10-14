@@ -4,7 +4,13 @@
     <file>src</file>
     <file>tests</file>
     <file>public</file>
+    <!-- N'analyser que le PHP : public/ contient aussi du CSS et du JS -->
+    <arg name="extensions" value="php"/>
     <arg name="colors"/>
     <arg value="sp"/>
     <rule ref="PSR12"/>
+    <!-- Composants de vue en HTML pur (src/View/components) : pas une erreur -->
+    <rule ref="Internal.NoCodeFound">
+        <severity>0</severity>
+    </rule>
 </ruleset>
