@@ -125,6 +125,40 @@ final class DossierPatientServiceTest extends TestCase
         self::assertSame('20/10/2026 11:00', $clos['dateSortie']);
     }
 
+    /** AURA-10.1 : poids, taille et précautions relevés à l'admission. */
+    public function testSejourAvecMesuresDAdmission(): void
+    {
+        $sejour = DossierPatientService::presenterSejour(
+            $this->sejour(poids: 62.5, taille: 164.0, precautions: " Isolement contact\nRisque de chute "),
+            $this->patient(ipp: null)
+        );
+
+        self::assertSame('62,5 kg', $sejour['poids']);
+        self::assertSame('164 cm', $sejour['taille'], 'pas de « ,00 » inutile');
+        self::assertSame("Isolement contact\nRisque de chute", $sejour['precautions']);
+    }
+
+    public function testSejourSansMesuresDAdmission(): void
+    {
+        $sejour = DossierPatientService::presenterSejour(
+            $this->sejour(precautions: '   '),
+            $this->patient(ipp: null)
+        );
+
+        self::assertNull($sejour['poids'], 'null = « non renseigné » dans la vue');
+        self::assertNull($sejour['taille']);
+        self::assertNull($sejour['precautions'], 'des précautions vides ne s\'affichent pas');
+    }
+
+    public function testMesureALaFrancaise(): void
+    {
+        self::assertSame('57,2 kg', DossierPatientService::mesure(57.2, 'kg'));
+        self::assertSame('172,46 cm', DossierPatientService::mesure(172.46, 'cm'));
+        self::assertSame('100 cm', DossierPatientService::mesure(100.0, 'cm'), 'les zéros des entiers restent');
+        self::assertSame('0,05 kg', DossierPatientService::mesure(0.05, 'kg'));
+        self::assertNull(DossierPatientService::mesure(null, 'kg'));
+    }
+
     public function testDossierInexistantRenvoieNull(): void
     {
         $sejours = $this->createMock(SejourDao::class);
@@ -180,8 +214,13 @@ final class DossierPatientServiceTest extends TestCase
         return new Patient(9, $ipp, ' Durand ', 'Alice', new DateTimeImmutable('1990-06-15'), 'F');
     }
 
-    private function sejour(string $numSejour = '2026-000009', ?DateTimeImmutable $dateSortie = null): Sejour
-    {
+    private function sejour(
+        string $numSejour = '2026-000009',
+        ?DateTimeImmutable $dateSortie = null,
+        ?float $poids = null,
+        ?float $taille = null,
+        ?string $precautions = null
+    ): Sejour {
         return new Sejour(
             idSejour: 9,
             idPatient: 9,
@@ -190,7 +229,10 @@ final class DossierPatientServiceTest extends TestCase
             dateSortie: $dateSortie,
             numLit: '1',
             numBox: null,
-            idService: 'REA'
+            idService: 'REA',
+            poids: $poids,
+            taille: $taille,
+            precautions: $precautions
         );
     }
 }

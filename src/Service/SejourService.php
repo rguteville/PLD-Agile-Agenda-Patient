@@ -51,10 +51,19 @@ class SejourService
 
     /**
      * Ouvre un séjour : la date de prise en charge est celle du moment, le numéro est généré.
+     * Poids (kg), taille (cm) et précautions sont les mesures relevées à l'admission (AURA-10.1),
+     * déjà validées par l'appelant (AdmissionService::valider()).
+     *
      * @throws InvalidArgumentException si le patient a déjà un séjour en cours ou si l'emplacement est pris
      */
-    public function ouvrirSejour(int $idPatient, ?string $numLit = null, ?string $numBox = null): Sejour
-    {
+    public function ouvrirSejour(
+        int $idPatient,
+        ?string $numLit = null,
+        ?string $numBox = null,
+        ?float $poids = null,
+        ?float $taille = null,
+        ?string $precautions = null
+    ): Sejour {
         foreach ($this->sejourDao->findByPatient($idPatient) as $sejour) {
             if ($sejour->estEnCours()) {
                 throw new InvalidArgumentException(
@@ -73,7 +82,10 @@ class SejourService
             numSejour: '',
             dateAdmission: new DateTimeImmutable(),
             numLit: $numLit,
-            numBox: $numBox
+            numBox: $numBox,
+            poids: $poids,
+            taille: $taille,
+            precautions: $precautions
         ));
     }
 

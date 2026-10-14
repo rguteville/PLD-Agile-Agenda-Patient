@@ -11,6 +11,11 @@ $error    = $field['error'] ?? '';
 $errorId  = $name . '-error';
 // Attributs d'accessibilité quand le champ est en erreur (lecteurs d'écran)
 $ariaError = $error !== '' ? ' aria-invalid="true" aria-describedby="' . View::e($errorId) . '"' : '';
+// Attributs HTML supplémentaires (min, step, maxlength…), échappés : ['step' => '0.1']
+$attributes = '';
+foreach ($field['attributes'] ?? [] as $attrName => $attrValue) {
+    $attributes .= ' ' . View::e($attrName) . '="' . View::e($attrValue) . '"';
+}
 ?>
 <div class="form-row<?= $error !== '' ? ' has-error' : '' ?>">
     <label<?= $type !== 'radio' ? ' for="' . View::e($name) . '"' : '' ?>><?= View::e($label) ?></label>
@@ -38,9 +43,13 @@ $ariaError = $error !== '' ? ' aria-invalid="true" aria-describedby="' . View::e
             <?php endforeach; ?>
         </select>
 
+    <?php elseif ($type === 'textarea') : ?>
+        <textarea id="<?= View::e($name) ?>" name="<?= View::e($name) ?>"
+            <?= $required ? 'required' : '' ?><?= $attributes ?><?= $ariaError ?>><?= View::e($value) ?></textarea>
+
     <?php else : ?>
         <input type="<?= View::e($type) ?>" id="<?= View::e($name) ?>" name="<?= View::e($name) ?>"
-            value="<?= View::e($value) ?>" <?= $required ? 'required' : '' ?><?= $ariaError ?>>
+            value="<?= View::e($value) ?>" <?= $required ? 'required' : '' ?><?= $attributes ?><?= $ariaError ?>>
     <?php endif; ?>
 
     <?php if ($error !== '') : ?>

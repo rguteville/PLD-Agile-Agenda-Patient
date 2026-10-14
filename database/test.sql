@@ -83,6 +83,12 @@ INSERT INTO Sejour (idSejour, idPatient, idService, sejourNumber, admissionDate,
     ('6', '6', 'SRV03', '2026-000106', '2026-10-13 09:00:00', NULL,                  'L09', 'B09', 'Surveillance après intoxication'),
     ('7', '1', 'SRV03', '2026-000107', '2026-06-02 10:00:00', '2026-06-05 16:00:00', 'L08', 'B08', 'Séjour antérieur : décompensation respiratoire');
 
+-- Mesures à l'admission (AURA-10.1) : poids (kg), taille (cm), précautions.
+-- Seuls certains séjours en ont : les autres gardent NULL (« non renseigné » dans le dossier).
+UPDATE Sejour SET weight = 62.50, height = 164.00, precautions = 'Isolement contact (BMR). Risque de chute.' WHERE idSejour = '1';
+UPDATE Sejour SET weight = 88.00, height = 178.50 WHERE idSejour = '2';
+UPDATE Sejour SET weight = 57.20, height = 169.00, precautions = 'Pas de lever avant avis du chirurgien.' WHERE idSejour = '3';
+
 -- ---------------------------------------------------------------------------
 -- Allergies (dépend de Patient et Allergene)
 -- ---------------------------------------------------------------------------

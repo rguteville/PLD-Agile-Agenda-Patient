@@ -16,7 +16,10 @@ class Sejour
         private ?DateTimeInterface $dateSortie = null,
         private ?string $numLit = null,
         private ?string $numBox = null,
-        private ?string $idService = null
+        private ?string $idService = null,
+        private ?float $poids = null,
+        private ?float $taille = null,
+        private ?string $precautions = null
     ) {
     }
 
@@ -58,6 +61,24 @@ class Sejour
     public function getIdService(): ?string
     {
         return $this->idService;
+    }
+
+    /** Poids à l'admission, en kg (null = non renseigné). */
+    public function getPoids(): ?float
+    {
+        return $this->poids;
+    }
+
+    /** Taille à l'admission, en cm (null = non renseignée). */
+    public function getTaille(): ?float
+    {
+        return $this->taille;
+    }
+
+    /** Précautions à prendre (isolement, risque de chute…), texte libre. */
+    public function getPrecautions(): ?string
+    {
+        return $this->precautions;
     }
 
     public function estEnCours(): bool

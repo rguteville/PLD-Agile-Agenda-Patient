@@ -18,7 +18,8 @@ use PHPUnit\Framework\TestCase;
  * AURA-10.4, définition de fini, sur la base MariaDB du CI (ignoré hors CI) :
  *  - une admission crée exactement une ligne Sejour et, pour un nouveau patient, une ligne Patient ;
  *  - une erreur à l'insertion du séjour ne laisse pas de Patient orphelin ;
- *  - AURA-10.3 : deux admissions successives donnent deux numéros de séjour différents.
+ *  - AURA-10.3 : deux admissions successives donnent deux numéros de séjour différents ;
+ *  - AURA-10.1 : taille, poids et précautions saisis sont relus identiques depuis la base.
  *
  * La transaction réelle est testée ici : pas de transaction englobante, les lignes
  * créées sont supprimées à la fin.
@@ -73,6 +74,40 @@ final class AdmissionIntegrationTest extends TestCase
 
         // Rejouer la même admission : le patient (sans IPP) est recréé mais c'est bien
         // un second POST, pas un rafraîchissement ; la redirection POST → GET couvre ce cas.
+    }
+
+    /** AURA-10.1 : les mesures de l'admission sont relues identiques depuis la base. */
+    public function testLesMesuresDAdmissionSontRelues(): void
+    {
+        $service = new AdmissionService(
+            null,
+            new PatientDao($this->pdo),
+            new SejourService(new SejourDao($this->pdo)),
+            new Transaction($this->pdo)
+        );
+        $precautions = "Isolement contact (BMR)\nRisque de chute : barrières relevées";
+
+        $sejour = $service->admettre([
+            'nom' => self::NOM,
+            'prenom' => 'Alice',
+            'taille' => '172.5',
+            'poids' => '68.25',
+            'precautions' => $precautions,
+        ]);
+
+        $relu = (new SejourDao($this->pdo))->findById((int) $sejour->getIdSejour());
+        self::assertNotNull($relu);
+        self::assertSame(172.5, $relu->getTaille());
+        self::assertSame(68.25, $relu->getPoids());
+        self::assertSame($precautions, $relu->getPrecautions(), 'accents et retour à la ligne conservés');
+
+        // Sans mesures saisies, les colonnes restent NULL.
+        $sansMesures = $service->admettre(['nom' => self::NOM, 'prenom' => 'Bob']);
+        $relu = (new SejourDao($this->pdo))->findById((int) $sansMesures->getIdSejour());
+        self::assertNotNull($relu);
+        self::assertNull($relu->getTaille());
+        self::assertNull($relu->getPoids());
+        self::assertNull($relu->getPrecautions());
     }
 
     /** AURA-10.3 : deux admissions successives produisent deux numéros de séjour différents. */
