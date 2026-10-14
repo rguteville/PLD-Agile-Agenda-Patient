@@ -4,7 +4,7 @@
 -- Règles : moteur InnoDB, encodage utf8mb4, aucune donnée réelle de patient.
 
 #CREATE DATABASE IF NOT EXISTS aura;
-USE aura;
+#USE aura;
 
 DROP TABLE IF EXISTS Sejour;
 DROP TABLE IF EXISTS Soin_planifie;
