@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Aura\Dao;
 
 use Aura\Domain\Allergie;
+use DateTimeImmutable;
 use PDO;
 
 /**
@@ -25,7 +26,7 @@ class AllergieDao
     public function findByPatient(int $idPatient): array
     {
         $stmt = $this->pdo->prepare(
-            'SELECT a.idAllergie, a.idPatient, a.idAllergene, g.substance, a.criticality
+            'SELECT a.idAllergie, a.idPatient, a.idAllergene, g.substance, a.criticality, a.recordedAt
              FROM Allergie a
              JOIN Allergene g ON g.idAllergene = a.idAllergene
              WHERE a.idPatient = :idPatient
@@ -45,7 +46,8 @@ class AllergieDao
             substance: (string) $r['substance'],
             criticite: $r['criticality'] !== null && trim((string) $r['criticality']) !== ''
                 ? trim((string) $r['criticality'])
-                : null
+                : null,
+            dateSaisie: new DateTimeImmutable($r['recordedAt'])
         );
     }
 }
