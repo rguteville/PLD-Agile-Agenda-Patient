@@ -59,6 +59,8 @@ INSERT INTO Praticien (idPraticien, firstName, lastName, phoneNumber, email, idQ
 -- idPatient et idSejour sont des VARCHAR dans le schéma mais DOIVENT contenir des
 -- entiers : PatientDao et SejourDao les lisent en int et PatientDao::insert()
 -- calcule le prochain id par MAX(CAST(idPatient AS UNSIGNED)) + 1.
+-- Le patient 7 n'a pas d'IPP (ipp NULL, AURA-05) : admis en urgence, son IPP n'est
+-- pas encore attribué. Le bandeau et la liste doivent afficher « sans IPP ».
 -- ---------------------------------------------------------------------------
 
 INSERT INTO Patient (idPatient, ipp, firstName, lastName, phoneNumber, email, sex, birthDate, deceased, generalPractitioner, address) VALUES
@@ -67,7 +69,8 @@ INSERT INTO Patient (idPatient, ipp, firstName, lastName, phoneNumber, email, se
     ('3', 100000003, 'Sofia',   'Haddad',  '0600000003', 'sofia.h@example.com',      'F', '1990-06-25', FALSE, 'Dr Nguyen',   '27 cours Gambetta, 69007 Lyon'),
     ('4', 100000004, 'Lucas',   'Bernard', NULL,         NULL,                       'M', '2001-01-09', FALSE, NULL,          '3 place Bellecour, 69002 Lyon'),
     ('5', 100000005, 'Odette',  'Lefèvre', '0600000005', NULL,                       'F', '1939-08-30', TRUE,  'Dr Faure',    '8 rue Mercière, 69002 Lyon'),
-    ('6', 100000006, 'Yanis',   'Mercier', '0600000006', 'yanis.m@example.com',      'M', '1985-12-17', FALSE, 'Dr Nguyen',   '15 boulevard du 11 Novembre, 69100 Villeurbanne');
+    ('6', 100000006, 'Yanis',   'Mercier', '0600000006', 'yanis.m@example.com',      'M', '1985-12-17', FALSE, 'Dr Nguyen',   '15 boulevard du 11 Novembre, 69100 Villeurbanne'),
+    ('7', NULL,      'Camille', 'Roux',    NULL,         NULL,                       'F', '1967-04-21', FALSE, NULL,          NULL);
 
 -- ---------------------------------------------------------------------------
 -- Séjours (dépend de Patient et Service)
@@ -81,7 +84,8 @@ INSERT INTO Sejour (idSejour, idPatient, idService, sejourNumber, admissionDate,
     ('4', '4', 'SRV02', '2026-000104', '2026-10-01 03:20:00', '2026-10-08 11:00:00', 'L06', 'B06', 'Polytraumatisme (accident de la route)'),
     ('5', '5', 'SRV01', '2026-000105', '2026-09-20 17:30:00', '2026-09-27 06:45:00', 'L03', 'B03', 'Insuffisance cardiaque décompensée'),
     ('6', '6', 'SRV03', '2026-000106', '2026-10-13 09:00:00', NULL,                  'L09', 'B09', 'Surveillance après intoxication'),
-    ('7', '1', 'SRV03', '2026-000107', '2026-06-02 10:00:00', '2026-06-05 16:00:00', 'L08', 'B08', 'Séjour antérieur : décompensation respiratoire');
+    ('7', '1', 'SRV03', '2026-000107', '2026-06-02 10:00:00', '2026-06-05 16:00:00', 'L08', 'B08', 'Séjour antérieur : décompensation respiratoire'),
+    ('8', '7', 'SRV01', '2026-000108', '2026-10-14 02:30:00', NULL,                  'L04', 'B04', 'Arrêt cardio-respiratoire récupéré');
 
 -- ---------------------------------------------------------------------------
 -- Allergies (dépend de Patient et Allergene)
