@@ -44,7 +44,7 @@ CREATE TABLE Sejour(
     idSejour VARCHAR(20) PRIMARY KEY,
     idPatient VARCHAR(20),
     idService VARCHAR(20),
-    sejourNumber VARCHAR(20),
+    sejourNumber VARCHAR(20) NOT NULL UNIQUE,
     admissionDate DATETIME NOT NULL,
     dischargeDate DATETIME,
     bedNumber VARCHAR(20),
