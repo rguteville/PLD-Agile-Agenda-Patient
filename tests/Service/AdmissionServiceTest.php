@@ -78,6 +78,31 @@ final class AdmissionServiceTest extends TestCase
     }
 
     /** @return iterable<string, array{string}> */
+    public static function ippInvalides(): iterable
+    {
+        yield 'trop court' => ['12345'];
+        yield 'trop long' => ['1234567890'];
+        yield 'lettres' => ['ABC123'];
+        yield 'espaces internes' => ['123 456'];
+        yield 'négatif' => ['-123456'];
+    }
+
+    #[DataProvider('ippInvalides')]
+    public function testIppHorsFormatEstRefuse(string $ipp): void
+    {
+        $erreurs = $this->service->valider(['nom' => 'Martin', 'prenom' => 'Paul', 'ipp' => $ipp]);
+
+        $this->assertSame(['ipp'], array_keys($erreurs));
+    }
+
+    public function testIppDeSixANeufChiffresEstAccepte(): void
+    {
+        foreach (['100000', '999999999'] as $ipp) {
+            $this->assertSame([], $this->service->valider(['nom' => 'Martin', 'prenom' => 'Paul', 'ipp' => $ipp]));
+        }
+    }
+
+    /** @return iterable<string, array{string}> */
     public static function datesDeNaissanceInvalides(): iterable
     {
         yield 'mois et jour inexistants' => ['2026-13-45'];
@@ -179,7 +204,7 @@ final class AdmissionServiceTest extends TestCase
             'poids' => '0',
         ]);
 
-        $this->assertSame(['nom', 'prenom', 'dateNaissance', 'sexe', 'taille', 'poids'], array_keys($erreurs));
+        $this->assertSame(['nom', 'prenom', 'ipp', 'dateNaissance', 'sexe', 'taille', 'poids'], array_keys($erreurs));
     }
 
     public function testLaValidationNeModifiePasLesDonnees(): void
