@@ -6,6 +6,7 @@ namespace Aura\Dao;
 
 use Aura\Model\Patient;
 use DateTimeImmutable;
+use DateTimeInterface;
 use PDO;
 
 class PatientDao
@@ -34,29 +35,47 @@ class PatientDao
         return $r ? $this->mapToEntity($r) : null;
     }
 
+    public function findByIpp(string $ipp): ?Patient
+    {
+        $stmt = $this->pdo->prepare('SELECT ' . self::COLUMNS . ' FROM Patient WHERE ipp = :ipp');
+        $stmt->execute(['ipp' => $ipp]);
+        $r = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        return $r ? $this->mapToEntity($r) : null;
+    }
+
     public function existsByIpp(string $ipp): bool
     {
-        $stmt = $this->pdo->prepare('SELECT 1 FROM Patient WHERE ipp = :ipp');
-        $stmt->execute(['ipp' => $ipp]);
+        return $this->findByIpp($ipp) !== null;
+    }
 
-        return $stmt->fetchColumn() !== false;
+    /**
+     
+     *
+     * @return Patient[]
+     */
+    public function findByIdentite(string $nom, string $prenom, DateTimeInterface $dateNaissance): array
+    {
+        $stmt = $this->pdo->prepare(
+            'SELECT ' . self::COLUMNS . ' FROM Patient
+             WHERE nom = :nom AND prenom = :prenom AND date_de_naissance = :date_de_naissance'
+        );
+        $stmt->execute([
+            'nom' => $nom,
+            'prenom' => $prenom,
+            'date_de_naissance' => $dateNaissance->format('Y-m-d'),
+        ]);
+
+        return array_map(fn(array $r) => $this->mapToEntity($r), $stmt->fetchAll(PDO::FETCH_ASSOC));
     }
 
     /**
      * Insère le patient et renvoie son identifiant.
      *
-     * Le schéma actuel n'a pas d'AUTO_INCREMENT sur id_patient : l'id est donc
-     * calculé ici (plus grand id + 1), dans une transaction qui verrouille la
-     * table pour éviter que deux inscriptions simultanées obtiennent le même id.
      */
     public function insert(Patient $p): int
     {
-        $transactionLocale = !$this->pdo->inTransaction();
-        if ($transactionLocale) {
-            $this->pdo->beginTransaction();
-        }
-
-        try {
+        return (new Transaction($this->pdo))->run(function () use ($p): int {
             $id = (int) $this->pdo
                 ->query('SELECT COALESCE(MAX(CAST(id_patient AS UNSIGNED)), 0) + 1 FROM Patient FOR UPDATE')
                 ->fetchColumn();
@@ -70,23 +89,14 @@ class PatientDao
                 'ipp' => $p->getIpp(),
                 'nom' => $p->getNom(),
                 'prenom' => $p->getPrenom(),
-                'date_de_naissance' => $p->getDateNaissance()->format('Y-m-d'),
+                'date_de_naissance' => $p->getDateNaissance()?->format('Y-m-d'),
                 'sexe' => $p->getSexe(),
                 'telephone' => $p->getTelephone(),
                 'email' => $p->getEmail(),
             ]);
 
-            if ($transactionLocale) {
-                $this->pdo->commit();
-            }
-        } catch (\Throwable $e) {
-            if ($transactionLocale) {
-                $this->pdo->rollBack();
-            }
-            throw $e;
-        }
-
-        return $id;
+            return $id;
+        });
     }
 
     private function mapToEntity(array $r): Patient
@@ -96,7 +106,7 @@ class PatientDao
             ipp: $r['ipp'] !== null ? (string) $r['ipp'] : null,
             nom: $r['nom'],
             prenom: $r['prenom'],
-            dateNaissance: new DateTimeImmutable($r['date_de_naissance']),
+            dateNaissance: $r['date_de_naissance'] !== null ? new DateTimeImmutable($r['date_de_naissance']) : null,
             sexe: $r['sexe'],
             telephone: $r['telephone'],
             email: $r['email']

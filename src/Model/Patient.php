@@ -13,7 +13,7 @@ class Patient
         private ?string $ipp,
         private string $nom,
         private string $prenom,
-        private DateTimeInterface $dateNaissance,
+        private ?DateTimeInterface $dateNaissance,
         private string $sexe,
         private ?string $telephone = null,
         private ?string $email = null
@@ -40,7 +40,8 @@ class Patient
         return $this->prenom;
     }
 
-    public function getDateNaissance(): DateTimeInterface
+    /** Null pour un patient anonyme (« sous X ») dont la date est inconnue. */
+    public function getDateNaissance(): ?DateTimeInterface
     {
         return $this->dateNaissance;
     }
@@ -58,5 +59,11 @@ class Patient
     public function getEmail(): ?string
     {
         return $this->email;
+    }
+
+    /** Patient inscrit « sous X » : identité inconnue. */
+    public function estAnonyme(): bool
+    {
+        return strtoupper($this->nom) === 'X' && strtoupper($this->prenom) === 'X';
     }
 }
