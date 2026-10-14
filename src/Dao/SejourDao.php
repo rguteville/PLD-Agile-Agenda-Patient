@@ -9,10 +9,14 @@ use DateTimeImmutable;
 use DateTimeInterface;
 use PDO;
 
+/**
+ * Accès à la table Sejour. Les colonnes suivent database/schema.sql (camelCase anglais,
+ * cf. README « Convention de nommage ») ; les entités du domaine restent en français.
+ */
 class SejourDao
 {
     private const COLUMNS =
-        'id_sejour, id_patient, num_sejour, date_admission, date_sortie, num_lit, num_box, id_service';
+        'idSejour, idPatient, sejourNumber, admissionDate, dischargeDate, bedNumber, boxNumber, idService';
 
     public function __construct(private PDO $pdo)
     {
@@ -20,7 +24,7 @@ class SejourDao
 
     public function findById(int $id): ?Sejour
     {
-        $stmt = $this->pdo->prepare('SELECT ' . self::COLUMNS . ' FROM Sejour WHERE id_sejour = :id');
+        $stmt = $this->pdo->prepare('SELECT ' . self::COLUMNS . ' FROM Sejour WHERE idSejour = :id');
         $stmt->execute(['id' => $id]);
         $r = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -36,10 +40,10 @@ class SejourDao
     {
         $stmt = $this->pdo->prepare(
             'SELECT ' . self::COLUMNS . ' FROM Sejour
-             WHERE id_patient = :id_patient
-             ORDER BY date_admission DESC, CAST(id_sejour AS UNSIGNED) DESC'
+             WHERE idPatient = :idPatient
+             ORDER BY admissionDate DESC, CAST(idSejour AS UNSIGNED) DESC'
         );
-        $stmt->execute(['id_patient' => $idPatient]);
+        $stmt->execute(['idPatient' => $idPatient]);
 
         return array_map(fn(array $r) => $this->mapToEntity($r), $stmt->fetchAll(PDO::FETCH_ASSOC));
     }
@@ -53,8 +57,8 @@ class SejourDao
     {
         $rows = $this->pdo->query(
             'SELECT ' . self::COLUMNS . ' FROM Sejour
-             WHERE date_sortie IS NULL
-             ORDER BY date_admission, CAST(id_sejour AS UNSIGNED)'
+             WHERE dischargeDate IS NULL
+             ORDER BY admissionDate, CAST(idSejour AS UNSIGNED)'
         )->fetchAll(PDO::FETCH_ASSOC);
 
         return array_map(fn(array $r) => $this->mapToEntity($r), $rows);
@@ -62,29 +66,29 @@ class SejourDao
 
     public function updateSortie(int $idSejour, DateTimeInterface $dateSortie): void
     {
-        $stmt = $this->pdo->prepare('UPDATE Sejour SET date_sortie = :date_sortie WHERE id_sejour = :id');
-        $stmt->execute(['date_sortie' => $dateSortie->format('Y-m-d H:i:s'), 'id' => $idSejour]);
+        $stmt = $this->pdo->prepare('UPDATE Sejour SET dischargeDate = :dischargeDate WHERE idSejour = :id');
+        $stmt->execute(['dischargeDate' => $dateSortie->format('Y-m-d H:i:s'), 'id' => $idSejour]);
     }
 
     public function updateEmplacement(int $idSejour, ?string $numLit, ?string $numBox): void
     {
         $stmt = $this->pdo->prepare(
-            'UPDATE Sejour SET num_lit = :num_lit, num_box = :num_box WHERE id_sejour = :id'
+            'UPDATE Sejour SET bedNumber = :bedNumber, boxNumber = :boxNumber WHERE idSejour = :id'
         );
-        $stmt->execute(['num_lit' => $numLit, 'num_box' => $numBox, 'id' => $idSejour]);
+        $stmt->execute(['bedNumber' => $numLit, 'boxNumber' => $numBox, 'id' => $idSejour]);
     }
 
     /**
      * Crée un séjour et le renvoie complété (id et numéro). Le numéro de séjour (9 chiffres)
      * est généré à partir de l'identifiant.
      *
-     * Comme pour Patient, id_sejour n'a pas d'AUTO_INCREMENT : l'id est calculé ici.
+     * Comme pour Patient, idSejour n'a pas d'AUTO_INCREMENT : l'id est calculé ici.
      */
     public function insert(Sejour $s): Sejour
     {
         return (new Transaction($this->pdo))->run(function () use ($s): Sejour {
             $id = (int) $this->pdo
-                ->query('SELECT COALESCE(MAX(CAST(id_sejour AS UNSIGNED)), 0) + 1 FROM Sejour FOR UPDATE')
+                ->query('SELECT COALESCE(MAX(CAST(idSejour AS UNSIGNED)), 0) + 1 FROM Sejour FOR UPDATE')
                 ->fetchColumn();
             $numSejour = $s->getNumSejour() !== ''
                 ? $s->getNumSejour()
@@ -92,18 +96,18 @@ class SejourDao
 
             $stmt = $this->pdo->prepare(
                 'INSERT INTO Sejour (' . self::COLUMNS . ')
-                 VALUES (:id_sejour, :id_patient, :num_sejour, :date_admission,
-                         :date_sortie, :num_lit, :num_box, :id_service)'
+                 VALUES (:idSejour, :idPatient, :sejourNumber, :admissionDate,
+                         :dischargeDate, :bedNumber, :boxNumber, :idService)'
             );
             $stmt->execute([
-                'id_sejour' => (string) $id,
-                'id_patient' => (string) $s->getIdPatient(),
-                'num_sejour' => $numSejour,
-                'date_admission' => $s->getDateAdmission()->format('Y-m-d H:i:s'),
-                'date_sortie' => $s->getDateSortie()?->format('Y-m-d H:i:s'),
-                'num_lit' => $s->getNumLit(),
-                'num_box' => $s->getNumBox(),
-                'id_service' => $s->getIdService(),
+                'idSejour' => (string) $id,
+                'idPatient' => (string) $s->getIdPatient(),
+                'sejourNumber' => $numSejour,
+                'admissionDate' => $s->getDateAdmission()->format('Y-m-d H:i:s'),
+                'dischargeDate' => $s->getDateSortie()?->format('Y-m-d H:i:s'),
+                'bedNumber' => $s->getNumLit(),
+                'boxNumber' => $s->getNumBox(),
+                'idService' => $s->getIdService(),
             ]);
 
             return new Sejour(
@@ -122,14 +126,14 @@ class SejourDao
     private function mapToEntity(array $r): Sejour
     {
         return new Sejour(
-            idSejour: (int) $r['id_sejour'],
-            idPatient: (int) $r['id_patient'],
-            numSejour: (string) $r['num_sejour'],
-            dateAdmission: new DateTimeImmutable($r['date_admission']),
-            dateSortie: $r['date_sortie'] !== null ? new DateTimeImmutable($r['date_sortie']) : null,
-            numLit: $r['num_lit'],
-            numBox: $r['num_box'],
-            idService: $r['id_service']
+            idSejour: (int) $r['idSejour'],
+            idPatient: (int) $r['idPatient'],
+            numSejour: (string) $r['sejourNumber'],
+            dateAdmission: new DateTimeImmutable($r['admissionDate']),
+            dateSortie: $r['dischargeDate'] !== null ? new DateTimeImmutable($r['dischargeDate']) : null,
+            numLit: $r['bedNumber'],
+            numBox: $r['boxNumber'],
+            idService: $r['idService']
         );
     }
 }

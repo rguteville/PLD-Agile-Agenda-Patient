@@ -313,3 +313,4 @@ composer install --no-dev --optimize-autoloader
 3. **Aucun identifiant ni mot de passe dans le dépôt** 
 4. **On ne modifie pas le code directement sur la VM** : on passe par GitHub puis `deploy.sh`.
 5. La structure de la base ne change que par `database/schema.sql`, géré par le responsable BDD.
+6. **Convention de nommage (AURA-02)** : les tables et colonnes SQL de `database/schema.sql` sont en **camelCase anglais** (`Patient.lastName`, `Sejour.admissionDate`), comme le diagramme de classes HL7 du dossier. Le code PHP (entités, services, vues, messages) reste en **français** (`Patient::getNom()`, `Sejour::getDateAdmission()`). La traduction entre les deux se fait **uniquement dans `src/Dao/`** : aucune colonne SQL ne doit apparaître hors de ce dossier.
