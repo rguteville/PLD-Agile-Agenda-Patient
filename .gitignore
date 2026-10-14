@@ -16,3 +16,7 @@
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Installateur et binaire Composer : à installer localement, jamais versionnés
+/composer.phar
+/composer-setup.php
