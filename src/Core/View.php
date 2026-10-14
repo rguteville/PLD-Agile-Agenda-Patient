@@ -23,6 +23,13 @@ class View
         echo self::render('layouts/main', compact('content', 'title', 'scripts'));
     }
 
+    /** Page d'erreur applicative (400 paramètre invalide, 404 séjour inexistant…) dans le layout commun. */
+    public static function erreur(int $code, string $message): void
+    {
+        http_response_code($code);
+        self::page('erreur', ['code' => $code, 'message' => $message], 'AURA - Erreur ' . $code);
+    }
+
     public static function e(mixed $value): string
     {
         return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');

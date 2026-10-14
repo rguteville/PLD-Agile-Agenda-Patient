@@ -223,3 +223,101 @@ body, html {
 #News {background-color: green;}
 #Contact {background-color: blue;}
 #About {background-color: orange;}
+
+/* ---------- Bandeau identité + allergies (RG2) : en tête de toute page liée à un séjour ---------- */
+.bandeau-patient {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 32px;
+    align-items: baseline;
+    max-width: 900px;
+    margin: 0 0 20px;
+    padding: 12px 16px;
+    border: 1px solid #2b7bb9;
+    border-left-width: 6px;
+    background: #eef4fb;
+}
+
+.bandeau-patient .identite {
+    font-size: 18px;
+}
+
+.bandeau-patient .nom {
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.bandeau-patient dl {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 24px;
+    margin: 0;
+}
+
+.bandeau-patient dt {
+    color: #777;
+    font-size: 12px;
+}
+
+.bandeau-patient dd {
+    margin: 0;
+}
+
+.bandeau-patient .allergies {
+    flex-basis: 100%;
+}
+
+.bandeau-patient .alerte {
+    color: #b00020;
+    font-weight: 700;
+}
+
+.bandeau-patient .allergies ul {
+    display: inline;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.bandeau-patient .allergies li {
+    display: inline-block;
+    margin: 2px 8px 2px 0;
+    padding: 2px 10px;
+    border-radius: 10px;
+    background: #fde2e4;
+    color: #b00020;
+}
+
+.bandeau-patient .aucune-allergie {
+    color: #2e7d32;
+    font-weight: 600;
+}
+
+/* ---------- Dossier du séjour ---------- */
+.dossier dl {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 6px 12px;
+    max-width: 600px;
+}
+
+.dossier dt {
+    color: #555;
+}
+
+.dossier dd {
+    margin: 0;
+}
+
+.dossier .a-venir {
+    color: #777;
+    font-style: italic;
+}
+
+/* ---------- Page d'erreur applicative ---------- */
+.erreur {
+    max-width: 600px;
+    padding: 16px;
+    border: 1px solid #b00020;
+    background: #fde2e4;
+}
