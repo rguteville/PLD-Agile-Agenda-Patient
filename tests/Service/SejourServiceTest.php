@@ -196,7 +196,7 @@ final class SejourServiceTest extends TestCase
         return new Sejour(
             idSejour: $id,
             idPatient: $idPatient,
-            numSejour: str_pad((string) $id, 9, '0', STR_PAD_LEFT),
+            numSejour: sprintf('2026-%06d', $id),
             dateAdmission: new DateTimeImmutable('-2 days'),
             dateSortie: $dateSortie,
             numLit: $numLit,

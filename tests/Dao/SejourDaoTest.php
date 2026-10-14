@@ -11,10 +11,12 @@ use Aura\Domain\Patient;
 use Aura\Domain\Sejour;
 use DateTimeImmutable;
 use PDO;
+use PDOException;
 use PHPUnit\Framework\TestCase;
 
 /**
- * AURA-10.3 : le numéro de séjour est généré côté serveur, unique, jamais saisi (RG1).
+ * AURA-10.3 : le numéro de séjour est généré côté serveur au format AAAA-NNNNNN,
+ * unique (contrainte UNIQUE en base), jamais saisi (RG1).
  *
  * Test d'intégration sur la base MariaDB du CI (variables DB_*), ignoré hors CI.
  * Tout est exécuté dans une transaction annulée à la fin : la base n'est pas modifiée.
@@ -55,9 +57,10 @@ final class SejourDaoTest extends TestCase
         $second = $this->dao->insert($this->nouveauSejour('L2'));
 
         $this->assertNotNull($premier->getIdSejour());
-        $this->assertMatchesRegularExpression('/^\d{9}$/', $premier->getNumSejour(), 'numéro sur 9 chiffres');
-        $this->assertSame(str_pad((string) $premier->getIdSejour(), 9, '0', STR_PAD_LEFT), $premier->getNumSejour());
+        $annee = $premier->getDateAdmission()->format('Y');
+        $this->assertMatchesRegularExpression("/^{$annee}-\\d{6}$/", $premier->getNumSejour(), 'format AAAA-NNNNNN');
         $this->assertNotSame($premier->getNumSejour(), $second->getNumSejour(), 'deux séjours, deux numéros');
+        $this->assertSame($this->compteur($premier) + 1, $this->compteur($second), 'compteur incrémenté');
         $this->assertSame($premier->getIdSejour() + 1, $second->getIdSejour());
 
         $relu = $this->dao->findById($premier->getIdSejour());
@@ -88,12 +91,56 @@ final class SejourDaoTest extends TestCase
         $this->assertFalse($historique[1]->estEnCours());
     }
 
-    private function nouveauSejour(?string $numLit, ?DateTimeImmutable $dateAdmission = null): Sejour
+    public function testLeCompteurRepartAUnPourUneAnneeSansSejour(): void
     {
+        // test.sql ne contient aucun séjour en 1999.
+        $sejour = $this->dao->insert($this->nouveauSejour(null, new DateTimeImmutable('1999-03-01 10:00:00')));
+
+        $this->assertSame('1999-000001', $sejour->getNumSejour(), 'année d\'admission, pas année courante');
+    }
+
+    public function testUnNumeroFourniParLAppelantEstIgnore(): void
+    {
+        $sejour = $this->dao->insert($this->nouveauSejour(null, null, 'SAISI-A-LA-MAIN'));
+
+        $this->assertNotSame('SAISI-A-LA-MAIN', $sejour->getNumSejour(), 'jamais saisi (RG1)');
+        $this->assertMatchesRegularExpression('/^\d{4}-\d{6}$/', $sejour->getNumSejour());
+    }
+
+    public function testUnDoublonForceEnSqlEstRefuseParLaBase(): void
+    {
+        $existant = $this->dao->insert($this->nouveauSejour('L4'));
+
+        try {
+            $this->pdo->prepare(
+                'INSERT INTO Sejour (idSejour, idPatient, sejourNumber, admissionDate)
+                 VALUES (:idSejour, :idPatient, :sejourNumber, NOW())'
+            )->execute([
+                'idSejour' => (string) ($existant->getIdSejour() + 1000),
+                'idPatient' => (string) $this->idPatient,
+                'sejourNumber' => $existant->getNumSejour(),
+            ]);
+            $this->fail('La contrainte UNIQUE aurait dû refuser le doublon.');
+        } catch (PDOException $e) {
+            $this->assertSame(1062, $e->errorInfo[1], 'Duplicate entry');
+        }
+    }
+
+    /** Partie NNNNNN du numéro AAAA-NNNNNN. */
+    private function compteur(Sejour $s): int
+    {
+        return (int) substr($s->getNumSejour(), 5);
+    }
+
+    private function nouveauSejour(
+        ?string $numLit,
+        ?DateTimeImmutable $dateAdmission = null,
+        string $numSejour = ''
+    ): Sejour {
         return new Sejour(
             idSejour: null,
             idPatient: $this->idPatient,
-            numSejour: '',
+            numSejour: $numSejour,
             dateAdmission: $dateAdmission ?? new DateTimeImmutable(),
             numLit: $numLit
         );

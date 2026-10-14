@@ -44,7 +44,10 @@ CREATE TABLE Sejour(
     idSejour VARCHAR(20) PRIMARY KEY,
     idPatient VARCHAR(20),
     idService VARCHAR(20),
-    sejourNumber VARCHAR(20),
+    -- Numéro de séjour, généré par l'application (SejourDao::insert()), jamais saisi (RG1).
+    -- Format AAAA-NNNNNN : année de admissionDate, tiret, compteur sur 6 chiffres qui
+    -- repart à 000001 chaque année (ex. 2026-000108). UNIQUE refuse tout doublon.
+    sejourNumber VARCHAR(20) NOT NULL UNIQUE,
     admissionDate DATETIME NOT NULL,
     dischargeDate DATETIME,
     bedNumber VARCHAR(20),
@@ -62,7 +65,7 @@ CREATE TABLE Allergene(
 );
 
 -- Allergie connue d'un patient (AURA-13.1, RG2). idAllergie reste la clé (lue par
--- AllergieDao). Suppression logique (règle n° 7 du README) : retirer une allergie
+-- AllergieDao). Suppression logique (règle n° 8 du README) : retirer une allergie
 -- remplit removedAt, la ligne reste en base. ON DELETE RESTRICT : on ne supprime ni un
 -- patient ni un allergène qui a des allergies enregistrées, même retirées.
 CREATE TABLE Allergie(

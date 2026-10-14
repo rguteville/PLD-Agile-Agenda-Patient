@@ -280,7 +280,7 @@ final class PatientServiceTest extends TestCase
         return new Sejour(
             idSejour: 1,
             idPatient: $idPatient,
-            numSejour: '000000001',
+            numSejour: '2026-000001',
             dateAdmission: new DateTimeImmutable(),
             numLit: $numLit,
             numBox: $numBox
