@@ -178,6 +178,8 @@ Dans `config/config.php`, modifiez deux valeurs :
 - `'127.0.0.1'` → `'localhost'`
 - `''` (mot de passe) → le mot de passe de l'étape 3
 Ce fichier est ignoré par Git : il ne doit pas apparaître dans un commit.
+
+Tant que `config/config.php` n'existe pas, les pages qui accèdent à la base affichent « Configuration manquante : copiez config/config.example.php en config/config.php et renseignez la base. » : la commande `cp` ci-dessus suffit à le créer. Si le message est « Connexion à la base impossible », vérifiez l'hôte, le mot de passe et que MariaDB est démarré (étape 3).
  
 ### 5. Lancer le site
  
