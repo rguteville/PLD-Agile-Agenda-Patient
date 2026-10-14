@@ -70,7 +70,12 @@ CREATE TABLE Allergie(
     idPatient VARCHAR(20) NOT NULL,
     idAllergene VARCHAR(20) NOT NULL,
     criticality VARCHAR(100),
-    -- Date de saisie de l'allergie, remplie par la base à l'insertion.
+    -- Date à laquelle l'allergie a été enregistrée dans AURA, remplie par la base à
+    -- l'insertion. Ce n'est ni la date d'apparition de l'allergie, ni un historique :
+    -- une seule ligne par couple patient / allergène, et retirer l'allergie supprime la
+    -- ligne. L'allergie est liée au patient et non au séjour : la date distingue une
+    -- allergie connue depuis un séjour antérieur d'une allergie découverte pendant le
+    -- séjour en cours, et dira si elle était connue au moment d'un soin (AURA-20/25).
     recordedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT uq_allergie_patient_allergene UNIQUE (idPatient, idAllergene),

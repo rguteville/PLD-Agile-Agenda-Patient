@@ -48,7 +48,10 @@ class Allergie
         return $this->criticite;
     }
 
-    /** Date de saisie, fixée par la base à l'insertion (null tant que l'allergie n'est pas enregistrée). */
+    /**
+     * Date d'enregistrement dans AURA, fixée par la base à l'insertion (null tant que l'allergie
+     * n'est pas enregistrée). Pas la date d'apparition de l'allergie ; pas d'historique.
+     */
     public function getDateSaisie(): ?DateTimeImmutable
     {
         return $this->dateSaisie;
