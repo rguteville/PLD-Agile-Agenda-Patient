@@ -6,8 +6,8 @@ namespace Aura\Service;
 
 use Aura\Dao\PatientDao;
 use Aura\Dao\Transaction;
-use Aura\Model\Patient;
-use Aura\Model\Sejour;
+use Aura\Domain\Patient;
+use Aura\Domain\Sejour;
 use DateTimeImmutable;
 use InvalidArgumentException;
 

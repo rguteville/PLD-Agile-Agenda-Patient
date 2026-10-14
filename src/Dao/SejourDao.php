@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Aura\Dao;
 
-use Aura\Model\Sejour;
+use Aura\Domain\Sejour;
 use DateTimeImmutable;
 use DateTimeInterface;
 use PDO;

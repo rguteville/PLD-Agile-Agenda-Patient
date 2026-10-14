@@ -178,16 +178,18 @@ Dans `config/config.php`, modifiez deux valeurs :
 - `'127.0.0.1'` → `'localhost'`
 - `''` (mot de passe) → le mot de passe de l'étape 3
 Ce fichier est ignoré par Git : il ne doit pas apparaître dans un commit.
+
+Tant que `config/config.php` n'existe pas, les pages qui accèdent à la base affichent « Configuration manquante : copiez config/config.example.php en config/config.php et renseignez la base. » : la commande `cp` ci-dessus suffit à le créer. Si le message est « Connexion à la base impossible », vérifiez l'hôte, le mot de passe et que MariaDB est démarré (étape 3).
  
 ### 5. Lancer le site
  
 En local, PHP a un serveur intégré :
  
 ```bash
-php -S localhost:8000 -t public
+php -S localhost:8000 -t public public/index.php
 ```
  
-Ouvrez **http://localhost:8000**. Arrêt : `Ctrl + C`.
+Ouvrez **http://localhost:8000**. Arrêt : `Ctrl + C`. Le dernier argument (`public/index.php`) est nécessaire : il sert les fichiers CSS et JS de `public/` et envoie toutes les autres URL au routeur.
  
 ---
  
@@ -226,7 +228,7 @@ Pour récupérer les nouveautés de `main` dans votre branche : `git fetch origi
 | `composer test` | Lancer les tests |
 | `composer cs` | Vérifier le style PSR-12 |
 | `composer cs:fix` | Corriger automatiquement le style |
-| `php -S localhost:8000 -t public` | Lancer le site en local |
+| `php -S localhost:8000 -t public public/index.php` | Lancer le site en local |
  
 ---
  
@@ -267,7 +269,7 @@ Le script récupère `main`, installe les dépendances et vérifie que le site r
 ```bash
 mariadb -u aura -p -e "DROP DATABASE aura; CREATE DATABASE aura CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 mariadb -u aura -p aura < database/schema.sql
-mariadb -u aura -p aura < database/seed_fictif.sql
+mariadb -u aura -p aura < database/test.sql
 ```
  
 ### Checklist avant une démo

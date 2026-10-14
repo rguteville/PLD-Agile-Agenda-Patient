@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Aura\Dao;
 
-use Aura\Model\Patient;
+use Aura\Domain\Patient;
 use DateTimeImmutable;
 use DateTimeInterface;
 use PDO;
@@ -46,11 +46,15 @@ class PatientDao
 
     public function existsByIpp(string $ipp): bool
     {
-        return $this->findByIpp($ipp) !== null;
+        $stmt = $this->pdo->prepare('SELECT 1 FROM Patient WHERE ipp = :ipp');
+        $stmt->execute(['ipp' => $ipp]);
+
+        return $stmt->fetchColumn() !== false;
     }
 
     /**
-     
+     * Patients portant exactement ce nom, ce prénom et cette date de naissance
+     * (reconnaissance d'un patient déjà venu dans le service, sans IPP).
      *
      * @return Patient[]
      */
@@ -72,6 +76,10 @@ class PatientDao
     /**
      * Insère le patient et renvoie son identifiant.
      *
+     * Le schéma actuel n'a pas d'AUTO_INCREMENT sur id_patient : l'id est donc
+     * calculé ici (plus grand id + 1), dans une transaction qui verrouille la
+     * table pour éviter que deux inscriptions simultanées obtiennent le même id.
+     * Si une transaction est déjà ouverte (inscription + séjour), on s'y rattache.
      */
     public function insert(Patient $p): int
     {
@@ -81,7 +89,7 @@ class PatientDao
                 ->fetchColumn();
 
             $stmt = $this->pdo->prepare(
-                'INSERT INTO Patient (id_patient, ipp, nom, prenom, date_de_naissance, sexe, telephone, email)
+                'INSERT INTO Patient (' . self::COLUMNS . ')
                  VALUES (:id_patient, :ipp, :nom, :prenom, :date_de_naissance, :sexe, :telephone, :email)'
             );
             $stmt->execute([

@@ -4,41 +4,34 @@ declare(strict_types=1);
 
 namespace Aura\Controller;
 
-use Aura\Dao\PatientDao;
-use Aura\Model\Patient;
-use DateTimeImmutable;
+use Aura\Core\View;
 
 class PatientController
 {
-    public function __construct(
-        private PatientDao $patientDao
-    )
+    public function __construct()
     {
     }
 
     public function list(): void
     {
-        $patients = $this->patientDao->findAll();
-        require dirname(__DIR__) . '/View/layout.html';
+        // Liste des patients : à implémenter dans AURA-12.1 (lecture via PatientDao).
+        View::page('patient/list', [], 'AURA - Patients');
     }
+
     public function create(): void
     {
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $patient = new Patient(
-                idPatient: null,
-                ipp: $_POST['ipp'] ?: null,
-                nom: trim($_POST['nom'] ?? ''),
-                prenom: trim($_POST['prenom'] ?? ''),
-                dateNaissance: new DateTimeImmutable($_POST['date_naissance'] ?? 'now'),
-                sexe: $_POST['sexe'] ?? 'M',
-                telephone: $_POST['telephone'] ?: null,
-                email: $_POST['email'] ?: null
-            );
+        $firstname = trim($_POST['firstname'] ?? '');
+        $lastname = trim($_POST['lastname'] ?? '');
+        $birthDate = trim($_POST['birthDate'] ?? '');
+        $gender = trim($_POST['gender'] ?? '');
+        $phonenumber = trim($_POST['phonenumber'] ?? '');
+        $email = trim($_POST['email'] ?? '');
 
-            $this->patientDao->insert($patient);
-        }
+        // TODO AURA-10.2 (contrôle serveur des champs obligatoires)
+        // et AURA-10.4 (insertion patient + séjour via la couche d'accès AURA-11).
+        $patients = [];
 
-        require dirname(__DIR__) . '/View/admission_form.html';
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['success' => true, 'data' => $patients]);
     }
 }
-

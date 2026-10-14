@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Aura\Service;
 
 use Aura\Dao\SejourDao;
-use Aura\Model\Sejour;
+use Aura\Domain\Sejour;
 use DateTimeImmutable;
 use InvalidArgumentException;
 
@@ -31,7 +31,7 @@ class SejourService
 
     /**
      * Séjours d'un patient, du plus récent au plus ancien (consultation des séjours précédents).
-     
+     *
      * @return Sejour[]
      */
     public function getSejoursPatient(int $idPatient): array

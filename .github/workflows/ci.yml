@@ -62,6 +62,14 @@ jobs:
         run: docker exec -i ${{ job.services.mariadb.id }} mariadb -u aura -paura_ci aura_test < database/schema.sql
 
       - name: Tests
+        # Mêmes valeurs que le service MariaDB ci-dessus (pas des secrets) :
+        # lues par config/config.example.php pour le test de connexion.
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_NAME: aura_test
+          DB_USER: aura
+          DB_PASSWORD: aura_ci
         run: |
           if find tests -name '*Test.php' | grep -q .; then
             composer test
