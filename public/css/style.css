@@ -1,0 +1,225 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+    font-size: 14px;
+    color: #444;
+    margin: 0;
+    padding: 20px;
+}
+
+form {
+    max-width: 900px;
+}
+
+/* Titre bleu avec icône ronde */
+.form-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 14px;
+    font-size: 22px;
+    font-weight: 400;
+    color: #2b7bb9;
+}
+
+.form-title::before {
+    content: "\2303";
+    /* chevron vers le haut */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border: 1px solid #2b7bb9;
+    border-radius: 50%;
+    font-size: 12px;
+    line-height: 1;
+}
+
+/* Une ligne = libellé | astérisque | champ */
+.form-row {
+    display: grid;
+    grid-template-columns: 230px 24px 1fr;
+    align-items: center;
+    padding: 5px 8px;
+}
+
+.form-row:focus-within {
+    background: #c9dbf0;
+    /* ligne surlignée quand on édite */
+}
+
+.form-row label {
+    grid-column: 1;
+    color: #555;
+}
+
+.form-row .req {
+    grid-column: 2;
+    color: #c0222b;
+    font-weight: bold;
+    text-align: center;
+}
+
+.form-row input[type="text"],
+.form-row input[type="date"] {
+    grid-column: 3;
+    width: 100%;
+    max-width: 550px;
+    height: 32px;
+    padding: 4px 8px;
+    border: 1px solid #c4c4c4;
+    background: #fff;
+    font: inherit;
+    color: #222;
+}
+
+.form-row input:focus {
+    outline: none;
+    border-color: #2b7bb9;
+}
+
+/* Erreur de validation serveur (AURA-10.2) : message sous le champ, dans la colonne du champ */
+.form-row .field-error {
+    grid-column: 3;
+    margin: 4px 0 0;
+    color: #c0222b;
+    font-size: 13px;
+}
+
+.form-row.has-error input[type="text"],
+.form-row.has-error input[type="date"],
+.form-row.has-error select {
+    border-color: #c0222b;
+}
+
+/* Erreur globale du formulaire (réponse serveur illisible) */
+.form-error {
+    margin: 0 8px 10px;
+    color: #c0222b;
+}
+
+/* Boutons radio */
+.radio-group {
+    grid-column: 3;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 16px;
+}
+
+.radio-group label {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: #444;
+}
+
+/* Bouton */
+.form-actions {
+    padding: 14px 8px;
+    margin-left: 254px;
+    /* aligné avec les champs */
+}
+
+.form-actions input[type="submit"] {
+    padding: 8px 24px;
+    border: 1px solid #2b7bb9;
+    background: #2b7bb9;
+    color: #fff;
+    font: inherit;
+    cursor: pointer;
+}
+
+.form-actions input[type="submit"]:hover {
+    background: #236699;
+}
+
+/* SIDE BAR */
+
+.sidenav {
+  height: 100%;
+  width: 0;
+  position: fixed;
+  z-index: 1;
+  top: 0;
+  left: 0;
+  background-color: #111;
+  overflow-x: hidden;
+  transition: 0.5s;
+  padding-top: 60px;
+}
+
+.sidenav a {
+  padding: 8px 8px 8px 32px;
+  text-decoration: none;
+  font-size: 25px;
+  color: #818181;
+  display: block;
+  transition: 0.3s;
+}
+
+.sidenav a:hover {
+  color: #f1f1f1;
+}
+
+.sidenav .closebtn {
+  position: absolute;
+  top: 0;
+  right: 25px;
+  font-size: 36px;
+  margin-left: 50px;
+}
+
+#main {
+  transition: margin-left .5s;
+  padding: 16px;
+}
+
+@media screen and (max-height: 450px) {
+  .sidenav {padding-top: 15px;}
+  .sidenav a {font-size: 18px;}
+}
+
+/* TOP BAR */
+* {box-sizing: border-box}
+
+/* Set height of body and the document to 100% */
+body, html {
+  height: 100%;
+  margin: 0;
+  font-family: Arial;
+}
+
+/* Style tab links */
+.tablink {
+  background-color: #555;
+  color: white;
+  float: left;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  padding: 14px 16px;
+  font-size: 17px;
+  width: 25%;
+}
+
+.tablink:hover {
+  background-color: #777;
+}
+
+/* Style the tab content (and add height:100% for full page content) */
+.tabcontent {
+  color: white;
+  display: none;
+  padding: 100px 20px;
+  height: 30%;
+}
+
+#Home {background-color: red;}
+#News {background-color: green;}
+#Contact {background-color: blue;}
+#About {background-color: orange;}
