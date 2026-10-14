@@ -6,17 +6,18 @@ use Aura\Core\View;
 // et les erreurs indexées par nom de champ ; à l'affichage initial, rien n'est fourni.
 $valeurs = $valeurs ?? [];
 $erreurs = $erreurs ?? [];
+$erreurFormulaire = $erreurFormulaire ?? '';
 
 $champs = [
-    ['name' => 'firstname', 'label' => "Nom et prénom d'usage", 'required' => true],
-    ['name' => 'lastname', 'label' => 'Nom et prénom de naissance', 'required' => true],
-    ['name' => 'ipp', 'label' => 'IP permanent'],
+    ['name' => 'lastname', 'label' => 'Nom', 'required' => true],
+    ['name' => 'firstname', 'label' => 'Prénom', 'required' => true],
+    ['name' => 'ipp', 'label' => 'IPP (identifiant permanent du patient)'],
     ['name' => 'birthDate', 'label' => 'Date de naissance', 'type' => 'date'],
     [
         'name' => 'gender',
         'label' => 'Sexe',
         'type' => 'radio',
-        'options' => ['H' => 'H', 'F' => 'F']
+        'options' => ['M' => 'M', 'F' => 'F']
     ],
 ];
 
@@ -34,4 +35,5 @@ unset($champ);
     'action' => '/patients/create',
     'submit' => 'Enregistrer',
     'fields' => $champs,
+    'error' => $erreurFormulaire,
 ]);

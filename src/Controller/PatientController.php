@@ -7,6 +7,7 @@ namespace Aura\Controller;
 use Aura\Core\View;
 use Aura\Service\AdmissionService;
 use Aura\Service\ListePatientsService;
+use InvalidArgumentException;
 use LogicException;
 
 class PatientController
@@ -60,30 +61,44 @@ class PatientController
         ], 'AURA - Patients');
     }
 
+    /** Clé d'erreur hors champ (admission refusée) : affichée en tête du formulaire. */
+    public const ERREUR_FORMULAIRE = 'form';
+
     /**
      * Admission d'un patient (AURA-10).
      *
      * AURA-10.2 : la validation serveur est faite AVANT toute écriture ; si elle
      * échoue, rien n'est enregistré et les erreurs sont renvoyées, soit en JSON
      * (requête AJAX), soit en réaffichant le formulaire avec les valeurs saisies.
+     * AURA-10.4 : sur données valides, le patient et son séjour sont enregistrés,
+     * puis l'utilisateur est redirigé vers le dossier du séjour (POST → redirect → GET :
+     * rafraîchir la page du dossier ne crée pas de second séjour).
      */
     public function create(): void
     {
         $saisie = $this->lireSaisie($_POST);
-        $erreurs = $this->admissionService->valider($this->versDomaine($saisie));
+        $donnees = $this->versDomaine($saisie);
+        $erreurs = $this->admissionService->valider($donnees);
 
         if ($erreurs !== []) {
             $this->repondreErreurs($saisie, $this->versFormulaire($erreurs));
             return;
         }
 
-        // TODO AURA-10.3 (numéro de séjour) et AURA-10.4 (insertion patient + séjour
-        // via la couche d'accès AURA-11) : rien n'est encore écrit en base ici.
-        if ($this->attendDuJson()) {
-            $this->repondreJson(200, ['ok' => true]);
+        try {
+            $sejour = $this->admissionService->admettre($donnees);
+        } catch (InvalidArgumentException $e) {
+            // Admission refusée par le métier (déjà hospitalisé, lit occupé…) : rien n'a été écrit.
+            $this->repondreErreurs($saisie, [self::ERREUR_FORMULAIRE => $e->getMessage()]);
             return;
         }
-        header('Location: /', true, 303);
+
+        $destination = '/sejour?id=' . $sejour->getIdSejour();
+        if ($this->attendDuJson()) {
+            $this->repondreJson(200, ['ok' => true, 'redirect' => $destination]);
+            return;
+        }
+        header('Location: ' . $destination, true, 303);
     }
 
     /**
@@ -153,7 +168,11 @@ class PatientController
         http_response_code(422);
         View::page(
             self::VUE_ADMISSION,
-            ['valeurs' => $saisie, 'erreurs' => $erreurs],
+            [
+                'valeurs' => $saisie,
+                'erreurs' => $erreurs,
+                'erreurFormulaire' => $erreurs[self::ERREUR_FORMULAIRE] ?? '',
+            ],
             self::TITRE_ADMISSION,
             self::SCRIPTS_ADMISSION
         );
