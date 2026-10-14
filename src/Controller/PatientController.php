@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace Aura\Controller;
 
 use Aura\Core\View;
+use Aura\Service\PatientService;
 
 class PatientController
 {
     public function __construct()
     {
+        $this->patientService = new PatientService();
     }
 
     public function list(): void
@@ -37,7 +39,7 @@ class PatientController
 
         // TODO AURA-10.2 (contrôle serveur des champs obligatoires)
         // et AURA-10.4 (insertion patient + séjour via la couche d'accès AURA-11).
-        $patients = [];
+        $patients = $this->patientService->inscrirePatient($_POST);
 
         header('Content-Type: application/json; charset=utf-8');
         echo json_encode(['success' => true, 'data' => $patients]);

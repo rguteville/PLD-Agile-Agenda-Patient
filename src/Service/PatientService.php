@@ -11,8 +11,9 @@ use InvalidArgumentException;
 
 class PatientService
 {
-    public function __construct(private PatientDao $patientDao)
+    public function __construct()
     {
+        $this->patientDao = new PatientDao();
     }
 
     /** @return Patient[] */
@@ -41,12 +42,14 @@ class PatientService
      */
     public function inscrirePatient(array $data): int
     {
-        $nom = $this->texte($data['nom'] ?? null) ?? '';
-        $prenom = $this->texte($data['prenom'] ?? null) ?? '';
-        $sexe = strtoupper($this->texte($data['sexe'] ?? null) ?? '');
-        $dateSaisie = $this->texte($data['date_naissance'] ?? null) ?? '';
+        error_log("Appel inscrirePAtient");
+
+        $nom = $this->texte($data['lastname'] ?? null) ?? '';
+        $prenom = $this->texte($data['firstname'] ?? null) ?? '';
+        $sexe = strtoupper($this->texte($data['gender'] ?? null) ?? '');
+        $dateSaisie = $this->texte($data['birthDate'] ?? null) ?? '';
         $ipp = $this->texte($data['ipp'] ?? null);
-        $telephone = $this->texte($data['telephone'] ?? null);
+        $telephone = $this->texte($data['phonenumber'] ?? null);
         $email = $this->texte($data['email'] ?? null);
 
         if ($nom === '' || $prenom === '') {

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Aura\Dao;
 
 use Aura\Domain\Patient;
+use Aura\Core\Database;
 use DateTimeImmutable;
 use PDO;
 
@@ -12,8 +13,11 @@ class PatientDao
 {
     private const COLUMNS = 'id_patient, ipp, nom, prenom, date_de_naissance, sexe, telephone, email';
 
-    public function __construct(private PDO $pdo)
+    public function __construct()
     {
+        // Connexion à la base de données (se connecter d'abord à sa base locale)
+        $config = require dirname(__DIR__) . '../../config/config.php';
+        $this->pdo = Database::connect($config);
     }
 
     /** @return Patient[] */
@@ -51,6 +55,7 @@ class PatientDao
      */
     public function insert(Patient $p): int
     {
+        error_log('Appel insertDao');
         $transactionLocale = !$this->pdo->inTransaction();
         if ($transactionLocale) {
             $this->pdo->beginTransaction();

@@ -10,15 +10,15 @@ use Aura\Core\View;
     'action' => '/patients/create',
     'submit' => 'Enregistrer',
     'fields' => [
-        ['name' => 'firstname', 'label' => "Nom et prénom d'usage", 'required' => true],
-        ['name' => 'lastname', 'label' => 'Nom et prénom de naissance'],
+        ['name' => 'firstname', 'label' => "Prénom", 'required' => true],
+        ['name' => 'lastname', 'label' => 'Nom', 'required' => true],
         ['name' => 'ipp', 'label' => 'IP permanent'],
         ['name' => 'birthDate', 'label' => 'Date de naissance', 'type' => 'date'],
         [
             'name' => 'gender',
             'label' => 'Sexe',
             'type' => 'radio',
-            'options' => ['H' => 'H', 'F' => 'F']
+            'options' => ['M' => 'M', 'F' => 'F']
         ],
     ],
 ]);
