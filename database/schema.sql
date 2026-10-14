@@ -44,7 +44,10 @@ CREATE TABLE Sejour(
     idSejour VARCHAR(20) PRIMARY KEY,
     idPatient VARCHAR(20),
     idService VARCHAR(20),
-    sejourNumber VARCHAR(20),
+    -- Numéro de séjour, généré par l'application (SejourDao::insert()), jamais saisi (RG1).
+    -- Format AAAA-NNNNNN : année de admissionDate, tiret, compteur sur 6 chiffres qui
+    -- repart à 000001 chaque année (ex. 2026-000108). UNIQUE refuse tout doublon.
+    sejourNumber VARCHAR(20) NOT NULL UNIQUE,
     admissionDate DATETIME NOT NULL,
     dischargeDate DATETIME,
     bedNumber VARCHAR(20),

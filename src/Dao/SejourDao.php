@@ -8,6 +8,7 @@ use Aura\Domain\Sejour;
 use DateTimeImmutable;
 use DateTimeInterface;
 use PDO;
+use PDOException;
 
 /**
  * Accès à la table Sejour. Les colonnes suivent database/schema.sql (camelCase anglais,
@@ -17,6 +18,12 @@ class SejourDao
 {
     private const COLUMNS =
         'idSejour, idPatient, sejourNumber, admissionDate, dischargeDate, bedNumber, boxNumber, idService';
+
+    /** Nombre d'essais d'insertion si un autre séjour prend le même id ou numéro entre-temps. */
+    private const ESSAIS_INSERTION = 3;
+
+    /** Code MariaDB d'une violation de clé unique (« Duplicate entry »). */
+    private const ERREUR_DOUBLON = 1062;
 
     public function __construct(private PDO $pdo)
     {
@@ -79,36 +86,56 @@ class SejourDao
     }
 
     /**
-     * Crée un séjour et le renvoie complété (id et numéro). Le numéro de séjour (9 chiffres)
-     * est généré à partir de l'identifiant.
+     * Crée un séjour et le renvoie complété (id et numéro).
      *
-     * Comme pour Patient, idSejour n'a pas d'AUTO_INCREMENT : l'id est calculé ici.
+     * Le numéro de séjour est toujours généré ici, jamais saisi (RG1) : un numéro porté par
+     * l'entité reçue est ignoré. Format AAAA-NNNNNN : année de la date d'admission, tiret,
+     * compteur sur 6 chiffres qui repart à 000001 chaque année (ex. 2026-000108).
+     * Cf. database/schema.sql et le README.
+     *
+     * Comme pour Patient, idSejour n'a pas d'AUTO_INCREMENT : l'id est calculé ici. La lecture
+     * des maxima est verrouillée (FOR UPDATE) ; si un doublon passe malgré tout, la contrainte
+     * UNIQUE le refuse et l'insertion est retentée avec des valeurs recalculées.
      */
     public function insert(Sejour $s): Sejour
     {
         return (new Transaction($this->pdo))->run(function () use ($s): Sejour {
-            $id = (int) $this->pdo
-                ->query('SELECT COALESCE(MAX(CAST(idSejour AS UNSIGNED)), 0) + 1 FROM Sejour FOR UPDATE')
-                ->fetchColumn();
-            $numSejour = $s->getNumSejour() !== ''
-                ? $s->getNumSejour()
-                : str_pad((string) $id, 9, '0', STR_PAD_LEFT);
+            $annee = $s->getDateAdmission()->format('Y');
 
-            $stmt = $this->pdo->prepare(
-                'INSERT INTO Sejour (' . self::COLUMNS . ')
-                 VALUES (:idSejour, :idPatient, :sejourNumber, :admissionDate,
-                         :dischargeDate, :bedNumber, :boxNumber, :idService)'
-            );
-            $stmt->execute([
-                'idSejour' => (string) $id,
-                'idPatient' => (string) $s->getIdPatient(),
-                'sejourNumber' => $numSejour,
-                'admissionDate' => $s->getDateAdmission()->format('Y-m-d H:i:s'),
-                'dischargeDate' => $s->getDateSortie()?->format('Y-m-d H:i:s'),
-                'bedNumber' => $s->getNumLit(),
-                'boxNumber' => $s->getNumBox(),
-                'idService' => $s->getIdService(),
-            ]);
+            for ($essai = 1;; $essai++) {
+                $stmt = $this->pdo->prepare(
+                    'SELECT COALESCE(MAX(CAST(idSejour AS UNSIGNED)), 0) + 1 AS id,
+                            COALESCE(MAX(CASE WHEN sejourNumber LIKE :prefixe
+                                         THEN CAST(SUBSTRING(sejourNumber, 6) AS UNSIGNED) END), 0) + 1 AS compteur
+                     FROM Sejour FOR UPDATE'
+                );
+                $stmt->execute(['prefixe' => $annee . '-%']);
+                $suivant = $stmt->fetch(PDO::FETCH_ASSOC);
+                $id = (int) $suivant['id'];
+                $numSejour = sprintf('%s-%06d', $annee, (int) $suivant['compteur']);
+
+                try {
+                    $this->pdo->prepare(
+                        'INSERT INTO Sejour (' . self::COLUMNS . ')
+                         VALUES (:idSejour, :idPatient, :sejourNumber, :admissionDate,
+                                 :dischargeDate, :bedNumber, :boxNumber, :idService)'
+                    )->execute([
+                        'idSejour' => (string) $id,
+                        'idPatient' => (string) $s->getIdPatient(),
+                        'sejourNumber' => $numSejour,
+                        'admissionDate' => $s->getDateAdmission()->format('Y-m-d H:i:s'),
+                        'dischargeDate' => $s->getDateSortie()?->format('Y-m-d H:i:s'),
+                        'bedNumber' => $s->getNumLit(),
+                        'boxNumber' => $s->getNumBox(),
+                        'idService' => $s->getIdService(),
+                    ]);
+                    break;
+                } catch (PDOException $e) {
+                    if (($e->errorInfo[1] ?? null) !== self::ERREUR_DOUBLON || $essai >= self::ESSAIS_INSERTION) {
+                        throw $e;
+                    }
+                }
+            }
 
             return new Sejour(
                 idSejour: $id,
