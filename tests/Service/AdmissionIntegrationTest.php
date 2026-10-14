@@ -17,7 +17,8 @@ use PHPUnit\Framework\TestCase;
 /**
  * AURA-10.4, définition de fini, sur la base MariaDB du CI (ignoré hors CI) :
  *  - une admission crée exactement une ligne Sejour et, pour un nouveau patient, une ligne Patient ;
- *  - une erreur à l'insertion du séjour ne laisse pas de Patient orphelin.
+ *  - une erreur à l'insertion du séjour ne laisse pas de Patient orphelin ;
+ *  - AURA-10.3 : deux admissions successives donnent deux numéros de séjour différents.
  *
  * La transaction réelle est testée ici : pas de transaction englobante, les lignes
  * créées sont supprimées à la fin.
@@ -72,6 +73,24 @@ final class AdmissionIntegrationTest extends TestCase
 
         // Rejouer la même admission : le patient (sans IPP) est recréé mais c'est bien
         // un second POST, pas un rafraîchissement ; la redirection POST → GET couvre ce cas.
+    }
+
+    /** AURA-10.3 : deux admissions successives produisent deux numéros de séjour différents. */
+    public function testDeuxAdmissionsSuccessivesOntDeuxNumerosDifferents(): void
+    {
+        $service = new AdmissionService(
+            null,
+            new PatientDao($this->pdo),
+            new SejourService(new SejourDao($this->pdo)),
+            new Transaction($this->pdo)
+        );
+
+        $premier = $service->admettre(['nom' => self::NOM, 'prenom' => 'Alice']);
+        $second = $service->admettre(['nom' => self::NOM, 'prenom' => 'Bob']);
+
+        self::assertMatchesRegularExpression('/^\d{4}-\d{6}$/', $premier->getNumSejour(), 'format AAAA-NNNNNN');
+        self::assertMatchesRegularExpression('/^\d{4}-\d{6}$/', $second->getNumSejour(), 'format AAAA-NNNNNN');
+        self::assertNotSame($premier->getNumSejour(), $second->getNumSejour());
     }
 
     public function testUnSejourRefuseNeLaissePasDePatientOrphelin(): void
