@@ -16,8 +16,8 @@ use PHPUnit\Framework\TestCase;
 
 /**
  * AURA-14 : les allergies du bandeau viennent de la base (tables Allergie / Allergene).
- * AURA-13.1 : contraintes du schéma (couple patient / allergène unique, substance unique,
- * ON DELETE RESTRICT) et date de saisie remplie par la base.
+ * AURA-13.1 : contraintes du schéma (couple patient / allergène actif unique, substance
+ * unique, ON DELETE RESTRICT), suppression logique et date de saisie remplie par la base.
  *
  * Test d'intégration sur la base MariaDB du CI (variables DB_*), ignoré hors CI.
  * Tout est exécuté dans une transaction annulée à la fin : la base n'est pas modifiée.
@@ -96,6 +96,25 @@ final class AllergieDaoTest extends TestCase
 
         $this->assertErreurMariaDb(1062, fn() => $this->insererAllergie('9002', $idPatient, 'T_DB'));
         $this->assertCount(1, (new AllergieDao($this->pdo))->findByPatient($idPatient));
+    }
+
+    public function testAllergieRetireeMasqueeEtSaisissableANouveau(): void
+    {
+        $idPatient = $this->insererPatient('Retrait');
+        $this->pdo->exec("INSERT INTO Allergene (idAllergene, substance) VALUES ('T_RT', 'Retrait test')");
+        $this->insererAllergie('9001', $idPatient, 'T_RT');
+        $this->pdo->exec("UPDATE Allergie SET removedAt = NOW() WHERE idAllergie = '9001'");
+        $dao = new AllergieDao($this->pdo);
+
+        $this->assertSame([], $dao->findByPatient($idPatient), 'une allergie retirée n\'est plus affichée');
+
+        $this->insererAllergie('9002', $idPatient, 'T_RT');
+        $this->assertSame(9002, $dao->findByPatient($idPatient)[0]->getIdAllergie());
+        $this->assertSame(
+            2,
+            (int) $this->pdo->query("SELECT COUNT(*) FROM Allergie WHERE idAllergene = 'T_RT'")->fetchColumn(),
+            'la ligne retirée reste en base'
+        );
     }
 
     public function testMemeAllergeneChezDeuxPatientsAccepte(): void

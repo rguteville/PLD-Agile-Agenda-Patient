@@ -19,7 +19,8 @@ class AllergieDao
     }
 
     /**
-     * Allergies connues d'un patient, avec le libellé de l'allergène, par ordre alphabétique.
+     * Allergies actives d'un patient (retirées exclues), avec le libellé de l'allergène,
+     * par ordre alphabétique.
      *
      * @return Allergie[]
      */
@@ -29,7 +30,7 @@ class AllergieDao
             'SELECT a.idAllergie, a.idPatient, a.idAllergene, g.substance, a.criticality, a.recordedAt
              FROM Allergie a
              JOIN Allergene g ON g.idAllergene = a.idAllergene
-             WHERE a.idPatient = :idPatient
+             WHERE a.idPatient = :idPatient AND a.removedAt IS NULL
              ORDER BY g.substance'
         );
         $stmt->execute(['idPatient' => $idPatient]);

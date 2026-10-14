@@ -62,23 +62,29 @@ CREATE TABLE Allergene(
 );
 
 -- Allergie connue d'un patient (AURA-13.1, RG2). idAllergie reste la clé (lue par
--- AllergieDao) ; UNIQUE (idPatient, idAllergene) refuse qu'un patient ait deux fois le
--- même allergène. ON DELETE RESTRICT : on ne supprime ni un patient ni un allergène
--- qui a encore des allergies enregistrées.
+-- AllergieDao). Suppression logique (règle n° 7 du README) : retirer une allergie
+-- remplit removedAt, la ligne reste en base. ON DELETE RESTRICT : on ne supprime ni un
+-- patient ni un allergène qui a des allergies enregistrées, même retirées.
 CREATE TABLE Allergie(
     idAllergie VARCHAR(20) PRIMARY KEY,
     idPatient VARCHAR(20) NOT NULL,
     idAllergene VARCHAR(20) NOT NULL,
     criticality VARCHAR(100),
     -- Date à laquelle l'allergie a été enregistrée dans AURA, remplie par la base à
-    -- l'insertion. Ce n'est ni la date d'apparition de l'allergie, ni un historique :
-    -- une seule ligne par couple patient / allergène, et retirer l'allergie supprime la
-    -- ligne. L'allergie est liée au patient et non au séjour : la date distingue une
-    -- allergie connue depuis un séjour antérieur d'une allergie découverte pendant le
-    -- séjour en cours, et dira si elle était connue au moment d'un soin (AURA-20/25).
+    -- l'insertion. Ce n'est pas la date d'apparition de l'allergie. L'allergie est liée
+    -- au patient et non au séjour : la date distingue une allergie connue depuis un
+    -- séjour antérieur d'une allergie découverte pendant le séjour en cours, et dira si
+    -- elle était connue au moment d'un soin (AURA-20/25).
     recordedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    -- Date de retrait (suppression logique) ; NULL = allergie active.
+    removedAt DATETIME NULL,
+    -- 1 si l'allergie est active, NULL si elle est retirée. Calculée par la base, jamais
+    -- écrite. Comme UNIQUE ignore les NULL, la contrainte ci-dessous refuse deux
+    -- allergies ACTIVES pour le même couple patient / allergène, mais permet de saisir
+    -- à nouveau un allergène retiré (MariaDB n'a pas d'index partiel).
+    activeKey TINYINT GENERATED ALWAYS AS (IF(removedAt IS NULL, 1, NULL)) STORED,
 
-    CONSTRAINT uq_allergie_patient_allergene UNIQUE (idPatient, idAllergene),
+    CONSTRAINT uq_allergie_active UNIQUE (idPatient, idAllergene, activeKey),
     CONSTRAINT fk_patient_allergie FOREIGN KEY (idPatient) REFERENCES Patient(idPatient)
         ON DELETE RESTRICT,
     CONSTRAINT fk_allergene_allergie FOREIGN KEY (idAllergene) REFERENCES Allergene(idAllergene)

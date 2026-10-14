@@ -50,7 +50,7 @@ class Allergie
 
     /**
      * Date d'enregistrement dans AURA, fixée par la base à l'insertion (null tant que l'allergie
-     * n'est pas enregistrée). Pas la date d'apparition de l'allergie ; pas d'historique.
+     * n'est pas enregistrée). Pas la date d'apparition de l'allergie.
      */
     public function getDateSaisie(): ?DateTimeImmutable
     {
