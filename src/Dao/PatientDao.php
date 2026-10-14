@@ -9,9 +9,13 @@ use DateTimeImmutable;
 use DateTimeInterface;
 use PDO;
 
+/**
+ * Accès à la table Patient. Les colonnes suivent database/schema.sql (camelCase anglais,
+ * cf. README « Convention de nommage ») ; les entités du domaine restent en français.
+ */
 class PatientDao
 {
-    private const COLUMNS = 'id_patient, ipp, nom, prenom, date_de_naissance, sexe, telephone, email';
+    private const COLUMNS = 'idPatient, ipp, lastName, firstName, birthDate, sex, phoneNumber, email';
 
     public function __construct(private PDO $pdo)
     {
@@ -20,7 +24,7 @@ class PatientDao
     /** @return Patient[] */
     public function findAll(): array
     {
-        $rows = $this->pdo->query('SELECT ' . self::COLUMNS . ' FROM Patient ORDER BY nom, prenom')
+        $rows = $this->pdo->query('SELECT ' . self::COLUMNS . ' FROM Patient ORDER BY lastName, firstName')
             ->fetchAll(PDO::FETCH_ASSOC);
 
         return array_map(fn(array $r) => $this->mapToEntity($r), $rows);
@@ -28,7 +32,7 @@ class PatientDao
 
     public function findById(int $id): ?Patient
     {
-        $stmt = $this->pdo->prepare('SELECT ' . self::COLUMNS . ' FROM Patient WHERE id_patient = :id');
+        $stmt = $this->pdo->prepare('SELECT ' . self::COLUMNS . ' FROM Patient WHERE idPatient = :id');
         $stmt->execute(['id' => $id]);
         $r = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -62,12 +66,12 @@ class PatientDao
     {
         $stmt = $this->pdo->prepare(
             'SELECT ' . self::COLUMNS . ' FROM Patient
-             WHERE nom = :nom AND prenom = :prenom AND date_de_naissance = :date_de_naissance'
+             WHERE lastName = :lastName AND firstName = :firstName AND birthDate = :birthDate'
         );
         $stmt->execute([
-            'nom' => $nom,
-            'prenom' => $prenom,
-            'date_de_naissance' => $dateNaissance->format('Y-m-d'),
+            'lastName' => $nom,
+            'firstName' => $prenom,
+            'birthDate' => $dateNaissance->format('Y-m-d'),
         ]);
 
         return array_map(fn(array $r) => $this->mapToEntity($r), $stmt->fetchAll(PDO::FETCH_ASSOC));
@@ -76,7 +80,7 @@ class PatientDao
     /**
      * Insère le patient et renvoie son identifiant.
      *
-     * Le schéma actuel n'a pas d'AUTO_INCREMENT sur id_patient : l'id est donc
+     * Le schéma actuel n'a pas d'AUTO_INCREMENT sur idPatient : l'id est donc
      * calculé ici (plus grand id + 1), dans une transaction qui verrouille la
      * table pour éviter que deux inscriptions simultanées obtiennent le même id.
      * Si une transaction est déjà ouverte (inscription + séjour), on s'y rattache.
@@ -85,21 +89,21 @@ class PatientDao
     {
         return (new Transaction($this->pdo))->run(function () use ($p): int {
             $id = (int) $this->pdo
-                ->query('SELECT COALESCE(MAX(CAST(id_patient AS UNSIGNED)), 0) + 1 FROM Patient FOR UPDATE')
+                ->query('SELECT COALESCE(MAX(CAST(idPatient AS UNSIGNED)), 0) + 1 FROM Patient FOR UPDATE')
                 ->fetchColumn();
 
             $stmt = $this->pdo->prepare(
                 'INSERT INTO Patient (' . self::COLUMNS . ')
-                 VALUES (:id_patient, :ipp, :nom, :prenom, :date_de_naissance, :sexe, :telephone, :email)'
+                 VALUES (:idPatient, :ipp, :lastName, :firstName, :birthDate, :sex, :phoneNumber, :email)'
             );
             $stmt->execute([
-                'id_patient' => (string) $id,
+                'idPatient' => (string) $id,
                 'ipp' => $p->getIpp(),
-                'nom' => $p->getNom(),
-                'prenom' => $p->getPrenom(),
-                'date_de_naissance' => $p->getDateNaissance()?->format('Y-m-d'),
-                'sexe' => $p->getSexe(),
-                'telephone' => $p->getTelephone(),
+                'lastName' => $p->getNom(),
+                'firstName' => $p->getPrenom(),
+                'birthDate' => $p->getDateNaissance()?->format('Y-m-d'),
+                'sex' => $p->getSexe(),
+                'phoneNumber' => $p->getTelephone(),
                 'email' => $p->getEmail(),
             ]);
 
@@ -110,13 +114,13 @@ class PatientDao
     private function mapToEntity(array $r): Patient
     {
         return new Patient(
-            idPatient: (int) $r['id_patient'],
+            idPatient: (int) $r['idPatient'],
             ipp: $r['ipp'] !== null ? (string) $r['ipp'] : null,
-            nom: $r['nom'],
-            prenom: $r['prenom'],
-            dateNaissance: $r['date_de_naissance'] !== null ? new DateTimeImmutable($r['date_de_naissance']) : null,
-            sexe: $r['sexe'],
-            telephone: $r['telephone'],
+            nom: $r['lastName'],
+            prenom: $r['firstName'],
+            dateNaissance: $r['birthDate'] !== null ? new DateTimeImmutable($r['birthDate']) : null,
+            sexe: $r['sex'],
+            telephone: $r['phoneNumber'],
             email: $r['email']
         );
     }
