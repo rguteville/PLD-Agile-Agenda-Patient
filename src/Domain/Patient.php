@@ -4,24 +4,58 @@ declare(strict_types=1);
 
 namespace Aura\Domain;
 
+use DateTimeInterface;
+
 class Patient
 {
     public function __construct(
-        private ?int $id,
-        private string $name,
-        private string $email,
+        private ?int $idPatient,
+        private ?string $ipp,
+        private string $nom,
+        private string $prenom,
+        private DateTimeInterface $dateNaissance,
+        private string $sexe,
+        private ?string $telephone = null,
+        private ?string $email = null
     ) {
     }
 
-    public function getId(): ?int
+    public function getIdPatient(): ?int
     {
-        return $this->id;
+        return $this->idPatient;
     }
-    public function getName(): string
+
+    public function getIpp(): ?string
     {
-        return $this->name;
+        return $this->ipp;
     }
-    public function getEmail(): string
+
+    public function getNom(): string
+    {
+        return $this->nom;
+    }
+
+    public function getPrenom(): string
+    {
+        return $this->prenom;
+    }
+
+    public function getDateNaissance(): DateTimeInterface
+    {
+        return $this->dateNaissance;
+    }
+
+    public function getSexe(): string
+    {
+        return $this->sexe;
+    }
+
+    public function getTelephone(): ?string
+    {
+        return $this->telephone;
+    }
+
+    public function getEmail(): ?string
     {
         return $this->email;
     }
