@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Aura\Service;
 
 use Aura\Dao\PatientDao;
-use Aura\Model\Patient;
+use Aura\Domain\Patient;
 
 class PatientService
 {
