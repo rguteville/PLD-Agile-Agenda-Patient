@@ -56,15 +56,18 @@ INSERT INTO Praticien (idPraticien, firstName, lastName, phoneNumber, email, idQ
 
 -- ---------------------------------------------------------------------------
 -- Patients (aucune dépendance)
+-- idPatient et idSejour sont des VARCHAR dans le schéma mais DOIVENT contenir des
+-- entiers : PatientDao et SejourDao les lisent en int et PatientDao::insert()
+-- calcule le prochain id par MAX(CAST(idPatient AS UNSIGNED)) + 1.
 -- ---------------------------------------------------------------------------
 
 INSERT INTO Patient (idPatient, ipp, firstName, lastName, phoneNumber, email, sex, birthDate, deceased, generalPractitioner, address) VALUES
-    ('PAT01', 100000001, 'Marie',   'Dupont',  '0600000001', 'marie.dupont@example.com', 'F', '1958-03-14', FALSE, 'Dr Lambert',  '12 rue des Lilas, 69003 Lyon'),
-    ('PAT02', 100000002, 'Jean',    'Martin',  '0600000002', NULL,                       'M', '1972-11-02', FALSE, 'Dr Lambert',  '4 avenue Berthelot, 69007 Lyon'),
-    ('PAT03', 100000003, 'Sofia',   'Haddad',  '0600000003', 'sofia.h@example.com',      'F', '1990-06-25', FALSE, 'Dr Nguyen',   '27 cours Gambetta, 69007 Lyon'),
-    ('PAT04', 100000004, 'Lucas',   'Bernard', NULL,         NULL,                       'M', '2001-01-09', FALSE, NULL,          '3 place Bellecour, 69002 Lyon'),
-    ('PAT05', 100000005, 'Odette',  'Lefèvre', '0600000005', NULL,                       'F', '1939-08-30', TRUE,  'Dr Faure',    '8 rue Mercière, 69002 Lyon'),
-    ('PAT06', 100000006, 'Yanis',   'Mercier', '0600000006', 'yanis.m@example.com',      'M', '1985-12-17', FALSE, 'Dr Nguyen',   '15 boulevard du 11 Novembre, 69100 Villeurbanne');
+    ('1', 100000001, 'Marie',   'Dupont',  '0600000001', 'marie.dupont@example.com', 'F', '1958-03-14', FALSE, 'Dr Lambert',  '12 rue des Lilas, 69003 Lyon'),
+    ('2', 100000002, 'Jean',    'Martin',  '0600000002', NULL,                       'M', '1972-11-02', FALSE, 'Dr Lambert',  '4 avenue Berthelot, 69007 Lyon'),
+    ('3', 100000003, 'Sofia',   'Haddad',  '0600000003', 'sofia.h@example.com',      'F', '1990-06-25', FALSE, 'Dr Nguyen',   '27 cours Gambetta, 69007 Lyon'),
+    ('4', 100000004, 'Lucas',   'Bernard', NULL,         NULL,                       'M', '2001-01-09', FALSE, NULL,          '3 place Bellecour, 69002 Lyon'),
+    ('5', 100000005, 'Odette',  'Lefèvre', '0600000005', NULL,                       'F', '1939-08-30', TRUE,  'Dr Faure',    '8 rue Mercière, 69002 Lyon'),
+    ('6', 100000006, 'Yanis',   'Mercier', '0600000006', 'yanis.m@example.com',      'M', '1985-12-17', FALSE, 'Dr Nguyen',   '15 boulevard du 11 Novembre, 69100 Villeurbanne');
 
 -- ---------------------------------------------------------------------------
 -- Séjours (dépend de Patient et Service)
@@ -72,24 +75,24 @@ INSERT INTO Patient (idPatient, ipp, firstName, lastName, phoneNumber, email, se
 -- ---------------------------------------------------------------------------
 
 INSERT INTO Sejour (idSejour, idPatient, idService, sejourNumber, admissionDate, dischargeDate, bedNumber, boxNumber, admissionReason) VALUES
-    ('SEJ01', 'PAT01', 'SRV01', '2026-000101', '2026-10-10 08:15:00', NULL,                  'L01', 'B01', 'Pneumopathie hypoxémiante'),
-    ('SEJ02', 'PAT02', 'SRV01', '2026-000102', '2026-10-11 22:40:00', NULL,                  'L02', 'B02', 'Choc septique d''origine urinaire'),
-    ('SEJ03', 'PAT03', 'SRV02', '2026-000103', '2026-10-12 14:05:00', NULL,                  'L05', 'B05', 'Surveillance post-opératoire'),
-    ('SEJ04', 'PAT04', 'SRV02', '2026-000104', '2026-10-01 03:20:00', '2026-10-08 11:00:00', 'L06', 'B06', 'Polytraumatisme (accident de la route)'),
-    ('SEJ05', 'PAT05', 'SRV01', '2026-000105', '2026-09-20 17:30:00', '2026-09-27 06:45:00', 'L03', 'B03', 'Insuffisance cardiaque décompensée'),
-    ('SEJ06', 'PAT06', 'SRV03', '2026-000106', '2026-10-13 09:00:00', NULL,                  'L09', 'B09', 'Surveillance après intoxication'),
-    ('SEJ07', 'PAT01', 'SRV03', '2026-000107', '2026-06-02 10:00:00', '2026-06-05 16:00:00', 'L08', 'B08', 'Séjour antérieur : décompensation respiratoire');
+    ('1', '1', 'SRV01', '2026-000101', '2026-10-10 08:15:00', NULL,                  'L01', 'B01', 'Pneumopathie hypoxémiante'),
+    ('2', '2', 'SRV01', '2026-000102', '2026-10-11 22:40:00', NULL,                  'L02', 'B02', 'Choc septique d''origine urinaire'),
+    ('3', '3', 'SRV02', '2026-000103', '2026-10-12 14:05:00', NULL,                  'L05', 'B05', 'Surveillance post-opératoire'),
+    ('4', '4', 'SRV02', '2026-000104', '2026-10-01 03:20:00', '2026-10-08 11:00:00', 'L06', 'B06', 'Polytraumatisme (accident de la route)'),
+    ('5', '5', 'SRV01', '2026-000105', '2026-09-20 17:30:00', '2026-09-27 06:45:00', 'L03', 'B03', 'Insuffisance cardiaque décompensée'),
+    ('6', '6', 'SRV03', '2026-000106', '2026-10-13 09:00:00', NULL,                  'L09', 'B09', 'Surveillance après intoxication'),
+    ('7', '1', 'SRV03', '2026-000107', '2026-06-02 10:00:00', '2026-06-05 16:00:00', 'L08', 'B08', 'Séjour antérieur : décompensation respiratoire');
 
 -- ---------------------------------------------------------------------------
 -- Allergies (dépend de Patient et Allergene)
 -- ---------------------------------------------------------------------------
 
 INSERT INTO Allergie (idAllergie, idPatient, idAllergene, criticality) VALUES
-    ('ALL01', 'PAT01', 'ALG01', 'Élevée'),
-    ('ALL02', 'PAT01', 'ALG02', 'Faible'),
-    ('ALL03', 'PAT03', 'ALG03', 'Élevée'),
-    ('ALL04', 'PAT06', 'ALG04', 'Élevée'),
-    ('ALL05', 'PAT02', 'ALG05', 'Faible');
+    ('ALL01', '1', 'ALG01', 'Élevée'),
+    ('ALL02', '1', 'ALG02', 'Faible'),
+    ('ALL03', '3', 'ALG03', 'Élevée'),
+    ('ALL04', '6', 'ALG04', 'Élevée'),
+    ('ALL05', '2', 'ALG05', 'Faible');
 
 -- ---------------------------------------------------------------------------
 -- Prescriptions (dépend de Praticien)
