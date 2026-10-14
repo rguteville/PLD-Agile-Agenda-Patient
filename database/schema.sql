@@ -55,20 +55,29 @@ CREATE TABLE Sejour(
     CONSTRAINT fk_service_sejour FOREIGN KEY (idService) REFERENCES Service(idService)
 );
 
+-- Référentiel des allergènes (AURA-13.1) : une substance n'y figure qu'une fois.
 CREATE TABLE Allergene(
     idAllergene VARCHAR(20) PRIMARY KEY,
-    substance VARCHAR(50)
+    substance VARCHAR(50) NOT NULL UNIQUE
 );
 
+-- Allergie connue d'un patient (AURA-13.1, RG2). idAllergie reste la clé (lue par
+-- AllergieDao) ; UNIQUE (idPatient, idAllergene) refuse qu'un patient ait deux fois le
+-- même allergène. ON DELETE RESTRICT : on ne supprime ni un patient ni un allergène
+-- qui a encore des allergies enregistrées.
 CREATE TABLE Allergie(
     idAllergie VARCHAR(20) PRIMARY KEY,
-    idPatient VARCHAR(20),
-    idAllergene VARCHAR(20),
+    idPatient VARCHAR(20) NOT NULL,
+    idAllergene VARCHAR(20) NOT NULL,
     criticality VARCHAR(100),
+    -- Date de saisie de l'allergie, remplie par la base à l'insertion.
+    recordedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT fk_patient_allergie FOREIGN KEY (idPatient) REFERENCES Patient(idPatient),
+    CONSTRAINT uq_allergie_patient_allergene UNIQUE (idPatient, idAllergene),
+    CONSTRAINT fk_patient_allergie FOREIGN KEY (idPatient) REFERENCES Patient(idPatient)
+        ON DELETE RESTRICT,
     CONSTRAINT fk_allergene_allergie FOREIGN KEY (idAllergene) REFERENCES Allergene(idAllergene)
-
+        ON DELETE RESTRICT
 );
 
 CREATE TABLE Qualification(

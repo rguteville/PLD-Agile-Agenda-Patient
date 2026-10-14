@@ -21,12 +21,23 @@ INSERT INTO Qualification (idQualification, label) VALUES
     ('QUA03', 'Infirmier(e) diplômé(e) d''État'),
     ('QUA04', 'Aide-soignant(e)');
 
+-- Référentiel d'allergènes génériques (AURA-13.1). substance est UNIQUE.
 INSERT INTO Allergene (idAllergene, substance) VALUES
     ('ALG01', 'Pénicilline'),
     ('ALG02', 'Latex'),
     ('ALG03', 'Iode'),
     ('ALG04', 'Arachide'),
-    ('ALG05', 'Morphine');
+    ('ALG05', 'Morphine'),
+    ('ALG06', 'Amoxicilline'),
+    ('ALG07', 'Aspirine'),
+    ('ALG08', 'AINS'),
+    ('ALG09', 'Codéine'),
+    ('ALG10', 'Sulfamides'),
+    ('ALG11', 'Céphalosporines'),
+    ('ALG12', 'Œuf'),
+    ('ALG13', 'Lait'),
+    ('ALG14', 'Fruits à coque'),
+    ('ALG15', 'Chlorhexidine');
 
 INSERT INTO Medicament (idMedicament, inn, form) VALUES
     ('MED01', 'Paracétamol', 'Solution injectable'),
@@ -85,14 +96,16 @@ INSERT INTO Sejour (idSejour, idPatient, idService, sejourNumber, admissionDate,
 
 -- ---------------------------------------------------------------------------
 -- Allergies (dépend de Patient et Allergene)
+-- idAllergie est un VARCHAR mais DOIT contenir un entier : AllergieDao le lit en int.
+-- recordedAt = date de saisie, pendant un des séjours du patient (l'allergie 1 au séjour 7).
 -- ---------------------------------------------------------------------------
 
-INSERT INTO Allergie (idAllergie, idPatient, idAllergene, criticality) VALUES
-    ('ALL01', '1', 'ALG01', 'Élevée'),
-    ('ALL02', '1', 'ALG02', 'Faible'),
-    ('ALL03', '3', 'ALG03', 'Élevée'),
-    ('ALL04', '6', 'ALG04', 'Élevée'),
-    ('ALL05', '2', 'ALG05', 'Faible');
+INSERT INTO Allergie (idAllergie, idPatient, idAllergene, criticality, recordedAt) VALUES
+    ('1', '1', 'ALG01', 'Élevée', '2026-06-02 10:20:00'),
+    ('2', '1', 'ALG02', 'Faible', '2026-10-10 08:30:00'),
+    ('3', '3', 'ALG03', 'Élevée', '2026-10-12 14:15:00'),
+    ('4', '6', 'ALG04', 'Élevée', '2026-10-13 09:10:00'),
+    ('5', '2', 'ALG05', 'Faible', '2026-10-11 22:55:00');
 
 -- ---------------------------------------------------------------------------
 -- Prescriptions (dépend de Praticien)
