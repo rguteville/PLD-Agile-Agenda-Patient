@@ -52,7 +52,7 @@ final class DossierPatientServiceTest extends TestCase
         self::assertSame('15/06/1990', $bandeau['dateNaissance']);
         self::assertSame(36, $bandeau['age']);
         self::assertNull($bandeau['ipp'], 'un IPP absent doit rester null, pas devenir une chaîne vide');
-        self::assertSame('000000009', $bandeau['numeroSejour']);
+        self::assertSame('2026-000009', $bandeau['numeroSejour']);
         self::assertSame('13/10/2026 09:30', $bandeau['dateAdmission']);
         self::assertSame([], $bandeau['allergies'], 'liste vide = « Aucune allergie connue » dans la vue');
     }
@@ -180,7 +180,7 @@ final class DossierPatientServiceTest extends TestCase
         return new Patient(9, $ipp, ' Durand ', 'Alice', new DateTimeImmutable('1990-06-15'), 'F');
     }
 
-    private function sejour(string $numSejour = '000000009', ?DateTimeImmutable $dateSortie = null): Sejour
+    private function sejour(string $numSejour = '2026-000009', ?DateTimeImmutable $dateSortie = null): Sejour
     {
         return new Sejour(
             idSejour: 9,

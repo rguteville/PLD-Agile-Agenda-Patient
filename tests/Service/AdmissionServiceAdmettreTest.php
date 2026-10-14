@@ -117,7 +117,7 @@ final class AdmissionServiceAdmettreTest extends TestCase
         $this->patients->method('findByIpp')->willReturn(null);
         $this->patients->method('insert')->willReturn(42);
         $this->sejours->method('ouvrirSejour')
-            ->willThrowException(new InvalidArgumentException('Le patient a déjà un séjour en cours (n° 000000001)'));
+            ->willThrowException(new InvalidArgumentException('Le patient a déjà un séjour en cours (n° 2026-000001)'));
 
         // L'exception traverse la transaction : c'est elle qui annule l'insertion du patient.
         $this->expectException(InvalidArgumentException::class);
@@ -135,6 +135,6 @@ final class AdmissionServiceAdmettreTest extends TestCase
 
     private function sejour(int $idPatient): Sejour
     {
-        return new Sejour(11, $idPatient, '000000011', new DateTimeImmutable('2026-10-14 10:00:00'));
+        return new Sejour(11, $idPatient, '2026-000011', new DateTimeImmutable('2026-10-14 10:00:00'));
     }
 }
