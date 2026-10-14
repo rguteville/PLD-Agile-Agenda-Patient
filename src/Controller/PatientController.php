@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Aura\Controller;
 
+use Aura\Core\View;
+
 class PatientController
 {
     public function __construct()
@@ -12,7 +14,8 @@ class PatientController
 
     public function list(): void
     {
-        require dirname(__DIR__) . '/View/layout.html';
+        // Liste des patients : à implémenter dans AURA-12.1 (lecture via PatientDao).
+        View::page('patient/list', [], 'AURA - Patients');
     }
 
     public function create(): void
@@ -32,8 +35,8 @@ class PatientController
         error_log($phonenumber);
         error_log($email);
 
-        // TODO
-        // $patients = $this->patientService->search($useName, $birthName);
+        // TODO AURA-10.2 (contrôle serveur des champs obligatoires)
+        // et AURA-10.4 (insertion patient + séjour via la couche d'accès AURA-11).
         $patients = [];
 
         header('Content-Type: application/json; charset=utf-8');
