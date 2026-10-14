@@ -31,6 +31,12 @@ class AdmissionService
     /** IPP : 6 à 9 chiffres (colonne Patient.ipp INT avec CHECK entre 100000 et 999999999). */
     public const MOTIF_IPP = '/^\d{6,9}$/';
 
+    /** Plus grande taille (cm) ou plus grand poids (kg) enregistrable : colonnes Sejour DECIMAL(5,2). */
+    public const MESURE_MAX = 999.99;
+
+    /** Longueur maximale des précautions, en caractères (colonne Sejour.precautions VARCHAR(500)). */
+    public const PRECAUTIONS_LONGUEUR_MAX = 500;
+
     /**
      * @param DateTimeImmutable|null $aujourdhui date de référence (injectable pour les tests)
      * @param PatientDao|null $patientDao accès aux patients, requis par admettre() seulement
@@ -51,8 +57,8 @@ class AdmissionService
      * transaction. Si le séjour est refusé (patient déjà hospitalisé, lit occupé…),
      * rien n'est écrit : aucun patient orphelin.
      *
-     * Les champs taille, poids et précautions sont validés mais pas enregistrés :
-     * absents du schéma V1 (voir AURA-14, hors périmètre).
+     * Taille, poids et précautions sont des mesures du séjour (AURA-10.1) : elles sont
+     * enregistrées sur le séjour ouvert, pas sur le patient.
      *
      * @param array<string, mixed> $donnees clés du domaine (voir valider())
      * @return Sejour le séjour ouvert, avec son identifiant et son numéro
@@ -71,15 +77,44 @@ class AdmissionService
         }
 
         $patient = $this->construirePatient($donnees);
+        $poids = $this->mesure($donnees['poids'] ?? null);
+        $taille = $this->mesure($donnees['taille'] ?? null);
+        $precautions = $this->precautions($donnees['precautions'] ?? null);
         $patientDao = $this->patientDao;
         $sejourService = $this->sejourService;
 
-        return $this->transaction->run(function () use ($patient, $patientDao, $sejourService): Sejour {
-            $existant = $patient->getIpp() !== null ? $patientDao->findByIpp($patient->getIpp()) : null;
-            $idPatient = $existant?->getIdPatient() ?? $patientDao->insert($patient);
+        return $this->transaction->run(
+            function () use ($patient, $patientDao, $sejourService, $poids, $taille, $precautions): Sejour {
+                $existant = $patient->getIpp() !== null ? $patientDao->findByIpp($patient->getIpp()) : null;
+                $idPatient = $existant?->getIdPatient() ?? $patientDao->insert($patient);
 
-            return $sejourService->ouvrirSejour($idPatient);
-        });
+                return $sejourService->ouvrirSejour(
+                    $idPatient,
+                    poids: $poids,
+                    taille: $taille,
+                    precautions: $precautions
+                );
+            }
+        );
+    }
+
+    /**
+     * Mesure validée (taille ou poids) arrondie au centième, comme la stockera la colonne
+     * DECIMAL(5,2) : la valeur renvoyée est celle qui sera relue. Vide = null.
+     */
+    private function mesure(mixed $valeur): ?float
+    {
+        $texte = $this->texte($valeur);
+
+        return $texte !== '' ? round((float) $texte, 2) : null;
+    }
+
+    /** Précautions nettoyées, fins de ligne normalisées en \n. Vide = null. */
+    private function precautions(mixed $valeur): ?string
+    {
+        $texte = str_replace("\r\n", "\n", $this->texte($valeur));
+
+        return $texte !== '' ? $texte : null;
     }
 
     /**
@@ -148,14 +183,25 @@ class AdmissionService
         $taille = $this->texte($donnees['taille'] ?? null);
         if ($taille !== '' && !$this->estStrictementPositif($taille)) {
             $erreurs['taille'] = 'La taille doit être un nombre strictement positif.';
+        } elseif ($taille !== '' && !$this->tientDansLaColonne($taille)) {
+            $erreurs['taille'] = 'La taille doit être inférieure à 1000 cm.';
         }
 
         $poids = $this->texte($donnees['poids'] ?? null);
         if ($poids !== '' && !$this->estStrictementPositif($poids)) {
             $erreurs['poids'] = 'Le poids doit être un nombre strictement positif.';
+        } elseif ($poids !== '' && !$this->tientDansLaColonne($poids)) {
+            $erreurs['poids'] = 'Le poids doit être inférieur à 1000 kg.';
         }
 
-        // precautions : texte libre facultatif, aucune règle.
+        // precautions : texte libre facultatif, limité à la taille de la colonne.
+        $precautions = $this->precautions($donnees['precautions'] ?? null);
+        if ($precautions !== null && mb_strlen($precautions) > self::PRECAUTIONS_LONGUEUR_MAX) {
+            $erreurs['precautions'] = sprintf(
+                'Les précautions ne doivent pas dépasser %d caractères.',
+                self::PRECAUTIONS_LONGUEUR_MAX
+            );
+        }
 
         return $erreurs;
     }
@@ -185,6 +231,12 @@ class AdmissionService
     private function estStrictementPositif(string $valeur): bool
     {
         return is_numeric($valeur) && (float) $valeur > 0;
+    }
+
+    /** Une fois arrondie au centième, la valeur tient dans DECIMAL(5,2) (sinon MariaDB la refuse). */
+    private function tientDansLaColonne(string $valeur): bool
+    {
+        return round((float) $valeur, 2) <= self::MESURE_MAX;
     }
 
     /**
