@@ -4,14 +4,21 @@ declare(strict_types=1);
 
 namespace Aura\Service;
 
+use Aura\Dao\PatientDao;
+use Aura\Dao\Transaction;
+use Aura\Domain\Patient;
+use Aura\Domain\Sejour;
 use DateTimeImmutable;
+use InvalidArgumentException;
+use LogicException;
 
 /**
  * Règles métier de l'admission d'un patient (AURA-10).
  *
  * AURA-10.2 : contrôle serveur des champs. La validation est pure : aucun accès
- * à la base, aucune dépendance PDO, aucune sortie HTTP. L'insertion (AURA-10.4)
- * et le numéro de séjour (AURA-10.3) viendront compléter cette classe.
+ * à la base, aucune dépendance PDO, aucune sortie HTTP.
+ * AURA-10.4 : admettre() enregistre le patient (ou le retrouve par son IPP) et
+ * ouvre son séjour (numéro généré, AURA-10.3) dans une seule transaction.
  */
 class AdmissionService
 {
@@ -21,9 +28,81 @@ class AdmissionService
     /** Format attendu pour la date de naissance (AAAA-MM-JJ). */
     public const FORMAT_DATE = 'Y-m-d';
 
-    /** @param DateTimeImmutable|null $aujourdhui date de référence (injectable pour les tests) */
-    public function __construct(private ?DateTimeImmutable $aujourdhui = null)
+    /** IPP : 6 à 9 chiffres (colonne Patient.ipp INT avec CHECK entre 100000 et 999999999). */
+    public const MOTIF_IPP = '/^\d{6,9}$/';
+
+    /**
+     * @param DateTimeImmutable|null $aujourdhui date de référence (injectable pour les tests)
+     * @param PatientDao|null $patientDao accès aux patients, requis par admettre() seulement
+     * @param SejourService|null $sejourService ouverture du séjour, requis par admettre() seulement
+     * @param Transaction|null $transaction patient + séjour validés ensemble, requis par admettre() seulement
+     */
+    public function __construct(
+        private ?DateTimeImmutable $aujourdhui = null,
+        private ?PatientDao $patientDao = null,
+        private ?SejourService $sejourService = null,
+        private ?Transaction $transaction = null
+    ) {
+    }
+
+    /**
+     * Admet un patient : validation, puis insertion du patient (ou réutilisation du
+     * patient déjà connu sous cet IPP) et ouverture de son séjour, le tout dans une
+     * transaction. Si le séjour est refusé (patient déjà hospitalisé, lit occupé…),
+     * rien n'est écrit : aucun patient orphelin.
+     *
+     * Les champs taille, poids et précautions sont validés mais pas enregistrés :
+     * absents du schéma V1 (voir AURA-14, hors périmètre).
+     *
+     * @param array<string, mixed> $donnees clés du domaine (voir valider())
+     * @return Sejour le séjour ouvert, avec son identifiant et son numéro
+     * @throws InvalidArgumentException données invalides ou admission refusée (message affichable)
+     * @throws LogicException si le service a été construit sans accès à la base
+     */
+    public function admettre(array $donnees): Sejour
     {
+        if ($this->patientDao === null || $this->sejourService === null || $this->transaction === null) {
+            throw new LogicException('AdmissionService::admettre() requiert PatientDao, SejourService et Transaction.');
+        }
+
+        $erreurs = $this->valider($donnees);
+        if ($erreurs !== []) {
+            throw new InvalidArgumentException(implode(' ', $erreurs));
+        }
+
+        $patient = $this->construirePatient($donnees);
+        $patientDao = $this->patientDao;
+        $sejourService = $this->sejourService;
+
+        return $this->transaction->run(function () use ($patient, $patientDao, $sejourService): Sejour {
+            $existant = $patient->getIpp() !== null ? $patientDao->findByIpp($patient->getIpp()) : null;
+            $idPatient = $existant?->getIdPatient() ?? $patientDao->insert($patient);
+
+            return $sejourService->ouvrirSejour($idPatient);
+        });
+    }
+
+    /**
+     * Construit l'entité à partir de données validées (champs vides = null).
+     *
+     * @param array<string, mixed> $donnees
+     */
+    private function construirePatient(array $donnees): Patient
+    {
+        $ipp = $this->texte($donnees['ipp'] ?? null);
+        $dateNaissance = $this->texte($donnees['dateNaissance'] ?? null);
+        $sexe = $this->texte($donnees['sexe'] ?? null);
+
+        return new Patient(
+            idPatient: null,
+            ipp: $ipp !== '' ? $ipp : null,
+            nom: $this->texte($donnees['nom'] ?? null),
+            prenom: $this->texte($donnees['prenom'] ?? null),
+            dateNaissance: $dateNaissance !== ''
+                ? DateTimeImmutable::createFromFormat('!' . self::FORMAT_DATE, $dateNaissance) ?: null
+                : null,
+            sexe: $sexe !== '' ? $sexe : null
+        );
     }
 
     /**
@@ -47,7 +126,11 @@ class AdmissionService
             $erreurs['prenom'] = 'Le prénom est obligatoire.';
         }
 
-        // ipp : facultatif, conservé tel quel (trim uniquement) : aucune règle ici.
+        // ipp : facultatif (RG1) ; s'il est saisi, il doit tenir dans la colonne INT (6 à 9 chiffres).
+        $ipp = $this->texte($donnees['ipp'] ?? null);
+        if ($ipp !== '' && preg_match(self::MOTIF_IPP, $ipp) !== 1) {
+            $erreurs['ipp'] = "L'IPP doit contenir entre 6 et 9 chiffres.";
+        }
 
         $dateNaissance = $this->texte($donnees['dateNaissance'] ?? null);
         if ($dateNaissance !== '') {

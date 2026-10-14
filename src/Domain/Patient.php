@@ -14,7 +14,7 @@ class Patient
         private string $nom,
         private string $prenom,
         private ?DateTimeInterface $dateNaissance,
-        private string $sexe,
+        private ?string $sexe,
         private ?string $telephone = null,
         private ?string $email = null
     ) {
@@ -46,7 +46,8 @@ class Patient
         return $this->dateNaissance;
     }
 
-    public function getSexe(): string
+    /** 'M', 'F', ou null si non renseigné à l'admission (RG1 : seuls nom et prénom sont obligatoires). */
+    public function getSexe(): ?string
     {
         return $this->sexe;
     }

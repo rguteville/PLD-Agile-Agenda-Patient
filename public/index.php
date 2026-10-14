@@ -13,8 +13,11 @@ use Aura\Core\View;
 use Aura\Dao\AllergieDao;
 use Aura\Dao\PatientDao;
 use Aura\Dao\SejourDao;
+use Aura\Dao\Transaction;
+use Aura\Service\AdmissionService;
 use Aura\Service\DossierPatientService;
 use Aura\Service\ListePatientsService;
+use Aura\Service\SejourService;
 
 // Récupération de l'url
 $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?: '/';
@@ -34,8 +37,17 @@ try {
         exit;
     }
 
-    // Initialisation des Controllers
-    $patientController = new PatientController();
+    // AURA-10.4 : l'admission écrit en base (patient + séjour) ; connexion ouverte pour cette route.
+    $admettrePatient = static function (): void {
+        $pdo = Database::get();
+        $controller = new PatientController(new AdmissionService(
+            null,
+            new PatientDao($pdo),
+            new SejourService(new SejourDao($pdo)),
+            new Transaction($pdo)
+        ));
+        $controller->create();
+    };
 
     // AURA-14 : le dossier de séjour lit la base ; la connexion n'est ouverte que pour cette route.
     $afficherSejour = static function (): void {
@@ -61,7 +73,7 @@ try {
     // Le Router traite les requetes HTTP
     $router = new Router();
     $router->get('/patients', $listerPatients);
-    $router->post('/patients/create', [$patientController, 'create']);
+    $router->post('/patients/create', $admettrePatient);
     $router->get('/sejour', $afficherSejour);
     $router->notFound(static fn () => View::erreur(404, 'Page introuvable.'));
 

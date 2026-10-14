@@ -74,6 +74,9 @@ document.querySelectorAll('form[data-ajax]').forEach(form => {
             return;
         }
 
-        // Succès : suite à définir dans AURA-10.4 (redirection vers le séjour créé).
+        // Succès (AURA-10.4) : le serveur indique le dossier du séjour créé.
+        if (data.redirect) {
+            window.location.assign(data.redirect);
+        }
     });
 });
