@@ -52,6 +52,25 @@ final class SejourServiceTest extends TestCase
         $this->assertSame(10, $sejour->getIdSejour());
     }
 
+    /** AURA-10.1 : les mesures de l'admission sont portées par le séjour inséré. */
+    public function testOuvrirSejourTransmetLesMesuresAuDao(): void
+    {
+        $this->dao->method('findByPatient')->willReturn([]);
+        $this->dao->method('findEnCours')->willReturn([]);
+        $this->dao->expects($this->once())
+            ->method('insert')
+            ->with($this->callback(function (Sejour $s): bool {
+                $this->assertSame(68.5, $s->getPoids());
+                $this->assertSame(172.0, $s->getTaille());
+                $this->assertSame('Isolement contact', $s->getPrecautions());
+
+                return true;
+            }))
+            ->willReturn($this->sejour(10, 5));
+
+        $this->service->ouvrirSejour(5, poids: 68.5, taille: 172.0, precautions: 'Isolement contact');
+    }
+
     public function testOuvrirSejourRefuseSiLePatientEstDejaPresent(): void
     {
         $this->dao->method('findByPatient')->with(5)->willReturn([

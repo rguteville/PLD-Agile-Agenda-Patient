@@ -70,6 +70,48 @@ final class AdmissionServiceAdmettreTest extends TestCase
         $this->assertSame($sejour, $this->service->admettre(self::DONNEES));
     }
 
+    /** AURA-10.1 : les mesures saisies sont enregistrées sur le séjour ouvert. */
+    public function testMesuresTransmisesAuSejour(): void
+    {
+        $this->patients->method('findByIpp')->willReturn(null);
+        $this->patients->method('insert')->willReturn(42);
+        $sejour = $this->sejour(idPatient: 42);
+        $this->sejours->expects($this->once())
+            ->method('ouvrirSejour')
+            // idPatient, lit, box, poids (kg), taille (cm), précautions
+            ->with(42, null, null, 68.5, 172.46, "Isolement contact\nRisque de chute")
+            ->willReturn($sejour);
+
+        $this->service->admettre([
+            'poids' => ' 68.5 ',
+            'taille' => '172.456',
+            'precautions' => " Isolement contact\r\nRisque de chute ",
+        ] + self::DONNEES);
+    }
+
+    public function testMesuresVidesDeviennentNull(): void
+    {
+        $this->patients->method('findByIpp')->willReturn(null);
+        $this->patients->method('insert')->willReturn(42);
+        $this->sejours->expects($this->once())
+            ->method('ouvrirSejour')
+            ->with(42, null, null, null, null, null)
+            ->willReturn($this->sejour(idPatient: 42));
+
+        $this->service->admettre(['poids' => '', 'taille' => '  ', 'precautions' => ' '] + self::DONNEES);
+    }
+
+    public function testMesureInvalideNeTouchePasLaBase(): void
+    {
+        $this->patients->expects($this->never())->method('insert');
+        $this->sejours->expects($this->never())->method('ouvrirSejour');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('inférieur à 1000 kg');
+
+        $this->service->admettre(['poids' => '1200'] + self::DONNEES);
+    }
+
     public function testNomEtPrenomSeulsSuffisent(): void
     {
         $this->patients->expects($this->never())->method('findByIpp');

@@ -187,6 +187,58 @@ final class AdmissionServiceTest extends TestCase
         $this->assertStringContainsString('strictement positif', $erreurs[$champ]);
     }
 
+    /** @return iterable<string, array{string, string, string}> */
+    public static function mesuresTropGrandes(): iterable
+    {
+        yield 'taille de 1000 cm' => ['taille', '1000', 'inférieure à 1000 cm'];
+        yield 'poids de 1000 kg' => ['poids', '1000', 'inférieur à 1000 kg'];
+        yield 'poids arrondi à 1000' => ['poids', '999.995', 'inférieur à 1000 kg'];
+        yield 'notation exponentielle' => ['taille', '1e400', 'inférieure à 1000 cm'];
+    }
+
+    /** AURA-10.1 : colonnes DECIMAL(5,2), une valeur trop grande serait refusée par MariaDB. */
+    #[DataProvider('mesuresTropGrandes')]
+    public function testTailleOuPoidsTropGrandEstRefuse(string $champ, string $valeur, string $message): void
+    {
+        $erreurs = $this->service->valider([$champ => $valeur] + self::DONNEES_VALIDES);
+
+        $this->assertSame([$champ], array_keys($erreurs));
+        $this->assertStringContainsString($message, $erreurs[$champ]);
+    }
+
+    public function testMesuresALaLimiteDeLaColonneSontAcceptees(): void
+    {
+        $limites = ['taille' => '999.99', 'poids' => '0.01'];
+
+        $this->assertSame([], $this->service->valider($limites + self::DONNEES_VALIDES));
+    }
+
+    public function testPrecautionsDeCinqCentsCaracteresSontAcceptees(): void
+    {
+        // Caractères accentués : la limite porte sur les caractères, pas les octets.
+        $precautions = str_repeat('é', AdmissionService::PRECAUTIONS_LONGUEUR_MAX);
+
+        $this->assertSame([], $this->service->valider(['precautions' => $precautions] + self::DONNEES_VALIDES));
+    }
+
+    public function testPrecautionsTropLonguesSontRefusees(): void
+    {
+        $precautions = str_repeat('a', AdmissionService::PRECAUTIONS_LONGUEUR_MAX + 1);
+
+        $erreurs = $this->service->valider(['precautions' => $precautions] + self::DONNEES_VALIDES);
+
+        $this->assertSame(['precautions'], array_keys($erreurs));
+        $this->assertStringContainsString('500 caractères', $erreurs['precautions']);
+    }
+
+    public function testUnRetourALaLigneDuNavigateurCompteUnSeulCaractere(): void
+    {
+        // Le navigateur envoie \r\n, mais maxlength du textarea le compte pour un caractère.
+        $precautions = str_repeat("a\r\n", 200);
+
+        $this->assertSame([], $this->service->valider(['precautions' => $precautions] + self::DONNEES_VALIDES));
+    }
+
     public function testJeuCompletValideNeDonneAucuneErreur(): void
     {
         $this->assertSame([], $this->service->valider(self::DONNEES_VALIDES));

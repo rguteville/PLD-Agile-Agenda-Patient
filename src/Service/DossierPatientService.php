@@ -101,6 +101,10 @@ final class DossierPatientService
             'service' => self::texteOuNull($sejour->getIdService()),
             'lit' => self::texteOuNull($sejour->getNumLit()),
             'box' => self::texteOuNull($sejour->getNumBox()),
+            // Mesures relevées à l'admission (AURA-10.1) ; null = non renseigné.
+            'poids' => self::mesure($sejour->getPoids(), 'kg'),
+            'taille' => self::mesure($sejour->getTaille(), 'cm'),
+            'precautions' => self::texteOuNull($sejour->getPrecautions()),
             'telephone' => self::texteOuNull($patient->getTelephone()),
             'email' => self::texteOuNull($patient->getEmail()),
         ];
@@ -114,6 +118,17 @@ final class DossierPatientService
         }
 
         return $naissance->diff($aujourdhui)->y;
+    }
+
+    /** Mesure à la française, sans zéros inutiles : 62.5 → « 62,5 kg », 164.0 → « 164 cm ». */
+    public static function mesure(?float $valeur, string $unite): ?string
+    {
+        if ($valeur === null) {
+            return null;
+        }
+        $nombre = rtrim(rtrim(number_format($valeur, 2, ',', ''), '0'), ',');
+
+        return $nombre . ' ' . $unite;
     }
 
     private static function texteOuNull(?string $valeur): ?string

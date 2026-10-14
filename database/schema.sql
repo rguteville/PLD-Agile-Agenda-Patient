@@ -53,6 +53,11 @@ CREATE TABLE Sejour(
     bedNumber VARCHAR(20),
     boxNumber VARCHAR(20),
     admissionReason VARCHAR(1000),
+    -- Mesures relevées à l'admission (AURA-04, AURA-10.1), facultatives : poids en kg,
+    -- taille en cm, précautions en texte libre (isolement, risque de chute…).
+    weight DECIMAL(5,2) NULL,
+    height DECIMAL(5,2) NULL,
+    precautions VARCHAR(500) NULL,
 
     CONSTRAINT fk_patient_sejour FOREIGN KEY (idPatient) REFERENCES Patient(idPatient),
     CONSTRAINT fk_service_sejour FOREIGN KEY (idService) REFERENCES Service(idService)

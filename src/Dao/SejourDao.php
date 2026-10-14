@@ -17,7 +17,8 @@ use PDOException;
 class SejourDao
 {
     private const COLUMNS =
-        'idSejour, idPatient, sejourNumber, admissionDate, dischargeDate, bedNumber, boxNumber, idService';
+        'idSejour, idPatient, sejourNumber, admissionDate, dischargeDate, bedNumber, boxNumber, idService,
+         weight, height, precautions';
 
     /** Nombre d'essais d'insertion si un autre séjour prend le même id ou numéro entre-temps. */
     private const ESSAIS_INSERTION = 3;
@@ -118,7 +119,8 @@ class SejourDao
                     $this->pdo->prepare(
                         'INSERT INTO Sejour (' . self::COLUMNS . ')
                          VALUES (:idSejour, :idPatient, :sejourNumber, :admissionDate,
-                                 :dischargeDate, :bedNumber, :boxNumber, :idService)'
+                                 :dischargeDate, :bedNumber, :boxNumber, :idService,
+                                 :weight, :height, :precautions)'
                     )->execute([
                         'idSejour' => (string) $id,
                         'idPatient' => (string) $s->getIdPatient(),
@@ -128,6 +130,9 @@ class SejourDao
                         'bedNumber' => $s->getNumLit(),
                         'boxNumber' => $s->getNumBox(),
                         'idService' => $s->getIdService(),
+                        'weight' => $s->getPoids(),
+                        'height' => $s->getTaille(),
+                        'precautions' => $s->getPrecautions(),
                     ]);
                     break;
                 } catch (PDOException $e) {
@@ -145,7 +150,10 @@ class SejourDao
                 dateSortie: $s->getDateSortie(),
                 numLit: $s->getNumLit(),
                 numBox: $s->getNumBox(),
-                idService: $s->getIdService()
+                idService: $s->getIdService(),
+                poids: $s->getPoids(),
+                taille: $s->getTaille(),
+                precautions: $s->getPrecautions()
             );
         });
     }
@@ -160,7 +168,11 @@ class SejourDao
             dateSortie: $r['dischargeDate'] !== null ? new DateTimeImmutable($r['dischargeDate']) : null,
             numLit: $r['bedNumber'],
             numBox: $r['boxNumber'],
-            idService: $r['idService']
+            idService: $r['idService'],
+            // DECIMAL arrive en chaîne ("62.50") depuis PDO MySQL.
+            poids: $r['weight'] !== null ? (float) $r['weight'] : null,
+            taille: $r['height'] !== null ? (float) $r['height'] : null,
+            precautions: $r['precautions']
         );
     }
 }

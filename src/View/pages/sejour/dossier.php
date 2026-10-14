@@ -22,6 +22,13 @@ use Aura\Core\View;
         <dd><?= View::e($sejour['lit'] ?? 'non attribué') ?></dd>
         <dt>Box</dt>
         <dd><?= View::e($sejour['box'] ?? 'non attribué') ?></dd>
+        <dt>Poids à l'admission</dt>
+        <dd><?= View::e($sejour['poids'] ?? 'non renseigné') ?></dd>
+        <dt>Taille à l'admission</dt>
+        <dd><?= View::e($sejour['taille'] ?? 'non renseignée') ?></dd>
+        <dt>Précautions</dt>
+        <?php /* « non renseignées », pas « aucune » : rien de saisi ne veut pas dire aucun risque. */ ?>
+        <dd><?= isset($sejour['precautions']) ? nl2br(View::e($sejour['precautions'])) : 'non renseignées' ?></dd>
         <dt>Téléphone</dt>
         <dd><?= View::e($sejour['telephone'] ?? 'non renseigné') ?></dd>
         <dt>E-mail</dt>
