@@ -17,6 +17,11 @@ SI miroir du service de réanimation d'un hôpital (projet AGILE, 4IF INSA Lyon)
 
 ---
 
+Les bonnes pratiques
+- nom d'attributs SQL et noms de variables camelCase : exempleDeCamel
+- noms de classes et tables PascalCase : ExempleDePascal
+- coder en français / BD en anglais / traduction niveau DAO
+
 ## Stack et versions
  
 Il est préférable d'utiliser de **les mêmes versions que la VM de démo**, pour qu'un code qui marche sur un poste marche aussi sur la machine virtuelle de démonstration.
