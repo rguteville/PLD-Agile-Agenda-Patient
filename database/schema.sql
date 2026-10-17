@@ -103,7 +103,8 @@ CREATE TABLE AllergyIntolerance( -- Allergie
 
 CREATE TABLE PractitionerRole( -- RôlePraticien
     idPractitionerRole VARCHAR(20) PRIMARY KEY,
-    description VARCHAR(50)
+    description VARCHAR(50),
+    canValidate BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 CREATE TABLE Practitioner( -- Praticien 
@@ -117,32 +118,24 @@ CREATE TABLE Practitioner( -- Praticien
     CONSTRAINT fk_practitionerrole_practitioner FOREIGN KEY (idPractitionerRole) REFERENCES PractitionerRole(idPractitionerRole) ON DELETE RESTRICT
 );
 
+
 CREATE TABLE CarePlan( -- Prescription
     idCarePlan VARCHAR(20) PRIMARY KEY,
-    idEpisodeOfCare VARCHAR(20),
-    idPrescriber VARCHAR(20),
-    idDoctor VARCHAR(20),
-    recurrent BOOLEAN,
-    verified BOOLEAN,
-    startDate DATE,
-    endDate DATE,
-    frequency VARCHAR(50), -- Type à créer ???
+    idEpisodeOfCare VARCHAR(20) NOT NULL,
+    idPrescriber VARCHAR(20) NOT NULL,
+    mode VARCHAR(20) NOT NULL,
+    recordedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    -- RG5 / RG10 : médecin qui a validé et quand (NULL = non validée). La validation porte
+    -- sur toute l'ordonnance.
+    idValidator VARCHAR(20) NULL,
+    validatedAt DATETIME NULL,
+
+    CONSTRAINT chk_careplan_mode CHECK (mode IN ('MEDICALE', 'PARAMEDICALE', 'PROTOCOLE', 'URGENCE')),
+    CONSTRAINT chk_careplan_validation CHECK ((idValidator IS NULL) = (validatedAt IS NULL)),
 
     CONSTRAINT fk_episodeofcare_careplan FOREIGN KEY (idEpisodeOfCare) REFERENCES EpisodeOfCare(idEpisodeOfCare) ON DELETE RESTRICT,
     CONSTRAINT fk_prescriber_careplan FOREIGN KEY (idPrescriber) REFERENCES Practitioner(idPractitioner) ON DELETE RESTRICT,
-    CONSTRAINT fk_doctor_careplan FOREIGN KEY (idDoctor) REFERENCES Practitioner(idPractitioner) ON DELETE RESTRICT
-);
-
-CREATE TABLE Appointment( -- SoinPlanifié
-    idAppointment VARCHAR(20) PRIMARY KEY,
-    idCareplan VARCHAR(20),
-    plannedTime DATETIME,
-    status VARCHAR(20),
-    timeOfCompletion DATETIME,
-    timeRecorded DATETIME,
-    comment VARCHAR(100),
-
-    CONSTRAINT fk_careplan_appointment FOREIGN KEY (idCareplan) REFERENCES Careplan(idCareplan) ON DELETE RESTRICT
+    CONSTRAINT fk_validator_careplan FOREIGN KEY (idValidator) REFERENCES Practitioner(idPractitioner) ON DELETE RESTRICT
 );
 
 CREATE TABLE Medication( -- Medicament
@@ -157,20 +150,70 @@ CREATE TABLE ActivityDefinition( -- TypeSoin
     description VARCHAR(200)
 );
 
-CREATE TABLE ServiceRequest( -- PrescriptionSoin
-    idServiceRequest VARCHAR(20) PRIMARY KEY,
-    idActivityDefinition VARCHAR(20),
-    idCarePlan VARCHAR(20),
 
+CREATE TABLE ServiceRequest( -- LignePrescriptionSoin
+    idServiceRequest VARCHAR(20) PRIMARY KEY,
+    idCarePlan VARCHAR(20) NOT NULL,
+    -- RG6 : type de soin.
+    idActivityDefinition VARCHAR(20) NOT NULL,
+    startDate DATETIME NOT NULL,
+    endDate DATETIME NULL,
+    frequencyHours SMALLINT NULL,
+    -- Contrainte horaire en texte libre (« à jeun », « 8 h et 20 h »).
+    timeConstraint VARCHAR(200) NULL,
+    -- AURA-22 : arrêt de la ligne (suppression logique, règle n° 8), par qui et quand (RG10).
+    idStoppedBy VARCHAR(20) NULL,
+    stoppedAt DATETIME NULL,
+
+    CONSTRAINT chk_servicerequest_frequence CHECK (frequencyHours IS NULL OR frequencyHours > 0),
+    CONSTRAINT chk_servicerequest_dates CHECK (endDate IS NULL OR endDate >= startDate),
+    CONSTRAINT chk_servicerequest_arret CHECK ((idStoppedBy IS NULL) = (stoppedAt IS NULL)),
+
+    CONSTRAINT fk_careplan_servicerequest FOREIGN KEY (idCarePlan) REFERENCES CarePlan(idCarePlan) ON DELETE RESTRICT,
     CONSTRAINT fk_activitydefinition_servicerequest FOREIGN KEY (idActivityDefinition) REFERENCES ActivityDefinition(idActivityDefinition) ON DELETE RESTRICT,
-    CONSTRAINT fk_careplan_servicerequest FOREIGN KEY (idCarePlan) REFERENCES CarePlan(idCarePlan) ON DELETE RESTRICT
+    CONSTRAINT fk_stoppedby_servicerequest FOREIGN KEY (idStoppedBy) REFERENCES Practitioner(idPractitioner) ON DELETE RESTRICT
 );
 
-CREATE TABLE MedicationDispense( -- PrescriptionMedicament
-    idMedicationDispense VARCHAR(20) PRIMARY KEY,
-    idMedication VARCHAR(20),
-    idCarePlan VARCHAR(20),
 
-    CONSTRAINT fk_medication_medicationdispense FOREIGN KEY (idMedication) REFERENCES Medication(idMedication) ON DELETE RESTRICT,
-    CONSTRAINT fk_careplan_medicationdispense FOREIGN KEY (idCarePlan) REFERENCES CarePlan(idCarePlan) ON DELETE RESTRICT
+CREATE TABLE MedicationRequest( -- LignePrescriptionMedicament
+    idMedicationRequest VARCHAR(20) PRIMARY KEY,
+    idCarePlan VARCHAR(20) NOT NULL,
+    -- RG6 : type de soin (en général « Administration médicamenteuse »).
+    idActivityDefinition VARCHAR(20) NOT NULL,
+    idMedication VARCHAR(20) NOT NULL,
+    -- Texte libre (« 1 g », « 0,5 µg/kg/min ») et voie (IV, PO, SC…).
+    dose VARCHAR(50) NOT NULL,
+    route VARCHAR(50) NOT NULL,
+    startDate DATETIME NOT NULL,
+    endDate DATETIME NULL,
+    frequencyHours SMALLINT NULL,
+    timeConstraint VARCHAR(200) NULL,
+    idStoppedBy VARCHAR(20) NULL,
+    stoppedAt DATETIME NULL,
+
+    CONSTRAINT chk_medicationrequest_frequence CHECK (frequencyHours IS NULL OR frequencyHours > 0),
+    CONSTRAINT chk_medicationrequest_dates CHECK (endDate IS NULL OR endDate >= startDate),
+    CONSTRAINT chk_medicationrequest_arret CHECK ((idStoppedBy IS NULL) = (stoppedAt IS NULL)),
+
+    CONSTRAINT fk_careplan_medicationrequest FOREIGN KEY (idCarePlan) REFERENCES CarePlan(idCarePlan) ON DELETE RESTRICT,
+    CONSTRAINT fk_activitydefinition_medicationrequest FOREIGN KEY (idActivityDefinition) REFERENCES ActivityDefinition(idActivityDefinition) ON DELETE RESTRICT,
+    CONSTRAINT fk_medication_medicationrequest FOREIGN KEY (idMedication) REFERENCES Medication(idMedication) ON DELETE RESTRICT,
+    CONSTRAINT fk_stoppedby_medicationrequest FOREIGN KEY (idStoppedBy) REFERENCES Practitioner(idPractitioner) ON DELETE RESTRICT
+);
+
+
+CREATE TABLE Appointment( -- SoinPlanifie
+    idAppointment VARCHAR(20) PRIMARY KEY,
+    idServiceRequest VARCHAR(20) NULL,
+    idMedicationRequest VARCHAR(20) NULL,
+    plannedTime DATETIME,
+    status VARCHAR(20),
+    timeOfCompletion DATETIME,
+    timeRecorded DATETIME,
+    comment VARCHAR(100),
+
+    CONSTRAINT chk_appointment_ligne CHECK ((idServiceRequest IS NULL) <> (idMedicationRequest IS NULL)),
+
+    CONSTRAINT fk_servicerequest_appointment FOREIGN KEY (idServiceRequest) REFERENCES ServiceRequest(idServiceRequest) ON DELETE RESTRICT,
+    CONSTRAINT fk_medicationrequest_appointment FOREIGN KEY (idMedicationRequest) REFERENCES MedicationRequest(idMedicationRequest) ON DELETE RESTRICT
 );
