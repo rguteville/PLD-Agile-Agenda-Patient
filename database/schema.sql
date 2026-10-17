@@ -60,8 +60,8 @@ CREATE TABLE EpisodeOfCare( -- Séjour
     height DECIMAL(5,2) NULL,
     precautions VARCHAR(500) NULL,
 
-    CONSTRAINT fk_patient_episode FOREIGN KEY (idPatient) REFERENCES Patient(idPatient),
-    CONSTRAINT fk_healthcareservice_episode FOREIGN KEY (idHealthcareService) REFERENCES HealthcareService(idHealthcareService)
+    CONSTRAINT fk_patient_episode FOREIGN KEY (idPatient) REFERENCES Patient(idPatient) ON DELETE RESTRICT,
+    CONSTRAINT fk_healthcareservice_episode FOREIGN KEY (idHealthcareService) REFERENCES HealthcareService(idHealthcareService) ON DELETE RESTRICT
 );
 
 -- Référentiel des allergènes (AURA-13.1) : une substance n'y figure qu'une fois.
@@ -114,7 +114,7 @@ CREATE TABLE Practitioner( -- Praticien
     phoneNumber VARCHAR(10),
     email VARCHAR(50),
 
-    CONSTRAINT fk_practitionerrole_practitioner FOREIGN KEY (idPractitionerRole) REFERENCES PractitionerRole(idPractitionerRole)
+    CONSTRAINT fk_practitionerrole_practitioner FOREIGN KEY (idPractitionerRole) REFERENCES PractitionerRole(idPractitionerRole) ON DELETE RESTRICT
 );
 
 CREATE TABLE CarePlan( -- Prescription
@@ -128,9 +128,9 @@ CREATE TABLE CarePlan( -- Prescription
     endDate DATE,
     frequency VARCHAR(50), -- Type à créer ???
 
-    CONSTRAINT fk_episodeofcare_careplan FOREIGN KEY (idEpisodeOfCare) REFERENCES EpisodeOfCare(idEpisodeOfCare),
-    CONSTRAINT fk_prescriber_careplan FOREIGN KEY (idPrescriber) REFERENCES Practitioner(idPractitioner),
-    CONSTRAINT fk_doctor_careplan FOREIGN KEY (idDoctor) REFERENCES Practitioner(idPractitioner)
+    CONSTRAINT fk_episodeofcare_careplan FOREIGN KEY (idEpisodeOfCare) REFERENCES EpisodeOfCare(idEpisodeOfCare) ON DELETE RESTRICT,
+    CONSTRAINT fk_prescriber_careplan FOREIGN KEY (idPrescriber) REFERENCES Practitioner(idPractitioner) ON DELETE RESTRICT,
+    CONSTRAINT fk_doctor_careplan FOREIGN KEY (idDoctor) REFERENCES Practitioner(idPractitioner) ON DELETE RESTRICT
 );
 
 CREATE TABLE Appointment( -- SoinPlanifié
@@ -142,7 +142,7 @@ CREATE TABLE Appointment( -- SoinPlanifié
     timeRecorded DATETIME,
     comment VARCHAR(100),
 
-    CONSTRAINT fk_careplan_appointment FOREIGN KEY (idCareplan) REFERENCES Careplan(idCareplan)
+    CONSTRAINT fk_careplan_appointment FOREIGN KEY (idCareplan) REFERENCES Careplan(idCareplan) ON DELETE RESTRICT
 );
 
 CREATE TABLE Medication( -- Medicament
@@ -162,8 +162,8 @@ CREATE TABLE ServiceRequest( -- PrescriptionSoin
     idActivityDefinition VARCHAR(20),
     idCarePlan VARCHAR(20),
 
-    CONSTRAINT fk_activitydefinition_servicerequest FOREIGN KEY (idActivityDefinition) REFERENCES ActivityDefinition(idActivityDefinition),
-    CONSTRAINT fk_careplan_servicerequest FOREIGN KEY (idCarePlan) REFERENCES CarePlan(idCarePlan)
+    CONSTRAINT fk_activitydefinition_servicerequest FOREIGN KEY (idActivityDefinition) REFERENCES ActivityDefinition(idActivityDefinition) ON DELETE RESTRICT,
+    CONSTRAINT fk_careplan_servicerequest FOREIGN KEY (idCarePlan) REFERENCES CarePlan(idCarePlan) ON DELETE RESTRICT
 );
 
 CREATE TABLE MedicationDispense( -- PrescriptionMedicament
@@ -171,6 +171,6 @@ CREATE TABLE MedicationDispense( -- PrescriptionMedicament
     idMedication VARCHAR(20),
     idCarePlan VARCHAR(20),
 
-    CONSTRAINT fk_medication_medicationdispense FOREIGN KEY (idMedication) REFERENCES Medication(idMedication),
-    CONSTRAINT fk_careplan_medicationdispense FOREIGN KEY (idCarePlan) REFERENCES CarePlan(idCarePlan)
+    CONSTRAINT fk_medication_medicationdispense FOREIGN KEY (idMedication) REFERENCES Medication(idMedication) ON DELETE RESTRICT,
+    CONSTRAINT fk_careplan_medicationdispense FOREIGN KEY (idCarePlan) REFERENCES CarePlan(idCarePlan) ON DELETE RESTRICT
 );
