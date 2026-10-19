@@ -4,7 +4,7 @@ use Aura\Core\View;
 /**
  * @var int $idSejour
  * @var array<int, array<string, mixed>> $careplans
- * @var array<string, mixed> $bandeau
+//  * @var array<string, mixed> $bandeau
  */
 
 /**
