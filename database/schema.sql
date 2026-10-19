@@ -7,9 +7,9 @@
 #CREATE DATABASE IF NOT EXISTS aura;
 #USE aura;
 
-DROP TABLE IF EXISTS Appointment; -- SoinPlanifié ->[CarePlan]
-DROP TABLE IF EXISTS ServiceRequest; -- PrescriptionSoin ->[ActivityDefinition,CarePlan]
-DROP TABLE IF EXISTS MedicationDispense; -- PrescriptionMedicament ->[Medication,CarePlan]
+DROP TABLE IF EXISTS Appointment; -- SoinPlanifié ->[ServiceRequest,MedicationRequest]
+DROP TABLE IF EXISTS ServiceRequest; -- PrescriptionSoin ->[ActivityDefinition,CarePlan,Practitioner]
+DROP TABLE IF EXISTS MedicationRequest; -- PrescriptionMedicament ->[Medication,CarePlan,Practitioner]
 DROP TABLE IF EXISTS CarePlan; -- Prescription ->[Practitioner,EpisodeOfCare]
 DROP TABLE IF EXISTS EpisodeOfCare; -- Séjour ->[Patient,HealthcareService]
 DROP TABLE IF EXISTS Practitioner; -- Praticien ->[PractitionerRole]
@@ -25,7 +25,7 @@ CREATE TABLE Patient( -- Patient
     idPatient VARCHAR(20) PRIMARY KEY,
     ipp INT UNIQUE CHECK (ipp BETWEEN 100000 AND 999999999),
     firstName VARCHAR(50),
-    lastName VARCHAR(50),
+    lastName VARCHAR(50) NOT NULL,
     phoneNumber VARCHAR(10),
     email VARCHAR(50),
     sex VARCHAR(1),
@@ -140,8 +140,10 @@ CREATE TABLE CarePlan( -- Prescription
 
 CREATE TABLE Medication( -- Medicament
     idMedication VARCHAR(20) PRIMARY KEY,
-    inn VARCHAR(100),
-    form VARCHAR(100)
+    inn VARCHAR(100), -- DCI
+    form VARCHAR(100),
+
+    CONSTRAINT uq_inn_form UNIQUE (inn,form)
 );
 
 CREATE TABLE ActivityDefinition( -- TypeSoin
@@ -206,7 +208,7 @@ CREATE TABLE Appointment( -- SoinPlanifie
     idAppointment VARCHAR(20) PRIMARY KEY,
     idServiceRequest VARCHAR(20) NULL,
     idMedicationRequest VARCHAR(20) NULL,
-    plannedTime DATETIME,
+    plannedTime DATETIME NOT NULL,
     status VARCHAR(20),
     timeOfCompletion DATETIME,
     timeRecorded DATETIME,
