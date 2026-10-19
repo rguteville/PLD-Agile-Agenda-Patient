@@ -111,6 +111,29 @@ try {
                                     'comment'             => 'Bien toléré par le patient'
                                 ]
                             ]
+                        ],
+                        [
+                            'idServiceRequest'     => 101,
+                            'idCarePlan'           => 1,
+                            'idActivityDefinition' => 'Changement de rampe/tubulure ART',
+                            'startDate'            => '2026-10-19',
+                            'endDate'              => '2026-10-20',
+                            'frequencyHours'       => 24,
+                            'timeConstraint'       => 'Matin',
+                            'idStoppedBy'          => null,
+                            'stoppedAt'            => null,
+                            'appointments'         => [
+                                [
+                                    'idAppointment'       => 1,
+                                    'idServiceRequest'    => 101,
+                                    'idMedicationRequest' => null,
+                                    'plannedTime'         => '2026-10-19 08:00:00',
+                                    'status'              => 'completed',
+                                    'timeOfCompletion'    => null,
+                                    'timeRecorded'        => null,
+                                    'comment'             => null
+                                ]
+                            ]
                         ]
                     ],
 
