@@ -26,4 +26,44 @@ class ServiceRequest
         return $this->idServiceRequest;
     }
 
+    public function getIdCarePlan(): string
+    {
+        return $this->idCarePlan;
+    }
+
+    public function getIdActivityDefinition(): string
+    {
+        return $this->idActivityDefinition;
+    }
+
+    public function getStartDate(): DateTimeImmutable
+    {
+        return $this->startDate;
+    }
+
+    public function getEndDate(): ?DateTimeImmutable
+    {
+        return $this->endDate;
+    }
+
+    public function getFrequencyHours(): ?int
+    {
+        return $this->frequencyHours;
+    }
+
+    public function getTimeConstraint(): ?string
+    {
+        return $this->timeConstraint;
+    }
+
+    public function getIdStoppedBy(): ?string
+    {
+        return $this->idStoppedBy;
+    }
+
+    public function getStoppedAt(): ?DateTimeImmutable
+    {
+        return $this->stoppedAt;
+    }
+
 }

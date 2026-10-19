@@ -25,4 +25,43 @@ class Appointment
         return $this->idAppointment;
     }
 
+    public function getIdServiceRequest(): ?string
+    {
+        return $this->idServiceRequest;
+    }
+
+    public function getIdMedicationRequest(): ?string
+    {
+        return $this->idMedicationRequest;
+    }
+
+    public function getPlannedTime(): ?DateTimeImmutable
+    {
+        return $this->plannedTime;
+    }
+
+    public function getStatus(): ?string
+    {
+        return $this->status;
+    }
+
+    public function getTimeOfCompletion(): ?DateTimeImmutable
+    {
+        return $this->timeOfCompletion;
+    }
+
+    public function getTimeRecorded(): ?DateTimeImmutable
+    {
+        return $this->timeRecorded;
+    }
+
+    public function getComment(): ?string
+    {
+        return $this->comment;
+    }
+
+
+
+
+
 }

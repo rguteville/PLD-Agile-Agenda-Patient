@@ -25,4 +25,35 @@ class CarePlan
         return $this->idCarePlan;
     }
 
+    public function getIdEpisodeOfCare(): string
+    {   
+        return $this->idEpisodeOfCare;
+    }
+
+    public function getIdPrescriber(): string
+    {   
+        return $this->idPrescriber;
+    }
+
+    public function getMode(): string
+    {
+        return $this->mode;
+    }
+
+    public function getRecordedAt(): DateTimeImmutable
+    {
+        return $this->recordedAt;
+    }
+
+    public function getIdValidator(): ?string
+    {
+        return $this->idValidator;
+    }
+
+    public function getValidatedAt(): ?DateTimeImmutable
+    {
+        return $this->validatedAt;
+    }
+
+
 }

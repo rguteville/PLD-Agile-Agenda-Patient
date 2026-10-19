@@ -6,17 +6,19 @@ namespace Aura\Service;
 
 use Aura\Dao\AppointmentDao;
 use Aura\Dao\CarePlanDao;
+use Aura\Domain\CarePlan;
+use Aura\Domain\MedicationRequest;
+use Aura\Domain\ServiceRequest;
 
 final class AgendaService
 {
     public function __construct(
         private CarePlanDao $carePlanDao,
         private AppointmentDao $appointmentDao,
-    )
-    {
+    ) {
     }
 
-    public function getAgenda(string $id) : array
+    public function getAgenda(string $id): array
     {
         error_log("Appel Service getAgenda");
         $response = [];
@@ -26,29 +28,98 @@ final class AgendaService
         foreach ($carePlans as $carePlan) {
             // D'une part, on récupère leq Soins associés
             $serviceRequests = $this->carePlanDao->findServiceByCarePlan($carePlan->getIdCarePlan());
-            $service = $serviceRequests;
             foreach ($serviceRequests as $serviceRequest) {
                 // Pour chaque soin, on récupère les SoinsPlanifiés
                 $serviceAppointments = $this->appointmentDao->findByRequest($serviceRequest->getIdServiceRequest());
-                $service["appointments"] = $serviceAppointments;
             }
             // D'autre part, on récupère les Médicaments associés
             $medicationRequests = $this->carePlanDao->findMedicationByCarePlan($carePlan->getIdCarePlan());
-            $medic = $medicationRequests;
             foreach ($medicationRequests as $medicationRequest) {
                 //Pour chaque Médicament, on récupère les SoinsPlanifiés associés
                 $medicationAppointments = $this->appointmentDao->findByRequest($medicationRequest->getIdMedicationRequest());
-                $medic["appointments"] = $medicationAppointments;
             }
+            
             // Assemblage de la réponse HTTP
-            var_dump($carePlan->getIdCarePlan());
-            $response[] = ['carePlan' => $carePlan->getIdCarePlan(), 'serviceRequests' => $service, 'medicationRequests'=> $medic];
+            $response[] = $this->serializeCarePlan($carePlan, $serviceRequests, $serviceAppointments, $medicationRequests, $medicationAppointments);
         }
         return $response;
     }
 
-    
-// {
+    public function serializeCarePlan(CarePlan $carePlan, array $services, array $serviceAppointments, array $medication, array $medicationAppointments): array
+    {
+        return [
+            'idCarePlan' => $carePlan->getIdCarePlan(),
+            'idEpisodeOfCare' => $carePlan->getIdEpisodeOfCare(),
+            'idPrescriber' => $carePlan->getIdPrescriber(),
+            'mode' => $carePlan->getMode(),
+            'recordedAt' => $carePlan->getRecordedAt(),
+            'idValidator' => $carePlan->getIdValidator(),
+            'validatedAt' => $carePlan->getValidatedAt(),
+            'serviceRequests' => $this->serializeService($services, $serviceAppointments),
+            'medicationRequests' => $this->serializeMedication($medication, $medicationAppointments),
+        ];
+    }
+
+    public function serializeService(array $services, array $appointments): ?array
+    {
+        foreach ($services as $service) {
+            $res[] = [
+                'idServiceRequest' => $service->getIdServiceRequest(),
+                'idCarePlan' => $service->getIdCarePlan(),
+                'idActivityDefinition' => $service->getIdActivityDefinition(),
+                'startDate' => $service->getStartDate(),
+                'endDate' => $service->getEndDate(),
+                'frequencyHours' => $service->getFrequencyHours(),
+                'timeConstraint' => $service->getTimeConstraint(),
+                'idStoppedBy' => $service->getIdStoppedBy(),
+                'stoppedAt' => $service->getStoppedAt(),
+                'appointments' => $this->serializeAppointment($appointments),
+            ];
+        }
+        return $res;
+    }
+
+    public function serializeMedication(array $medications, array $appointments): ?array
+    {
+        foreach ($medications as $medication) {
+            $res[] = [
+                'idMedicationRequest' => $medication->getIdMedicationRequest(),
+                'idCarePlan' => $medication->getIdCarePlan(),
+                'idActivityDefinition' => $medication->getIdActivityDefinition(),
+                'dose' => $medication->getDose(),
+                'route' => $medication->getRoute(),
+                'startDate' => $medication->getStartDate(),
+                'endDate' => $medication->getEndDate(),
+                'frequencyHours' => $medication->getFrequencyHours(),
+                'timeConstraint' => $medication->getTimeConstraint(),
+                'idStoppedBy' => $medication->getIdStoppedBy(),
+                'stoppedAt' => $medication->getStoppedAt(),
+                'appointments' => $this->serializeAppointment($appointments),
+            ];
+        }
+        return $res;
+    }
+
+    public function serializeAppointment(array $appointments): ?array
+    {
+
+        foreach ($appointments as $appointment) {
+            $res[] = [
+                'idAppointment' => $appointment->getIdAppointment(),
+                'idServiceRequest' => $appointment->getIdServiceRequest(),
+                'idMedicationRequest' => $appointment->getIdMedicationRequest(),
+                'plannedTime' => $appointment->getPlannedTime(),
+                'status' => $appointment->getStatus(),
+                'timeOfCompletion' => $appointment->getTimeOfCompletion(),
+                'timeRecorded' => $appointment->getTimeRecorded(),
+                'comment' => $appointment->getComment(),
+            ];
+        }
+        return $res;
+    }
+
+
+    // {
 //     careplans: [
 //         {
 //             idCarePlan: 1;
