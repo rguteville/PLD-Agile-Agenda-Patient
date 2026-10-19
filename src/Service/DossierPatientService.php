@@ -96,6 +96,8 @@ final class DossierPatientService
         $sortie = $sejour->getDateSortie();
 
         return [
+            // AURA-20 : identifiant du séjour, pour le lien vers la saisie des prescriptions.
+            'id' => (string) $sejour->getIdSejour(),
             'enCours' => $sortie === null,
             'dateSortie' => $sortie?->format('d/m/Y H:i'),
             'service' => self::texteOuNull($sejour->getIdService()),

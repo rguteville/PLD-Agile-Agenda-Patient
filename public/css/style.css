@@ -324,6 +324,25 @@ body, html {
     font-style: italic;
 }
 
+/* AURA-20 : bouton « Prescription » du dossier, vers la fenêtre de saisie */
+.dossier-actions {
+    margin: 0 0 14px;
+}
+
+.dossier-actions .bouton {
+    display: inline-block;
+    padding: 6px 14px;
+    color: #fff;
+    background: #2b7bb9;
+    border: 1px solid #1f5f91;
+    border-radius: 3px;
+    text-decoration: none;
+}
+
+.dossier-actions .bouton:hover {
+    background: #1f5f91;
+}
+
 /* ---------- Liste des patients (AURA-12.1) ---------- */
 .recherche-patients {
     display: flex;
@@ -379,4 +398,272 @@ body, html {
     padding: 16px;
     border: 1px solid #b00020;
     background: #fde2e4;
+}
+
+/* ---------- AURA-20 : fenêtre « B3. Nouvelles prescriptions » (figures 7, 8 et 9) ---------- */
+.b3 {
+    max-width: 1100px;
+    font-family: Tahoma, "Segoe UI", Arial, sans-serif;
+    font-size: 12px;
+    color: #000;
+}
+
+.b3-retour {
+    margin: 0 0 6px;
+}
+
+.b3-titre {
+    margin: 0 0 8px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #c8c8c8;
+    font-size: 20px;
+    font-weight: 400;
+}
+
+.b3-succes {
+    margin: 0 0 8px;
+    padding: 6px 8px;
+    color: #1b5e20;
+    background: #e8f5e9;
+    border: 1px solid #a5d6a7;
+}
+
+.b3-corps {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 12px;
+    background: #f0f0f0;
+    border: 1px solid #d4d4d4;
+}
+
+/* Colonne de gauche : étiquette courte à gauche, liste déroulante large à droite */
+.b3-saisie {
+    flex: 0 0 470px;
+    max-width: none;
+}
+
+.b3-ligne {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.b3-ligne label {
+    flex: 0 0 48px;
+}
+
+.b3-ligne select {
+    flex: 1;
+    height: 22px;
+    font: inherit;
+    border: 1px solid #a0a0a0;
+    background: #fff;
+}
+
+.b3-ligne select:disabled {
+    background: #e6e6e6;
+    border-color: #c8c8c8;
+}
+
+.b3-avertissement,
+.b3-message {
+    margin: 4px 0 8px 48px;
+    color: #b00020;
+}
+
+/* Fiche de paramètres (figure 9) : libellés magenta, astérisque rouge, valeurs à droite */
+.b3-param {
+    margin-top: 6px;
+    background: #fff;
+    border: 1px solid #a0a0a0;
+}
+
+.b3-param-titre {
+    padding: 3px 6px;
+    color: #c000c0;
+    border-bottom: 1px solid #d4d4d4;
+}
+
+.b3-grille {
+    display: grid;
+    grid-template-columns: 160px 14px 1fr;
+}
+
+.b3-grille > label,
+.b3-grille > .b3-requis,
+.b3-grille > .b3-valeur {
+    padding: 2px 6px;
+    border-bottom: 1px solid #e4e4e4;
+}
+
+.b3-grille > label {
+    color: #c000c0;
+}
+
+.b3-grille > label.b3-grise {
+    color: #808080;
+}
+
+.b3-requis {
+    color: #d00000;
+    font-weight: 700;
+}
+
+.b3-valeur {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.b3-valeur input,
+.b3-valeur select {
+    flex: 1;
+    min-width: 0;
+    height: 20px;
+    font: italic 12px Tahoma, Arial, sans-serif;
+    color: #c000c0;
+    border: 1px solid #c8c8c8;
+}
+
+.b3-valeur input[readonly],
+.b3-valeur input:disabled {
+    background: #f6f6f6;
+}
+
+.b3-note {
+    margin: 0;
+    padding: 2px 6px;
+    color: #808080;
+    font-style: italic;
+}
+
+.b3-valeur .b3-court {
+    flex: 0 0 60px;
+}
+
+.b3-boutons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+    padding: 6px;
+}
+
+.b3-boutons button {
+    min-width: 80px;
+    height: 24px;
+    font: inherit;
+    background: #e1e1e1;
+    border: 1px solid #adadad;
+    cursor: pointer;
+}
+
+.b3-boutons button:disabled {
+    color: #a0a0a0;
+    cursor: default;
+}
+
+.b3-boutons .b3-enregistrer {
+    color: #fff;
+    background: #2b7bb9;
+    border-color: #1f5f91;
+}
+
+/* Colonne de droite : prescriptions non sauvegardées */
+.b3-recap {
+    flex: 1;
+    min-width: 0;
+    background: #fff;
+    border: 1px solid #a0a0a0;
+}
+
+.b3-recap-titre {
+    margin: 0;
+    padding: 2px 4px;
+    font-size: 12px;
+    font-weight: 700;
+    border-bottom: 1px solid #a0a0a0;
+}
+
+.b3-panier {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.b3-panier th {
+    padding: 2px 4px;
+    text-align: left;
+    font-weight: 700;
+    border-bottom: 1px solid #a0a0a0;
+}
+
+.b3-panier td {
+    padding: 2px 4px;
+    border-bottom: 1px solid #d4d4d4;
+    vertical-align: top;
+}
+
+/* RG5 : ordonnances en attente de validation (fond jaune + crayon, comme la figure 7) */
+.b3-attente {
+    padding: 4px 6px;
+    background: #ffff99;
+    border-bottom: 1px solid #d4d4d4;
+}
+
+.b3-attente-entete {
+    margin: 0;
+    font-weight: 700;
+}
+
+.b3-attente ul {
+    margin: 2px 0 4px;
+    padding-left: 18px;
+}
+
+.b3-valider {
+    display: flex;
+    gap: 6px;
+    max-width: none;
+}
+
+.b3-valider select {
+    flex: 1;
+    height: 22px;
+    font: inherit;
+}
+
+.b3-valider button {
+    height: 22px;
+    font: inherit;
+    cursor: pointer;
+}
+
+.b3-vide {
+    margin: 0;
+    padding: 4px 6px;
+    color: #777;
+    font-style: italic;
+}
+
+.b3-recap .form-error {
+    margin: 4px 0;
+    color: #b00020;
+}
+
+.b3-retirer {
+    padding: 0 4px;
+    font: inherit;
+    color: #b00020;
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+
+/* Erreurs renvoyées par le serveur (public/js/form.js) */
+.b3-saisie .form-error {
+    margin: 0 0 8px;
+    padding: 6px 8px;
+    color: #b00020;
+    background: #fde2e4;
+    border: 1px solid #b00020;
 }

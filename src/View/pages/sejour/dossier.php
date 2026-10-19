@@ -11,6 +11,14 @@ use Aura\Core\View;
 
 <section class="dossier">
     <h1 class="form-title">Dossier du séjour n° <?= View::e($bandeau['numeroSejour']) ?></h1>
+    <?php if ($sejour['enCours']) : ?>
+        <?php /* AURA-20 : on ne prescrit que pour un séjour en cours (RG4). */ ?>
+        <p class="dossier-actions">
+            <a class="bouton" href="/prescriptions/nouvelle?sejour=<?= View::e(rawurlencode($sejour['id'])) ?>">
+                Prescription
+            </a>
+        </p>
+    <?php endif; ?>
     <dl>
         <dt>Statut</dt>
         <dd><?= $sejour['enCours'] ? 'En cours' : 'Clos le ' . View::e($sejour['dateSortie']) ?></dd>
