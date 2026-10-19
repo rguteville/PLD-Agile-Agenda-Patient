@@ -5,6 +5,7 @@ declare(strict_types=1);
 require dirname(__DIR__) . '/vendor/autoload.php';
 
 use Aura\Controller\PatientController;
+use Aura\Controller\PrescriptionController;
 use Aura\Controller\SejourController;
 use Aura\Core\ConfigurationException;
 use Aura\Core\Database;
@@ -12,11 +13,13 @@ use Aura\Core\Router;
 use Aura\Core\View;
 use Aura\Dao\AllergieDao;
 use Aura\Dao\PatientDao;
+use Aura\Dao\PrescriptionEntryDao;
 use Aura\Dao\SejourDao;
 use Aura\Dao\Transaction;
 use Aura\Service\AdmissionService;
 use Aura\Service\DossierPatientService;
 use Aura\Service\ListePatientsService;
+use Aura\Service\PrescriptionEntryService;
 use Aura\Service\SejourService;
 
 // Récupération de l'url
@@ -70,11 +73,19 @@ try {
         $controller->list();
     };
 
+    // AURA-20 : saisie d'une prescription (figures 7 à 9), données lues et écrites en base.
+    $prescriptionController = static fn (): PrescriptionController => new PrescriptionController(
+        new PrescriptionEntryService(new PrescriptionEntryDao(Database::get()))
+    );
+
     // Le Router traite les requetes HTTP
     $router = new Router();
     $router->get('/patients', $listerPatients);
     $router->post('/patients/create', $admettrePatient);
     $router->get('/sejour', $afficherSejour);
+    $router->get('/prescriptions/nouvelle', static fn () => $prescriptionController()->showForm());
+    $router->post('/prescriptions/create', static fn () => $prescriptionController()->store());
+    $router->post('/prescriptions/validate', static fn () => $prescriptionController()->validateCarePlan());
     $router->notFound(static fn () => View::erreur(404, 'Page introuvable.'));
 
     $router->dispatch($_SERVER['REQUEST_METHOD'], $_SERVER['REQUEST_URI']);

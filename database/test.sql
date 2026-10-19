@@ -46,14 +46,60 @@ INSERT INTO Medication (idMedication, inn, form) VALUES
     ('MED02', 'Noradrénaline', 'Solution pour perfusion'),
     ('MED03', 'Héparine sodique', 'Solution injectable'),
     ('MED04', 'Amoxicilline', 'Poudre pour solution injectable'),
-    ('MED05', 'Midazolam', 'Solution injectable');
+    ('MED05', 'Midazolam', 'Solution injectable'),
+    -- AURA-20 : médicaments des figures 7 et 9 du sujet (DCI, forme commerciale)
+    ('MED06', 'Acétylsalicylate', 'Aspégic IV'),
+    ('MED07', 'Morphine', 'Actiskenan PO'),
+    ('MED08', 'Morphine', 'Skenan LP (PO)'),
+    ('MED09', 'Néfopam', 'Acupan injectable'),
+    ('MED10', 'Paracétamol', 'Comprimé');
 
 INSERT INTO ActivityDefinition (idActivityDefinition, name, description) VALUES
     ('TYP01', 'Administration médicamenteuse', 'Administration d''un traitement prescrit'),
     ('TYP02', 'Prise des constantes', 'Pression artérielle, fréquence cardiaque, SpO2, température'),
     ('TYP03', 'Prélèvement sanguin', 'Bilan biologique sur prescription'),
     ('TYP04', 'Réfection de pansement', 'Pansement de voie centrale ou de plaie'),
-    ('TYP05', 'Aspiration trachéale', 'Pour patient intubé ou trachéotomisé');
+    ('TYP05', 'Aspiration trachéale', 'Pour patient intubé ou trachéotomisé'),
+    -- AURA-20 : autres types de soin proposés dans la fenêtre de saisie
+    ('TYP06', 'Isolement contact', 'Précautions complémentaires contact'),
+    ('TYP07', 'Changement de tubulure', 'Changement de rampe / tubulure de voie veineuse'),
+    ('TYP08', 'Oxygénothérapie', 'Administration d''oxygène, débit selon prescription'),
+    ('TYP09', 'Séance d''épuration extra-rénale', 'EER / plasmaphérèse'),
+    ('TYP10', 'Boissons et compléments oraux', 'Apports par voie orale'),
+    ('TYP11', 'Nutrition entérale', 'Alimentation par sonde'),
+    ('TYP12', 'Régime alimentaire', 'Régime diététique prescrit'),
+    ('TYP13', 'Radiographie thoracique', 'Imagerie au lit du patient'),
+    ('TYP14', 'Kinésithérapie respiratoire', 'Séance de kinésithérapie'),
+    ('TYP15', 'Visite / consigne ponctuelle', 'Consigne ou visite programmée');
+
+-- AURA-20 : catégories de la liste « 1. » de la fenêtre de saisie (figure 8 du sujet).
+-- Pas de table dédiée dans le schéma : ce sont des types de soin (ActivityDefinition)
+-- d'identifiant CATnn (nn = ordre d'affichage du sujet). La colonne description indique
+-- ce que la catégorie prescrit : GROUP (protocole), CARE (soin) ou MEDICATION (médicament). Une ligne de
+-- médicament (MedicationRequest) prend pour idActivityDefinition la catégorie choisie.
+INSERT INTO ActivityDefinition (idActivityDefinition, name, description) VALUES
+    ('CAT00', '[Groupes prescriptions]',                      'GROUP'),
+    ('CAT01', '1. Surv, isolement, contentions',              'CARE'),
+    ('CAT02', '2. Actes, soins, programmation',               'CARE'),
+    ('CAT03', '3. Ventilation, oxygénothérapie',              'CARE'),
+    ('CAT04', '4. EER / Plasmaphérèse',                       'CARE'),
+    ('CAT05', '5.a. Médicaments : IV, PO, SC, aérosols, etc', 'MEDICATION'),
+    ('CAT06', '5.b. Médicaments : Continu (IVSE)',            'MEDICATION'),
+    ('CAT07', '5.c. Médicaments : PCA',                       'MEDICATION'),
+    ('CAT08', '5.e. Médicaments : Analgésie loco-régionale',  'MEDICATION'),
+    ('CAT09', '5.d. Médicaments : produits non référencés',   'MEDICATION'),
+    ('CAT10', '5.f. Médicaments : PSE non référencés',        'MEDICATION'),
+    ('CAT11', '6.a. Apports : Perfusion IV',                  'MEDICATION'),
+    ('CAT12', '6.b. Apports : Remplissage vasculaire',        'MEDICATION'),
+    ('CAT13', '6.c. Apports : Produits sanguins labiles',     'MEDICATION'),
+    ('CAT14', '6.d. Nutrition : Parentérale',                 'MEDICATION'),
+    ('CAT15', '6.f. Nutrition : boissons et compléments PO',  'CARE'),
+    ('CAT16', '6.e. Nutrition : Entérale',                    'CARE'),
+    ('CAT17', '6.g. Nutrition : Diét. Régimes',               'CARE'),
+    ('CAT18', '7.a. Demandes d''analyses labo',               'CARE'),
+    ('CAT19', '7.b. Imagerie/Ex.diagn./Consult',              'CARE'),
+    ('CAT20', '8. Kiné et Rééducation',                       'CARE'),
+    ('CAT21', '9. Consigne ponctuelle, visites',              'CARE');
 
 -- ---------------------------------------------------------------------------
 -- Praticiens (dépend de PractitionerRole)
