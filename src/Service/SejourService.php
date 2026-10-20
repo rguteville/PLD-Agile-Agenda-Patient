@@ -33,8 +33,7 @@ class SejourService
     {
         $sejour = $this->sejourDao->findByNumber($numSejour);
 
-        if ($sejour === null) 
-        {
+        if ($sejour === null) {
             throw new InvalidArgumentException("Séjour n°$numSejour introuvable");
         }
 
