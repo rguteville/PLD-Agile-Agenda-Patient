@@ -41,14 +41,23 @@ final class AgendaService
             }
             // Assemblage de la réponse HTTP
             $response[] = $this->serializeCarePlan(
-                $carePlan, $serviceRequests, $serviceAppointments, $medicationRequests, $medicationAppointments);
+                $carePlan,
+                $serviceRequests,
+                $serviceAppointments,
+                $medicationRequests,
+                $medicationAppointments
+            );
         }
         return $response;
     }
 
     public function serializeCarePlan(
-        CarePlan $carePlan, array $services, array $serviceAppointments, array $medication, array $medicationAppointments): array
-    {
+        CarePlan $carePlan,
+        array $services,
+        array $serviceAppointments,
+        array $medication,
+        array $medicationAppointments
+    ): array {
         return [
             'idCarePlan' => $carePlan->getIdCarePlan(),
             'idEpisodeOfCare' => $carePlan->getIdEpisodeOfCare(),

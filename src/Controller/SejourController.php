@@ -47,13 +47,13 @@ final class SejourController
         error_log('Appel Controller getAgenda');
         $id = $_GET['id'] ?? null;
         $numSejour = $_GET['numSejour'] ?? null;
-        if($id === null && $numSejour === null)
+        if ($id === null && $numSejour === null) 
         {
-            View::erreur(400,'');
+            View::erreur(400, '');
             return;
         }
         //Recuperer l'id du sejour selon son numero
-        if($id === null && $numSejour !== null)
+        if ($id === null && $numSejour !== null) 
         {
             $id = $this->sejourService->getSejourByNumber($numSejour)->getIdSejour();
         }
