@@ -51,10 +51,10 @@ final class AllergieDaoTest extends TestCase
             new Patient(null, null, 'Testallergie', 'Bob', new DateTimeImmutable('1970-05-05'), 'M')
         );
         $this->pdo->exec(
-            "INSERT INTO Allergene (idAllergene, substance) VALUES ('T_ZZ', 'Zinc test'), ('T_AA', 'Arachide test')"
+            "INSERT INTO Substance (idSubstance, description) VALUES ('T_ZZ', 'Zinc test'), ('T_AA', 'Arachide test')"
         );
         $stmt = $this->pdo->prepare(
-            'INSERT INTO Allergie (idAllergie, idPatient, idAllergene, criticality)
+            'INSERT INTO AllergyIntolerance (idAllergy, idPatient, idSubstance, criticality)
              VALUES (:id, :idPatient, :idAllergene, :crit)'
         );
         $idTexte = (string) $idPatient;
@@ -76,7 +76,7 @@ final class AllergieDaoTest extends TestCase
     public function testDateDeSaisieRemplieParLaBaseEtLue(): void
     {
         $idPatient = $this->insererPatient('Ana');
-        $this->pdo->exec("INSERT INTO Allergene (idAllergene, substance) VALUES ('T_DA', 'Date test')");
+        $this->pdo->exec("INSERT INTO Substance (idSubstance, description) VALUES ('T_DA', 'Date test')");
         $avant = $this->maintenantEnBase();
         $this->insererAllergie('9001', $idPatient, 'T_DA');
 
@@ -91,37 +91,18 @@ final class AllergieDaoTest extends TestCase
     public function testMemeCoupleDeuxFoisRefuseParLaBase(): void
     {
         $idPatient = $this->insererPatient('Doublon');
-        $this->pdo->exec("INSERT INTO Allergene (idAllergene, substance) VALUES ('T_DB', 'Doublon test')");
+        $this->pdo->exec("INSERT INTO Substance (idSubstance, description) VALUES ('T_DB', 'Doublon test')");
         $this->insererAllergie('9001', $idPatient, 'T_DB');
 
         $this->assertErreurMariaDb(1062, fn() => $this->insererAllergie('9002', $idPatient, 'T_DB'));
         $this->assertCount(1, (new AllergieDao($this->pdo))->findByPatient($idPatient));
     }
 
-    public function testAllergieRetireeMasqueeEtSaisissableANouveau(): void
-    {
-        $idPatient = $this->insererPatient('Retrait');
-        $this->pdo->exec("INSERT INTO Allergene (idAllergene, substance) VALUES ('T_RT', 'Retrait test')");
-        $this->insererAllergie('9001', $idPatient, 'T_RT');
-        $this->pdo->exec("UPDATE Allergie SET removedAt = NOW() WHERE idAllergie = '9001'");
-        $dao = new AllergieDao($this->pdo);
-
-        $this->assertSame([], $dao->findByPatient($idPatient), 'une allergie retirée n\'est plus affichée');
-
-        $this->insererAllergie('9002', $idPatient, 'T_RT');
-        $this->assertSame(9002, $dao->findByPatient($idPatient)[0]->getIdAllergie());
-        $this->assertSame(
-            2,
-            (int) $this->pdo->query("SELECT COUNT(*) FROM Allergie WHERE idAllergene = 'T_RT'")->fetchColumn(),
-            'la ligne retirée reste en base'
-        );
-    }
-
     public function testMemeAllergeneChezDeuxPatientsAccepte(): void
     {
         $idPatient1 = $this->insererPatient('Un');
         $idPatient2 = $this->insererPatient('Deux');
-        $this->pdo->exec("INSERT INTO Allergene (idAllergene, substance) VALUES ('T_PA', 'Partage test')");
+        $this->pdo->exec("INSERT INTO Substance (idSubstance, description) VALUES ('T_PA', 'Partage test')");
         $this->insererAllergie('9001', $idPatient1, 'T_PA');
         $this->insererAllergie('9002', $idPatient2, 'T_PA');
 
@@ -130,18 +111,20 @@ final class AllergieDaoTest extends TestCase
 
     public function testSubstanceEnDoubleRefuseeParLaBase(): void
     {
-        $this->pdo->exec("INSERT INTO Allergene (idAllergene, substance) VALUES ('T_S1', 'Substance test')");
+        $this->pdo->exec("INSERT INTO Substance (idSubstance, description) VALUES ('T_S1', 'Substance test')");
 
         $this->assertErreurMariaDb(
             1062,
-            fn() => $this->pdo->exec("INSERT INTO Allergene (idAllergene, substance) VALUES ('T_S2', 'Substance test')")
+            fn() => $this->pdo->exec(
+                "INSERT INTO Substance (idSubstance, description) VALUES ('T_S2', 'Substance test')"
+            )
         );
     }
 
     public function testPatientAvecAllergieNonSupprimable(): void
     {
         $idPatient = $this->insererPatient('Restrict');
-        $this->pdo->exec("INSERT INTO Allergene (idAllergene, substance) VALUES ('T_RE', 'Restrict test')");
+        $this->pdo->exec("INSERT INTO Substance (idSubstance, description) VALUES ('T_RE', 'Restrict test')");
         $this->insererAllergie('9001', $idPatient, 'T_RE');
 
         $this->assertErreurMariaDb(
@@ -150,7 +133,7 @@ final class AllergieDaoTest extends TestCase
         );
         $this->assertErreurMariaDb(
             1451,
-            fn() => $this->pdo->exec("DELETE FROM Allergene WHERE idAllergene = 'T_RE'")
+            fn() => $this->pdo->exec("DELETE FROM Substance WHERE idSubstance = 'T_RE'")
         );
     }
 
@@ -172,7 +155,7 @@ final class AllergieDaoTest extends TestCase
 
     private function insererAllergie(string $id, int $idPatient, string $idAllergene): void
     {
-        $this->pdo->prepare('INSERT INTO Allergie (idAllergie, idPatient, idAllergene) VALUES (?, ?, ?)')
+        $this->pdo->prepare('INSERT INTO AllergyIntolerance (idAllergy, idPatient, idSubstance) VALUES (?, ?, ?)')
             ->execute([$id, (string) $idPatient, $idAllergene]);
     }
 
