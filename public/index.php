@@ -17,6 +17,7 @@ use Aura\Dao\Transaction;
 use Aura\Service\AdmissionService;
 use Aura\Service\DossierPatientService;
 use Aura\Service\ListePatientsService;
+use Aura\Service\ModificationPatientService;
 use Aura\Service\SejourService;
 
 // Récupération de l'url
@@ -70,10 +71,20 @@ try {
         $controller->list();
     };
 
+    // AURA-12.2 : modification d'un patient ; le même contrôleur sert le formulaire (GET) et la soumission (POST).
+    $controleurModification = static fn (): PatientController => new PatientController(
+        modificationPatientService: new ModificationPatientService(
+            new PatientDao(Database::get()),
+            new AdmissionService()
+        )
+    );
+
     // Le Router traite les requetes HTTP
     $router = new Router();
     $router->get('/patients', $listerPatients);
     $router->post('/patients/create', $admettrePatient);
+    $router->get('/patients/modifier', static fn () => $controleurModification()->edit());
+    $router->post('/patients/modifier', static fn () => $controleurModification()->update());
     $router->get('/sejour', $afficherSejour);
     $router->notFound(static fn () => View::erreur(404, 'Page introuvable.'));
 
