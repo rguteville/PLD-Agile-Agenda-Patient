@@ -266,4 +266,20 @@ final class AdmissionServiceTest extends TestCase
 
         $this->assertSame(self::DONNEES_VALIDES, $donnees);
     }
+
+    public function testValiderPatientIgnoreLesChampsDuSejour(): void
+    {
+        $donnees = ['taille' => '-5', 'poids' => 'abc'] + self::DONNEES_VALIDES;
+
+        $this->assertSame([], $this->service->validerPatientIdentite($donnees));
+        $this->assertSame(['taille', 'poids'], array_keys($this->service->valider($donnees)));
+    }
+
+    public function testValiderPatientAppliqueLesMemesReglesQueValider(): void
+    {
+        $donnees = ['nom' => '', 'ipp' => '12', 'sexe' => 'X'] + self::DONNEES_VALIDES;
+
+        $this->assertSame($this->service->valider($donnees), $this->service->validerPatientIdentite($donnees));
+        $this->assertSame(['nom', 'ipp', 'sexe'], array_keys($this->service->validerPatientIdentite($donnees)));
+    }
 }

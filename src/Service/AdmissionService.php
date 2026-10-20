@@ -141,16 +141,15 @@ class AdmissionService
     }
 
     /**
-     * Valide les données d'admission (RG1 : nom et prénom obligatoires, IPP facultatif).
+     * Valide les données d'identité du patient (RG1 : nom et prénom obligatoires, IPP facultatif).
      *
-     * Clés attendues (celles du domaine) : nom, prenom, ipp, dateNaissance, sexe,
-     * taille, poids, precautions. Une clé absente est traitée comme vide.
-     * Les messages ne reprennent jamais la valeur saisie (données de santé).
+     * Clés attendues (celles du domaine) : nom, prenom, ipp, dateNaissance, sexe.
+     * Une clé absente est traitée comme vide. Les messages ne reprennent jamais la valeur saisie.
      *
      * @param array<string, mixed> $donnees
      * @return array<string, string> erreurs indexées par champ ; [] si les données sont valides
      */
-    public function valider(array $donnees): array
+    public function validerPatientIdentite(array $donnees): array
     {
         $erreurs = [];
 
@@ -179,6 +178,23 @@ class AdmissionService
         if ($sexe !== '' && !in_array($sexe, self::SEXES_AUTORISES, true)) {
             $erreurs['sexe'] = 'Le sexe doit être M ou F.';
         }
+
+        return $erreurs;
+    }
+
+    /**
+     * Valide les données d'admission (RG1 : nom et prénom obligatoires, IPP facultatif).
+     *
+     * Clés attendues (celles du domaine) : nom, prenom, ipp, dateNaissance, sexe,
+     * taille, poids, precautions. Une clé absente est traitée comme vide.
+     * Les messages ne reprennent jamais la valeur saisie (données de santé).
+     *
+     * @param array<string, mixed> $donnees
+     * @return array<string, string> erreurs indexées par champ ; [] si les données sont valides
+     */
+    public function valider(array $donnees): array
+    {
+        $erreurs = $this->validerPatientIdentite($donnees);
 
         $taille = $this->texte($donnees['taille'] ?? null);
         if ($taille !== '' && !$this->estStrictementPositif($taille)) {
