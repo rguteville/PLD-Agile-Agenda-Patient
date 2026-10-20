@@ -10,10 +10,10 @@ class Appointment
 {
     public function __construct(
         private string $idAppointment,
-        private ?string $idServiceRequest  = null,
-        private ?string $idMedicationRequest  = null,
+        private ?string $idServiceRequest = null,
+        private ?string $idMedicationRequest = null,
         private ?DateTimeImmutable $plannedTime = null,
-        private ?string $status  = null,
+        private ?string $status = null,
         private ?DateTimeImmutable $timeOfCompletion = null,
         private ?DateTimeImmutable $timeRecorded = null,
         private ?string $comment = null,
@@ -21,7 +21,7 @@ class Appointment
     }
 
     public function getIdAppointment(): string
-    {   
+    {
         return $this->idAppointment;
     }
 
@@ -59,9 +59,4 @@ class Appointment
     {
         return $this->comment;
     }
-
-
-
-
-
 }

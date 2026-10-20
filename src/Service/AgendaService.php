@@ -36,16 +36,18 @@ final class AgendaService
             $medicationRequests = $this->carePlanDao->findMedicationByCarePlan($carePlan->getIdCarePlan());
             foreach ($medicationRequests as $medicationRequest) {
                 //Pour chaque Médicament, on récupère les SoinsPlanifiés associés
-                $medicationAppointments = $this->appointmentDao->findByRequest($medicationRequest->getIdMedicationRequest());
+                $medicationAppointments = $this->appointmentDao->
+                    findByRequest($medicationRequest->getIdMedicationRequest());
             }
-            
             // Assemblage de la réponse HTTP
-            $response[] = $this->serializeCarePlan($carePlan, $serviceRequests, $serviceAppointments, $medicationRequests, $medicationAppointments);
+            $response[] = $this->serializeCarePlan(
+                $carePlan, $serviceRequests, $serviceAppointments, $medicationRequests, $medicationAppointments);
         }
         return $response;
     }
 
-    public function serializeCarePlan(CarePlan $carePlan, array $services, array $serviceAppointments, array $medication, array $medicationAppointments): array
+    public function serializeCarePlan(
+        CarePlan $carePlan, array $services, array $serviceAppointments, array $medication, array $medicationAppointments): array
     {
         return [
             'idCarePlan' => $carePlan->getIdCarePlan(),

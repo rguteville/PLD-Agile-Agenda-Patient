@@ -65,5 +65,4 @@ class ServiceRequest
     {
         return $this->stoppedAt;
     }
-
 }

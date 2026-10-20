@@ -7,16 +7,16 @@ namespace Aura\Dao;
 use Aura\Domain\CarePlan;
 use Aura\Domain\MedicationRequest;
 use Aura\Domain\ServiceRequest;
-
 use DateTimeImmutable;
 use PDO;
-
 
 class CarePlanDao
 {
     private const COLUMNS = 'idCarePlan, idEpisodeOfCare, idPrescriber, mode, recordedAt, idValidator, validatedAt';
-    private const SERVICE_COLUMNS = 'idServiceRequest, idCarePlan, idActivityDefinition, startDate, endDate, frequencyHours, timeConstraint, idStoppedBy, stoppedAt';
-    private const MEDICATION_COLUMNS = 'idMedicationRequest, idCarePlan, idActivityDefinition, dose, route, startDate, endDate, frequencyHours, timeConstraint, idStoppedBy, stoppedAt';
+    private const SERVICE_COLUMNS = 'idServiceRequest, idCarePlan, idActivityDefinition,
+        startDate, endDate, frequencyHours, timeConstraint, idStoppedBy, stoppedAt';
+    private const MEDICATION_COLUMNS = 'idMedicationRequest, idCarePlan, idActivityDefinition,
+        dose, route, startDate, endDate, frequencyHours, timeConstraint, idStoppedBy, stoppedAt';
 
     public function __construct(private PDO $pdo)
     {
@@ -33,13 +33,14 @@ class CarePlanDao
 
     public function findMedicationByCarePlan(string $idCarePlan): array
     {
-        $stmt = $this->pdo->prepare('SELECT ' . self::MEDICATION_COLUMNS . ' FROM MedicationRequest WHERE idCarePlan = :id');
+        $stmt = $this->pdo->prepare('SELECT ' . self::MEDICATION_COLUMNS . '
+                                    FROM MedicationRequest WHERE idCarePlan = :id');
         $stmt->execute(['id' => $idCarePlan]);
 
         return array_map(fn(array $r) => $this->mapToMedicationRequest($r), $stmt->fetchAll(PDO::FETCH_ASSOC));
     }
 
-        public function findServiceByCarePlan(string $idCarePlan): array
+    public function findServiceByCarePlan(string $idCarePlan): array
     {
         $stmt = $this->pdo->prepare('SELECT ' . self::SERVICE_COLUMNS . ' FROM ServiceRequest WHERE idCarePlan = :id');
         $stmt->execute(['id' => $idCarePlan]);
@@ -91,6 +92,4 @@ class CarePlanDao
             stoppedAt: $r['stoppedAt'] !== null ? new DateTimeImmutable($r['stoppedAt']) : null,
         );
     }
-
-
 }

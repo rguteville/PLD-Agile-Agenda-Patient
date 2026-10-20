@@ -83,9 +83,12 @@ try {
         $pdo = Database::get();
         $controller = new SejourController(
             agendaService: new AgendaService(
-                    new CarePlanDao($pdo), 
-                    new AppointmentDao($pdo)
-            )
+                new CarePlanDao($pdo),
+                new AppointmentDao($pdo),
+            ),
+            sejourService: new SejourService(
+                new SejourDao($pdo),
+            ),
         );
         $controller->getAgenda();
     };

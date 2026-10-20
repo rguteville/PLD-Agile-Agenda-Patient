@@ -7,12 +7,14 @@ namespace Aura\Controller;
 use Aura\Core\View;
 use Aura\Service\AgendaService;
 use Aura\Service\DossierPatientService;
+use Aura\Service\SejourService;
 
 final class SejourController
 {
     public function __construct(
         private ?DossierPatientService $dossierPatientService = null,
-        private ?AgendaService $agendaService = null
+        private ?AgendaService $agendaService = null,
+        private ?SejourService $sejourService = null
     ) {
     }
 
@@ -44,6 +46,18 @@ final class SejourController
     {
         error_log('Appel Controller getAgenda');
         $id = $_GET['id'] ?? null;
+        $numSejour = $_GET['numSejour'] ?? null;
+        if($id === null && $numSejour === null)
+        {
+            View::erreur(400,'');
+            return;
+        }
+        //Recuperer l'id du sejour selon son numero
+        if($id === null && $numSejour !== null)
+        {
+            $id = $this->sejourService->getSejourByNumber($numSejour)->getIdSejour();
+        }
+
         error_log($id);
 
         $careplans = $this->agendaService->getAgenda($id);

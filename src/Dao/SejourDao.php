@@ -39,6 +39,15 @@ class SejourDao
         return $r ? $this->mapToEntity($r) : null;
     }
 
+    public function findByNumber(string $number): ?Sejour
+    {
+        $stmt = $this->pdo->prepare('SELECT ' . self::COLUMNS . ' FROM Sejour WHERE sejourNumber = :number');
+        $stmt->execute(['number' => $number]);
+        $r = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        return $r ? $this->mapToEntity($r) : null;
+    }
+
     /**
      * Séjours d'un patient dans le service, du plus récent au plus ancien.
      *

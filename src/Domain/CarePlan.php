@@ -16,22 +16,21 @@ class CarePlan
         private ?DateTimeImmutable $recordedAt,
         private ?string $idValidator = null,
         private ?DateTimeImmutable $validatedAt = null,
-
     ) {
     }
 
     public function getIdCarePlan(): string
-    {   
+    {
         return $this->idCarePlan;
     }
 
     public function getIdEpisodeOfCare(): string
-    {   
+    {
         return $this->idEpisodeOfCare;
     }
 
     public function getIdPrescriber(): string
-    {   
+    {
         return $this->idPrescriber;
     }
 
@@ -54,6 +53,4 @@ class CarePlan
     {
         return $this->validatedAt;
     }
-
-
 }

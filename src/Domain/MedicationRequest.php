@@ -9,7 +9,7 @@ use DateTimeImmutable;
 class MedicationRequest
 {
     public function __construct(
-        private string $idMedicationRequest ,
+        private string $idMedicationRequest,
         private string $idCarePlan,
         private string $idActivityDefinition,
         private string $dose,
@@ -24,7 +24,7 @@ class MedicationRequest
     }
 
     public function getIdMedicationRequest(): string
-    {   
+    {
         return $this->idMedicationRequest;
     }
 
@@ -77,5 +77,4 @@ class MedicationRequest
     {
         return $this->stoppedAt;
     }
-
 }

@@ -15,7 +15,8 @@ use PDO;
  */
 class AppointmentDao
 {
-    private const COLUMNS = 'idAppointment, idServiceRequest, idMedicationRequest, plannedTime, status, timeOfCompletion, timeRecorded, comment';
+    private const COLUMNS = 'idAppointment, idServiceRequest, 
+        idMedicationRequest, plannedTime, status, timeOfCompletion, timeRecorded, comment';
 
     public function __construct(private PDO $pdo)
     {
@@ -23,8 +24,9 @@ class AppointmentDao
 
     public function findByRequest(string $idRequest): array
     {
-        $stmt = $this->pdo->prepare('SELECT ' . self::COLUMNS . ' FROM Appointment WHERE idMedicationRequest = :idMed OR idServiceRequest = :idSer');
-        $stmt->execute(['idMed' => $idRequest, 'idSer'=> $idRequest]);
+        $stmt = $this->pdo->prepare('SELECT ' . self::COLUMNS . ' 
+                                    FROM Appointment WHERE idMedicationRequest = :idMed OR idServiceRequest = :idSer');
+        $stmt->execute(['idMed' => $idRequest, 'idSer' => $idRequest]);
 
         return array_map(fn(array $r) => $this->mapToEntity($r), $stmt->fetchAll(PDO::FETCH_ASSOC));
     }
