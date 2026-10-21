@@ -8,12 +8,19 @@ use DateTimeImmutable;
 
 /**
  * Allergie connue d'un patient, choisie dans le référentiel des allergènes (RG2, AURA-13).
- * Lecture seule pour l'instant (bandeau AURA-14) ; la saisie viendra avec AURA-13.2.
+ * Liée au patient et non au séjour. L'id est null tant que l'allergie n'est pas enregistrée
+ * (AllergieDao::insert() le calcule).
  */
 class Allergie
 {
+    /**
+     * Criticités acceptées (AURA-13.2) : liste fermée côté PHP, valeurs stockées telles
+     * quelles (comme database/test.sql). La criticité est facultative (null = non évaluée).
+     */
+    public const CRITICALITIES = ['Faible', 'Élevée'];
+
     public function __construct(
-        private int $idAllergie,
+        private ?int $idAllergie,
         private int $idPatient,
         private string $idAllergene,
         private string $substance,
@@ -22,7 +29,7 @@ class Allergie
     ) {
     }
 
-    public function getIdAllergie(): int
+    public function getIdAllergie(): ?int
     {
         return $this->idAllergie;
     }
@@ -37,7 +44,7 @@ class Allergie
         return $this->idAllergene;
     }
 
-    /** Libellé de l'allergène (colonne Allergene.substance). */
+    /** Libellé de l'allergène (Substance::getDescription()). */
     public function getSubstance(): string
     {
         return $this->substance;
