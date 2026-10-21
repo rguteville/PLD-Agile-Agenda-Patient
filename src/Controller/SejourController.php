@@ -53,13 +53,14 @@ final class SejourController
         }
         //Recuperer l'id du sejour selon son numero
         if ($id === null && $numSejour !== null) {
-            $id = $this->sejourService->getSejourByNumber($numSejour)->getIdSejour();
+            $id = (string) $this->sejourService->getSejourByNumber($numSejour)->getIdSejour();
         }
 
         error_log($id);
 
         $careplans = $this->agendaService->getAgenda($id);
-        header('Content-Type: application/json; charset=utf-8');
-        echo json_encode(['careplans' => $careplans]);
+        //header('Content-Type: application/json; charset=utf-8');
+        //echo json_encode(['careplans' => $careplans]);
+        View::page('sejour/agenda-patient',['careplans' => $careplans], 'AURA - Agenda Patient');
     }
 }

@@ -35,5 +35,5 @@ use Aura\Core\View;
         <dd><?= View::e($sejour['email'] ?? 'non renseigné') ?></dd>
     </dl>
     <p class="a-venir">Allergies (AURA-13), prescriptions (AURA-20) et agenda (AURA-25) viendront s'afficher ici.</p>
-    <a href="/agenda-patient?idSejour=<?= urlencode((string)$bandeau['numeroSejour']) ?>">Vers l'agenda.</a>
+    <a href="/agenda-patient?numSejour=<?= urlencode((string)$bandeau['numeroSejour']) ?>">Vers l'agenda.</a>
 </section>

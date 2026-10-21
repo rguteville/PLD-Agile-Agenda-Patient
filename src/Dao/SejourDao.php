@@ -47,7 +47,7 @@ class SejourDao
 
     public function findByNumber(string $number): ?Sejour
     {
-        $stmt = $this->pdo->prepare('SELECT ' . self::COLUMNS . ' FROM Sejour WHERE sejourNumber = :number');
+        $stmt = $this->pdo->prepare('SELECT ' . self::COLUMNS . ' FROM EpisodeOfCare WHERE episodeNumber = :number');
         $stmt->execute(['number' => $number]);
         $r = $stmt->fetch(PDO::FETCH_ASSOC);
 

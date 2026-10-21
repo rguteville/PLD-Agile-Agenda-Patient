@@ -73,6 +73,7 @@ final class AgendaService
 
     public function serializeService(array $services, array $appointments): ?array
     {
+        $res = [];
         foreach ($services as $service) {
             $res[] = [
                 'idServiceRequest' => $service->getIdServiceRequest(),
@@ -92,6 +93,7 @@ final class AgendaService
 
     public function serializeMedication(array $medications, array $appointments): ?array
     {
+        $res = [];
         foreach ($medications as $medication) {
             $res[] = [
                 'idMedicationRequest' => $medication->getIdMedicationRequest(),
