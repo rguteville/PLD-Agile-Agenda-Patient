@@ -33,9 +33,9 @@ final class AgendaService
             // D'une part, on récupère les Soins associés
             $serviceRequests = $this->carePlanDao->findServiceByCarePlan($idCarePlan);
             foreach ($serviceRequests as $serviceRequest) {
-                // Pour chaque soin, on récupère les SoinsPlanifiés
-                $serviceAppointments = $this->appointmentDao
-                    ->findByRequest((string) $serviceRequest->getIdServiceRequest());
+                // Pour chaque soin, on récupère les SoinsPlanifiés (indexés par ligne)
+                $serviceAppointments[$serviceRequest->getIdServiceRequest()] = $this->appointmentDao
+                    ->findByRequest((string) $serviceRequest->getIdServiceRequest(), false);
                 //ActivityDefinition
                 $activity = $this->activityDefinitionDao->findById($serviceRequest->getIdActivityDefinition());
                 $serviceRequest->setIdActivityDefinition($activity->getName());
@@ -43,9 +43,9 @@ final class AgendaService
             // D'autre part, on récupère les Médicaments associés
             $medicationRequests = $this->carePlanDao->findMedicationByCarePlan($idCarePlan);
             foreach ($medicationRequests as $medicationRequest) {
-                //Pour chaque Médicament, on récupère les SoinsPlanifiés associés
-                $medicationAppointments = $this->appointmentDao
-                    ->findByRequest((string) $medicationRequest->getIdMedicationRequest());
+                //Pour chaque Médicament, on récupère les SoinsPlanifiés associés (indexés par ligne)
+                $medicationAppointments[$medicationRequest->getIdMedicationRequest()] = $this->appointmentDao
+                    ->findByRequest((string) $medicationRequest->getIdMedicationRequest(), true);
 
                 //ActivityDefinition
                 $activity = $this->activityDefinitionDao->findById($medicationRequest->getIdActivityDefinition());
@@ -97,7 +97,7 @@ final class AgendaService
                 'timeConstraint' => $service->getTimeConstraint(),
                 'idStoppedBy' => $service->getIdStoppedBy(),
                 'stoppedAt' => $service->getStoppedAt(),
-                'appointments' => $this->serializeAppointment($appointments),
+                'appointments' => $this->serializeAppointment($appointments[$service->getIdServiceRequest()] ?? []),
             ];
         }
         return $res;
@@ -119,7 +119,9 @@ final class AgendaService
                 'timeConstraint' => $medication->getTimeConstraint(),
                 'idStoppedBy' => $medication->getIdStoppedBy(),
                 'stoppedAt' => $medication->getStoppedAt(),
-                'appointments' => $this->serializeAppointment($appointments),
+                'appointments' => $this->serializeAppointment(
+                    $appointments[$medication->getIdMedicationRequest()] ?? []
+                ),
             ];
         }
         return $res;
