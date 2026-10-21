@@ -1,4 +1,5 @@
 <?php
+
 use Aura\Core\View;
 
 /**
@@ -89,16 +90,16 @@ $sortedAppointments = getAppointmentsByDate($careplans, $selectedDate);
 
     <!-- Liste des rendez-vous filtrés -->
     <div class="events-list">
-        <?php if (empty($sortedAppointments)): ?>
+        <?php if (empty($sortedAppointments)) : ?>
             <p>Aucun soin ou médicament prévu pour le <?= View::e(date('d/m/Y', strtotime($selectedDate))) ?>.</p>
-        <?php else: ?>
-            <?php foreach ($sortedAppointments as $app): ?>
+        <?php else : ?>
+            <?php foreach ($sortedAppointments as $app) : ?>
                 <div class="event-card">
                     <p>
                         <strong>[<?= View::e($app['type']) ?>] <?= View::e((string)$app['label']) ?></strong><br>
                         Heure prévue : <?= View::e(date('H:i', strtotime($app['plannedTime']))) ?><br>
                         Statut : <?= View::e($app['status']) ?>
-                        <?php if (!empty($app['comment'])): ?>
+                        <?php if (!empty($app['comment'])) : ?>
                             <br><em>Note : <?= View::e($app['comment']) ?></em>
                         <?php endif; ?>
                     </p>

@@ -120,7 +120,7 @@ final class SejourController
         $careplans = $this->agendaService->getAgenda($id);
         //header('Content-Type: application/json; charset=utf-8');
         //echo json_encode(['careplans' => $careplans]);
-        View::page('sejour/agenda-patient',['careplans' => $careplans], 'AURA - Agenda Patient');
+        View::page('sejour/agenda-patient', ['careplans' => $careplans], 'AURA - Agenda Patient');
     }
 
     /**
