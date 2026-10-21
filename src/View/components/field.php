@@ -16,6 +16,10 @@ $attributes = '';
 foreach ($field['attributes'] ?? [] as $attrName => $attrValue) {
     $attributes .= ' ' . View::e($attrName) . '="' . View::e($attrValue) . '"';
 }
+// Bouton d'action à côté d'un champ texte (AURA-15) : ['id' => 'ipp-rechercher', 'label' => 'Rechercher']
+$button = $field['button'] ?? null;
+// Identifiant d'une zone de message sous le champ, mise à jour par script (annoncée aux lecteurs d'écran)
+$status = $field['status'] ?? null;
 ?>
 <div class="form-row<?= $error !== '' ? ' has-error' : '' ?>">
     <label<?= $type !== 'radio' ? ' for="' . View::e($name) . '"' : '' ?>><?= View::e($label) ?></label>
@@ -48,11 +52,23 @@ foreach ($field['attributes'] ?? [] as $attrName => $attrValue) {
             <?= $required ? 'required' : '' ?><?= $attributes ?><?= $ariaError ?>><?= View::e($value) ?></textarea>
 
     <?php else : ?>
+        <?php if ($button !== null) : ?>
+            <div class="field-group">
+        <?php endif; ?>
         <input type="<?= View::e($type) ?>" id="<?= View::e($name) ?>" name="<?= View::e($name) ?>"
             value="<?= View::e($value) ?>" <?= $required ? 'required' : '' ?><?= $attributes ?><?= $ariaError ?>>
+        <?php if ($button !== null) : ?>
+                <button type="button" class="field-button" id="<?= View::e($button['id']) ?>">
+                    <?= View::e($button['label']) ?>
+                </button>
+            </div>
+        <?php endif; ?>
     <?php endif; ?>
 
     <?php if ($error !== '') : ?>
         <p class="field-error" id="<?= View::e($errorId) ?>" role="alert"><?= View::e($error) ?></p>
+    <?php endif; ?>
+    <?php if ($status !== null) : ?>
+        <div class="field-status" id="<?= View::e($status) ?>" aria-live="polite"></div>
     <?php endif; ?>
 </div>
