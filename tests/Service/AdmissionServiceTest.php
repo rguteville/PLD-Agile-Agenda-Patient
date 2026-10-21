@@ -102,6 +102,20 @@ final class AdmissionServiceTest extends TestCase
         }
     }
 
+    /** AURA-15 : la recherche par IPP applique la même règle que l'admission, via validerIpp(). */
+    #[DataProvider('ippInvalides')]
+    public function testValiderIppRefuseLesMemesValeursQueLAdmission(string $ipp): void
+    {
+        $this->assertSame("L'IPP doit contenir entre 6 et 9 chiffres.", AdmissionService::validerIpp($ipp));
+    }
+
+    public function testValiderIppAccepteUnIppValideOuVide(): void
+    {
+        $this->assertNull(AdmissionService::validerIpp(' 987654 '), 'les espaces autour sont ignorés');
+        $this->assertNull(AdmissionService::validerIpp('999999999'));
+        $this->assertNull(AdmissionService::validerIpp(''), 'facultatif (RG1)');
+    }
+
     /** @return iterable<string, array{string}> */
     public static function datesDeNaissanceInvalides(): iterable
     {
