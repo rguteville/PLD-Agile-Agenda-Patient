@@ -18,10 +18,12 @@ use Aura\Domain\CarePlan;
 <section class="care-plans">
     <h1 class="form-title">Prescriptions du séjour n° <?= View::e($banner['numeroSejour']) ?></h1>
 
-    <p>
-        <a href="/sejour?id=<?= View::e($idEpisodeOfCare) ?>">Retour au dossier</a>
+    <p class="episode-actions">
+        <a class="button" href="/sejour?id=<?= View::e($idEpisodeOfCare) ?>">Retour au dossier</a>
         <?php if ($isOpen) : ?>
-            · <a href="/care-plans/new?idEpisodeOfCare=<?= View::e($idEpisodeOfCare) ?>">Nouvelle prescription</a>
+            <a class="button" href="/care-plans/new?idEpisodeOfCare=<?= View::e($idEpisodeOfCare) ?>">
+                Nouvelle prescription
+            </a>
         <?php endif; ?>
     </p>
 
