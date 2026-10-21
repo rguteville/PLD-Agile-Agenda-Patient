@@ -70,6 +70,7 @@ try {
         $controller->list();
     };
 
+    //AURA-24 : l'agenda d'un patient
     // Le Router traite les requetes HTTP
     $router = new Router();
     $router->get('/patients', $listerPatients);
