@@ -7,18 +7,22 @@ namespace Aura\Service;
 use Aura\Dao\AllergieDao;
 use Aura\Dao\PatientDao;
 use Aura\Dao\SejourDao;
+use Aura\Dao\SubstanceDao;
 use Aura\Domain\Allergie;
 use Aura\Domain\Patient;
 use Aura\Domain\Sejour;
+use Aura\Domain\Substance;
 use DateTimeImmutable;
 use DateTimeInterface;
 
 /**
  * Prépare l'affichage du dossier d'un séjour (AURA-14) : le bandeau identité + allergies
- * imposé par RG2 en tête de tout écran lié au séjour, et les informations du séjour.
+ * imposé par RG2 en tête de tout écran lié au séjour, les informations du séjour et,
+ * depuis AURA-13.2, la section de gestion des allergies (liste avec retrait, ajout
+ * depuis le référentiel).
  *
  * Les données viennent de la base via les DAO (AURA-11) ; les méthodes presenter*()
- * sont pures (pas d'accès aux données) pour être testables sans base.
+ * et availableSubstances() sont pures (pas d'accès aux données) pour être testables sans base.
  */
 final class DossierPatientService
 {
@@ -26,12 +30,15 @@ final class DossierPatientService
         private SejourDao $sejourDao,
         private PatientDao $patientDao,
         private AllergieDao $allergieDao,
+        private SubstanceDao $substanceDao,
         private DateTimeImmutable $aujourdhui,
     ) {
     }
 
     /**
-     * @return array{bandeau: array<string, mixed>, sejour: array<string, mixed>}|null
+     * @return array{bandeau: array<string, mixed>, sejour: array<string, mixed>,
+     *               allergies: list<array<string, mixed>>, substances: array<string, string>,
+     *               criticalities: list<string>}|null
      *         null si le séjour n'existe pas (ou si son patient a disparu : données incohérentes)
      */
     public function dossier(int $idSejour): ?array
@@ -51,6 +58,9 @@ final class DossierPatientService
         return [
             'bandeau' => self::presenterBandeau($patient, $sejour, $allergies, $this->aujourdhui),
             'sejour' => self::presenterSejour($sejour, $patient),
+            'allergies' => self::presentAllergies($allergies),
+            'substances' => self::availableSubstances($this->substanceDao->findAll(), $allergies),
+            'criticalities' => Allergie::CRITICALITIES,
         ];
     }
 
@@ -96,6 +106,7 @@ final class DossierPatientService
         $sortie = $sejour->getDateSortie();
 
         return [
+            'idSejour' => $sejour->getIdSejour(),
             'enCours' => $sortie === null,
             'dateSortie' => $sortie?->format('d/m/Y H:i'),
             'service' => self::texteOuNull($sejour->getIdService()),
@@ -108,6 +119,50 @@ final class DossierPatientService
             'telephone' => self::texteOuNull($patient->getTelephone()),
             'email' => self::texteOuNull($patient->getEmail()),
         ];
+    }
+
+    /**
+     * Vue-modèle de la section « Allergies connues » du dossier (AURA-13.2) : l'id sert au
+     * bouton « Retirer », la date de saisie distingue une allergie connue d'un séjour
+     * antérieur d'une allergie découverte pendant le séjour en cours.
+     *
+     * @param Allergie[] $allergies
+     * @return list<array{idAllergy: ?int, label: string, criticality: ?string, recordedAt: ?string}>
+     */
+    public static function presentAllergies(array $allergies): array
+    {
+        return array_values(array_map(
+            static fn (Allergie $a): array => [
+                'idAllergy' => $a->getIdAllergie(),
+                'label' => trim($a->getSubstance()),
+                'criticality' => self::texteOuNull($a->getCriticite()),
+                'recordedAt' => $a->getDateSaisie()?->format('d/m/Y'),
+            ],
+            $allergies
+        ));
+    }
+
+    /**
+     * Allergènes proposés dans la liste d'ajout : le référentiel moins ceux que le patient
+     * a déjà (ergonomie seulement : le service d'ajout refuse de toute façon les doublons).
+     * L'ordre du référentiel (alphabétique) est conservé.
+     *
+     * @param Substance[] $substances
+     * @param Allergie[] $allergies
+     * @return array<string, string> libellé indexé par id d'allergène
+     */
+    public static function availableSubstances(array $substances, array $allergies): array
+    {
+        $known = array_map(static fn (Allergie $a): string => $a->getIdAllergene(), $allergies);
+
+        $available = [];
+        foreach ($substances as $substance) {
+            if (!in_array($substance->getIdSubstance(), $known, true)) {
+                $available[$substance->getIdSubstance()] = trim($substance->getDescription());
+            }
+        }
+
+        return $available;
     }
 
     /** Âge révolu à la date donnée ; null si la date de naissance est dans le futur. */

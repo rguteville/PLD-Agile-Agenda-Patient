@@ -7,14 +7,19 @@ namespace Aura\Tests\Service;
 use Aura\Dao\AllergieDao;
 use Aura\Dao\PatientDao;
 use Aura\Dao\SejourDao;
+use Aura\Dao\SubstanceDao;
 use Aura\Domain\Allergie;
 use Aura\Domain\Patient;
 use Aura\Domain\Sejour;
+use Aura\Domain\Substance;
 use Aura\Service\DossierPatientService;
 use DateTimeImmutable;
 use PHPUnit\Framework\TestCase;
 
-/** AURA-14 : bandeau identité + allergies (RG2) et dossier du séjour, sans base (DAO simulés). */
+/**
+ * AURA-14 : bandeau identité + allergies (RG2) et dossier du séjour, sans base (DAO simulés).
+ * AURA-13.2 : section « Allergies connues » (id pour le retrait, référentiel pour l'ajout).
+ */
 final class DossierPatientServiceTest extends TestCase
 {
     private const AUJOURDHUI = '2026-10-14';
@@ -168,7 +173,13 @@ final class DossierPatientServiceTest extends TestCase
         $allergies = $this->createMock(AllergieDao::class);
         $allergies->expects($this->never())->method('findByPatient');
 
-        $service = new DossierPatientService($sejours, $patients, $allergies, new DateTimeImmutable(self::AUJOURDHUI));
+        $service = new DossierPatientService(
+            $sejours,
+            $patients,
+            $allergies,
+            $this->createMock(SubstanceDao::class),
+            new DateTimeImmutable(self::AUJOURDHUI)
+        );
 
         self::assertNull($service->dossier(42));
     }
@@ -181,7 +192,13 @@ final class DossierPatientServiceTest extends TestCase
         $patients->method('findById')->with(9)->willReturn(null);
         $allergies = $this->createMock(AllergieDao::class);
 
-        $service = new DossierPatientService($sejours, $patients, $allergies, new DateTimeImmutable(self::AUJOURDHUI));
+        $service = new DossierPatientService(
+            $sejours,
+            $patients,
+            $allergies,
+            $this->createMock(SubstanceDao::class),
+            new DateTimeImmutable(self::AUJOURDHUI)
+        );
 
         self::assertNull($service->dossier(9), 'séjour orphelin : données incohérentes, pas d\'erreur PHP');
     }
@@ -198,7 +215,20 @@ final class DossierPatientServiceTest extends TestCase
             new Allergie(2, 9, 'LATEX', 'Latex', 'modérée'),
         ]);
 
-        $service = new DossierPatientService($sejours, $patients, $allergies, new DateTimeImmutable(self::AUJOURDHUI));
+        $substances = $this->createMock(SubstanceDao::class);
+        $substances->method('findAll')->willReturn([
+            new Substance('ARACH', 'Arachide'),
+            new Substance('LATEX', 'Latex'),
+            new Substance('PENI', 'Pénicilline'),
+        ]);
+
+        $service = new DossierPatientService(
+            $sejours,
+            $patients,
+            $allergies,
+            $substances,
+            new DateTimeImmutable(self::AUJOURDHUI)
+        );
 
         $dossier = $service->dossier(9);
 
@@ -207,6 +237,49 @@ final class DossierPatientServiceTest extends TestCase
         self::assertSame('100200300', $dossier['bandeau']['ipp']);
         self::assertCount(2, $dossier['bandeau']['allergies']);
         self::assertTrue($dossier['sejour']['enCours']);
+        self::assertSame(9, $dossier['sejour']['idSejour'], 'id renvoyé par les formulaires d\'allergie');
+        self::assertSame([1, 2], array_column($dossier['allergies'], 'idAllergy'), 'ids pour le bouton Retirer');
+        self::assertSame(['ARACH' => 'Arachide'], $dossier['substances'], 'les allergènes déjà connus sont retirés');
+        self::assertSame(Allergie::CRITICALITIES, $dossier['criticalities']);
+    }
+
+    /** AURA-13.2 : section « Allergies connues » du dossier. */
+    public function testPresentAllergiesWithIdCriticalityAndDate(): void
+    {
+        $allergies = [
+            new Allergie(1, 9, 'PENI', ' Pénicilline ', 'Élevée', new DateTimeImmutable('2026-06-02 10:20:00')),
+            new Allergie(2, 9, 'LATEX', 'Latex', '  ', null),
+        ];
+
+        self::assertSame(
+            [
+                ['idAllergy' => 1, 'label' => 'Pénicilline', 'criticality' => 'Élevée', 'recordedAt' => '02/06/2026'],
+                ['idAllergy' => 2, 'label' => 'Latex', 'criticality' => null, 'recordedAt' => null],
+            ],
+            DossierPatientService::presentAllergies($allergies)
+        );
+        self::assertSame([], DossierPatientService::presentAllergies([]));
+    }
+
+    public function testAvailableSubstancesExcludesPatientAllergiesAndKeepsOrder(): void
+    {
+        $referentiel = [
+            new Substance('ARACH', 'Arachide'),
+            new Substance('LATEX', ' Latex '),
+            new Substance('PENI', 'Pénicilline'),
+        ];
+        $allergies = [new Allergie(1, 9, 'PENI', 'Pénicilline')];
+
+        self::assertSame(
+            ['ARACH' => 'Arachide', 'LATEX' => 'Latex'],
+            DossierPatientService::availableSubstances($referentiel, $allergies)
+        );
+        self::assertSame(
+            ['ARACH' => 'Arachide', 'LATEX' => 'Latex', 'PENI' => 'Pénicilline'],
+            DossierPatientService::availableSubstances($referentiel, []),
+            'patient sans allergie : tout le référentiel'
+        );
+        self::assertSame([], DossierPatientService::availableSubstances([], $allergies));
     }
 
     private function patient(?string $ipp): Patient

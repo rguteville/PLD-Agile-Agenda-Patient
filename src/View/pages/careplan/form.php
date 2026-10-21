@@ -60,10 +60,11 @@ $medicationParams = [
 <?= View::render('components/bandeau_patient', ['bandeau' => $banner]) ?>
 
 <section class="b3">
-    <p class="b3-back">
-        <a href="/sejour?id=<?= View::e($idEpisodeOfCare) ?>">&larr; Retour au dossier du séjour</a>
+    <h1 class="form-title">Nouvelles prescriptions</h1>
+    <?php /* Même bouton bleu que « Prescription » sur le dossier du séjour. */ ?>
+    <p class="episode-actions">
+        <a class="button" href="/sejour?id=<?= View::e($idEpisodeOfCare) ?>">Retour au dossier du séjour</a>
     </p>
-    <h1 class="b3-title">B3. Nouvelles prescriptions</h1>
 
     <?php if ($savedCarePlanId !== null) : ?>
         <p class="b3-success" role="status">Ordonnance n° <?= View::e($savedCarePlanId) ?> enregistrée.</p>
@@ -179,7 +180,7 @@ $medicationParams = [
                 </div>
                 <div class="b3-buttons">
                     <button type="button" disabled>Nutriments</button>
-                    <button type="button" id="med-ok">OK</button>
+                    <button type="button" id="med-ok" class="b3-primary">OK</button>
                     <button type="button" class="b3-cancel">Annuler</button>
                 </div>
             </div>
@@ -226,7 +227,7 @@ $medicationParams = [
                     </div>
                 </div>
                 <div class="b3-buttons">
-                    <button type="button" id="care-ok">OK</button>
+                    <button type="button" id="care-ok" class="b3-primary">OK</button>
                     <button type="button" class="b3-cancel">Annuler</button>
                 </div>
             </div>
@@ -245,7 +246,7 @@ $medicationParams = [
                 <tbody id="b3-cart"></tbody>
             </table>
             <div class="b3-buttons">
-                <button type="submit" form="care-plan-form" class="b3-save">Enregistrer l'ordonnance</button>
+                <button type="submit" form="care-plan-form" class="b3-primary">Enregistrer l'ordonnance</button>
             </div>
 
             <!-- RG5 : ordonnances saisies par un non-médecin, à valider par un médecin (AURA-23) -->
