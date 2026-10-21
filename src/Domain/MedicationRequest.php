@@ -52,7 +52,7 @@ class MedicationRequest extends RequestLine
             $idCarePlan
         );
     }
-     public function getIdMedicationRequest(): ?int
+    public function getIdMedicationRequest(): ?int
     {
         return $this->getId();
     }

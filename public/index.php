@@ -17,7 +17,6 @@ use Aura\Dao\CarePlanDao;
 use Aura\Dao\PatientDao;
 use Aura\Dao\ReferenceDataDao;
 use Aura\Dao\SejourDao;
-use Aura\Dao\CarePlanDao;
 use Aura\Dao\AppointmentDao;
 use Aura\Dao\Transaction;
 
@@ -98,6 +97,8 @@ try {
                 new DateTimeImmutable('today')
             )
         ));
+    };
+
     // AURA-12.2 : modification d'un patient ; le même contrôleur sert le formulaire (GET) et la soumission (POST).
     $controleurModification = static fn (): PatientController => new PatientController(
         modificationPatientService: new ModificationPatientService(
@@ -107,7 +108,6 @@ try {
     );
     // AURA-24 : récupérer l'agenda d'un patient
     $getAgenda = static function (): void {
-        error_log("Appel index.php");
         $pdo = Database::get();
         $controller = new SejourController(
             agendaService: new AgendaService(
@@ -133,7 +133,6 @@ try {
     $router->post('/care-plans/create', static fn () => $carePlans()->create());
     $router->post('/care-plans/validate', static fn () => $carePlans()->validate());
     $router->post('/care-plans/stop', static fn () => $carePlans()->stop());
-    $router->notFound(static fn () => View::erreur(404, 'Page introuvable.'));
     $router->get('/agenda-patient', $getAgenda);
 
     $router->notFound(static fn() => View::erreur(404, 'Page introuvable.'));

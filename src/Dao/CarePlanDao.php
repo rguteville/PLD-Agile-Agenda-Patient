@@ -313,7 +313,7 @@ class CarePlanDao
             frequencyHours: $r['frequencyHours'] !== null ? (int) $r['frequencyHours'] : null,
             timeConstraint: $r['timeConstraint'],
             idStoppedBy: $r['idStoppedBy'],
-             stoppedAt: self::date($r['stoppedAt']),
+            stoppedAt: self::date($r['stoppedAt']),
             idCarePlan: (int) $r['idCarePlan']
         );
     }
@@ -331,7 +331,7 @@ class CarePlanDao
             frequencyHours: $r['frequencyHours'] !== null ? (int) $r['frequencyHours'] : null,
             timeConstraint: $r['timeConstraint'],
             idStoppedBy: $r['idStoppedBy'],
-             stoppedAt: self::date($r['stoppedAt']),
+            stoppedAt: self::date($r['stoppedAt']),
             idCarePlan: (int) $r['idCarePlan'],
             important: $r['important'],
             nurseInstructions: $r['nurseInstructions'],

@@ -11,8 +11,6 @@ use PDO;
 use PDOException;
 
 /**
- * Accès à la table EpisodeOfCare (le séjour). Tables et colonnes suivent database/schema.sql
- * (anglais, HL7, cf. README « Convention de nommage ») ; les entités du domaine restent en français.
  * Accès aux séjours : table EpisodeOfCare (noms HL7 depuis AURA-16, cf. database/schema.sql) ;
  * les entités du domaine restent en français.
  */
@@ -47,9 +45,10 @@ class SejourDao
         return $r ? $this->mapToEntity($r) : null;
     }
 
+    /** Séjour par son numéro (AAAA-NNNNNN, cf. insert()) ; null s'il n'existe pas. */
     public function findByNumber(string $number): ?Sejour
     {
-        $stmt = $this->pdo->prepare('SELECT ' . self::COLUMNS . ' FROM Sejour WHERE sejourNumber = :number');
+        $stmt = $this->pdo->prepare('SELECT ' . self::COLUMNS . ' FROM EpisodeOfCare WHERE episodeNumber = :number');
         $stmt->execute(['number' => $number]);
         $r = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -136,19 +135,19 @@ class SejourDao
 
                 try {
                     $this->pdo->prepare(
-                        'INSERT INTO EpisodeOfCare (' . self::COLUMNS . ')
-                         VALUES (:idEpisodeOfCare, :idPatient, :episodeNumber, :admissionDate,
-                                 :dischargeDate, :bedNumber, :boxNumber, :idHealthcareService,
+                        'INSERT INTO EpisodeOfCare (' . self::INSERT_COLUMNS . ')
+                         VALUES (:idSejour, :idPatient, :sejourNumber, :admissionDate,
+                                 :dischargeDate, :bedNumber, :boxNumber, :idService,
                                  :weight, :height, :precautions)'
                     )->execute([
-                        'idEpisodeOfCare' => (string) $id,
+                        'idSejour' => (string) $id,
                         'idPatient' => (string) $s->getIdPatient(),
-                        'episodeNumber' => $numSejour,
+                        'sejourNumber' => $numSejour,
                         'admissionDate' => $s->getDateAdmission()->format('Y-m-d H:i:s'),
                         'dischargeDate' => $s->getDateSortie()?->format('Y-m-d H:i:s'),
                         'bedNumber' => $s->getNumLit(),
                         'boxNumber' => $s->getNumBox(),
-                        'idHealthcareService' => $s->getIdService(),
+                        'idService' => $s->getIdService(),
                         'weight' => $s->getPoids(),
                         'height' => $s->getTaille(),
                         'precautions' => $s->getPrecautions(),
@@ -180,14 +179,14 @@ class SejourDao
     private function mapToEntity(array $r): Sejour
     {
         return new Sejour(
-            idSejour: (int) $r['idEpisodeOfCare'],
+            idSejour: (int) $r['idSejour'],
             idPatient: (int) $r['idPatient'],
-            numSejour: (string) $r['episodeNumber'],
+            numSejour: (string) $r['sejourNumber'],
             dateAdmission: new DateTimeImmutable($r['admissionDate']),
             dateSortie: $r['dischargeDate'] !== null ? new DateTimeImmutable($r['dischargeDate']) : null,
             numLit: $r['bedNumber'],
             numBox: $r['boxNumber'],
-            idService: $r['idHealthcareService'],
+            idService: $r['idService'],
             // DECIMAL arrive en chaîne ("62.50") depuis PDO MySQL.
             poids: $r['weight'] !== null ? (float) $r['weight'] : null,
             taille: $r['height'] !== null ? (float) $r['height'] : null,

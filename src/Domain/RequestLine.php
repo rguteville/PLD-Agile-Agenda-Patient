@@ -35,7 +35,7 @@ abstract class RequestLine
     {
         return $this->id;
     }
-      public function getIdCarePlan(): ?int
+    public function getIdCarePlan(): ?int
     {
         return $this->idCarePlan;
     }

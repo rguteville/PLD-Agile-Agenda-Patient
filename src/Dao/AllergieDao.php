@@ -9,8 +9,6 @@ use DateTimeImmutable;
 use PDO;
 
 /**
- * Accès aux tables AllergyIntolerance / Substance. Tables et colonnes en anglais (HL7),
- * entités en français (cf. README « Convention de nommage »).
  * Accès aux allergies : tables AllergyIntolerance / Substance (noms HL7 depuis AURA-16,
  * cf. database/schema.sql) ; entités en français (cf. README « Convention de nommage »).
  */
@@ -22,7 +20,6 @@ class AllergieDao
 
     /**
      * Allergies d'un patient, avec le libellé de l'allergène, par ordre alphabétique.
-     * Le schéma n'a pas (encore) de colonne removedAt : toutes les allergies sont actives.
      * La colonne removedAt (retrait logique) est commentée dans le schéma actuel : toutes
      * les allergies enregistrées sont donc renvoyées.
      *
@@ -46,10 +43,10 @@ class AllergieDao
     private function mapToEntity(array $r): Allergie
     {
         return new Allergie(
-            idAllergie: (int) $r['idAllergy'],
+            idAllergie: (int) $r['idAllergie'],
             idPatient: (int) $r['idPatient'],
-            idAllergene: (string) $r['idSubstance'],
-            substance: (string) $r['description'],
+            idAllergene: (string) $r['idAllergene'],
+            substance: (string) $r['substance'],
             criticite: $r['criticality'] !== null && trim((string) $r['criticality']) !== ''
                 ? trim((string) $r['criticality'])
                 : null,

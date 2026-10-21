@@ -5,17 +5,24 @@ declare(strict_types=1);
 namespace Aura\Controller;
 
 use Aura\Core\View;
+use Aura\Service\AgendaService;
 use Aura\Service\CarePlanService;
 use Aura\Service\DossierPatientService;
 use Aura\Service\SejourService;
+use InvalidArgumentException;
 
 final class SejourController
 {
-    /** Sans CarePlanService, le dossier s'affiche sans ses prescriptions. */
+    /**
+     * Chaque route n'injecte que ce dont elle a besoin (cf. public/index.php) :
+     * show() le dossier et, sans CarePlanService, s'affiche sans ses prescriptions ;
+     * getAgenda() l'agenda et le séjour.
+     */
     public function __construct(
-        private ?CarePlanService $carePlanService = null,
         private ?DossierPatientService $dossierPatientService = null,
-        private ?AgendaService $agendaService = null
+        private ?CarePlanService $carePlanService = null,
+        private ?AgendaService $agendaService = null,
+        private ?SejourService $sejourService = null
     ) {
     }
 
@@ -50,23 +57,26 @@ final class SejourController
         ], $titre, ['/js/form.js']);
     }
 
+    /** GET /agenda-patient?id=… ou ?numSejour=… : agenda du séjour en JSON (AURA-24). */
     public function getAgenda(): void
     {
-        error_log('Appel Controller getAgenda');
         $id = $_GET['id'] ?? null;
         $numSejour = $_GET['numSejour'] ?? null;
         if ($id === null && $numSejour === null) {
-            View::erreur(400, '');
+            View::erreur(400, 'Identifiant ou numéro de séjour manquant.');
             return;
         }
-        //Recuperer l'id du sejour selon son numero
-        if ($id === null && $numSejour !== null) {
-            $id = $this->sejourService->getSejourByNumber($numSejour)->getIdSejour();
+        // Retrouver l'id du séjour à partir de son numéro
+        if ($id === null) {
+            try {
+                $id = $this->sejourService->getSejourByNumber((string) $numSejour)->getIdSejour();
+            } catch (InvalidArgumentException $e) {
+                View::erreur(404, $e->getMessage());
+                return;
+            }
         }
 
-        error_log($id);
-
-        $careplans = $this->agendaService->getAgenda($id);
+        $careplans = $this->agendaService->getAgenda((int) $id);
         header('Content-Type: application/json; charset=utf-8');
         echo json_encode(['careplans' => $careplans]);
     }
