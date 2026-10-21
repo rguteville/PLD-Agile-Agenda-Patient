@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
+use Aura\Controller\CarePlanController;
 use Aura\Controller\PatientController;
 use Aura\Controller\SejourController;
 use Aura\Core\ConfigurationException;
@@ -11,10 +12,13 @@ use Aura\Core\Database;
 use Aura\Core\Router;
 use Aura\Core\View;
 use Aura\Dao\AllergieDao;
+use Aura\Dao\CarePlanDao;
 use Aura\Dao\PatientDao;
+use Aura\Dao\ReferenceDataDao;
 use Aura\Dao\SejourDao;
 use Aura\Dao\Transaction;
 use Aura\Service\AdmissionService;
+use Aura\Service\CarePlanService;
 use Aura\Service\DossierPatientService;
 use Aura\Service\ListePatientsService;
 use Aura\Service\SejourService;
@@ -50,14 +54,19 @@ try {
     };
 
     // AURA-14 : le dossier de séjour lit la base ; la connexion n'est ouverte que pour cette route.
+    // Il affiche aussi les prescriptions validées du séjour (CarePlanService).
     $afficherSejour = static function (): void {
         $pdo = Database::get();
-        $controller = new SejourController(new DossierPatientService(
+        $dossierPatientService = new DossierPatientService(
             new SejourDao($pdo),
             new PatientDao($pdo),
             new AllergieDao($pdo),
             new DateTimeImmutable('today')
-        ));
+        );
+        $controller = new SejourController(
+            $dossierPatientService,
+            new CarePlanService(new CarePlanDao($pdo), new ReferenceDataDao($pdo), $dossierPatientService)
+        );
         $controller->show();
     };
 
@@ -70,11 +79,31 @@ try {
         $controller->list();
     };
 
+    // Epic 4 : prescriptions d'un séjour (liste, écran B3, validation) ; même principe que le dossier.
+    $carePlans = static function (): CarePlanController {
+        $pdo = Database::get();
+        return new CarePlanController(new CarePlanService(
+            new CarePlanDao($pdo),
+            new ReferenceDataDao($pdo),
+            new DossierPatientService(
+                new SejourDao($pdo),
+                new PatientDao($pdo),
+                new AllergieDao($pdo),
+                new DateTimeImmutable('today')
+            )
+        ));
+    };
+
     // Le Router traite les requetes HTTP
     $router = new Router();
     $router->get('/patients', $listerPatients);
     $router->post('/patients/create', $admettrePatient);
     $router->get('/sejour', $afficherSejour);
+    $router->get('/care-plans', static fn () => $carePlans()->list());
+    $router->get('/care-plans/new', static fn () => $carePlans()->newForm());
+    $router->post('/care-plans/create', static fn () => $carePlans()->create());
+    $router->post('/care-plans/validate', static fn () => $carePlans()->validate());
+    $router->post('/care-plans/stop', static fn () => $carePlans()->stop());
     $router->notFound(static fn () => View::erreur(404, 'Page introuvable.'));
 
     $router->dispatch($_SERVER['REQUEST_METHOD'], $_SERVER['REQUEST_URI']);

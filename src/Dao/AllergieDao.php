@@ -9,7 +9,7 @@ use DateTimeImmutable;
 use PDO;
 
 /**
- * Accès aux tables Allergie / Allergene (schéma V1). Colonnes en camelCase anglais,
+ * Accès aux tables AllergyIntolerance / Substance. Tables et colonnes en anglais (HL7),
  * entités en français (cf. README « Convention de nommage »).
  */
 class AllergieDao
@@ -19,19 +19,19 @@ class AllergieDao
     }
 
     /**
-     * Allergies actives d'un patient (retirées exclues), avec le libellé de l'allergène,
-     * par ordre alphabétique.
+     * Allergies d'un patient, avec le libellé de l'allergène, par ordre alphabétique.
+     * Le schéma n'a pas (encore) de colonne removedAt : toutes les allergies sont actives.
      *
      * @return Allergie[]
      */
     public function findByPatient(int $idPatient): array
     {
         $stmt = $this->pdo->prepare(
-            'SELECT a.idAllergie, a.idPatient, a.idAllergene, g.substance, a.criticality, a.recordedAt
-             FROM Allergie a
-             JOIN Allergene g ON g.idAllergene = a.idAllergene
-             WHERE a.idPatient = :idPatient AND a.removedAt IS NULL
-             ORDER BY g.substance'
+            'SELECT a.idAllergy, a.idPatient, a.idSubstance, s.description, a.criticality, a.recordedAt
+             FROM AllergyIntolerance a
+             JOIN Substance s ON s.idSubstance = a.idSubstance
+             WHERE a.idPatient = :idPatient
+             ORDER BY s.description'
         );
         $stmt->execute(['idPatient' => $idPatient]);
 
@@ -41,10 +41,10 @@ class AllergieDao
     private function mapToEntity(array $r): Allergie
     {
         return new Allergie(
-            idAllergie: (int) $r['idAllergie'],
+            idAllergie: (int) $r['idAllergy'],
             idPatient: (int) $r['idPatient'],
-            idAllergene: (string) $r['idAllergene'],
-            substance: (string) $r['substance'],
+            idAllergene: (string) $r['idSubstance'],
+            substance: (string) $r['description'],
             criticite: $r['criticality'] !== null && trim((string) $r['criticality']) !== ''
                 ? trim((string) $r['criticality'])
                 : null,
