@@ -179,7 +179,7 @@ $medicationParams = [
                     <?php endforeach; ?>
                 </div>
                 <div class="b3-buttons">
-                    <button type="button" disabled>Nutriments</button>
+                    <!-- <button type="button" disabled>Nutriments</button> -->
                     <button type="button" id="med-ok" class="b3-primary">OK</button>
                     <button type="button" class="b3-cancel">Annuler</button>
                 </div>
