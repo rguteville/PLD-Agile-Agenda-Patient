@@ -119,22 +119,22 @@ INSERT INTO AllergyIntolerance (idAllergy, idPatient, idSubstance, manifestation
 -- Un médecin (PRA01, PRA02) est son propre valideur, à l'heure de la saisie (RG5).
 --   1 : interne, validée ensuite par un médecin, 3 lignes (1 médicament + 2 soins)
 --   3 : 3 lignes, dont une arrêtée (midazolam) et les autres actives
---   4 : infirmier, mode PARAMEDICALE, « non validée » (RG5)
+--   4 : infirmier, mode PARAMEDICAL, « non validée » (RG5)
 --   6 : séjour clos, sa ligne a été arrêtée
 --   7 : séjour antérieur du patient 1 (ne doit PAS apparaître dans le séjour 1)
---   8 : infirmière, mode URGENCE, « non validée » (RG5), mais son soin a été réalisé
+--   8 : infirmière, mode EMERGENCY, « non validée » (RG5), mais son soin a été réalisé
 -- Le séjour 8 n'a aucune prescription (affichage « aucune prescription »).
 -- ---------------------------------------------------------------------------
 
 INSERT INTO CarePlan (idCarePlan, idEpisodeOfCare, idPrescriber, mode, recordedAt, idValidator, validatedAt) VALUES
-    ('1', '1', 'PRA03', 'MEDICALE',     '2026-10-10 09:00:00', 'PRA01', '2026-10-10 09:30:00'),
-    ('2', '2', 'PRA01', 'MEDICALE',     '2026-10-11 23:00:00', 'PRA01', '2026-10-11 23:00:00'),
-    ('3', '3', 'PRA02', 'MEDICALE',     '2026-10-12 14:30:00', 'PRA02', '2026-10-12 14:30:00'),
-    ('4', '3', 'PRA04', 'PARAMEDICALE', '2026-10-12 15:30:00', NULL,    NULL),
-    ('5', '6', 'PRA02', 'MEDICALE',     '2026-10-13 09:30:00', 'PRA02', '2026-10-13 09:30:00'),
-    ('6', '5', 'PRA01', 'MEDICALE',     '2026-09-20 18:00:00', 'PRA01', '2026-09-20 18:00:00'),
-    ('7', '7', 'PRA02', 'MEDICALE',     '2026-06-02 10:30:00', 'PRA02', '2026-06-02 10:30:00'),
-    ('8', '2', 'PRA05', 'URGENCE',      '2026-10-16 03:10:00', NULL,    NULL);
+    ('1', '1', 'PRA03', 'MEDICAL',     '2026-10-10 09:00:00', 'PRA01', '2026-10-10 09:30:00'),
+    ('2', '2', 'PRA01', 'MEDICAL',     '2026-10-11 23:00:00', 'PRA01', '2026-10-11 23:00:00'),
+    ('3', '3', 'PRA02', 'MEDICAL',     '2026-10-12 14:30:00', 'PRA02', '2026-10-12 14:30:00'),
+    ('4', '3', 'PRA04', 'PARAMEDICAL', '2026-10-12 15:30:00', NULL,    NULL),
+    ('5', '6', 'PRA02', 'MEDICAL',     '2026-10-13 09:30:00', 'PRA02', '2026-10-13 09:30:00'),
+    ('6', '5', 'PRA01', 'MEDICAL',     '2026-09-20 18:00:00', 'PRA01', '2026-09-20 18:00:00'),
+    ('7', '7', 'PRA02', 'MEDICAL',     '2026-06-02 10:30:00', 'PRA02', '2026-06-02 10:30:00'),
+    ('8', '2', 'PRA05', 'EMERGENCY',   '2026-10-16 03:10:00', NULL,    NULL);
 
 -- ---------------------------------------------------------------------------
 -- Lignes de soin (dépend de CarePlan, ActivityDefinition, Practitioner)

@@ -6,13 +6,21 @@ namespace Aura\Controller;
 
 use Aura\Core\View;
 use Aura\Service\AgendaService;
+use Aura\Service\CarePlanService;
 use Aura\Service\DossierPatientService;
 use Aura\Service\SejourService;
+use InvalidArgumentException;
 
 final class SejourController
 {
+    /**
+     * Chaque route n'injecte que ce dont elle a besoin (cf. public/index.php) :
+     * show() le dossier et, sans CarePlanService, s'affiche sans ses prescriptions ;
+     * getAgenda() l'agenda et le séjour.
+     */
     public function __construct(
         private ?DossierPatientService $dossierPatientService = null,
+        private ?CarePlanService $carePlanService = null,
         private ?AgendaService $agendaService = null,
         private ?SejourService $sejourService = null
     ) {
@@ -39,26 +47,36 @@ final class SejourController
             $dossier['bandeau']['prenom'],
             $dossier['bandeau']['numeroSejour']
         );
-        View::page('sejour/dossier', $dossier, $titre);
+        View::page('sejour/dossier', $dossier + [
+            // idSejour : lien du bouton « Prescription » vers l'écran B3 (AURA-20).
+            'idSejour' => (int) $id,
+            // Prescriptions validées par un médecin (RG5), sans les lignes arrêtées.
+            'prescriptions' => $this->carePlanService?->validatedLines((int) $id) ?? [],
+            // Médecins proposés pour le bouton « Arrêter » (AURA-22).
+            'doctors' => $this->carePlanService?->doctors() ?? [],
+        ], $titre, ['/js/form.js']);
     }
 
+    /** GET /agenda-patient?id=… ou ?numSejour=… : agenda du séjour en JSON (AURA-24). */
     public function getAgenda(): void
     {
-        error_log('Appel Controller getAgenda');
         $id = $_GET['id'] ?? null;
         $numSejour = $_GET['numSejour'] ?? null;
         if ($id === null && $numSejour === null) {
-            View::erreur(400, '');
+            View::erreur(400, 'Identifiant ou numéro de séjour manquant.');
             return;
         }
-        //Recuperer l'id du sejour selon son numero
-        if ($id === null && $numSejour !== null) {
-            $id = $this->sejourService->getSejourByNumber($numSejour)->getIdSejour();
+        // Retrouver l'id du séjour à partir de son numéro
+        if ($id === null) {
+            try {
+                $id = $this->sejourService->getSejourByNumber((string) $numSejour)->getIdSejour();
+            } catch (InvalidArgumentException $e) {
+                View::erreur(404, $e->getMessage());
+                return;
+            }
         }
 
-        error_log($id);
-
-        $careplans = $this->agendaService->getAgenda($id);
+        $careplans = $this->agendaService->getAgenda((int) $id);
         header('Content-Type: application/json; charset=utf-8');
         echo json_encode(['careplans' => $careplans]);
     }

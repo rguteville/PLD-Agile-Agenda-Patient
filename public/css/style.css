@@ -235,21 +235,22 @@ body, html {
 #About {background-color: orange;}
 
 /* ---------- Bandeau identité + allergies (RG2) : en tête de toute page liée à un séjour ---------- */
+/* Style d'un logiciel hospitalier : barre d'identité foncée, infos sur une ligne, sans arrondis. */
 .bandeau-patient {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px 32px;
-    align-items: baseline;
-    max-width: 900px;
-    margin: 0 0 20px;
-    padding: 12px 16px;
-    border: 1px solid #2b7bb9;
-    border-left-width: 6px;
-    background: #eef4fb;
+    max-width: 1100px;
+    margin: 0 0 16px;
+    border: 1px solid #8c96a0;
+    background: #f2f2f2;
+    font-family: Tahoma, "Segoe UI", Arial, sans-serif;
+    font-size: 12px;
+    color: #222;
 }
 
 .bandeau-patient .identite {
-    font-size: 18px;
+    padding: 4px 8px;
+    background: #3d4f61;
+    color: #fff;
+    font-size: 15px;
 }
 
 .bandeau-patient .nom {
@@ -257,29 +258,47 @@ body, html {
     text-transform: uppercase;
 }
 
+.bandeau-patient .sexe {
+    color: #c8d2dc;
+}
+
 .bandeau-patient dl {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px 24px;
+    gap: 2px 20px;
     margin: 0;
+    padding: 4px 8px;
+}
+
+.bandeau-patient dl > div {
+    display: flex;
+    gap: 4px;
 }
 
 .bandeau-patient dt {
-    color: #777;
-    font-size: 12px;
+    color: #5a6470;
+}
+
+.bandeau-patient dt::after {
+    content: " :";
 }
 
 .bandeau-patient dd {
     margin: 0;
+    font-weight: 700;
 }
 
 .bandeau-patient .allergies {
-    flex-basis: 100%;
+    padding: 3px 8px;
+    border-top: 1px solid #c8c8c8;
+    background: #fff;
 }
 
 .bandeau-patient .alerte {
-    color: #b00020;
+    margin-right: 4px;
+    color: #c00000;
     font-weight: 700;
+    text-transform: uppercase;
 }
 
 .bandeau-patient .allergies ul {
@@ -291,16 +310,16 @@ body, html {
 
 .bandeau-patient .allergies li {
     display: inline-block;
-    margin: 2px 8px 2px 0;
-    padding: 2px 10px;
-    border-radius: 10px;
+    margin: 1px 4px 1px 0;
+    padding: 1px 6px;
+    border: 1px solid #e0a0a6;
     background: #fde2e4;
-    color: #b00020;
+    color: #c00000;
+    font-weight: 700;
 }
 
 .bandeau-patient .aucune-allergie {
-    color: #2e7d32;
-    font-weight: 600;
+    color: #5a6470;
 }
 
 /* ---------- Dossier du séjour ---------- */
@@ -319,9 +338,73 @@ body, html {
     margin: 0;
 }
 
-.dossier .a-venir {
-    color: #777;
-    font-style: italic;
+/* Prescriptions validées affichées dans le dossier du séjour (RG5) */
+.dossier-subtitle {
+    margin: 20px 0 8px;
+    font-size: 1.1em;
+}
+
+.dossier-prescriptions {
+    border-collapse: collapse;
+    max-width: 900px;
+    margin-bottom: 8px;
+}
+
+.dossier-prescriptions th,
+.dossier-prescriptions td {
+    padding: 6px 10px;
+    border-bottom: 1px solid #ddd;
+    text-align: left;
+    vertical-align: top;
+}
+
+.dossier-prescriptions th {
+    color: #555;
+    font-weight: 600;
+    background: #f3f6fa;
+}
+
+/* AURA-22 : arrêt d'une ligne depuis le dossier (médecin + bouton, erreur sur sa propre ligne) */
+.stop-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    max-width: none;
+}
+
+.stop-form select,
+.stop-form button {
+    height: 24px;
+    font: inherit;
+}
+
+.stop-form button {
+    cursor: pointer;
+}
+
+.stop-form .form-error {
+    flex-basis: 100%;
+    margin: 0;
+    font-size: 12px;
+}
+
+/* AURA-20 : bouton « Prescription » du dossier, vers l'écran B3 */
+.episode-actions {
+    margin: 0 0 14px;
+}
+
+.episode-actions .button {
+    display: inline-block;
+    padding: 6px 14px;
+    color: #fff;
+    background: #2b7bb9;
+    border: 1px solid #1f5f91;
+    border-radius: 3px;
+    text-decoration: none;
+}
+
+.episode-actions .button:hover {
+    background: #1f5f91;
 }
 
 /* ---------- Liste des patients (AURA-12.1) ---------- */
@@ -379,4 +462,268 @@ body, html {
     padding: 16px;
     border: 1px solid #b00020;
     background: #fde2e4;
+}
+
+/* ---------- AURA-20 : écran « B3. Nouvelles prescriptions » (figures 7, 8 et 9) ---------- */
+.b3 {
+    max-width: 1100px;
+    font-family: Tahoma, "Segoe UI", Arial, sans-serif;
+    font-size: 12px;
+    color: #000;
+}
+
+.b3-back {
+    margin: 0 0 6px;
+}
+
+.b3-title {
+    margin: 0 0 8px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #c8c8c8;
+    font-size: 20px;
+    font-weight: 400;
+}
+
+.b3-success {
+    margin: 0 0 8px;
+    padding: 6px 8px;
+    color: #1b5e20;
+    background: #e8f5e9;
+    border: 1px solid #a5d6a7;
+}
+
+.b3-body {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 12px;
+    background: #f0f0f0;
+    border: 1px solid #d4d4d4;
+}
+
+/* Colonne de gauche : étiquette courte à gauche, liste déroulante large à droite */
+.b3-entry {
+    flex: 0 0 470px;
+    max-width: none;
+}
+
+.b3-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.b3-row label {
+    flex: 0 0 48px;
+}
+
+.b3-row select {
+    flex: 1;
+    height: 22px;
+    font: inherit;
+    border: 1px solid #a0a0a0;
+    background: #fff;
+}
+
+.b3-row select:disabled {
+    background: #e6e6e6;
+    border-color: #c8c8c8;
+}
+
+.b3-warning,
+.b3-message {
+    margin: 4px 0 8px 48px;
+    color: #b00020;
+}
+
+/* Fiche de paramètres (figure 9) : libellés magenta, astérisque rouge, valeurs à droite */
+.b3-params {
+    margin-top: 6px;
+    background: #fff;
+    border: 1px solid #a0a0a0;
+}
+
+.b3-params-title {
+    padding: 3px 6px;
+    color: #c000c0;
+    border-bottom: 1px solid #d4d4d4;
+}
+
+.b3-grid {
+    display: grid;
+    grid-template-columns: 160px 14px 1fr;
+}
+
+.b3-grid > label,
+.b3-grid > .b3-required,
+.b3-grid > .b3-value {
+    padding: 2px 6px;
+    border-bottom: 1px solid #e4e4e4;
+}
+
+.b3-grid > label {
+    color: #c000c0;
+}
+
+.b3-grid > label.b3-greyed {
+    color: #808080;
+}
+
+.b3-required {
+    color: #d00000;
+    font-weight: 700;
+}
+
+.b3-value {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.b3-value input,
+.b3-value select {
+    flex: 1;
+    min-width: 0;
+    height: 20px;
+    font: italic 12px Tahoma, Arial, sans-serif;
+    color: #c000c0;
+    border: 1px solid #c8c8c8;
+}
+
+.b3-value input[readonly],
+.b3-value input:disabled {
+    background: #f6f6f6;
+}
+
+.b3-value .b3-short {
+    flex: 0 0 60px;
+}
+
+.b3-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+    padding: 6px;
+}
+
+.b3-buttons button {
+    min-width: 80px;
+    height: 24px;
+    font: inherit;
+    background: #e1e1e1;
+    border: 1px solid #adadad;
+    cursor: pointer;
+}
+
+.b3-buttons button:disabled {
+    color: #a0a0a0;
+    cursor: default;
+}
+
+.b3-buttons .b3-save {
+    color: #fff;
+    background: #2b7bb9;
+    border-color: #1f5f91;
+}
+
+/* Colonne de droite : prescriptions non sauvegardées */
+.b3-summary {
+    flex: 1;
+    min-width: 0;
+    background: #fff;
+    border: 1px solid #a0a0a0;
+}
+
+.b3-summary-title {
+    margin: 0;
+    padding: 2px 4px;
+    font-size: 12px;
+    font-weight: 700;
+    border-bottom: 1px solid #a0a0a0;
+}
+
+.b3-cart {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.b3-cart th {
+    padding: 2px 4px;
+    text-align: left;
+    font-weight: 700;
+    border-bottom: 1px solid #a0a0a0;
+}
+
+.b3-cart td {
+    padding: 2px 4px;
+    border-bottom: 1px solid #d4d4d4;
+    vertical-align: top;
+}
+
+/* RG5 : ordonnances en attente de validation (fond jaune + crayon, comme la figure 7) */
+.b3-pending {
+    padding: 4px 6px;
+    background: #ffff99;
+    border-bottom: 1px solid #d4d4d4;
+}
+
+.b3-pending-header {
+    margin: 0;
+    font-weight: 700;
+}
+
+.b3-pending ul {
+    margin: 2px 0 4px;
+    padding-left: 18px;
+}
+
+.b3-validate {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    max-width: none;
+}
+
+.b3-validate select {
+    flex: 1;
+    height: 22px;
+    font: inherit;
+}
+
+.b3-validate button {
+    height: 22px;
+    font: inherit;
+    cursor: pointer;
+}
+
+.b3-empty {
+    margin: 0;
+    padding: 4px 6px;
+    color: #777;
+    font-style: italic;
+}
+
+/* Erreur renvoyée par le serveur dans un formulaire de validation : sur sa propre ligne */
+.b3-summary .form-error {
+    flex-basis: 100%;
+    margin: 4px 0;
+    color: #b00020;
+}
+
+.b3-remove {
+    padding: 0 4px;
+    font: inherit;
+    color: #b00020;
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+
+/* Erreurs renvoyées par le serveur (public/js/form.js) */
+.b3-entry .form-error {
+    margin: 0 0 8px;
+    padding: 6px 8px;
+    color: #b00020;
+    background: #fde2e4;
+    border: 1px solid #b00020;
 }

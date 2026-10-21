@@ -18,26 +18,29 @@ final class AgendaService
     ) {
     }
 
-    public function getAgenda(string $id): array
+    public function getAgenda(int $idEpisodeOfCare): array
     {
-        error_log("Appel Service getAgenda");
         $response = [];
         // On récupère les prescriptions associées au Séjour
-        $carePlans = $this->carePlanDao->findByEpisodeOfCare($id);
+        $carePlans = $this->carePlanDao->findByEpisodeOfCare($idEpisodeOfCare);
         // Pour chaque prescription :
         foreach ($carePlans as $carePlan) {
-            // D'une part, on récupère leq Soins associés
-            $serviceRequests = $this->carePlanDao->findServiceByCarePlan($carePlan->getIdCarePlan());
+            $idCarePlan = (int) $carePlan->getIdCarePlan();
+            $serviceAppointments = [];
+            $medicationAppointments = [];
+            // D'une part, on récupère les Soins associés
+            $serviceRequests = $this->carePlanDao->findServiceByCarePlan($idCarePlan);
             foreach ($serviceRequests as $serviceRequest) {
                 // Pour chaque soin, on récupère les SoinsPlanifiés
-                $serviceAppointments = $this->appointmentDao->findByRequest($serviceRequest->getIdServiceRequest());
+                $serviceAppointments = $this->appointmentDao
+                    ->findByRequest((string) $serviceRequest->getIdServiceRequest());
             }
             // D'autre part, on récupère les Médicaments associés
-            $medicationRequests = $this->carePlanDao->findMedicationByCarePlan($carePlan->getIdCarePlan());
+            $medicationRequests = $this->carePlanDao->findMedicationByCarePlan($idCarePlan);
             foreach ($medicationRequests as $medicationRequest) {
                 //Pour chaque Médicament, on récupère les SoinsPlanifiés associés
-                $medicationAppointments = $this->appointmentDao->
-                    findByRequest($medicationRequest->getIdMedicationRequest());
+                $medicationAppointments = $this->appointmentDao
+                    ->findByRequest((string) $medicationRequest->getIdMedicationRequest());
             }
             // Assemblage de la réponse HTTP
             $response[] = $this->serializeCarePlan(
@@ -73,6 +76,7 @@ final class AgendaService
 
     public function serializeService(array $services, array $appointments): ?array
     {
+        $res = [];
         foreach ($services as $service) {
             $res[] = [
                 'idServiceRequest' => $service->getIdServiceRequest(),
@@ -92,6 +96,7 @@ final class AgendaService
 
     public function serializeMedication(array $medications, array $appointments): ?array
     {
+        $res = [];
         foreach ($medications as $medication) {
             $res[] = [
                 'idMedicationRequest' => $medication->getIdMedicationRequest(),
@@ -113,7 +118,7 @@ final class AgendaService
 
     public function serializeAppointment(array $appointments): ?array
     {
-
+        $res = [];
         foreach ($appointments as $appointment) {
             $res[] = [
                 'idAppointment' => $appointment->getIdAppointment(),
