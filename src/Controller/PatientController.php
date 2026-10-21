@@ -8,6 +8,7 @@ use Aura\Core\View;
 use Aura\Service\ModificationPatientService;
 use Aura\Service\AdmissionService;
 use Aura\Service\ListePatientsService;
+use Aura\Service\RechercheIppService;
 use InvalidArgumentException;
 use LogicException;
 
@@ -34,20 +35,69 @@ class PatientController
 
     private const VUE_ADMISSION = 'patient/admission';
     private const TITRE_ADMISSION = 'AURA - Admission';
-    private const SCRIPTS_ADMISSION = ['/js/form.js'];
+    /** Scripts du formulaire d'admission : envoi AJAX (AURA-10.2) et recherche par IPP (AURA-15). */
+    public const SCRIPTS_ADMISSION = ['/js/form.js', '/js/admission-ipp.js'];
+
+    /** Message renvoyé quand aucun patient ne porte l'IPP recherché (AURA-15). */
+    public const MESSAGE_IPP_INCONNU = 'IPP inconnu, saisie manuelle.';
 
     private const VUE_MODIFICATION = 'patient/modifier';
     private const TITRE_MODIFICATION = 'AURA - Modifier le patient';
 
     /**
-     * Le service de liste lit la base : il n'est fourni que par la route GET /patients
+     * Les services qui lisent la base ne sont fournis que par les routes qui en ont besoin
      * (voir public/index.php), pour que l'admission reste utilisable sans connexion.
      */
     public function __construct(
         private AdmissionService $admissionService = new AdmissionService(),
         private ?ListePatientsService $listePatientsService = null,
-        private ?ModificationPatientService $modificationPatientService = null
+        private ?ModificationPatientService $modificationPatientService = null,
+        private ?RechercheIppService $rechercheIppService = null
     ) {
+    }
+
+    /**
+     * GET /patients/recherche-ipp?ipp=… (AURA-15) : patient déjà connu sous cet IPP, en JSON,
+     * pour pré-remplir le formulaire d'admission. L'identité est renvoyée avec les noms de
+     * champs du formulaire ; les allergies connues (RG2) sont jointes en lecture seule.
+     * Réponses : 422 si l'IPP est vide ou hors format ; 200 avec `trouve: false` si inconnu ;
+     * 200 avec `trouve: true`, `patient` et `allergies` sinon.
+     */
+    public function rechercherParIpp(): void
+    {
+        if ($this->rechercheIppService === null) {
+            throw new LogicException('PatientController::rechercherParIpp() requiert un RechercheIppService.');
+        }
+
+        $saisie = $_GET['ipp'] ?? '';
+        $ipp = is_string($saisie) ? trim($saisie) : '';
+        $erreur = $ipp === '' ? 'Saisissez un IPP pour lancer la recherche.' : AdmissionService::validerIpp($ipp);
+        if ($erreur !== null) {
+            $this->repondreJson(422, ['ok' => false, 'erreurs' => ['ipp' => $erreur]]);
+            return;
+        }
+
+        $resultat = $this->rechercheIppService->rechercher($ipp);
+        if ($resultat === null) {
+            $this->repondreJson(200, ['ok' => true, 'trouve' => false, 'message' => self::MESSAGE_IPP_INCONNU]);
+            return;
+        }
+
+        // Identité indexée par nom de champ du formulaire (même correspondance que la saisie).
+        $patient = [];
+        foreach (self::CHAMPS_FORMULAIRE as $champ => $cle) {
+            if (array_key_exists($cle, $resultat)) {
+                $patient[$champ] = $resultat[$cle] ?? '';
+            }
+        }
+        $patient['lienModification'] = '/patients/modifier?id=' . $resultat['idPatient'];
+
+        $this->repondreJson(200, [
+            'ok' => true,
+            'trouve' => true,
+            'patient' => $patient,
+            'allergies' => $resultat['allergies'],
+        ]);
     }
 
     /** GET /patients?q=… : liste des patients avec leur séjour en cours (AURA-12.1). */

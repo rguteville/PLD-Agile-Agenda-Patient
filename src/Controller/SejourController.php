@@ -7,6 +7,7 @@ namespace Aura\Controller;
 use Aura\Core\View;
 use Aura\Service\AgendaService;
 use Aura\Service\AllergyIntoleranceService;
+use Aura\Service\CarePlanService;
 use Aura\Service\DossierPatientService;
 use Aura\Service\SejourService;
 use InvalidArgumentException;
@@ -15,13 +16,20 @@ use LogicException;
 final class SejourController
 {
     private const RECORD_VIEW = 'sejour/dossier';
-    private const RECORD_SCRIPTS = ['/js/confirm.js'];
+    /** form.js : arrêt d'une ligne de prescription en AJAX ; confirm.js : confirmation du retrait d'une allergie. */
+    private const RECORD_SCRIPTS = ['/js/form.js', '/js/confirm.js'];
 
     /** Identifiant numérique tel que stocké (VARCHAR contenant un entier, sans zéro de tête). */
     private const ID_PATTERN = '/^[1-9][0-9]{0,17}$/';
 
+    /**
+     * Chaque route n'injecte que ce dont elle a besoin (cf. public/index.php) :
+     * show() le dossier et, sans CarePlanService, s'affiche sans ses prescriptions ;
+     * addAllergy() / removeAllergy() le dossier et les allergies ; getAgenda() l'agenda et le séjour.
+     */
     public function __construct(
         private ?DossierPatientService $dossierPatientService = null,
+        private ?CarePlanService $carePlanService = null,
         private ?AgendaService $agendaService = null,
         private ?SejourService $sejourService = null,
         private ?AllergyIntoleranceService $allergyIntoleranceService = null
@@ -93,23 +101,26 @@ final class SejourController
         header('Location: /sejour?id=' . $idSejour, true, 303);
     }
 
+    /** GET /agenda-patient?id=… ou ?numSejour=… : agenda du séjour en JSON (AURA-24). */
     public function getAgenda(): void
     {
-        error_log('Appel Controller getAgenda');
         $id = $_GET['id'] ?? null;
         $numSejour = $_GET['numSejour'] ?? null;
         if ($id === null && $numSejour === null) {
-            View::erreur(400, '');
+            View::erreur(400, 'Identifiant ou numéro de séjour manquant.');
             return;
         }
-        //Recuperer l'id du sejour selon son numero
-        if ($id === null && $numSejour !== null) {
-            $id = $this->sejourService->getSejourByNumber($numSejour)->getIdSejour();
+        // Retrouver l'id du séjour à partir de son numéro
+        if ($id === null) {
+            try {
+                $id = $this->sejourService->getSejourByNumber((string) $numSejour)->getIdSejour();
+            } catch (InvalidArgumentException $e) {
+                View::erreur(404, $e->getMessage());
+                return;
+            }
         }
 
-        error_log($id);
-
-        $careplans = $this->agendaService->getAgenda($id);
+        $careplans = $this->agendaService->getAgenda((int) $id);
         header('Content-Type: application/json; charset=utf-8');
         echo json_encode(['careplans' => $careplans]);
     }
@@ -137,7 +148,14 @@ final class SejourController
             $dossier['bandeau']['prenom'],
             $dossier['bandeau']['numeroSejour']
         );
-        View::page(self::RECORD_VIEW, $dossier, $titre, self::RECORD_SCRIPTS);
+        View::page(self::RECORD_VIEW, $dossier + [
+            // idSejour : lien du bouton « Prescription » vers l'écran B3 (AURA-20) et formulaires d'allergie.
+            'idSejour' => $idSejour,
+            // Prescriptions validées par un médecin (RG5), sans les lignes arrêtées.
+            'prescriptions' => $this->carePlanService?->validatedLines($idSejour) ?? [],
+            // Médecins proposés pour le bouton « Arrêter » (AURA-22).
+            'doctors' => $this->carePlanService?->doctors() ?? [],
+        ], $titre, self::RECORD_SCRIPTS);
     }
 
     /** Id lu dans la requête (query string ou corps du POST) ; null si absent ou mal formé. */

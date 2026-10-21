@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
+use Aura\Controller\CarePlanController;
 use Aura\Controller\PatientController;
 use Aura\Controller\SejourController;
 use Aura\Core\ConfigurationException;
@@ -12,18 +13,21 @@ use Aura\Core\Router;
 use Aura\Core\View;
 
 use Aura\Dao\AllergieDao;
+use Aura\Dao\CarePlanDao;
 use Aura\Dao\PatientDao;
+use Aura\Dao\ReferenceDataDao;
 use Aura\Dao\SejourDao;
 use Aura\Dao\SubstanceDao;
-use Aura\Dao\CarePlanDao;
 use Aura\Dao\AppointmentDao;
 use Aura\Dao\Transaction;
 
 use Aura\Service\AdmissionService;
 use Aura\Service\AllergyIntoleranceService;
+use Aura\Service\CarePlanService;
 use Aura\Service\DossierPatientService;
 use Aura\Service\ListePatientsService;
 use Aura\Service\ModificationPatientService;
+use Aura\Service\RechercheIppService;
 use Aura\Service\SejourService;
 use Aura\Service\AgendaService;
 
@@ -41,7 +45,7 @@ if (PHP_SAPI === 'cli-server' && is_file(__DIR__ . $path)) {
 try {
     //Page par défaut
     if ($path === '/') {
-        View::page('patient/admission', [], 'AURA - Admission', ['/js/form.js']);
+        View::page('patient/admission', [], 'AURA - Admission', PatientController::SCRIPTS_ADMISSION);
         exit;
     }
 
@@ -58,17 +62,24 @@ try {
     };
 
     // AURA-14 : le dossier de séjour lit la base ; la connexion n'est ouverte que pour ces routes.
+    // Il affiche aussi les prescriptions validées du séjour (CarePlanService).
     // AURA-13.2 : le même contrôleur sert l'ajout et le retrait d'allergies (POST) depuis le dossier.
     $controleurSejour = static function (): SejourController {
         $pdo = Database::get();
+        $dossierPatientService = new DossierPatientService(
+            new SejourDao($pdo),
+            new PatientDao($pdo),
+            new AllergieDao($pdo),
+            new SubstanceDao($pdo),
+            new DateTimeImmutable('today')
+        );
 
         return new SejourController(
-            dossierPatientService: new DossierPatientService(
-                new SejourDao($pdo),
-                new PatientDao($pdo),
-                new AllergieDao($pdo),
-                new SubstanceDao($pdo),
-                new DateTimeImmutable('today')
+            dossierPatientService: $dossierPatientService,
+            carePlanService: new CarePlanService(
+                new CarePlanDao($pdo),
+                new ReferenceDataDao($pdo),
+                $dossierPatientService
             ),
             allergyIntoleranceService: new AllergyIntoleranceService(
                 new SejourDao($pdo),
@@ -87,6 +98,22 @@ try {
         $controller->list();
     };
 
+    // Epic 4 : prescriptions d'un séjour (liste, écran B3, validation) ; même principe que le dossier.
+    $carePlans = static function (): CarePlanController {
+        $pdo = Database::get();
+        return new CarePlanController(new CarePlanService(
+            new CarePlanDao($pdo),
+            new ReferenceDataDao($pdo),
+            new DossierPatientService(
+                new SejourDao($pdo),
+                new PatientDao($pdo),
+                new AllergieDao($pdo),
+                new SubstanceDao($pdo),
+                new DateTimeImmutable('today')
+            )
+        ));
+    };
+
     // AURA-12.2 : modification d'un patient ; le même contrôleur sert le formulaire (GET) et la soumission (POST).
     $controleurModification = static fn (): PatientController => new PatientController(
         modificationPatientService: new ModificationPatientService(
@@ -94,9 +121,17 @@ try {
             new AdmissionService()
         )
     );
+    // AURA-15 : recherche d'un patient déjà connu par son IPP (JSON pour le formulaire d'admission).
+    $rechercherParIpp = static function (): void {
+        $pdo = Database::get();
+        $controller = new PatientController(
+            rechercheIppService: new RechercheIppService(new PatientDao($pdo), new AllergieDao($pdo))
+        );
+        $controller->rechercherParIpp();
+    };
+
     // AURA-24 : récupérer l'agenda d'un patient
     $getAgenda = static function (): void {
-        error_log("Appel index.php");
         $pdo = Database::get();
         $controller = new SejourController(
             agendaService: new AgendaService(
@@ -116,9 +151,15 @@ try {
     $router->post('/patients/create', $admettrePatient);
     $router->get('/patients/modifier', static fn () => $controleurModification()->edit());
     $router->post('/patients/modifier', static fn () => $controleurModification()->update());
+    $router->get('/patients/recherche-ipp', $rechercherParIpp);
     $router->get('/sejour', static fn () => $controleurSejour()->show());
     $router->post('/sejour/allergies/ajouter', static fn () => $controleurSejour()->addAllergy());
     $router->post('/sejour/allergies/retirer', static fn () => $controleurSejour()->removeAllergy());
+    $router->get('/care-plans', static fn () => $carePlans()->list());
+    $router->get('/care-plans/new', static fn () => $carePlans()->newForm());
+    $router->post('/care-plans/create', static fn () => $carePlans()->create());
+    $router->post('/care-plans/validate', static fn () => $carePlans()->validate());
+    $router->post('/care-plans/stop', static fn () => $carePlans()->stop());
     $router->get('/agenda-patient', $getAgenda);
 
     $router->notFound(static fn() => View::erreur(404, 'Page introuvable.'));

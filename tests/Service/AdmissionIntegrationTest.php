@@ -152,6 +152,36 @@ final class AdmissionIntegrationTest extends TestCase
         self::assertFalse($this->pdo->inTransaction(), 'la transaction est bien terminée');
     }
 
+    /**
+     * AURA-15 : réadmettre un patient déjà connu par son IPP ouvre un nouveau séjour sans
+     * recréer le patient : la table Patient garde une seule ligne pour cet IPP.
+     */
+    public function testUnPatientDejaConnuParSonIppNEstPasRecreeALaReadmission(): void
+    {
+        $sejourService = new SejourService(new SejourDao($this->pdo));
+        $service = new AdmissionService(null, new PatientDao($this->pdo), $sejourService, new Transaction($this->pdo));
+        $ipp = '987654315';
+
+        $premier = $service->admettre(['nom' => self::NOM, 'prenom' => 'Alice', 'ipp' => $ipp, 'sexe' => 'F']);
+        // Un patient n'a qu'un séjour en cours à la fois : le premier est clos avant la réadmission.
+        $sejourService->cloturerSejour((int) $premier->getIdSejour());
+        [$patientsAvant, $sejoursAvant] = $this->compter();
+
+        // Identité volontairement différente : c'est l'IPP qui fait foi, pas les champs saisis.
+        $second = $service->admettre(['nom' => self::NOM, 'prenom' => 'Autre', 'ipp' => $ipp]);
+
+        [$patientsApres, $sejoursApres] = $this->compter();
+        self::assertSame($patientsAvant, $patientsApres, 'aucun doublon de Patient');
+        self::assertSame($sejoursAvant + 1, $sejoursApres, 'exactement un séjour de plus');
+        self::assertSame($premier->getIdPatient(), $second->getIdPatient(), 'même patient');
+        self::assertNotSame($premier->getNumSejour(), $second->getNumSejour());
+
+        $stmt = $this->pdo->prepare('SELECT COUNT(*) FROM Patient WHERE ipp = :ipp');
+        $stmt->execute(['ipp' => $ipp]);
+        self::assertSame(1, (int) $stmt->fetchColumn(), 'une seule ligne Patient pour cet IPP');
+        self::assertSame('Alice', (new PatientDao($this->pdo))->findByIpp($ipp)?->getPrenom(), 'identité inchangée');
+    }
+
     /** @return array{int, int} */
     private function compter(): array
     {
