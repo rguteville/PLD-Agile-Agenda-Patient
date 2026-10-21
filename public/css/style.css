@@ -464,6 +464,95 @@ body, html {
     background: #fde2e4;
 }
 
+/* ---------- Recherche par IPP sur le formulaire d'admission (AURA-15) ---------- */
+.form-row .field-group {
+    grid-column: 3;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 550px;
+}
+
+.form-row .field-group input[type="text"] {
+    flex: 1;
+    max-width: none;
+}
+
+.field-button {
+    height: 32px;
+    padding: 0 14px;
+    border: 1px solid #2b7bb9;
+    background: #fff;
+    color: #2b7bb9;
+    font: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.field-button:hover {
+    background: #eef4fb;
+}
+
+/* Identité reprise du dossier : champs en lecture seule */
+.form-row input.is-locked {
+    background: #f3f6fa;
+    color: #555;
+}
+
+/* Zone de message sous le champ (résultat de la recherche), mise à jour par script */
+.form-row .field-status {
+    grid-column: 3;
+    max-width: 550px;
+    margin: 4px 0 0;
+    font-size: 13px;
+}
+
+.form-row .field-status:empty {
+    display: none;
+}
+
+.field-status p {
+    margin: 0 0 4px;
+}
+
+.field-status.en-cours,
+.field-status.inconnu {
+    color: #777;
+    font-style: italic;
+}
+
+.field-status.erreur {
+    color: #c0222b;
+}
+
+.field-status.trouve {
+    color: #2e7d32;
+}
+
+.field-status .aucune-allergie {
+    color: #2e7d32;
+    font-weight: 600;
+}
+
+.field-status .alerte {
+    color: #b00020;
+    font-weight: 700;
+}
+
+.field-status .allergies ul {
+    display: inline;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.field-status .allergies li {
+    display: inline-block;
+    margin: 2px 8px 2px 0;
+    padding: 2px 10px;
+    border-radius: 10px;
+    background: #fde2e4;
+    color: #b00020;
 /* ---------- AURA-20 : écran « B3. Nouvelles prescriptions » (figures 7, 8 et 9) ---------- */
 .b3 {
     max-width: 1100px;
