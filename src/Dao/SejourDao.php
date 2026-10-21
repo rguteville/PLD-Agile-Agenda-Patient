@@ -11,14 +11,20 @@ use PDO;
 use PDOException;
 
 /**
- * Accès à la table Sejour. Les colonnes suivent database/schema.sql (camelCase anglais,
- * cf. README « Convention de nommage ») ; les entités du domaine restent en français.
+ * Accès aux séjours : table EpisodeOfCare (noms HL7 depuis AURA-16, cf. database/schema.sql) ;
+ * les entités du domaine restent en français.
  */
 class SejourDao
 {
+    /** Colonnes lues, renommées vers les clés utilisées par mapToEntity(). */
     private const COLUMNS =
-        'idSejour, idPatient, sejourNumber, admissionDate, dischargeDate, bedNumber, boxNumber, idService,
-         weight, height, precautions';
+        'idEpisodeOfCare AS idSejour, idPatient, episodeNumber AS sejourNumber, admissionDate, dischargeDate,
+         bedNumber, boxNumber, idHealthcareService AS idService, weight, height, precautions';
+
+    /** Colonnes écrites par insert(), dans l'ordre des paramètres. */
+    private const INSERT_COLUMNS =
+        'idEpisodeOfCare, idPatient, episodeNumber, admissionDate, dischargeDate, bedNumber, boxNumber,
+         idHealthcareService, weight, height, precautions';
 
     /** Nombre d'essais d'insertion si un autre séjour prend le même id ou numéro entre-temps. */
     private const ESSAIS_INSERTION = 3;
@@ -32,7 +38,7 @@ class SejourDao
 
     public function findById(int $id): ?Sejour
     {
-        $stmt = $this->pdo->prepare('SELECT ' . self::COLUMNS . ' FROM Sejour WHERE idSejour = :id');
+        $stmt = $this->pdo->prepare('SELECT ' . self::COLUMNS . ' FROM EpisodeOfCare WHERE idEpisodeOfCare = :id');
         $stmt->execute(['id' => $id]);
         $r = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -56,9 +62,9 @@ class SejourDao
     public function findByPatient(int $idPatient): array
     {
         $stmt = $this->pdo->prepare(
-            'SELECT ' . self::COLUMNS . ' FROM Sejour
+            'SELECT ' . self::COLUMNS . ' FROM EpisodeOfCare
              WHERE idPatient = :idPatient
-             ORDER BY admissionDate DESC, CAST(idSejour AS UNSIGNED) DESC'
+             ORDER BY admissionDate DESC, CAST(idEpisodeOfCare AS UNSIGNED) DESC'
         );
         $stmt->execute(['idPatient' => $idPatient]);
 
@@ -73,9 +79,9 @@ class SejourDao
     public function findEnCours(): array
     {
         $rows = $this->pdo->query(
-            'SELECT ' . self::COLUMNS . ' FROM Sejour
+            'SELECT ' . self::COLUMNS . ' FROM EpisodeOfCare
              WHERE dischargeDate IS NULL
-             ORDER BY admissionDate, CAST(idSejour AS UNSIGNED)'
+             ORDER BY admissionDate, CAST(idEpisodeOfCare AS UNSIGNED)'
         )->fetchAll(PDO::FETCH_ASSOC);
 
         return array_map(fn(array $r) => $this->mapToEntity($r), $rows);
@@ -83,14 +89,16 @@ class SejourDao
 
     public function updateSortie(int $idSejour, DateTimeInterface $dateSortie): void
     {
-        $stmt = $this->pdo->prepare('UPDATE Sejour SET dischargeDate = :dischargeDate WHERE idSejour = :id');
+        $stmt = $this->pdo->prepare(
+            'UPDATE EpisodeOfCare SET dischargeDate = :dischargeDate WHERE idEpisodeOfCare = :id'
+        );
         $stmt->execute(['dischargeDate' => $dateSortie->format('Y-m-d H:i:s'), 'id' => $idSejour]);
     }
 
     public function updateEmplacement(int $idSejour, ?string $numLit, ?string $numBox): void
     {
         $stmt = $this->pdo->prepare(
-            'UPDATE Sejour SET bedNumber = :bedNumber, boxNumber = :boxNumber WHERE idSejour = :id'
+            'UPDATE EpisodeOfCare SET bedNumber = :bedNumber, boxNumber = :boxNumber WHERE idEpisodeOfCare = :id'
         );
         $stmt->execute(['bedNumber' => $numLit, 'boxNumber' => $numBox, 'id' => $idSejour]);
     }
@@ -114,10 +122,10 @@ class SejourDao
 
             for ($essai = 1;; $essai++) {
                 $stmt = $this->pdo->prepare(
-                    'SELECT COALESCE(MAX(CAST(idSejour AS UNSIGNED)), 0) + 1 AS id,
-                            COALESCE(MAX(CASE WHEN sejourNumber LIKE :prefixe
-                                         THEN CAST(SUBSTRING(sejourNumber, 6) AS UNSIGNED) END), 0) + 1 AS compteur
-                     FROM Sejour FOR UPDATE'
+                    'SELECT COALESCE(MAX(CAST(idEpisodeOfCare AS UNSIGNED)), 0) + 1 AS id,
+                            COALESCE(MAX(CASE WHEN episodeNumber LIKE :prefixe
+                                         THEN CAST(SUBSTRING(episodeNumber, 6) AS UNSIGNED) END), 0) + 1 AS compteur
+                     FROM EpisodeOfCare FOR UPDATE'
                 );
                 $stmt->execute(['prefixe' => $annee . '-%']);
                 $suivant = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -126,7 +134,7 @@ class SejourDao
 
                 try {
                     $this->pdo->prepare(
-                        'INSERT INTO Sejour (' . self::COLUMNS . ')
+                        'INSERT INTO EpisodeOfCare (' . self::INSERT_COLUMNS . ')
                          VALUES (:idSejour, :idPatient, :sejourNumber, :admissionDate,
                                  :dischargeDate, :bedNumber, :boxNumber, :idService,
                                  :weight, :height, :precautions)'

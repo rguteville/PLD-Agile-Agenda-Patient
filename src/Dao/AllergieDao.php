@@ -9,8 +9,8 @@ use DateTimeImmutable;
 use PDO;
 
 /**
- * Accès aux tables Allergie / Allergene (schéma V1). Colonnes en camelCase anglais,
- * entités en français (cf. README « Convention de nommage »).
+ * Accès aux allergies : tables AllergyIntolerance / Substance (noms HL7 depuis AURA-16,
+ * cf. database/schema.sql) ; entités en français (cf. README « Convention de nommage »).
  */
 class AllergieDao
 {
@@ -19,19 +19,21 @@ class AllergieDao
     }
 
     /**
-     * Allergies actives d'un patient (retirées exclues), avec le libellé de l'allergène,
-     * par ordre alphabétique.
+     * Allergies d'un patient, avec le libellé de l'allergène, par ordre alphabétique.
+     * La colonne removedAt (retrait logique) est commentée dans le schéma actuel : toutes
+     * les allergies enregistrées sont donc renvoyées.
      *
      * @return Allergie[]
      */
     public function findByPatient(int $idPatient): array
     {
         $stmt = $this->pdo->prepare(
-            'SELECT a.idAllergie, a.idPatient, a.idAllergene, g.substance, a.criticality, a.recordedAt
-             FROM Allergie a
-             JOIN Allergene g ON g.idAllergene = a.idAllergene
-             WHERE a.idPatient = :idPatient AND a.removedAt IS NULL
-             ORDER BY g.substance'
+            'SELECT a.idAllergy AS idAllergie, a.idPatient, a.idSubstance AS idAllergene,
+                    g.description AS substance, a.criticality, a.recordedAt
+             FROM AllergyIntolerance a
+             JOIN Substance g ON g.idSubstance = a.idSubstance
+             WHERE a.idPatient = :idPatient
+             ORDER BY g.description'
         );
         $stmt->execute(['idPatient' => $idPatient]);
 

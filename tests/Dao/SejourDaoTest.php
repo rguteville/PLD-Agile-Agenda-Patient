@@ -113,7 +113,7 @@ final class SejourDaoTest extends TestCase
 
         try {
             $this->pdo->prepare(
-                'INSERT INTO Sejour (idSejour, idPatient, sejourNumber, admissionDate)
+                'INSERT INTO EpisodeOfCare (idEpisodeOfCare, idPatient, episodeNumber, admissionDate)
                  VALUES (:idSejour, :idPatient, :sejourNumber, NOW())'
             )->execute([
                 'idSejour' => (string) ($existant->getIdSejour() + 1000),
