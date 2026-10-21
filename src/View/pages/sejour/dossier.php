@@ -43,8 +43,7 @@ use Aura\Core\View;
         <dt>E-mail</dt>
         <dd><?= View::e($sejour['email'] ?? 'non renseigné') ?></dd>
     </dl>
-    <p class="a-venir">Allergies (AURA-13), prescriptions (AURA-20) et agenda (AURA-25) viendront s'afficher ici.</p>
-
+    
     <?php /* RG5 : seules les prescriptions validées par un médecin, et pas celles qui sont arrêtées. */ ?>
     <h2 class="dossier-subtitle">Prescriptions en cours</h2>
     <?php if ($prescriptions === []) : ?>
