@@ -380,3 +380,93 @@ body, html {
     border: 1px solid #b00020;
     background: #fde2e4;
 }
+
+/* ---------- Allergies connues (AURA-13.2) ---------- */
+.allergies-dossier {
+    max-width: 600px;
+    margin: 18px 0;
+}
+
+.allergies-dossier h2 {
+    font-size: 1.1em;
+    margin: 0 0 8px;
+}
+
+.allergies-dossier .aucune-allergie {
+    color: #2e7d32;
+    font-weight: 600;
+}
+
+.allergies-dossier .liste-allergies {
+    margin: 0 0 14px;
+    padding: 0;
+    list-style: none;
+}
+
+.allergies-dossier .liste-allergies li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.allergies-dossier .liste-allergies .libelle {
+    font-weight: 600;
+}
+
+.allergies-dossier .liste-allergies .details {
+    flex: 1;
+    color: #555;
+}
+
+.allergies-dossier .retirer-allergie {
+    margin: 0;
+}
+
+.allergies-dossier .ajouter-allergie {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 12px;
+}
+
+.allergies-dossier .champ {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.allergies-dossier select {
+    padding: 5px 8px;
+    border: 1px solid #bbb;
+    min-width: 180px;
+}
+
+.allergies-dossier button {
+    padding: 6px 16px;
+    border: 1px solid #2b7bb9;
+    background: #2b7bb9;
+    color: #fff;
+    font: inherit;
+    cursor: pointer;
+}
+
+.allergies-dossier .retirer-allergie button {
+    border-color: #b00020;
+    background: #fff;
+    color: #b00020;
+}
+
+.allergies-dossier button:hover {
+    background: #236699;
+}
+
+.allergies-dossier .retirer-allergie button:hover {
+    background: #fde2e4;
+}
+
+.allergies-dossier .referentiel-epuise {
+    color: #777;
+    font-style: italic;
+}

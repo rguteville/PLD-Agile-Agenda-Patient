@@ -14,11 +14,13 @@ use Aura\Core\View;
 use Aura\Dao\AllergieDao;
 use Aura\Dao\PatientDao;
 use Aura\Dao\SejourDao;
+use Aura\Dao\SubstanceDao;
 use Aura\Dao\CarePlanDao;
 use Aura\Dao\AppointmentDao;
 use Aura\Dao\Transaction;
 
 use Aura\Service\AdmissionService;
+use Aura\Service\AllergyIntoleranceService;
 use Aura\Service\DossierPatientService;
 use Aura\Service\ListePatientsService;
 use Aura\Service\ModificationPatientService;
@@ -55,18 +57,25 @@ try {
         $controller->create();
     };
 
-    // AURA-14 : le dossier de séjour lit la base ; la connexion n'est ouverte que pour cette route.
-    $afficherSejour = static function (): void {
+    // AURA-14 : le dossier de séjour lit la base ; la connexion n'est ouverte que pour ces routes.
+    // AURA-13.2 : le même contrôleur sert l'ajout et le retrait d'allergies (POST) depuis le dossier.
+    $controleurSejour = static function (): SejourController {
         $pdo = Database::get();
-        $controller = new SejourController(
+
+        return new SejourController(
             dossierPatientService: new DossierPatientService(
                 new SejourDao($pdo),
                 new PatientDao($pdo),
                 new AllergieDao($pdo),
+                new SubstanceDao($pdo),
                 new DateTimeImmutable('today')
+            ),
+            allergyIntoleranceService: new AllergyIntoleranceService(
+                new SejourDao($pdo),
+                new AllergieDao($pdo),
+                new SubstanceDao($pdo)
             )
         );
-        $controller->show();
     };
 
     // AURA-12.1 : la liste des patients lit la base ; même principe que le dossier de séjour.
@@ -107,7 +116,9 @@ try {
     $router->post('/patients/create', $admettrePatient);
     $router->get('/patients/modifier', static fn () => $controleurModification()->edit());
     $router->post('/patients/modifier', static fn () => $controleurModification()->update());
-    $router->get('/sejour', $afficherSejour);
+    $router->get('/sejour', static fn () => $controleurSejour()->show());
+    $router->post('/sejour/allergies/ajouter', static fn () => $controleurSejour()->addAllergy());
+    $router->post('/sejour/allergies/retirer', static fn () => $controleurSejour()->removeAllergy());
     $router->get('/agenda-patient', $getAgenda);
 
     $router->notFound(static fn() => View::erreur(404, 'Page introuvable.'));

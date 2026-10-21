@@ -10,6 +10,7 @@ use Aura\Core\Database;
 use Aura\Dao\AllergieDao;
 use Aura\Dao\PatientDao;
 use Aura\Dao\SejourDao;
+use Aura\Dao\SubstanceDao;
 use Aura\Domain\Patient;
 use Aura\Service\DossierPatientService;
 use Aura\Service\ListePatientsService;
@@ -168,6 +169,7 @@ final class DonneesDemoTest extends TestCase
                     new SejourDao($pdo),
                     new PatientDao($pdo),
                     new AllergieDao($pdo),
+                    new SubstanceDao($pdo),
                     new DateTimeImmutable('today')
                 )))->show();
             }
