@@ -21,6 +21,7 @@ use Aura\Dao\Transaction;
 use Aura\Service\AdmissionService;
 use Aura\Service\DossierPatientService;
 use Aura\Service\ListePatientsService;
+use Aura\Service\ModificationPatientService;
 use Aura\Service\SejourService;
 use Aura\Service\AgendaService;
 
@@ -77,6 +78,13 @@ try {
         $controller->list();
     };
 
+    // AURA-12.2 : modification d'un patient ; le même contrôleur sert le formulaire (GET) et la soumission (POST).
+    $controleurModification = static fn (): PatientController => new PatientController(
+        modificationPatientService: new ModificationPatientService(
+            new PatientDao(Database::get()),
+            new AdmissionService()
+        )
+    );
     // AURA-24 : récupérer l'agenda d'un patient
     $getAgenda = static function (): void {
         error_log("Appel index.php");
@@ -97,6 +105,8 @@ try {
     $router = new Router();
     $router->get('/patients', $listerPatients);
     $router->post('/patients/create', $admettrePatient);
+    $router->get('/patients/modifier', static fn () => $controleurModification()->edit());
+    $router->post('/patients/modifier', static fn () => $controleurModification()->update());
     $router->get('/sejour', $afficherSejour);
     $router->get('/agenda-patient', $getAgenda);
 
