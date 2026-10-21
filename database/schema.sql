@@ -130,7 +130,7 @@ CREATE TABLE CarePlan( -- Prescription
     idValidator VARCHAR(20) NULL,
     validatedAt DATETIME NULL,
 
-    CONSTRAINT chk_careplan_mode CHECK (mode IN ('MEDICALE', 'PARAMEDICALE', 'PROTOCOLE', 'URGENCE')),
+    CONSTRAINT chk_careplan_mode CHECK (mode IN ('MEDICAL', 'PARAMEDICAL', 'EMERGENCY')),
     CONSTRAINT chk_careplan_validation CHECK ((idValidator IS NULL) = (validatedAt IS NULL)),
 
     CONSTRAINT fk_episodeofcare_careplan FOREIGN KEY (idEpisodeOfCare) REFERENCES EpisodeOfCare(idEpisodeOfCare) ON DELETE RESTRICT,
@@ -186,6 +186,21 @@ CREATE TABLE MedicationRequest( -- LignePrescriptionMedicament
     -- Texte libre (« 1 g », « 0,5 µg/kg/min ») et voie (IV, PO, SC…).
     dose VARCHAR(50) NOT NULL,
     route VARCHAR(50) NOT NULL,
+    -- Écran B3 (figure 9) : « Important -> » et « Consignes pour IDE », facultatifs.
+    important VARCHAR(200) NULL,
+    nurseInstructions VARCHAR(200) NULL,
+    -- Écran B3 (figure 9) : « (Dose max) », « Volume de dilution », « Solvant », facultatifs.
+    maxDose VARCHAR(50) NULL,
+    dilutionVolume VARCHAR(50) NULL,
+    solvent VARCHAR(200) NULL,
+    -- Écran B3 (figure 9), facultatifs : durée d'administration (« 30 min »), motif et germe
+    -- (si antibiotique), adaptation rénale et son critère, motif si hors GHS.
+    administrationDuration VARCHAR(50) NULL,
+    antibioticReason VARCHAR(200) NULL,
+    germ VARCHAR(200) NULL,
+    renalAdjustment VARCHAR(200) NULL,
+    adjustmentCriterion VARCHAR(200) NULL,
+    offGhsReason VARCHAR(200) NULL,
     startDate DATETIME NOT NULL,
     endDate DATETIME NULL,
     frequencyHours SMALLINT NULL,

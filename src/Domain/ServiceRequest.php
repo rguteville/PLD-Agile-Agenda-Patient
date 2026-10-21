@@ -4,65 +4,14 @@ declare(strict_types=1);
 
 namespace Aura\Domain;
 
-use DateTimeImmutable;
-
-class ServiceRequest
+/**
+ * Ligne de soin d'une prescription (table ServiceRequest). Tout le comportement est dans
+ * RequestLine ; seule la clé porte un nom propre à la table.
+ */
+class ServiceRequest extends RequestLine
 {
-    public function __construct(
-        private string $idServiceRequest,
-        private string $idCarePlan,
-        private string $idActivityDefinition,
-        private DateTimeImmutable $startDate,
-        private ?DateTimeImmutable $endDate = null,
-        private ?int $frequencyHours = null,
-        private ?string $timeConstraint = null,
-        private ?string $idStoppedBy = null,
-        private ?DateTimeImmutable $stoppedAt = null,
-    ) {
-    }
-
-    public function getIdServiceRequest(): string
+    public function getIdServiceRequest(): ?int
     {
-        return $this->idServiceRequest;
-    }
-
-    public function getIdCarePlan(): string
-    {
-        return $this->idCarePlan;
-    }
-
-    public function getIdActivityDefinition(): string
-    {
-        return $this->idActivityDefinition;
-    }
-
-    public function getStartDate(): DateTimeImmutable
-    {
-        return $this->startDate;
-    }
-
-    public function getEndDate(): ?DateTimeImmutable
-    {
-        return $this->endDate;
-    }
-
-    public function getFrequencyHours(): ?int
-    {
-        return $this->frequencyHours;
-    }
-
-    public function getTimeConstraint(): ?string
-    {
-        return $this->timeConstraint;
-    }
-
-    public function getIdStoppedBy(): ?string
-    {
-        return $this->idStoppedBy;
-    }
-
-    public function getStoppedAt(): ?DateTimeImmutable
-    {
-        return $this->stoppedAt;
+        return $this->getId();
     }
 }
