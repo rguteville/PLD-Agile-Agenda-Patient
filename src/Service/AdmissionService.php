@@ -160,10 +160,9 @@ class AdmissionService
             $erreurs['prenom'] = 'Le prénom est obligatoire.';
         }
 
-        // ipp : facultatif (RG1) ; s'il est saisi, il doit tenir dans la colonne INT (6 à 9 chiffres).
-        $ipp = $this->texte($donnees['ipp'] ?? null);
-        if ($ipp !== '' && preg_match(self::MOTIF_IPP, $ipp) !== 1) {
-            $erreurs['ipp'] = "L'IPP doit contenir entre 6 et 9 chiffres.";
+        $erreurIpp = self::validerIpp($this->texte($donnees['ipp'] ?? null));
+        if ($erreurIpp !== null) {
+            $erreurs['ipp'] = $erreurIpp;
         }
 
         $dateNaissance = $this->texte($donnees['dateNaissance'] ?? null);
@@ -220,6 +219,21 @@ class AdmissionService
         }
 
         return $erreurs;
+    }
+
+    /**
+     * Message d'erreur si l'IPP saisi ne tient pas dans la colonne INT (6 à 9 chiffres), sinon null.
+     * Un IPP vide est accepté : il est facultatif à l'admission (RG1). Partagé avec la recherche
+     * par IPP (AURA-15) pour que les deux écrans appliquent la même règle.
+     */
+    public static function validerIpp(string $ipp): ?string
+    {
+        $ipp = trim($ipp);
+        if ($ipp !== '' && preg_match(self::MOTIF_IPP, $ipp) !== 1) {
+            return "L'IPP doit contenir entre 6 et 9 chiffres.";
+        }
+
+        return null;
     }
 
     /** Message d'erreur si la date n'est pas au format AAAA-MM-JJ ou n'est pas strictement passée, sinon null. */

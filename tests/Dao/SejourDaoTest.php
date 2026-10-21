@@ -75,6 +75,16 @@ final class SejourDaoTest extends TestCase
         );
     }
 
+    public function testUnSejourEstReluParSonNumero(): void
+    {
+        $sejour = $this->dao->insert($this->nouveauSejour('L1'));
+
+        $relu = $this->dao->findByNumber($sejour->getNumSejour());
+        $this->assertNotNull($relu, 'findByNumber (agenda, AURA-24.2) lit la table EpisodeOfCare');
+        $this->assertSame($sejour->getIdSejour(), $relu->getIdSejour());
+        $this->assertNull($this->dao->findByNumber('1900-000000'), 'numéro inconnu : null');
+    }
+
     public function testSejoursEnCoursEtHistoriqueDuPatient(): void
     {
         $ancien = $this->dao->insert($this->nouveauSejour(null, new DateTimeImmutable('-3 days')));

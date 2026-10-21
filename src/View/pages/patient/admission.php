@@ -12,7 +12,15 @@ $erreurFormulaire = $erreurFormulaire ?? '';
 $champs = [
     ['name' => 'lastname', 'label' => 'Nom', 'required' => true],
     ['name' => 'firstname', 'label' => 'Prénom', 'required' => true],
-    ['name' => 'ipp', 'label' => 'IPP (identifiant permanent du patient)'],
+    [
+        'name' => 'ipp',
+        'label' => 'IPP (identifiant permanent du patient)',
+        // AURA-15 : un patient déjà connu est retrouvé par son IPP et son identité est reprise
+        // en lecture seule (public/js/admission-ipp.js) ; sinon la saisie reste manuelle.
+        'button' => ['id' => 'ipp-rechercher', 'label' => 'Rechercher'],
+        'status' => 'ipp-statut',
+        'attributes' => ['inputmode' => 'numeric', 'autocomplete' => 'off'],
+    ],
     ['name' => 'birthDate', 'label' => 'Date de naissance', 'type' => 'date'],
     [
         'name' => 'gender',

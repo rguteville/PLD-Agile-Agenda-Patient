@@ -1,4 +1,5 @@
 <?php
+
 use Aura\Core\View;
 
 /**
@@ -7,11 +8,9 @@ use Aura\Core\View;
 //  * @var array<string, mixed> $bandeau
  */
 
-/**
- * Parcourt tous les careplans, filtre par date et trie par heure.
- */
-function getAppointmentsByDate(array $careplans, string $selectedDate): array
-{
+// Parcourt tous les careplans, filtre par date et trie par heure. Fermeture et non fonction nommée :
+// une vue est incluse à chaque rendu, et PSR-1 interdit de déclarer un symbole dans un fichier à effets de bord.
+$getAppointmentsByDate = static function (array $careplans, string $selectedDate): array {
     $appointments = [];
 
     foreach ($careplans as $plan) {
@@ -58,13 +57,13 @@ function getAppointmentsByDate(array $careplans, string $selectedDate): array
     });
 
     return $appointments;
-}
+};
 
 // Date sélectionnée via l'URL ou date du jour par défaut
 $selectedDate = $_GET['date'] ?? date('Y-m-d');
 
 // Récupération globale de tous les soins et médicaments filtrés et triés
-$sortedAppointments = getAppointmentsByDate($careplans, $selectedDate);
+$sortedAppointments = $getAppointmentsByDate($careplans, $selectedDate);
 ?>
 
 <section class="agenda">
@@ -88,16 +87,16 @@ $sortedAppointments = getAppointmentsByDate($careplans, $selectedDate);
 
     <!-- Liste des rendez-vous filtrés -->
     <div class="events-list">
-        <?php if (empty($sortedAppointments)): ?>
+        <?php if (empty($sortedAppointments)) : ?>
             <p>Aucun soin ou médicament prévu pour le <?= View::e(date('d/m/Y', strtotime($selectedDate))) ?>.</p>
-        <?php else: ?>
-            <?php foreach ($sortedAppointments as $app): ?>
+        <?php else : ?>
+            <?php foreach ($sortedAppointments as $app) : ?>
                 <div class="event-card">
                     <p>
                         <strong>[<?= View::e($app['type']) ?>] <?= View::e((string)$app['label']) ?></strong><br>
                         Heure prévue : <?= View::e(date('H:i', strtotime($app['plannedTime']))) ?><br>
                         Statut : <?= View::e($app['status']) ?>
-                        <?php if (!empty($app['comment'])): ?>
+                        <?php if (!empty($app['comment'])) : ?>
                             <br><em>Note : <?= View::e($app['comment']) ?></em>
                         <?php endif; ?>
                     </p>
