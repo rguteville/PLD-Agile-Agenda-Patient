@@ -10,15 +10,20 @@ use Aura\Core\ConfigurationException;
 use Aura\Core\Database;
 use Aura\Core\Router;
 use Aura\Core\View;
+
 use Aura\Dao\AllergieDao;
 use Aura\Dao\PatientDao;
 use Aura\Dao\SejourDao;
+use Aura\Dao\CarePlanDao;
+use Aura\Dao\AppointmentDao;
 use Aura\Dao\Transaction;
+
 use Aura\Service\AdmissionService;
 use Aura\Service\DossierPatientService;
 use Aura\Service\ListePatientsService;
 use Aura\Service\ModificationPatientService;
 use Aura\Service\SejourService;
+use Aura\Service\AgendaService;
 
 // Récupération de l'url
 $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?: '/';
@@ -53,12 +58,14 @@ try {
     // AURA-14 : le dossier de séjour lit la base ; la connexion n'est ouverte que pour cette route.
     $afficherSejour = static function (): void {
         $pdo = Database::get();
-        $controller = new SejourController(new DossierPatientService(
-            new SejourDao($pdo),
-            new PatientDao($pdo),
-            new AllergieDao($pdo),
-            new DateTimeImmutable('today')
-        ));
+        $controller = new SejourController(
+            dossierPatientService: new DossierPatientService(
+                new SejourDao($pdo),
+                new PatientDao($pdo),
+                new AllergieDao($pdo),
+                new DateTimeImmutable('today')
+            )
+        );
         $controller->show();
     };
 
@@ -78,6 +85,21 @@ try {
             new AdmissionService()
         )
     );
+    // AURA-24 : récupérer l'agenda d'un patient
+    $getAgenda = static function (): void {
+        error_log("Appel index.php");
+        $pdo = Database::get();
+        $controller = new SejourController(
+            agendaService: new AgendaService(
+                new CarePlanDao($pdo),
+                new AppointmentDao($pdo),
+            ),
+            sejourService: new SejourService(
+                new SejourDao($pdo),
+            ),
+        );
+        $controller->getAgenda();
+    };
 
     // Le Router traite les requetes HTTP
     $router = new Router();
@@ -86,7 +108,9 @@ try {
     $router->get('/patients/modifier', static fn () => $controleurModification()->edit());
     $router->post('/patients/modifier', static fn () => $controleurModification()->update());
     $router->get('/sejour', $afficherSejour);
-    $router->notFound(static fn () => View::erreur(404, 'Page introuvable.'));
+    $router->get('/agenda-patient', $getAgenda);
+
+    $router->notFound(static fn() => View::erreur(404, 'Page introuvable.'));
 
     $router->dispatch($_SERVER['REQUEST_METHOD'], $_SERVER['REQUEST_URI']);
 } catch (ConfigurationException $e) {

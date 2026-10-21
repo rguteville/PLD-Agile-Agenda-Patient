@@ -29,6 +29,17 @@ class SejourService
         return $sejour;
     }
 
+    public function getSejourByNumber(string $numSejour): Sejour
+    {
+        $sejour = $this->sejourDao->findByNumber($numSejour);
+
+        if ($sejour === null) {
+            throw new InvalidArgumentException("Séjour n°$numSejour introuvable");
+        }
+
+        return $sejour;
+    }
+
     /**
      * Séjours d'un patient, du plus récent au plus ancien (consultation des séjours précédents).
      *
