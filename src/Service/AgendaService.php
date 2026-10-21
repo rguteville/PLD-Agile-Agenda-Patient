@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Aura\Service;
 
+use Aura\Dao\ActivityDefinitionDao;
 use Aura\Dao\AppointmentDao;
 use Aura\Dao\CarePlanDao;
 use Aura\Domain\CarePlan;
@@ -15,6 +16,7 @@ final class AgendaService
     public function __construct(
         private CarePlanDao $carePlanDao,
         private AppointmentDao $appointmentDao,
+        private ActivityDefinitionDao $activityDefinitionDao,
     ) {
     }
 
@@ -34,6 +36,9 @@ final class AgendaService
                 // Pour chaque soin, on récupère les SoinsPlanifiés
                 $serviceAppointments = $this->appointmentDao
                     ->findByRequest((string) $serviceRequest->getIdServiceRequest());
+                //ActivityDefinition
+                $activity = $this->activityDefinitionDao->findById($serviceRequest->getIdActivityDefinition());
+                $serviceRequest->setIdActivityDefinition($activity->getName());
             }
             // D'autre part, on récupère les Médicaments associés
             $medicationRequests = $this->carePlanDao->findMedicationByCarePlan($idCarePlan);
@@ -41,6 +46,10 @@ final class AgendaService
                 //Pour chaque Médicament, on récupère les SoinsPlanifiés associés
                 $medicationAppointments = $this->appointmentDao
                     ->findByRequest((string) $medicationRequest->getIdMedicationRequest());
+
+                //ActivityDefinition
+                $activity = $this->activityDefinitionDao->findById($medicationRequest->getIdActivityDefinition());
+                $medicationRequest->setIdActivityDefinition($activity->getName());
             }
             // Assemblage de la réponse HTTP
             $response[] = $this->serializeCarePlan(

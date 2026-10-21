@@ -101,28 +101,45 @@ final class SejourController
         header('Location: /sejour?id=' . $idSejour, true, 303);
     }
 
-    /** GET /agenda-patient?id=… ou ?numSejour=… : agenda du séjour en JSON (AURA-24). */
+    /** GET /agenda-patient?id=… ou ?numSejour=… : agenda du séjour, bandeau en tête (RG2, AURA-24). */
     public function getAgenda(): void
     {
         $id = $_GET['id'] ?? null;
         $numSejour = $_GET['numSejour'] ?? null;
         if ($id === null && $numSejour === null) {
-            View::erreur(400, 'Identifiant ou numéro de séjour manquant.');
+            View::erreur(404, 'Identifiant ou numéro de séjour manquant.');
             return;
         }
-        // Retrouver l'id du séjour à partir de son numéro
-        if ($id === null) {
-            try {
-                $id = $this->sejourService->getSejourByNumber((string) $numSejour)->getIdSejour();
-            } catch (InvalidArgumentException $e) {
-                View::erreur(404, $e->getMessage());
-                return;
-            }
+        //Recuperer l'id du sejour selon son numero
+        if ($id === null && $numSejour !== null) {
+            $id = (string) $this->sejourService->getSejourByNumber($numSejour)->getIdSejour();
         }
 
-        $careplans = $this->agendaService->getAgenda((int) $id);
-        header('Content-Type: application/json; charset=utf-8');
-        echo json_encode(['careplans' => $careplans]);
+        $idSejour = self::readId($id);
+        if ($idSejour === null) {
+            View::erreur(400, 'Identifiant de séjour manquant ou invalide.');
+            return;
+        }
+
+        // Bandeau identité + allergies : même vue-modèle que le dossier (DossierPatientService).
+        $dossier = $this->dossierPatientService()->dossier($idSejour);
+        if ($dossier === null) {
+            View::erreur(404, sprintf('Aucun séjour ne porte l\'identifiant « %d ».', $idSejour));
+            return;
+        }
+
+        $careplans = $this->agendaService->getAgenda($idSejour);
+        $titre = sprintf(
+            'AURA - Agenda de %s %s, séjour %s',
+            $dossier['bandeau']['nom'],
+            $dossier['bandeau']['prenom'],
+            $dossier['bandeau']['numeroSejour']
+        );
+        View::page('sejour/agenda-patient', [
+            'bandeau' => $dossier['bandeau'],
+            'idEpisodeOfCare' => $idSejour,
+            'careplans' => $careplans,
+        ], $titre);
     }
 
     /**
