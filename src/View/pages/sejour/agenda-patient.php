@@ -1,23 +1,25 @@
 <?php
-
 use Aura\Core\View;
 
 /**
- * @var int $idSejour
+//  * @var int $idEpisodeOfCare
  * @var array<int, array<string, mixed>> $careplans
 //  * @var array<string, mixed> $bandeau
  */
-
-// Parcourt tous les careplans, filtre par date et trie par heure. Fermeture et non fonction nommée :
-// une vue est incluse à chaque rendu, et PSR-1 interdit de déclarer un symbole dans un fichier à effets de bord.
-$getAppointmentsByDate = static function (array $careplans, string $selectedDate): array {
+$idEpisodeOfCare = $careplans[0]['idEpisodeOfCare'];
+/**
+ * Parcourt tous les careplans, filtre par date et trie par heure.
+ */
+function getAppointmentsByDate(array $careplans, string $selectedDate): array
+{
     $appointments = [];
 
     foreach ($careplans as $plan) {
         // 1. Extraire les soins (serviceRequests)
         foreach ($plan['serviceRequests'] ?? [] as $service) {
+            //var_dump($service);
             foreach ($service['appointments'] ?? [] as $app) {
-                $plannedTime = $app['plannedTime'] ?? '';
+                $plannedTime = $app['plannedTime']->format('Y-m-d H:i:s') ?? '';
                 $appDate = date('Y-m-d', strtotime($plannedTime));
 
                 if ($appDate === $selectedDate) {
@@ -33,15 +35,15 @@ $getAppointmentsByDate = static function (array $careplans, string $selectedDate
         }
 
         // 2. Extraire les médicaments (medicationRequest)
-        foreach ($plan['medicationRequest'] ?? [] as $med) {
+        foreach ($plan['medicationRequests'] ?? [] as $med) {
             foreach ($med['appointments'] ?? [] as $app) {
-                $plannedTime = $app['plannedTime'] ?? '';
+                $plannedTime = $app['plannedTime']->format('Y-m-d H:i:s') ?? '';
                 $appDate = date('Y-m-d', strtotime($plannedTime));
 
                 if ($appDate === $selectedDate) {
                     $appointments[] = [
                         'type'        => 'MEDICAMENT',
-                        'label'       => $med['idMedication'] ?? '',
+                        'label'       => $med['idMedicationRequest'] ?? '',
                         'plannedTime' => $plannedTime,
                         'status'      => $app['status'] ?? '',
                         'comment'     => $app['comment'] ?? '',
@@ -57,24 +59,24 @@ $getAppointmentsByDate = static function (array $careplans, string $selectedDate
     });
 
     return $appointments;
-};
+}
 
 // Date sélectionnée via l'URL ou date du jour par défaut
 $selectedDate = $_GET['date'] ?? date('Y-m-d');
 
 // Récupération globale de tous les soins et médicaments filtrés et triés
-$sortedAppointments = $getAppointmentsByDate($careplans, $selectedDate);
+$sortedAppointments = getAppointmentsByDate($careplans, $selectedDate);
 ?>
 
 <section class="agenda">
-    <h1 class="form-title">Agenda du séjour n° <?= View::e((string)$idSejour) ?></h1> 
+    <h1 class="form-title">Agenda du séjour n° <?= View::e((string)$idEpisodeOfCare) ?></h1> 
     <!-- <?= View::render('components/bandeau_patient', ['bandeau' => $bandeau]) ?> -->
 
     <h2>Rendez-vous et soins prévus</h2>
 
     <!-- Formulaire de sélection de la date -->
     <form method="GET" action="" style="margin-bottom: 20px;">
-        <input type="hidden" name="id" value="<?= View::e((string)$idSejour) ?>">
+        <input type="hidden" name="id" value="<?= View::e((string)$idEpisodeOfCare) ?>">
         <label for="date-select"><strong>Choisir une date :</strong></label>
         <input 
             type="date" 
@@ -87,16 +89,16 @@ $sortedAppointments = $getAppointmentsByDate($careplans, $selectedDate);
 
     <!-- Liste des rendez-vous filtrés -->
     <div class="events-list">
-        <?php if (empty($sortedAppointments)) : ?>
+        <?php if (empty($sortedAppointments)): ?>
             <p>Aucun soin ou médicament prévu pour le <?= View::e(date('d/m/Y', strtotime($selectedDate))) ?>.</p>
-        <?php else : ?>
-            <?php foreach ($sortedAppointments as $app) : ?>
+        <?php else: ?>
+            <?php foreach ($sortedAppointments as $app): ?>
                 <div class="event-card">
                     <p>
                         <strong>[<?= View::e($app['type']) ?>] <?= View::e((string)$app['label']) ?></strong><br>
                         Heure prévue : <?= View::e(date('H:i', strtotime($app['plannedTime']))) ?><br>
                         Statut : <?= View::e($app['status']) ?>
-                        <?php if (!empty($app['comment'])) : ?>
+                        <?php if (!empty($app['comment'])): ?>
                             <br><em>Note : <?= View::e($app['comment']) ?></em>
                         <?php endif; ?>
                     </p>
@@ -106,5 +108,5 @@ $sortedAppointments = $getAppointmentsByDate($careplans, $selectedDate);
     </div>
 
     <br>
-    <a href="/sejour?id=<?= View::e((string)$idSejour) ?>">← Retour au dossier du séjour</a>
+    <a href="/sejour?id=<?= View::e((string)$idEpisodeOfCare) ?>">← Retour au dossier du séjour</a>
 </section>

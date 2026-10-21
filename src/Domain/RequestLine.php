@@ -91,4 +91,9 @@ abstract class RequestLine
     {
         return $this->stoppedAt !== null;
     }
+
+    public function setIdActivityDefinition(string $idActivityDefinition): void
+    {
+        $this->idActivityDefinition = $idActivityDefinition;
+    }
 }

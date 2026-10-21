@@ -1,6 +1,7 @@
 <?php
 
 declare(strict_types=1);
+use Aura\Dao\ActivityDefinitionDao;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
@@ -123,6 +124,7 @@ try {
             agendaService: new AgendaService(
                 new CarePlanDao($pdo),
                 new AppointmentDao($pdo),
+                new ActivityDefinitionDao($pdo)
             ),
             sejourService: new SejourService(
                 new SejourDao($pdo),

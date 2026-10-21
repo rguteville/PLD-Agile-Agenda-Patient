@@ -39,7 +39,7 @@ class CarePlanDao
      *
      * @return CarePlan[]
      */
-    public function findByEpisodeOfCare(int $idEpisodeOfCare): array
+    public function findByEpisodeOfCare(string $idEpisodeOfCare): array
     {
         $stmt = $this->pdo->prepare(
             'SELECT idCarePlan, idEpisodeOfCare, idPrescriber, mode, recordedAt, idValidator, validatedAt
@@ -47,7 +47,7 @@ class CarePlanDao
              WHERE idEpisodeOfCare = :idEpisodeOfCare
              ORDER BY recordedAt DESC, CAST(idCarePlan AS UNSIGNED) DESC'
         );
-        $stmt->execute(['idEpisodeOfCare' => (string) $idEpisodeOfCare]);
+        $stmt->execute(['idEpisodeOfCare' => $idEpisodeOfCare]);
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
         if ($rows === []) {
             return [];
@@ -257,7 +257,7 @@ class CarePlanDao
      *
      * @return array<int, RequestLine[]>
      */
-    private function linesOfEpisodeOfCare(int $idEpisodeOfCare): array
+    private function linesOfEpisodeOfCare(string $idEpisodeOfCare): array
     {
         $byCarePlan = [];
 
@@ -265,7 +265,7 @@ class CarePlanDao
             'SELECT ' . self::SERVICE_COLUMNS . ' FROM ServiceRequest
              WHERE idCarePlan IN (SELECT idCarePlan FROM CarePlan WHERE idEpisodeOfCare = :idEpisodeOfCare)'
         );
-        $services->execute(['idEpisodeOfCare' => (string) $idEpisodeOfCare]);
+        $services->execute(['idEpisodeOfCare' => $idEpisodeOfCare]);
         foreach ($services->fetchAll(PDO::FETCH_ASSOC) as $r) {
             $byCarePlan[(int) $r['idCarePlan']][] = $this->mapToServiceRequest($r);
         }
@@ -274,7 +274,7 @@ class CarePlanDao
             'SELECT ' . self::MEDICATION_COLUMNS . ' FROM MedicationRequest
              WHERE idCarePlan IN (SELECT idCarePlan FROM CarePlan WHERE idEpisodeOfCare = :idEpisodeOfCare)'
         );
-        $medications->execute(['idEpisodeOfCare' => (string) $idEpisodeOfCare]);
+        $medications->execute(['idEpisodeOfCare' => $idEpisodeOfCare]);
         foreach ($medications->fetchAll(PDO::FETCH_ASSOC) as $r) {
             $byCarePlan[(int) $r['idCarePlan']][] = $this->mapToMedicationRequest($r);
         }
