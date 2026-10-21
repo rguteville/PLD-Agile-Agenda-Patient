@@ -235,22 +235,21 @@ body, html {
 #About {background-color: orange;}
 
 /* ---------- Bandeau identité + allergies (RG2) : en tête de toute page liée à un séjour ---------- */
-/* Style d'un logiciel hospitalier : barre d'identité foncée, infos sur une ligne, sans arrondis. */
 .bandeau-patient {
-    max-width: 1100px;
-    margin: 0 0 16px;
-    border: 1px solid #8c96a0;
-    background: #f2f2f2;
-    font-family: Tahoma, "Segoe UI", Arial, sans-serif;
-    font-size: 12px;
-    color: #222;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 32px;
+    align-items: baseline;
+    max-width: 900px;
+    margin: 0 0 20px;
+    padding: 12px 16px;
+    border: 1px solid #2b7bb9;
+    border-left-width: 6px;
+    background: #eef4fb;
 }
 
 .bandeau-patient .identite {
-    padding: 4px 8px;
-    background: #3d4f61;
-    color: #fff;
-    font-size: 15px;
+    font-size: 18px;
 }
 
 .bandeau-patient .nom {
@@ -258,47 +257,29 @@ body, html {
     text-transform: uppercase;
 }
 
-.bandeau-patient .sexe {
-    color: #c8d2dc;
-}
-
 .bandeau-patient dl {
     display: flex;
     flex-wrap: wrap;
-    gap: 2px 20px;
+    gap: 6px 24px;
     margin: 0;
-    padding: 4px 8px;
-}
-
-.bandeau-patient dl > div {
-    display: flex;
-    gap: 4px;
 }
 
 .bandeau-patient dt {
-    color: #5a6470;
-}
-
-.bandeau-patient dt::after {
-    content: " :";
+    color: #777;
+    font-size: 12px;
 }
 
 .bandeau-patient dd {
     margin: 0;
-    font-weight: 700;
 }
 
 .bandeau-patient .allergies {
-    padding: 3px 8px;
-    border-top: 1px solid #c8c8c8;
-    background: #fff;
+    flex-basis: 100%;
 }
 
 .bandeau-patient .alerte {
-    margin-right: 4px;
-    color: #c00000;
+    color: #b00020;
     font-weight: 700;
-    text-transform: uppercase;
 }
 
 .bandeau-patient .allergies ul {
@@ -310,16 +291,16 @@ body, html {
 
 .bandeau-patient .allergies li {
     display: inline-block;
-    margin: 1px 4px 1px 0;
-    padding: 1px 6px;
-    border: 1px solid #e0a0a6;
+    margin: 2px 8px 2px 0;
+    padding: 2px 10px;
+    border-radius: 10px;
     background: #fde2e4;
-    color: #c00000;
-    font-weight: 700;
+    color: #b00020;
 }
 
 .bandeau-patient .aucune-allergie {
-    color: #5a6470;
+    color: #2e7d32;
+    font-weight: 600;
 }
 
 /* ---------- Dossier du séjour ---------- */
@@ -553,6 +534,8 @@ body, html {
     border-radius: 10px;
     background: #fde2e4;
     color: #b00020;
+}
+
 /* ---------- AURA-20 : écran « B3. Nouvelles prescriptions » (figures 7, 8 et 9) ---------- */
 .b3 {
     max-width: 1100px;
