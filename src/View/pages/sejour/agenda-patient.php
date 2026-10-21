@@ -45,7 +45,7 @@ $getAppointmentsByDate = static function (array $careplans, string $selectedDate
                 if ($appDate === $selectedDate) {
                     $appointments[] = [
                         'type'        => 'MEDICAMENT',
-                        'label'       => $med['idMedicationRequest'] ?? '',
+                        'label'       => $med['idActivityDefinition'] ?? '',
                         'plannedTime' => $plannedTime,
                         'status'      => $app['status'] ?? '',
                         'comment'     => $app['comment'] ?? '',
