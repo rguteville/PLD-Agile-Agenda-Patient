@@ -12,7 +12,8 @@ use PDO;
 use PHPUnit\Framework\TestCase;
 
 /**
- * AURA-12.1 : recherche de patients par nom, prénom ou IPP en requête préparée.
+ * AURA-12.1 et AURA-12.2 : recherche de patients par nom,
+ * prénom ou IPP en requête préparée et modification d'un patient.
  *
  * Test d'intégration sur la base MariaDB du CI (variables DB_*), ignoré hors CI.
  * Tout est exécuté dans une transaction annulée à la fin : la base n'est pas modifiée.
@@ -79,6 +80,62 @@ final class PatientDaoTest extends TestCase
     public function testRechercheSansResultat(): void
     {
         self::assertSame([], $this->dao->search('zzaucunpatientnesappelleainsi'));
+    }
+
+    public function testUpdateChampsPatient(): void
+    {
+        $id = $this->dao->insert($this->patient('Zzdupdate', 'Alice', '987654303'));
+
+        $this->dao->update(new Patient(
+            idPatient: $id,
+            ipp: '987654304',
+            nom: 'Zzdupdate2',
+            prenom: 'Alice2',
+            dateNaissance: new DateTimeImmutable('1985-06-15'),
+            sexe: 'M'
+        ));
+
+        $relu = $this->dao->findById($id);
+        self::assertNotNull($relu);
+        self::assertSame('Zzdupdate2', $relu->getNom());
+        self::assertSame('Alice2', $relu->getPrenom());
+        self::assertSame('987654304', $relu->getIpp());
+        self::assertSame('1985-06-15', $relu->getDateNaissance()?->format('Y-m-d'));
+        self::assertSame('M', $relu->getSexe());
+    }
+
+    public function testUpdateAccepteUnIppVide(): void
+    {
+        $id = $this->dao->insert($this->patient('Zzdupdate5', 'Chloé', '987654307'));
+
+        $this->dao->update(new Patient(
+            $id,
+            null,
+            'Zzdupdate5',
+            'Chloé',
+            new DateTimeImmutable('1970-01-01'),
+            'F'
+        ));
+
+        self::assertNull($this->dao->findById($id)?->getIpp());
+    }
+
+    public function testUpdateNeToucheQueLePatientVise(): void
+    {
+        $id1 = $this->dao->insert($this->patient('Zzdupdate3', 'Alice', '987654305'));
+        $id2 = $this->dao->insert($this->patient('Zzdupdate4', 'Bob', '987654306'));
+
+        $this->dao->update(new Patient(
+            $id1,
+            '987654305',
+            'Zzdupdate3modifie',
+            'Alice',
+            new DateTimeImmutable('1970-01-01'),
+            'F'
+        ));
+
+        self::assertSame('Zzdupdate3modifie', $this->dao->findById($id1)?->getNom());
+        self::assertSame('Zzdupdate4', $this->dao->findById($id2)?->getNom());
     }
 
     private function patient(string $nom, string $prenom, ?string $ipp): Patient

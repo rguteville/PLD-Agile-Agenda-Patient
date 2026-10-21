@@ -157,14 +157,14 @@ final class AdmissionIntegrationTest extends TestCase
     {
         return [
             (int) $this->pdo->query('SELECT COUNT(*) FROM Patient')->fetchColumn(),
-            (int) $this->pdo->query('SELECT COUNT(*) FROM Sejour')->fetchColumn(),
+            (int) $this->pdo->query('SELECT COUNT(*) FROM EpisodeOfCare')->fetchColumn(),
         ];
     }
 
     private function nettoyer(): void
     {
         $this->pdo->prepare(
-            'DELETE FROM Sejour WHERE idPatient IN (SELECT idPatient FROM Patient WHERE lastName = :nom)'
+            'DELETE FROM EpisodeOfCare WHERE idPatient IN (SELECT idPatient FROM Patient WHERE lastName = :nom)'
         )->execute(['nom' => self::NOM]);
         $this->pdo->prepare('DELETE FROM Patient WHERE lastName = :nom')->execute(['nom' => self::NOM]);
     }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Aura\Controller;
 
 use Aura\Core\View;
+use Aura\Service\ModificationPatientService;
 use Aura\Service\AdmissionService;
 use Aura\Service\ListePatientsService;
 use InvalidArgumentException;
@@ -35,13 +36,17 @@ class PatientController
     private const TITRE_ADMISSION = 'AURA - Admission';
     private const SCRIPTS_ADMISSION = ['/js/form.js'];
 
+    private const VUE_MODIFICATION = 'patient/modifier';
+    private const TITRE_MODIFICATION = 'AURA - Modifier le patient';
+
     /**
      * Le service de liste lit la base : il n'est fourni que par la route GET /patients
      * (voir public/index.php), pour que l'admission reste utilisable sans connexion.
      */
     public function __construct(
         private AdmissionService $admissionService = new AdmissionService(),
-        private ?ListePatientsService $listePatientsService = null
+        private ?ListePatientsService $listePatientsService = null,
+        private ?ModificationPatientService $modificationPatientService = null
     ) {
     }
 
@@ -99,6 +104,84 @@ class PatientController
             return;
         }
         header('Location: ' . $destination, true, 303);
+    }
+
+    public function edit(): void
+    {
+        $service = $this->modificationPatientService();
+        $id = $this->lireIdPatient();
+        if ($id === null) {
+            View::erreur(400, 'Identifiant de patient manquant ou invalide.');
+            return;
+        }
+
+        $patient = $service->trouver($id);
+        if ($patient === null) {
+            View::erreur(404, 'Aucun patient ne porte cet identifiant.');
+            return;
+        }
+
+        $this->afficherModification($id, [
+            'lastname' => $patient->getNom(),
+            'firstname' => $patient->getPrenom(),
+            'ipp' => $patient->getIpp() ?? '',
+            'birthDate' => $patient->getDateNaissance()?->format(AdmissionService::FORMAT_DATE) ?? '',
+            'gender' => $patient->getSexe() ?? '',
+        ], []);
+    }
+
+    public function update(): void
+    {
+        $service = $this->modificationPatientService();
+        $id = $this->lireIdPatient();
+        if ($id === null) {
+            View::erreur(400, 'Identifiant de patient manquant ou invalide.');
+            return;
+        }
+
+        $saisie = $this->lireSaisie($_POST);
+        try {
+            $erreurs = $service->modifier($id, $this->versDomaine($saisie));
+        } catch (InvalidArgumentException) {
+            View::erreur(404, 'Aucun patient ne porte cet identifiant.');
+            return;
+        }
+
+        if ($erreurs !== []) {
+            http_response_code(422);
+            $this->afficherModification($id, $saisie, $this->versFormulaire($erreurs));
+            return;
+        }
+
+        header('Location: /patients', true, 303);
+    }
+
+    private function modificationPatientService(): ModificationPatientService
+    {
+        if ($this->modificationPatientService === null) {
+            throw new LogicException('PatientController::edit() et update() requièrent un ModificationPatientService.');
+        }
+
+        return $this->modificationPatientService;
+    }
+
+    private function lireIdPatient(): ?int
+    {
+        $id = $_GET['id'] ?? null;
+        if (!is_string($id) || preg_match('/^[1-9][0-9]{0,17}$/', $id) !== 1) {
+            return null;
+        }
+
+        return (int) $id;
+    }
+
+    private function afficherModification(int $idPatient, array $valeurs, array $erreurs): void
+    {
+        View::page(
+            self::VUE_MODIFICATION,
+            ['idPatient' => $idPatient, 'valeurs' => $valeurs, 'erreurs' => $erreurs],
+            self::TITRE_MODIFICATION
+        );
     }
 
     /**

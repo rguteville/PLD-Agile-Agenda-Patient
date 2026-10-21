@@ -13,10 +13,18 @@ use PDOException;
 /**
  * Accès à la table EpisodeOfCare (le séjour). Tables et colonnes suivent database/schema.sql
  * (anglais, HL7, cf. README « Convention de nommage ») ; les entités du domaine restent en français.
+ * Accès aux séjours : table EpisodeOfCare (noms HL7 depuis AURA-16, cf. database/schema.sql) ;
+ * les entités du domaine restent en français.
  */
 class SejourDao
 {
+    /** Colonnes lues, renommées vers les clés utilisées par mapToEntity(). */
     private const COLUMNS =
+        'idEpisodeOfCare AS idSejour, idPatient, episodeNumber AS sejourNumber, admissionDate, dischargeDate,
+         bedNumber, boxNumber, idHealthcareService AS idService, weight, height, precautions';
+
+    /** Colonnes écrites par insert(), dans l'ordre des paramètres. */
+    private const INSERT_COLUMNS =
         'idEpisodeOfCare, idPatient, episodeNumber, admissionDate, dischargeDate, bedNumber, boxNumber,
          idHealthcareService, weight, height, precautions';
 
@@ -34,6 +42,15 @@ class SejourDao
     {
         $stmt = $this->pdo->prepare('SELECT ' . self::COLUMNS . ' FROM EpisodeOfCare WHERE idEpisodeOfCare = :id');
         $stmt->execute(['id' => $id]);
+        $r = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        return $r ? $this->mapToEntity($r) : null;
+    }
+
+    public function findByNumber(string $number): ?Sejour
+    {
+        $stmt = $this->pdo->prepare('SELECT ' . self::COLUMNS . ' FROM Sejour WHERE sejourNumber = :number');
+        $stmt->execute(['number' => $number]);
         $r = $stmt->fetch(PDO::FETCH_ASSOC);
 
         return $r ? $this->mapToEntity($r) : null;
@@ -74,7 +91,9 @@ class SejourDao
 
     public function updateSortie(int $idSejour, DateTimeInterface $dateSortie): void
     {
-        $stmt = $this->pdo->prepare('UPDATE EpisodeOfCare SET dischargeDate = :dischargeDate WHERE idEpisodeOfCare = :id');
+        $stmt = $this->pdo->prepare(
+            'UPDATE EpisodeOfCare SET dischargeDate = :dischargeDate WHERE idEpisodeOfCare = :id'
+        );
         $stmt->execute(['dischargeDate' => $dateSortie->format('Y-m-d H:i:s'), 'id' => $idSejour]);
     }
 

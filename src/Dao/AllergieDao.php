@@ -11,6 +11,8 @@ use PDO;
 /**
  * Accès aux tables AllergyIntolerance / Substance. Tables et colonnes en anglais (HL7),
  * entités en français (cf. README « Convention de nommage »).
+ * Accès aux allergies : tables AllergyIntolerance / Substance (noms HL7 depuis AURA-16,
+ * cf. database/schema.sql) ; entités en français (cf. README « Convention de nommage »).
  */
 class AllergieDao
 {
@@ -21,17 +23,20 @@ class AllergieDao
     /**
      * Allergies d'un patient, avec le libellé de l'allergène, par ordre alphabétique.
      * Le schéma n'a pas (encore) de colonne removedAt : toutes les allergies sont actives.
+     * La colonne removedAt (retrait logique) est commentée dans le schéma actuel : toutes
+     * les allergies enregistrées sont donc renvoyées.
      *
      * @return Allergie[]
      */
     public function findByPatient(int $idPatient): array
     {
         $stmt = $this->pdo->prepare(
-            'SELECT a.idAllergy, a.idPatient, a.idSubstance, s.description, a.criticality, a.recordedAt
+            'SELECT a.idAllergy AS idAllergie, a.idPatient, a.idSubstance AS idAllergene,
+                    g.description AS substance, a.criticality, a.recordedAt
              FROM AllergyIntolerance a
-             JOIN Substance s ON s.idSubstance = a.idSubstance
+             JOIN Substance g ON g.idSubstance = a.idSubstance
              WHERE a.idPatient = :idPatient
-             ORDER BY s.description'
+             ORDER BY g.description'
         );
         $stmt->execute(['idPatient' => $idPatient]);
 

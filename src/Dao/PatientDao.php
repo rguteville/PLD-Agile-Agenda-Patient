@@ -7,6 +7,7 @@ namespace Aura\Dao;
 use Aura\Domain\Patient;
 use DateTimeImmutable;
 use DateTimeInterface;
+use LogicException;
 use PDO;
 
 /**
@@ -134,6 +135,35 @@ class PatientDao
 
             return $id;
         });
+    }
+
+    /**
+     * Met à jour toutes les colonnes du patient (AURA-12.2). L'id n'est jamais modifié ;
+     * une seule instruction SQL, donc pas de transaction ici.
+     */
+    public function update(Patient $p): void
+    {
+        $id = $p->getIdPatient();
+        if ($id === null) {
+            throw new LogicException('PatientDao::update() requiert un patient déjà enregistré (id non nul).');
+        }
+
+        $stmt = $this->pdo->prepare(
+            'UPDATE Patient
+            SET ipp = :ipp, lastName = :lastName, firstName = :firstName, birthDate = :birthDate,
+                sex = :sex, phoneNumber = :phoneNumber, email = :email
+            WHERE idPatient = :idPatient'
+        );
+        $stmt->execute([
+            'idPatient' => (string) $id,
+            'ipp' => $p->getIpp(),
+            'lastName' => $p->getNom(),
+            'firstName' => $p->getPrenom(),
+            'birthDate' => $p->getDateNaissance()?->format('Y-m-d'),
+            'sex' => $p->getSexe(),
+            'phoneNumber' => $p->getTelephone(),
+            'email' => $p->getEmail(),
+        ]);
     }
 
     private function mapToEntity(array $r): Patient

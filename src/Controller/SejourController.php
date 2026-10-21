@@ -7,13 +7,15 @@ namespace Aura\Controller;
 use Aura\Core\View;
 use Aura\Service\CarePlanService;
 use Aura\Service\DossierPatientService;
+use Aura\Service\SejourService;
 
 final class SejourController
 {
     /** Sans CarePlanService, le dossier s'affiche sans ses prescriptions. */
     public function __construct(
-        private DossierPatientService $dossierPatientService,
-        private ?CarePlanService $carePlanService = null
+        private ?CarePlanService $carePlanService = null,
+        private ?DossierPatientService $dossierPatientService = null,
+        private ?AgendaService $agendaService = null
     ) {
     }
 
@@ -46,5 +48,26 @@ final class SejourController
             // Médecins proposés pour le bouton « Arrêter » (AURA-22).
             'doctors' => $this->carePlanService?->doctors() ?? [],
         ], $titre, ['/js/form.js']);
+    }
+
+    public function getAgenda(): void
+    {
+        error_log('Appel Controller getAgenda');
+        $id = $_GET['id'] ?? null;
+        $numSejour = $_GET['numSejour'] ?? null;
+        if ($id === null && $numSejour === null) {
+            View::erreur(400, '');
+            return;
+        }
+        //Recuperer l'id du sejour selon son numero
+        if ($id === null && $numSejour !== null) {
+            $id = $this->sejourService->getSejourByNumber($numSejour)->getIdSejour();
+        }
+
+        error_log($id);
+
+        $careplans = $this->agendaService->getAgenda($id);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['careplans' => $careplans]);
     }
 }
