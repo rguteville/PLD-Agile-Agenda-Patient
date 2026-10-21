@@ -22,6 +22,7 @@ use Aura\Service\AdmissionService;
 use Aura\Service\DossierPatientService;
 use Aura\Service\ListePatientsService;
 use Aura\Service\ModificationPatientService;
+use Aura\Service\RechercheIppService;
 use Aura\Service\SejourService;
 use Aura\Service\AgendaService;
 
@@ -39,7 +40,7 @@ if (PHP_SAPI === 'cli-server' && is_file(__DIR__ . $path)) {
 try {
     //Page par défaut
     if ($path === '/') {
-        View::page('patient/admission', [], 'AURA - Admission', ['/js/form.js']);
+        View::page('patient/admission', [], 'AURA - Admission', PatientController::SCRIPTS_ADMISSION);
         exit;
     }
 
@@ -85,6 +86,15 @@ try {
             new AdmissionService()
         )
     );
+    // AURA-15 : recherche d'un patient déjà connu par son IPP (JSON pour le formulaire d'admission).
+    $rechercherParIpp = static function (): void {
+        $pdo = Database::get();
+        $controller = new PatientController(
+            rechercheIppService: new RechercheIppService(new PatientDao($pdo), new AllergieDao($pdo))
+        );
+        $controller->rechercherParIpp();
+    };
+
     // AURA-24 : récupérer l'agenda d'un patient
     $getAgenda = static function (): void {
         error_log("Appel index.php");
@@ -107,6 +117,7 @@ try {
     $router->post('/patients/create', $admettrePatient);
     $router->get('/patients/modifier', static fn () => $controleurModification()->edit());
     $router->post('/patients/modifier', static fn () => $controleurModification()->update());
+    $router->get('/patients/recherche-ipp', $rechercherParIpp);
     $router->get('/sejour', $afficherSejour);
     $router->get('/agenda-patient', $getAgenda);
 
