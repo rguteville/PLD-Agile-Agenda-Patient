@@ -22,11 +22,19 @@ class AppointmentDao
     {
     }
 
-    public function findByRequest(string $idRequest): array
+    /**
+     * Soins planifiés d'une ligne, par ordre d'heure prévue. La colonne dépend de la nature de la
+     * ligne : ServiceRequest et MedicationRequest ont chacun leurs identifiants, un soin « 1 » et un
+     * médicament « 1 » coexistent.
+     */
+    public function findByRequest(string $idRequest, bool $isMedication): array
     {
-        $stmt = $this->pdo->prepare('SELECT ' . self::COLUMNS . ' 
-                                    FROM Appointment WHERE idMedicationRequest = :idMed OR idServiceRequest = :idSer');
-        $stmt->execute(['idMed' => $idRequest, 'idSer' => $idRequest]);
+        // Nom fixé ici, jamais saisi : le concaténer ne permet aucune injection.
+        $column = $isMedication ? 'idMedicationRequest' : 'idServiceRequest';
+        $stmt = $this->pdo->prepare(
+            'SELECT ' . self::COLUMNS . " FROM Appointment WHERE $column = :id ORDER BY plannedTime"
+        );
+        $stmt->execute(['id' => $idRequest]);
 
         return array_map(fn(array $r) => $this->mapToEntity($r), $stmt->fetchAll(PDO::FETCH_ASSOC));
     }

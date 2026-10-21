@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Aura\Dao;
 
+use Aura\Domain\Appointment;
 use Aura\Domain\CarePlan;
 use Aura\Domain\MedicationRequest;
 use Aura\Domain\RequestLine;
@@ -126,11 +127,11 @@ class CarePlanDao
             ]);
 
             foreach ($carePlan->getLines() as $line) {
-                if ($line instanceof MedicationRequest) {
-                    $this->insertMedicationRequest($idCarePlan, $line);
-                } else {
-                    $this->insertServiceRequest($idCarePlan, $line);
-                }
+                $isMedication = $line instanceof MedicationRequest;
+                $idLine = $isMedication
+                    ? $this->insertMedicationRequest($idCarePlan, $line)
+                    : $this->insertServiceRequest($idCarePlan, $line);
+                $this->insertAppointments($isMedication, $idLine, $line);
             }
 
             return $idCarePlan;
@@ -179,19 +180,24 @@ class CarePlanDao
         return $stmt->rowCount() === 1;
     }
 
-    private function insertServiceRequest(int $idCarePlan, RequestLine $line): void
+    /** @return int identifiant de la ligne enregistrée */
+    private function insertServiceRequest(int $idCarePlan, RequestLine $line): int
     {
+        $id = $this->nextId('ServiceRequest', 'idServiceRequest');
         $this->pdo->prepare(
             'INSERT INTO ServiceRequest (idServiceRequest, idCarePlan, idActivityDefinition, startDate, endDate,
                                          frequencyHours, timeConstraint, idStoppedBy, stoppedAt)
              VALUES (:id, :idCarePlan, :idActivityDefinition, :startDate, :endDate,
                      :frequencyHours, :timeConstraint, :idStoppedBy, :stoppedAt)'
-        )->execute(['id' => (string) $this->nextId('ServiceRequest', 'idServiceRequest')]
-            + $this->commonColumns($idCarePlan, $line));
+        )->execute(['id' => (string) $id] + $this->commonColumns($idCarePlan, $line));
+
+        return $id;
     }
 
-    private function insertMedicationRequest(int $idCarePlan, MedicationRequest $line): void
+    /** @return int identifiant de la ligne enregistrée */
+    private function insertMedicationRequest(int $idCarePlan, MedicationRequest $line): int
     {
+        $id = $this->nextId('MedicationRequest', 'idMedicationRequest');
         $this->pdo->prepare(
             'INSERT INTO MedicationRequest (idMedicationRequest, idCarePlan, idActivityDefinition, idMedication,
                                             dose, route, important, nurseInstructions, maxDose, dilutionVolume,
@@ -202,7 +208,7 @@ class CarePlanDao
                      :nurseInstructions, :maxDose, :dilutionVolume, :solvent, :administrationDuration,
                      :antibioticReason, :germ, :renalAdjustment, :adjustmentCriterion, :offGhsReason,
                      :startDate, :endDate, :frequencyHours, :timeConstraint, :idStoppedBy, :stoppedAt)'
-        )->execute(['id' => (string) $this->nextId('MedicationRequest', 'idMedicationRequest')]
+        )->execute(['id' => (string) $id]
             + $this->commonColumns($idCarePlan, $line)
             + [
                 'idMedication' => $line->getIdMedication(),
@@ -220,6 +226,31 @@ class CarePlanDao
                 'adjustmentCriterion' => $line->getAdjustmentCriterion(),
                 'offGhsReason' => $line->getOffGhsReason(),
             ]);
+
+        return $id;
+    }
+
+    /**
+     * AURA-24.4 : les soins planifiés (Appointment) d'une ligne, un par heure prévue
+     * (RequestLine::plannedTimes()), en statut « PLANIFIE » : c'est ce que l'agenda du séjour
+     * affiche. Même transaction que la ligne : une prescription enregistrée a toujours son agenda.
+     */
+    private function insertAppointments(bool $isMedication, int $idLine, RequestLine $line): void
+    {
+        $stmt = $this->pdo->prepare(
+            'INSERT INTO Appointment (idAppointment, idServiceRequest, idMedicationRequest, plannedTime, status)
+             VALUES (:id, :idServiceRequest, :idMedicationRequest, :plannedTime, :status)'
+        );
+        $id = $this->nextId('Appointment', 'idAppointment');
+        foreach ($line->plannedTimes() as $plannedTime) {
+            $stmt->execute([
+                'id' => (string) $id++,
+                'idServiceRequest' => $isMedication ? null : (string) $idLine,
+                'idMedicationRequest' => $isMedication ? (string) $idLine : null,
+                'plannedTime' => self::toSql($plannedTime),
+                'status' => Appointment::STATUS_PLANNED,
+            ]);
+        }
     }
 
     /**

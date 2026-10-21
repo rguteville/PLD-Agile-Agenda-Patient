@@ -8,6 +8,9 @@ use DateTimeImmutable;
 
 class Appointment
 {
+    /** Statut d'un soin planifié pas encore réalisé (valeur de database/test.sql). */
+    public const STATUS_PLANNED = 'PLANIFIE';
+
     public function __construct(
         private string $idAppointment,
         private ?string $idServiceRequest = null,

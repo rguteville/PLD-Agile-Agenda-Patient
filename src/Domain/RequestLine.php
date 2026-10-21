@@ -17,6 +17,12 @@ use DateTimeImmutable;
  */
 abstract class RequestLine
 {
+    /**
+     * AURA-24.4 : une ligne récurrente sans date d'arrêt est planifiée jusqu'à ce nombre de jours
+     * après son début (hypothèse de travail, à confirmer avec le service : non fixé par le cahier des charges).
+     */
+    public const PLANNING_HORIZON_DAYS = 7;
+
     public function __construct(
         private ?int $id,
         private string $idActivityDefinition,
@@ -78,6 +84,30 @@ abstract class RequestLine
     public function getStoppedAt(): ?DateTimeImmutable
     {
         return $this->stoppedAt;
+    }
+
+    /**
+     * AURA-24.4 : heures des soins planifiés (Appointment) issus de cette ligne, celles que
+     * l'agenda du séjour affiche. RG3 : unique = startDate seul ; récurrente = startDate puis
+     * toutes les frequencyHours heures, jusqu'à endDate inclus ou, sans date d'arrêt, jusqu'à
+     * PLANNING_HORIZON_DAYS jours après le début.
+     *
+     * @return DateTimeImmutable[]
+     */
+    public function plannedTimes(): array
+    {
+        if ($this->frequencyHours === null) {
+            return [$this->startDate];
+        }
+
+        $end = $this->endDate ?? $this->startDate->modify(sprintf('+%d days', self::PLANNING_HORIZON_DAYS));
+        $step = sprintf('+%d hours', $this->frequencyHours);
+        $times = [];
+        for ($time = $this->startDate; $time <= $end; $time = $time->modify($step)) {
+            $times[] = $time;
+        }
+
+        return $times;
     }
 
     /** RG3 : récurrente si elle a une fréquence, unique sinon. */
