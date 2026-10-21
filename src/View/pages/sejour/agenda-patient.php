@@ -3,16 +3,17 @@
 use Aura\Core\View;
 
 /**
-//  * @var int $idEpisodeOfCare
+ * Agenda du séjour (AURA-24) : bandeau identité + allergies en tête (RG2), puis les soins
+ * et médicaments planifiés pour la date choisie.
+ *
+ * @var array<string, mixed> $bandeau vue-modèle de DossierPatientService::presenterBandeau()
+ * @var int $idEpisodeOfCare
  * @var array<int, array<string, mixed>> $careplans
-//  * @var array<string, mixed> $bandeau
  */
-$idEpisodeOfCare = $careplans[0]['idEpisodeOfCare'];
-/**
- * Parcourt tous les careplans, filtre par date et trie par heure.
- */
-function getAppointmentsByDate(array $careplans, string $selectedDate): array
-{
+
+// Parcourt tous les careplans, filtre par date et trie par heure.
+// Closure plutôt que fonction nommée : une vue ne déclare pas de symbole (PSR-1, composer cs).
+$getAppointmentsByDate = static function (array $careplans, string $selectedDate): array {
     $appointments = [];
 
     foreach ($careplans as $plan) {
@@ -60,18 +61,19 @@ function getAppointmentsByDate(array $careplans, string $selectedDate): array
     });
 
     return $appointments;
-}
+};
 
 // Date sélectionnée via l'URL ou date du jour par défaut
 $selectedDate = $_GET['date'] ?? date('Y-m-d');
 
 // Récupération globale de tous les soins et médicaments filtrés et triés
-$sortedAppointments = getAppointmentsByDate($careplans, $selectedDate);
+$sortedAppointments = $getAppointmentsByDate($careplans, $selectedDate);
 ?>
 
+<?= View::render('components/bandeau_patient', ['bandeau' => $bandeau]) ?>
+
 <section class="agenda">
-    <h1 class="form-title">Agenda du séjour n° <?= View::e((string)$idEpisodeOfCare) ?></h1> 
-    <!-- <?= View::render('components/bandeau_patient', ['bandeau' => $bandeau]) ?> -->
+    <h1 class="form-title">Agenda du séjour n° <?= View::e($bandeau['numeroSejour']) ?></h1>
 
     <h2>Rendez-vous et soins prévus</h2>
 

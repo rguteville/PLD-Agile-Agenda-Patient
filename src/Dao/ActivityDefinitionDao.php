@@ -21,7 +21,9 @@ class ActivityDefinitionDao
 
     public function findById(string $id): ?ActivityDefinition
     {
-        $stmt = $this->pdo->prepare('SELECT ' . self::COLUMNS . ' FROM ActivityDefinition WHERE idActivityDefinition = :id');
+        $stmt = $this->pdo->prepare(
+            'SELECT ' . self::COLUMNS . ' FROM ActivityDefinition WHERE idActivityDefinition = :id'
+        );
         $stmt->execute(['id' => $id]);
         $r = $stmt->fetch(PDO::FETCH_ASSOC);
 

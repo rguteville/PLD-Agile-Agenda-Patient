@@ -132,10 +132,17 @@ try {
         $controller->rechercherParIpp();
     };
 
-    // AURA-24 : récupérer l'agenda d'un patient
+    // AURA-24 : agenda d'un séjour, bandeau identité + allergies en tête (RG2).
     $getAgenda = static function (): void {
         $pdo = Database::get();
         $controller = new SejourController(
+            dossierPatientService: new DossierPatientService(
+                new SejourDao($pdo),
+                new PatientDao($pdo),
+                new AllergieDao($pdo),
+                new SubstanceDao($pdo),
+                new DateTimeImmutable('today')
+            ),
             agendaService: new AgendaService(
                 new CarePlanDao($pdo),
                 new AppointmentDao($pdo),

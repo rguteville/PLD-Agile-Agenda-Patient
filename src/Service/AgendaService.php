@@ -20,7 +20,7 @@ final class AgendaService
     ) {
     }
 
-    public function getAgenda(string $idEpisodeOfCare): array
+    public function getAgenda(int $idEpisodeOfCare): array
     {
         $response = [];
         // On récupère les prescriptions associées au Séjour

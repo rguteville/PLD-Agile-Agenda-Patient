@@ -101,7 +101,7 @@ final class SejourController
         header('Location: /sejour?id=' . $idSejour, true, 303);
     }
 
-    /** GET /agenda-patient?id=… ou ?numSejour=… : agenda du séjour en JSON (AURA-24). */
+    /** GET /agenda-patient?id=… ou ?numSejour=… : agenda du séjour, bandeau en tête (RG2, AURA-24). */
     public function getAgenda(): void
     {
         $id = $_GET['id'] ?? null;
@@ -115,12 +115,31 @@ final class SejourController
             $id = (string) $this->sejourService->getSejourByNumber($numSejour)->getIdSejour();
         }
 
-        error_log($id);
+        $idSejour = self::readId($id);
+        if ($idSejour === null) {
+            View::erreur(400, 'Identifiant de séjour manquant ou invalide.');
+            return;
+        }
 
-        $careplans = $this->agendaService->getAgenda($id);
-        //header('Content-Type: application/json; charset=utf-8');
-        //echo json_encode(['careplans' => $careplans]);
-        View::page('sejour/agenda-patient', ['careplans' => $careplans], 'AURA - Agenda Patient');
+        // Bandeau identité + allergies : même vue-modèle que le dossier (DossierPatientService).
+        $dossier = $this->dossierPatientService()->dossier($idSejour);
+        if ($dossier === null) {
+            View::erreur(404, sprintf('Aucun séjour ne porte l\'identifiant « %d ».', $idSejour));
+            return;
+        }
+
+        $careplans = $this->agendaService->getAgenda($idSejour);
+        $titre = sprintf(
+            'AURA - Agenda de %s %s, séjour %s',
+            $dossier['bandeau']['nom'],
+            $dossier['bandeau']['prenom'],
+            $dossier['bandeau']['numeroSejour']
+        );
+        View::page('sejour/agenda-patient', [
+            'bandeau' => $dossier['bandeau'],
+            'idEpisodeOfCare' => $idSejour,
+            'careplans' => $careplans,
+        ], $titre);
     }
 
     /**
