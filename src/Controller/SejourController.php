@@ -10,6 +10,7 @@ use Aura\Service\AllergyIntoleranceService;
 use Aura\Service\CarePlanService;
 use Aura\Service\DossierPatientService;
 use Aura\Service\SejourService;
+use DateTimeImmutable;
 use InvalidArgumentException;
 use LogicException;
 
@@ -18,6 +19,8 @@ final class SejourController
     private const RECORD_VIEW = 'sejour/dossier';
     /** form.js : arrêt d'une ligne de prescription en AJAX ; confirm.js : confirmation du retrait d'une allergie. */
     private const RECORD_SCRIPTS = ['/js/form.js', '/js/confirm.js'];
+    /** agenda.js : impression de la journée et dialogue de validation. */
+    private const AGENDA_SCRIPTS = ['/js/agenda.js'];
 
     /** Identifiant numérique tel que stocké (VARCHAR contenant un entier, sans zéro de tête). */
     private const ID_PATTERN = '/^[1-9][0-9]{0,17}$/';
@@ -128,7 +131,13 @@ final class SejourController
             return;
         }
 
-        $careplans = $this->agendaService->getAgenda($idSejour);
+        // Jour demandé (?date=AAAA-MM-JJ), aujourd'hui sinon ; le retard se calcule à l'heure courante.
+        $now = new DateTimeImmutable('now');
+        $agenda = AgendaService::presentDay(
+            $this->agendaService->getAgenda($idSejour),
+            AgendaService::parseDay($_GET['date'] ?? null, $now),
+            $now
+        );
         $titre = sprintf(
             'AURA - Agenda de %s %s, séjour %s',
             $dossier['bandeau']['nom'],
@@ -138,8 +147,10 @@ final class SejourController
         View::page('sejour/agenda-patient', [
             'bandeau' => $dossier['bandeau'],
             'idEpisodeOfCare' => $idSejour,
-            'careplans' => $careplans,
-        ], $titre);
+            'agenda' => $agenda,
+            // La validation d'un soin n'a pas encore de route : colonne et dialogue restent masqués.
+            'validationEnabled' => false,
+        ], $titre, self::AGENDA_SCRIPTS);
     }
 
     /**
