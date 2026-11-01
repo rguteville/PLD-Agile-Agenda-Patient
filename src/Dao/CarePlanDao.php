@@ -42,7 +42,8 @@ class CarePlanDao
     public function findByEpisodeOfCare(int $idEpisodeOfCare): array
     {
         $stmt = $this->pdo->prepare(
-            'SELECT idCarePlan, idEpisodeOfCare, idPrescriber, mode, recordedAt, idValidator, validatedAt
+            'SELECT idCarePlan, idEpisodeOfCare, idPrescriber, mode, recordedAt, idValidator, validatedAt,
+                    idPlanDefinition
              FROM CarePlan
              WHERE idEpisodeOfCare = :idEpisodeOfCare
              ORDER BY recordedAt DESC, CAST(idCarePlan AS UNSIGNED) DESC'
@@ -113,9 +114,10 @@ class CarePlanDao
             $idCarePlan = $this->nextId('CarePlan', 'idCarePlan');
 
             $this->pdo->prepare(
-                'INSERT INTO CarePlan (idCarePlan, idEpisodeOfCare, idPrescriber, mode, idValidator, validatedAt)
+                'INSERT INTO CarePlan (idCarePlan, idEpisodeOfCare, idPrescriber, mode, idValidator, validatedAt,
+                                       idPlanDefinition)
                  VALUES (:idCarePlan, :idEpisodeOfCare, :idPrescriber, :mode, :idValidator,
-                         IF(:validatedOnRecord, CURRENT_TIMESTAMP, NULL))'
+                         IF(:validatedOnRecord, CURRENT_TIMESTAMP, NULL), :idPlanDefinition)'
             )->execute([
                 'idCarePlan' => (string) $idCarePlan,
                 'idEpisodeOfCare' => (string) $carePlan->getIdEpisodeOfCare(),
@@ -123,6 +125,7 @@ class CarePlanDao
                 'mode' => $carePlan->getMode(),
                 'idValidator' => $carePlan->isValidated() ? $carePlan->getIdValidator() : null,
                 'validatedOnRecord' => $carePlan->isValidated() ? 1 : 0,
+                'idPlanDefinition' => $carePlan->getIdPlanDefinition(),
             ]);
 
             foreach ($carePlan->getLines() as $line) {
@@ -299,7 +302,8 @@ class CarePlanDao
             lines: $lines,
             recordedAt: new DateTimeImmutable($r['recordedAt']),
             idValidator: $r['idValidator'],
-            validatedAt: self::date($r['validatedAt'])
+            validatedAt: self::date($r['validatedAt']),
+            idPlanDefinition: $r['idPlanDefinition']
         );
     }
 

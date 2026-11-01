@@ -33,7 +33,8 @@ class CarePlan
         private array $lines = [],
         private ?DateTimeImmutable $recordedAt = null,
         private ?string $idValidator = null,
-        private ?DateTimeImmutable $validatedAt = null
+        private ?DateTimeImmutable $validatedAt = null,
+        private ?string $idPlanDefinition = null
     ) {
     }
 
@@ -82,6 +83,12 @@ class CarePlan
     public function getValidatedAt(): ?DateTimeImmutable
     {
         return $this->validatedAt;
+    }
+
+    /** Traçabilité : protocole appliqué pour pré-remplir l'ordonnance ; null = saisie ligne par ligne. */
+    public function getIdPlanDefinition(): ?string
+    {
+        return $this->idPlanDefinition;
     }
 
     /** RG5 : validée si une date de validation est enregistrée. */

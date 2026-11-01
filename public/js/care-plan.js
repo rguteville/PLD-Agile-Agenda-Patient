@@ -7,7 +7,8 @@
 const carePlanForm = document.getElementById('care-plan-form');
 
 if (carePlanForm) {
-    // { careTypes: { idActivityDefinition: nom }, medications: { DCI: { idMedication: forme } } }
+    // { careTypes: { idActivityDefinition: nom }, medications: { DCI: { idMedication: forme } },
+    //   planDefinitions: { idPlanDefinition: « titre (pathologie) » } }
     const lists = JSON.parse(carePlanForm.dataset.lists);
     const $ = selector => carePlanForm.querySelector(selector);
 
@@ -18,6 +19,7 @@ if (carePlanForm) {
     const warning = $('#b3-warning');
     const medicationParams = $('#b3-medication-params');
     const careParams = $('#b3-care-params');
+    const groupParams = $('#b3-group-params');
     const hiddenLines = $('#b3-lines');
     const cart = document.getElementById('b3-cart');
     let counter = 0;
@@ -59,6 +61,7 @@ if (carePlanForm) {
     function closeParams() {
         medicationParams.hidden = true;
         careParams.hidden = true;
+        groupParams.hidden = true;
     }
 
     function openParams(params) {
@@ -80,15 +83,17 @@ if (carePlanForm) {
             fill(item, inns);
         } else if (kind === 'CARE') {
             fill(item, lists.careTypes);
-        } else {
-            fill(item, {});
-            if (kind === 'GROUP') {
+        } else if (kind === 'GROUP') {
+            fill(item, lists.planDefinitions);
+            if (Object.keys(lists.planDefinitions).length === 0) {
                 showMessage('Aucun groupe de prescriptions (protocole) n\'est encore défini.');
             }
+        } else {
+            fill(item, {});
         }
     });
 
-    // ── Liste « 2. » : médicament → ses formes en « 3. » ; soin → fiche du soin
+    // ── Liste « 2. » : médicament → ses formes en « 3. » ; soin ou protocole → sa fiche
     item.addEventListener('change', () => {
         showMessage('');
         if (categoryKind() === 'MEDICATION') {
@@ -98,6 +103,10 @@ if (carePlanForm) {
             openParams(careParams);
             $('#care-name').value = chosenLabel(item);
             $('#care-start').value = localNow();
+        } else if (categoryKind() === 'GROUP' && item.value !== '') {
+            openParams(groupParams);
+            $('#group-name').value = chosenLabel(item);
+            $('#group-start').value = localNow();
         } else {
             closeParams();
         }
@@ -208,13 +217,28 @@ if (carePlanForm) {
             return { error };
         }
 
-        let label = `[${fields.route}] ${chosenLabel(item)} (${chosenLabel(dosageForm)}) ${fields.dose} (${rhythm(fields)})`;
+        return medicationCartLine(chosenLabel(category), fields, chosenLabel(item), chosenLabel(dosageForm));
+    }
+
+    // Ligne de panier d'un médicament : « [IV] Paracétamol (Solution injectable) 1 g (/6h) … ».
+    function medicationCartLine(categoryLabel, fields, inn, form) {
+        let label = `[${fields.route}] ${inn} (${form}) ${fields.dose} (${rhythm(fields)})`;
         if (fields.nurseInstructions !== '') {
             label += ` -> ${fields.nurseInstructions}`;
         }
         label += period(fields);
 
-        return { category: chosenLabel(category), label, fields, key: `MEDICATION|${fields.idMedication}` };
+        return { category: categoryLabel, label, fields, key: `MEDICATION|${fields.idMedication}` };
+    }
+
+    // Ligne de panier d'un soin : « Prise des constantes (/4h) du … -> à jeun ».
+    function careCartLine(categoryLabel, fields, name) {
+        let label = `${name} (${rhythm(fields)})${period(fields)}`;
+        if (fields.timeConstraint !== '') {
+            label += ` -> ${fields.timeConstraint}`;
+        }
+
+        return { category: categoryLabel, label, fields, key: Object.values(fields).join('|') };
     }
 
     function careLine() {
@@ -233,13 +257,10 @@ if (carePlanForm) {
             return { error };
         }
 
-        let label = `${chosenLabel(item)} (${rhythm(fields)})${period(fields)}`;
-        if (fields.timeConstraint !== '') {
-            label += ` -> ${fields.timeConstraint}`;
-        }
-
-        return { category: chosenLabel(category), label, fields, key: Object.values(fields).join('|') };
+        return careCartLine(chosenLabel(category), fields, chosenLabel(item));
     }
+
+    const inCart = line => [...hiddenLines.children].some(block => block.dataset.key === line.key);
 
     // ── « OK » : ajoute la ligne à l'ordonnance en cours de saisie
     function add(line, params) {
@@ -247,10 +268,20 @@ if (carePlanForm) {
             showMessage(line.error);
             return;
         }
-        if ([...hiddenLines.children].some(block => block.dataset.key === line.key)) {
+        if (inCart(line)) {
             showMessage('Cette prescription est déjà dans l\'ordonnance.');
             return;
         }
+        addToCart(line);
+
+        showMessage('');
+        params.hidden = true;
+        item.value = '';
+        fill(dosageForm, {});
+    }
+
+    // Champs cachés lines[n][…] (envoyés au serveur) et ligne visible du panier.
+    function addToCart(line) {
 
         // Champs cachés lines[n][…] : c'est eux que form.js envoie au serveur.
         const n = counter++;
@@ -279,15 +310,61 @@ if (carePlanForm) {
             block.remove();
         });
         row.insertCell().appendChild(remove);
+    }
 
-        showMessage('');
-        params.hidden = true;
+    // idMedication → [DCI, forme], pour le libellé des lignes d'un protocole.
+    const medicationNames = {};
+    Object.entries(lists.medications).forEach(([inn, forms]) => {
+        Object.entries(forms).forEach(([idMedication, form]) => { medicationNames[idMedication] = [inn, form]; });
+    });
+
+    // ── « OK » d'un protocole : le serveur calcule les lignes (PlanDefinitionService), toutes
+    // ajoutées au panier ; celles déjà présentes ne sont pas dupliquées.
+    async function addGroup() {
+        const startDate = $('#group-start').value;
+        if (startDate === '') {
+            showMessage('La date de début est obligatoire.');
+            return;
+        }
+        const query = new URLSearchParams({ idPlanDefinition: item.value, startDate });
+        let body;
+        try {
+            const response = await fetch(`/care-plans/protocol-lines?${query}`, {
+                headers: { 'Accept': 'application/json' },
+            });
+            body = await response.json();
+        } catch (e) {
+            showMessage('Le protocole n\'a pas pu être chargé. Réessayez.');
+            return;
+        }
+        if (!body.ok) {
+            showMessage(Object.values(body.erreurs ?? {}).join(' ') || 'Ce protocole ne peut pas être appliqué.');
+            return;
+        }
+
+        const protocol = chosenLabel(item);
+        let skipped = 0;
+        body.lines.forEach(fields => {
+            const line = fields.kind === 'MEDICATION'
+                ? medicationCartLine(protocol, fields, ...(medicationNames[fields.idMedication] ?? [fields.idMedication, '']))
+                : careCartLine(protocol, fields, lists.careTypes[fields.idActivityDefinition] ?? fields.idActivityDefinition);
+            if (inCart(line)) {
+                skipped++;
+            } else {
+                addToCart(line);
+            }
+        });
+
+        closeParams();
         item.value = '';
-        fill(dosageForm, {});
+        showMessage(skipped > 0
+            ? `${skipped} prescription(s) du protocole déjà dans l'ordonnance : non ajoutée(s) une seconde fois.`
+            : '');
     }
 
     $('#med-ok').addEventListener('click', () => add(medicationLine(), medicationParams));
     $('#care-ok').addEventListener('click', () => add(careLine(), careParams));
+    $('#group-ok').addEventListener('click', addGroup);
     carePlanForm.querySelectorAll('.b3-cancel').forEach(button => button.addEventListener('click', () => {
         closeParams();
         item.value = '';
@@ -297,7 +374,25 @@ if (carePlanForm) {
 
     // RG5 : prescripteur non médecin → l'ordonnance devra être validée par un médecin.
     const prescriber = $('#idPrescriber');
-    prescriber.addEventListener('change', () => {
+    const mode = $('#mode');
+    const updateWarning = () => {
         warning.hidden = prescriber.value === '' || prescriber.selectedOptions[0]?.dataset.doctor === '1';
-    });
+    };
+    prescriber.addEventListener('change', updateWarning);
+
+    // RG5 : une prescription médicale ne peut venir que d'un médecin, la liste n'en propose pas d'autre.
+    function filterPrescribers() {
+        const doctorsOnly = mode.value === 'MEDICAL';
+        Array.from(prescriber.options).forEach(option => {
+            const excluded = doctorsOnly && option.value !== '' && option.dataset.doctor !== '1';
+            option.hidden = excluded;
+            option.disabled = excluded;
+        });
+        if (prescriber.selectedOptions[0]?.disabled) {
+            prescriber.value = '';
+        }
+        updateWarning();
+    }
+    mode.addEventListener('change', filterPrescribers);
+    filterPrescribers();
 }

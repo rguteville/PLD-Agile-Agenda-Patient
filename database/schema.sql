@@ -10,7 +10,10 @@
 DROP TABLE IF EXISTS Appointment; -- SoinPlanifié ->[ServiceRequest,MedicationRequest]
 DROP TABLE IF EXISTS ServiceRequest; -- PrescriptionSoin ->[ActivityDefinition,CarePlan,Practitioner]
 DROP TABLE IF EXISTS MedicationRequest; -- PrescriptionMedicament ->[Medication,CarePlan,Practitioner]
-DROP TABLE IF EXISTS CarePlan; -- Prescription ->[Practitioner,EpisodeOfCare]
+DROP TABLE IF EXISTS CarePlan; -- Prescription ->[Practitioner,EpisodeOfCare,PlanDefinition]
+DROP TABLE IF EXISTS PlanDefinitionAction; -- LigneProtocole ->[PlanDefinition,ActivityDefinition,Medication]
+DROP TABLE IF EXISTS PlanDefinition; -- Protocole ->[Pathology]
+DROP TABLE IF EXISTS Pathology; -- Pathologie
 DROP TABLE IF EXISTS EpisodeOfCare; -- Séjour ->[Patient,HealthcareService]
 DROP TABLE IF EXISTS Practitioner; -- Praticien ->[PractitionerRole]
 DROP TABLE IF EXISTS AllergyIntolerance; -- Allergie ->[Patient,Substance]
@@ -118,6 +121,25 @@ CREATE TABLE Practitioner( -- Praticien
     CONSTRAINT fk_practitionerrole_practitioner FOREIGN KEY (idPractitionerRole) REFERENCES PractitionerRole(idPractitionerRole) ON DELETE RESTRICT
 );
 
+-- Référentiel des pathologies auxquelles un protocole s'applique. Pas de nom HL7 : en FHIR,
+-- Condition est le diagnostic d'UN patient, pas un référentiel de maladies.
+CREATE TABLE Pathology( -- Pathologie
+    idPathology VARCHAR(20) PRIMARY KEY,
+    label VARCHAR(100) NOT NULL UNIQUE
+);
+
+-- Protocole (« groupe de prescriptions » de l'écran B3) : un modèle d'ordonnance dont les
+-- lignes (PlanDefinitionAction) pré-remplissent une nouvelle prescription. Un protocole
+-- retiré passe à active = FALSE (suppression logique) : les ordonnances qui en sont issues
+-- gardent leur lien.
+CREATE TABLE PlanDefinition( -- Protocole
+    idPlanDefinition VARCHAR(20) PRIMARY KEY,
+    title VARCHAR(100) NOT NULL,
+    idPathology VARCHAR(20) NULL,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+
+    CONSTRAINT fk_pathology_plandefinition FOREIGN KEY (idPathology) REFERENCES Pathology(idPathology) ON DELETE RESTRICT
+);
 
 CREATE TABLE CarePlan( -- Prescription
     idCarePlan VARCHAR(20) PRIMARY KEY,
@@ -129,13 +151,16 @@ CREATE TABLE CarePlan( -- Prescription
     -- sur toute l'ordonnance.
     idValidator VARCHAR(20) NULL,
     validatedAt DATETIME NULL,
+    -- Traçabilité : protocole d'où vient l'ordonnance ; NULL = saisie ligne par ligne.
+    idPlanDefinition VARCHAR(20) NULL,
 
     CONSTRAINT chk_careplan_mode CHECK (mode IN ('MEDICAL', 'PARAMEDICAL', 'EMERGENCY')),
     CONSTRAINT chk_careplan_validation CHECK ((idValidator IS NULL) = (validatedAt IS NULL)),
 
     CONSTRAINT fk_episodeofcare_careplan FOREIGN KEY (idEpisodeOfCare) REFERENCES EpisodeOfCare(idEpisodeOfCare) ON DELETE RESTRICT,
     CONSTRAINT fk_prescriber_careplan FOREIGN KEY (idPrescriber) REFERENCES Practitioner(idPractitioner) ON DELETE RESTRICT,
-    CONSTRAINT fk_validator_careplan FOREIGN KEY (idValidator) REFERENCES Practitioner(idPractitioner) ON DELETE RESTRICT
+    CONSTRAINT fk_validator_careplan FOREIGN KEY (idValidator) REFERENCES Practitioner(idPractitioner) ON DELETE RESTRICT,
+    CONSTRAINT fk_plandefinition_careplan FOREIGN KEY (idPlanDefinition) REFERENCES PlanDefinition(idPlanDefinition) ON DELETE RESTRICT
 );
 
 CREATE TABLE Medication( -- Medicament
@@ -150,6 +175,54 @@ CREATE TABLE ActivityDefinition( -- TypeSoin
     idActivityDefinition VARCHAR(20) PRIMARY KEY,
     name VARCHAR(100),
     description VARCHAR(200)
+);
+
+-- Ligne modèle d'un protocole : les mêmes champs qu'une ligne de soin (kind = 'CARE') ou de
+-- médicament (kind = 'MEDICATION'), mais des durées à la place des dates. Appliquer le
+-- protocole à une date D donne startDate = D + startOffsetHours et, si durationHours est
+-- renseignée, endDate = startDate + durationHours (NULL = pas de date d'arrêt).
+CREATE TABLE PlanDefinitionAction( -- LigneProtocole
+    idPlanDefinitionAction VARCHAR(20) PRIMARY KEY,
+    idPlanDefinition VARCHAR(20) NOT NULL,
+    kind VARCHAR(20) NOT NULL,
+    -- RG6 : type de soin (« Administration médicamenteuse » pour un médicament).
+    idActivityDefinition VARCHAR(20) NOT NULL,
+    -- Médicament, dose et voie : obligatoires pour un médicament, vides pour un soin.
+    idMedication VARCHAR(20) NULL,
+    dose VARCHAR(50) NULL,
+    route VARCHAR(50) NULL,
+    important VARCHAR(200) NULL,
+    nurseInstructions VARCHAR(200) NULL,
+    maxDose VARCHAR(50) NULL,
+    dilutionVolume VARCHAR(50) NULL,
+    solvent VARCHAR(200) NULL,
+    administrationDuration VARCHAR(50) NULL,
+    antibioticReason VARCHAR(200) NULL,
+    germ VARCHAR(200) NULL,
+    renalAdjustment VARCHAR(200) NULL,
+    adjustmentCriterion VARCHAR(200) NULL,
+    offGhsReason VARCHAR(200) NULL,
+    -- Heures entre l'application du protocole et le début de la ligne (0 = tout de suite).
+    startOffsetHours SMALLINT NOT NULL DEFAULT 0,
+    durationHours SMALLINT NULL,
+    frequencyHours SMALLINT NULL,
+    timeConstraint VARCHAR(200) NULL,
+
+    CONSTRAINT chk_plandefinitionaction_kind CHECK (kind IN ('MEDICATION', 'CARE')),
+    CONSTRAINT chk_plandefinitionaction_medication CHECK (
+        (kind = 'MEDICATION' AND idMedication IS NOT NULL AND dose IS NOT NULL AND route IS NOT NULL)
+        OR (kind = 'CARE' AND idMedication IS NULL AND dose IS NULL AND route IS NULL)
+    ),
+    CONSTRAINT chk_plandefinitionaction_offset CHECK (startOffsetHours >= 0),
+    CONSTRAINT chk_plandefinitionaction_frequence CHECK (frequencyHours IS NULL OR frequencyHours > 0),
+    -- RG3 : une ligne « une fois » n'a pas de date d'arrêt, donc pas de durée.
+    CONSTRAINT chk_plandefinitionaction_duree CHECK (
+        durationHours IS NULL OR (durationHours > 0 AND frequencyHours IS NOT NULL)
+    ),
+
+    CONSTRAINT fk_plandefinition_plandefinitionaction FOREIGN KEY (idPlanDefinition) REFERENCES PlanDefinition(idPlanDefinition) ON DELETE RESTRICT,
+    CONSTRAINT fk_activitydefinition_plandefinitionaction FOREIGN KEY (idActivityDefinition) REFERENCES ActivityDefinition(idActivityDefinition) ON DELETE RESTRICT,
+    CONSTRAINT fk_medication_plandefinitionaction FOREIGN KEY (idMedication) REFERENCES Medication(idMedication) ON DELETE RESTRICT
 );
 
 

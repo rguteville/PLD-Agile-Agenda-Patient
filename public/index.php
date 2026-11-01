@@ -15,6 +15,7 @@ use Aura\Core\View;
 use Aura\Dao\AllergieDao;
 use Aura\Dao\CarePlanDao;
 use Aura\Dao\PatientDao;
+use Aura\Dao\PlanDefinitionDao;
 use Aura\Dao\ReferenceDataDao;
 use Aura\Dao\SejourDao;
 use Aura\Dao\AppointmentDao;
@@ -25,6 +26,7 @@ use Aura\Service\CarePlanService;
 use Aura\Service\DossierPatientService;
 use Aura\Service\ListePatientsService;
 use Aura\Service\ModificationPatientService;
+use Aura\Service\PlanDefinitionService;
 use Aura\Service\SejourService;
 use Aura\Service\AgendaService;
 
@@ -87,16 +89,19 @@ try {
     // Epic 4 : prescriptions d'un séjour (liste, écran B3, validation) ; même principe que le dossier.
     $carePlans = static function (): CarePlanController {
         $pdo = Database::get();
-        return new CarePlanController(new CarePlanService(
-            new CarePlanDao($pdo),
-            new ReferenceDataDao($pdo),
-            new DossierPatientService(
-                new SejourDao($pdo),
-                new PatientDao($pdo),
-                new AllergieDao($pdo),
-                new DateTimeImmutable('today')
-            )
-        ));
+        return new CarePlanController(
+            new CarePlanService(
+                new CarePlanDao($pdo),
+                new ReferenceDataDao($pdo),
+                new DossierPatientService(
+                    new SejourDao($pdo),
+                    new PatientDao($pdo),
+                    new AllergieDao($pdo),
+                    new DateTimeImmutable('today')
+                )
+            ),
+            new PlanDefinitionService(new PlanDefinitionDao($pdo))
+        );
     };
 
     // AURA-12.2 : modification d'un patient ; le même contrôleur sert le formulaire (GET) et la soumission (POST).
@@ -133,6 +138,7 @@ try {
     $router->post('/care-plans/create', static fn () => $carePlans()->create());
     $router->post('/care-plans/validate', static fn () => $carePlans()->validate());
     $router->post('/care-plans/stop', static fn () => $carePlans()->stop());
+    $router->get('/care-plans/protocol-lines', static fn () => $carePlans()->protocolLines());
     $router->get('/agenda-patient', $getAgenda);
 
     $router->notFound(static fn() => View::erreur(404, 'Page introuvable.'));

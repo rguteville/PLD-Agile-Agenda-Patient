@@ -549,6 +549,13 @@ body, html {
     border-bottom: 1px solid #d4d4d4;
 }
 
+/* Fiche d'un groupe de prescriptions : rappel du calcul des dates */
+.b3-group-hint {
+    margin: 4px 6px;
+    font-size: 0.85em;
+    color: #606060;
+}
+
 .b3-grid {
     display: grid;
     grid-template-columns: 160px 14px 1fr;
