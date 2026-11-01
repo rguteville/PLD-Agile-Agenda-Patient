@@ -961,3 +961,1337 @@ body, html {
     color: #b36b00;
     font-weight: 600;
 }
+
+/* ===== AURA-UI : refonte IHM (tokens, thème sombre, composants, impression) =====
+   Ce bloc est ajouté EN FIN de fichier (règle d'équipe) : il définit les jetons de design (:root) puis
+   surcharge les règles historiques ci-dessus pour qu'elles lisent ces jetons. Les sélecteurs existants
+   ne sont pas réordonnés. Documentation : docs/ui.md. */
+
+/* ---------- 1. Jetons de design ---------- */
+:root {
+    /* Typographie : police système (Segoe UI sur les postes Windows du service), chiffres tabulaires
+       pour aligner heures et doses. Tailles pensées pour un poste 1366×768 et une tablette. */
+    --font-ui: system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --fs-0: 12px;
+    --fs-1: 13px;
+    --fs-2: 14px;
+    --fs-3: 16px;
+    --fs-4: 20px;
+    --fs-5: 24px;
+    --lh: 1.45;
+
+    /* Espacements et rayons */
+    --sp-1: 4px;
+    --sp-2: 8px;
+    --sp-3: 12px;
+    --sp-4: 16px;
+    --sp-5: 24px;
+    --sp-6: 32px;
+    --radius: 4px;
+    --radius-lg: 6px;
+
+    /* Neutres (mode clair) */
+    --bg: #f5f7fa;
+    --bg-raised: #ffffff;
+    --bg-muted: #eef1f5;
+    --line: #d9dee5;
+    --line-strong: #b8c0cc;
+    --fg: #1c2430;
+    --fg-muted: #4b5563;
+    --fg-subtle: #5f6b7a;
+
+    /* Accent unique : bleu profond, sobre */
+    --accent: #1f5f91;
+    --accent-hover: #184c74;
+    --accent-soft: #e4eef8;
+    --accent-fg: #ffffff;
+
+    /* Statuts (conventions hospitalières : retard = ambre, alerte bloquante = rouge).
+       Jamais la couleur seule : chaque badge porte une icône et un texte. */
+    --st-planned-fg: #334e68;
+    --st-planned-bg: #e8eef5;
+    --st-planned-line: #b7c7d8;
+    --st-done-fg: #166534;
+    --st-done-bg: #dcfce7;
+    --st-done-line: #86efac;
+    --st-late-fg: #92400e;
+    --st-late-bg: #fef3c7;
+    --st-late-line: #f6c453;
+    --st-validate-fg: #5b21b6;
+    --st-validate-bg: #ede9fe;
+    --st-validate-line: #c4b5fd;
+    --st-alert-fg: #991b1b;
+    --st-alert-bg: #fee2e2;
+    --st-alert-line: #fca5a5;
+    --st-neutral-fg: #4b5563;
+    --st-neutral-bg: #f3f4f6;
+    --st-neutral-line: #d1d5db;
+
+    /* Focus clavier visible partout */
+    --focus-ring: 2px solid var(--accent);
+    --focus-offset: 2px;
+    --transition: 120ms ease-out;
+}
+
+/* Mode sombre (équipes de nuit) : suit le système, sauf choix explicite par le bouton de thème
+   (data-theme posé par public/js/theme.js). Contrastes vérifiés ≥ AA sur --bg-raised. */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        --bg: #0f1419;
+        --bg-raised: #171d26;
+        --bg-muted: #1f2733;
+        --line: #2c3541;
+        --line-strong: #3d4858;
+        --fg: #e6eaf0;
+        --fg-muted: #aab4c0;
+        --fg-subtle: #8e99a7;
+        --accent: #7fb3e6;
+        --accent-hover: #9cc5ee;
+        --accent-soft: #1b2f45;
+        --accent-fg: #0f1419;
+        --st-planned-fg: #c3d0de;
+        --st-planned-bg: #1e2a38;
+        --st-planned-line: #3a4b5e;
+        --st-done-fg: #86efac;
+        --st-done-bg: #122a1c;
+        --st-done-line: #1f5a33;
+        --st-late-fg: #fcd34d;
+        --st-late-bg: #2e2410;
+        --st-late-line: #6b5214;
+        --st-validate-fg: #c4b5fd;
+        --st-validate-bg: #251b3f;
+        --st-validate-line: #4c3a80;
+        --st-alert-fg: #fca5a5;
+        --st-alert-bg: #3a1515;
+        --st-alert-line: #7a2626;
+        --st-neutral-fg: #aab4c0;
+        --st-neutral-bg: #1f2733;
+        --st-neutral-line: #3d4858;
+    }
+}
+
+:root[data-theme="dark"] {
+    --bg: #0f1419;
+    --bg-raised: #171d26;
+    --bg-muted: #1f2733;
+    --line: #2c3541;
+    --line-strong: #3d4858;
+    --fg: #e6eaf0;
+    --fg-muted: #aab4c0;
+    --fg-subtle: #8e99a7;
+    --accent: #7fb3e6;
+    --accent-hover: #9cc5ee;
+    --accent-soft: #1b2f45;
+    --accent-fg: #0f1419;
+    --st-planned-fg: #c3d0de;
+    --st-planned-bg: #1e2a38;
+    --st-planned-line: #3a4b5e;
+    --st-done-fg: #86efac;
+    --st-done-bg: #122a1c;
+    --st-done-line: #1f5a33;
+    --st-late-fg: #fcd34d;
+    --st-late-bg: #2e2410;
+    --st-late-line: #6b5214;
+    --st-validate-fg: #c4b5fd;
+    --st-validate-bg: #251b3f;
+    --st-validate-line: #4c3a80;
+    --st-alert-fg: #fca5a5;
+    --st-alert-bg: #3a1515;
+    --st-alert-line: #7a2626;
+    --st-neutral-fg: #aab4c0;
+    --st-neutral-bg: #1f2733;
+    --st-neutral-line: #3d4858;
+}
+
+:root[data-theme="dark"] {
+    color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+    color-scheme: light;
+}
+
+/* ---------- 2. Base : les règles historiques (Arial, #444, padding 20px) sont remplacées ---------- */
+html,
+body {
+    height: auto;
+    min-height: 100%;
+    font-family: var(--font-ui);
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-size: var(--fs-2);
+    line-height: var(--lh);
+    color: var(--fg);
+    background: var(--bg);
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+}
+
+#main {
+    padding: var(--sp-4) var(--sp-5) var(--sp-6);
+    max-width: 1280px;
+    margin: 0 auto;
+    transition: margin-left var(--transition);
+}
+
+#main:focus {
+    outline: none;
+}
+
+a {
+    color: var(--accent);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
+}
+
+a:hover {
+    color: var(--accent-hover);
+}
+
+:is(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: var(--focus-offset);
+}
+
+/* Lien d'évitement : visible seulement au focus clavier */
+.skip-link {
+    position: absolute;
+    left: var(--sp-2);
+    top: -100px;
+    z-index: 100;
+    padding: var(--sp-2) var(--sp-3);
+    background: var(--bg-raised);
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius);
+}
+
+.skip-link:focus {
+    top: var(--sp-2);
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* ---------- 3. Barre supérieure et menu latéral ---------- */
+.topbar {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    min-height: 48px;
+    padding: 0 var(--sp-4);
+    background: var(--bg-raised);
+    border-bottom: 1px solid var(--line);
+}
+
+.topbar .brand {
+    margin-right: var(--sp-3);
+    font-size: var(--fs-3);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--fg);
+    text-decoration: none;
+}
+
+.topbar .nav-link {
+    padding: var(--sp-2) var(--sp-3);
+    color: var(--fg-muted);
+    text-decoration: none;
+    border-radius: var(--radius);
+}
+
+.topbar .nav-link:hover {
+    color: var(--fg);
+    background: var(--bg-muted);
+}
+
+.topbar .nav-link[aria-current="page"] {
+    color: var(--accent);
+    font-weight: 600;
+    background: var(--accent-soft);
+}
+
+.topbar .menu-toggle,
+.topbar .theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: var(--radius);
+    background: none;
+    color: var(--fg-muted);
+    font: inherit;
+    cursor: pointer;
+}
+
+.topbar .menu-toggle:hover,
+.topbar .theme-toggle:hover {
+    color: var(--fg);
+    background: var(--bg-muted);
+}
+
+.topbar .theme-toggle {
+    margin-left: auto;
+}
+
+.theme-toggle .icon-sun {
+    display: none;
+}
+
+:root[data-theme="dark"] .theme-toggle .icon-sun {
+    display: inline-block;
+}
+
+:root[data-theme="dark"] .theme-toggle .icon-moon {
+    display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .theme-toggle .icon-sun {
+        display: inline-block;
+    }
+
+    :root:not([data-theme="light"]) .theme-toggle .icon-moon {
+        display: none;
+    }
+}
+
+.sidenav {
+    background: var(--bg-raised);
+    border-right: 1px solid var(--line);
+    box-shadow: none;
+    transition: width var(--transition);
+    z-index: 20;
+}
+
+.sidenav a {
+    font-size: var(--fs-3);
+    color: var(--fg-muted);
+    transition: none;
+}
+
+.sidenav a:hover {
+    color: var(--accent);
+    background: var(--bg-muted);
+}
+
+.sidenav .closebtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    margin: 0;
+    top: var(--sp-1);
+    right: var(--sp-2);
+    border: 0;
+    background: none;
+    color: var(--fg-muted);
+    font: inherit;
+    cursor: pointer;
+}
+
+/* ---------- 4. Icônes (Lucide, SVG inline via components/icon.php) ---------- */
+.icon {
+    width: 1.15em;
+    height: 1.15em;
+    flex: 0 0 auto;
+    vertical-align: -0.2em;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.icon--lg {
+    width: 2em;
+    height: 2em;
+}
+
+/* ---------- 5. Badge de statut : icône + texte + couleur, jamais la couleur seule ---------- */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-1);
+    padding: 2px var(--sp-2);
+    border: 1px solid var(--badge-line, var(--st-neutral-line));
+    border-radius: var(--radius);
+    background: var(--badge-bg, var(--st-neutral-bg));
+    color: var(--badge-fg, var(--st-neutral-fg));
+    font-size: var(--fs-1);
+    font-weight: 600;
+    line-height: 1.3;
+    white-space: nowrap;
+}
+
+.badge--planned {
+    --badge-fg: var(--st-planned-fg);
+    --badge-bg: var(--st-planned-bg);
+    --badge-line: var(--st-planned-line);
+}
+
+.badge--done,
+.badge--validated {
+    --badge-fg: var(--st-done-fg);
+    --badge-bg: var(--st-done-bg);
+    --badge-line: var(--st-done-line);
+}
+
+.badge--late {
+    --badge-fg: var(--st-late-fg);
+    --badge-bg: var(--st-late-bg);
+    --badge-line: var(--st-late-line);
+}
+
+.badge--to_validate {
+    --badge-fg: var(--st-validate-fg);
+    --badge-bg: var(--st-validate-bg);
+    --badge-line: var(--st-validate-line);
+}
+
+.badge--not_done,
+.badge--alert {
+    --badge-fg: var(--st-alert-fg);
+    --badge-bg: var(--st-alert-bg);
+    --badge-line: var(--st-alert-line);
+}
+
+.badge--cancelled,
+.badge--stopped,
+.badge--unknown {
+    --badge-fg: var(--st-neutral-fg);
+    --badge-bg: var(--st-neutral-bg);
+    --badge-line: var(--st-neutral-line);
+}
+
+/* ---------- 6. Boutons communs (.button) ; les boutons historiques sont alignés plus bas ---------- */
+.button,
+.form-actions button,
+.form-actions input[type="submit"],
+.recherche-patients button,
+.allergies-dossier button,
+.b3-buttons button,
+.b3-validate button,
+.stop-form button,
+.field-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-1);
+    min-height: 36px;
+    padding: 0 var(--sp-4);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius);
+    background: var(--accent);
+    color: var(--accent-fg);
+    font: inherit;
+    font-weight: 600;
+    line-height: 1.2;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color var(--transition), border-color var(--transition);
+}
+
+.button:hover,
+.form-actions button:hover,
+.form-actions input[type="submit"]:hover,
+.recherche-patients button:hover,
+.allergies-dossier button:hover,
+.b3-validate button:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+    color: var(--accent-fg);
+}
+
+.button--secondary,
+.episode-actions .button,
+.field-button,
+.b3-buttons button,
+.stop-form button,
+.allergies-dossier .retirer-allergie button {
+    background: var(--bg-raised);
+    color: var(--accent);
+}
+
+.button--secondary:hover,
+.episode-actions .button:hover,
+.field-button:hover,
+.b3-buttons button:hover,
+.stop-form button:hover {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.b3-buttons .b3-primary {
+    background: var(--accent);
+    color: var(--accent-fg);
+}
+
+.b3-buttons .b3-primary:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+}
+
+.button--danger,
+.allergies-dossier .retirer-allergie button {
+    border-color: var(--st-alert-fg);
+    color: var(--st-alert-fg);
+    background: var(--bg-raised);
+}
+
+.button--danger:hover,
+.allergies-dossier .retirer-allergie button:hover {
+    background: var(--st-alert-bg);
+    border-color: var(--st-alert-fg);
+    color: var(--st-alert-fg);
+}
+
+.button:disabled,
+.b3-buttons button:disabled {
+    border-color: var(--line-strong);
+    color: var(--fg-subtle);
+    background: var(--bg-muted);
+    cursor: default;
+}
+
+.episode-actions .button + .button {
+    margin-left: var(--sp-2);
+}
+
+/* Cibles tactiles ≥ 44 px sur tablette pour les actions que l'IDE touche */
+@media (pointer: coarse) {
+    .button,
+    .form-actions button,
+    .b3-validate button,
+    .stop-form button,
+    .allergies-dossier button {
+        min-height: 44px;
+    }
+}
+
+/* ---------- 7. Titres, formulaires et tableaux historiques alignés sur les jetons ---------- */
+.form-title {
+    font-size: var(--fs-5);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--fg);
+}
+
+.form-title::before {
+    content: none;
+}
+
+h2,
+.dossier-subtitle,
+.b3-summary-title,
+.allergies-dossier h2 {
+    font-size: var(--fs-3);
+    font-weight: 600;
+    color: var(--fg);
+}
+
+.form-row {
+    border-radius: var(--radius);
+}
+
+.form-row:focus-within,
+.b3-row:focus-within {
+    background: var(--accent-soft);
+}
+
+.form-row label,
+.b3-row label,
+.b3-grid > label,
+.dossier dt,
+.bandeau-patient dt {
+    color: var(--fg-muted);
+}
+
+.form-row .req,
+.b3-required {
+    color: var(--st-alert-fg);
+}
+
+.form-row input[type="text"],
+.form-row input[type="date"],
+.form-row input[type="number"],
+.form-row input[type="search"],
+.form-row textarea,
+.form-row select,
+.recherche-patients input,
+.allergies-dossier select,
+.b3-row select,
+.b3-value input,
+.b3-value select,
+.b3-validate select,
+.stop-form select,
+.agenda-nav input,
+.dialog-field input,
+.dialog-field select,
+.dialog-field textarea {
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+    color: var(--fg);
+    font: inherit;
+}
+
+.form-row input:focus,
+.form-row textarea:focus,
+.form-row select:focus,
+.b3-row select:focus,
+.b3-value input:focus,
+.b3-value select:focus {
+    outline: var(--focus-ring);
+    outline-offset: 0;
+    border-color: var(--accent);
+}
+
+.form-row select {
+    grid-column: 3;
+    width: 100%;
+    max-width: 550px;
+    height: 32px;
+    padding: 4px 8px;
+}
+
+.form-row input.is-locked,
+.b3-value input[readonly],
+.b3-value input:disabled,
+.b3-row select:disabled {
+    background: var(--bg-muted);
+    color: var(--fg-muted);
+}
+
+.form-row .field-error,
+.form-error,
+.b3-warning,
+.b3-message,
+.b3-summary .form-error,
+.field-status.erreur {
+    color: var(--st-alert-fg);
+}
+
+.form-row.has-error input[type="text"],
+.form-row.has-error input[type="date"],
+.form-row.has-error input[type="number"],
+.form-row.has-error textarea,
+.form-row.has-error select {
+    border-color: var(--st-alert-fg);
+}
+
+.b3-entry .form-error,
+.erreur {
+    color: var(--st-alert-fg);
+    background: var(--st-alert-bg);
+    border: 1px solid var(--st-alert-line);
+    border-radius: var(--radius);
+}
+
+.radio-group label {
+    color: var(--fg);
+}
+
+.form-actions {
+    margin-left: 254px;
+}
+
+/* Tableaux de données : en-tête discret, lignes séparées par un trait de 1 px */
+.dossier-prescriptions,
+.liste-patients,
+.care-plan-lines,
+.b3-cart,
+.agenda-table,
+.service-grid {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--bg-raised);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+}
+
+.dossier-prescriptions th,
+.dossier-prescriptions td,
+.liste-patients th,
+.liste-patients td,
+.care-plan-lines th,
+.care-plan-lines td,
+.b3-cart th,
+.b3-cart td,
+.agenda-table th,
+.agenda-table td,
+.service-grid th,
+.service-grid td {
+    padding: var(--sp-2) var(--sp-3);
+    border-bottom: 1px solid var(--line);
+}
+
+.dossier-prescriptions th,
+.liste-patients th,
+.care-plan-lines th,
+.b3-cart th,
+.agenda-table th,
+.service-grid th {
+    color: var(--fg-muted);
+    font-size: var(--fs-0);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    background: var(--bg-muted);
+}
+
+.liste-patients tbody tr:hover,
+.care-plan-lines tbody tr:hover,
+.agenda-table tbody tr:hover {
+    background: var(--accent-soft);
+}
+
+.liste-patients caption {
+    color: var(--fg-muted);
+}
+
+.liste-patients .hors-service,
+.liste-vide,
+.b3-empty,
+.referentiel-epuise,
+.field-status.en-cours,
+.field-status.inconnu {
+    color: var(--fg-subtle);
+}
+
+.care-plan-lines tr.status-stopped td {
+    color: var(--fg-subtle);
+}
+
+.care-plan-lines .not-validated {
+    color: var(--st-validate-fg);
+}
+
+.field-status.trouve,
+.field-status .aucune-allergie,
+.allergies-dossier .aucune-allergie {
+    color: var(--st-done-fg);
+}
+
+.field-status .alerte {
+    color: var(--st-alert-fg);
+}
+
+.field-status .allergies li {
+    background: var(--st-alert-bg);
+    color: var(--st-alert-fg);
+    border: 1px solid var(--st-alert-line);
+    border-radius: var(--radius);
+}
+
+.allergies-dossier .liste-allergies li {
+    border-bottom-color: var(--line);
+}
+
+.allergies-dossier .liste-allergies .details {
+    color: var(--fg-muted);
+}
+
+/* Écran B3 */
+.b3-success {
+    color: var(--st-done-fg);
+    background: var(--st-done-bg);
+    border: 1px solid var(--st-done-line);
+    border-left-width: 4px;
+    border-radius: var(--radius);
+}
+
+.b3-params {
+    background: var(--bg-raised);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+}
+
+.b3-params-title {
+    color: var(--fg-muted);
+    background: var(--bg-muted);
+    border-bottom: 1px solid var(--line);
+}
+
+.b3-grid > label,
+.b3-grid > .b3-required,
+.b3-grid > .b3-value {
+    border-bottom-color: var(--line);
+}
+
+.b3-grid > label.b3-greyed {
+    color: var(--fg-subtle);
+}
+
+.b3-remove {
+    color: var(--st-alert-fg);
+}
+
+.b3-pending {
+    background: var(--st-validate-bg);
+    border: 1px solid var(--st-validate-line);
+    border-left-width: 4px;
+    border-radius: var(--radius);
+    color: var(--fg);
+}
+
+/* ---------- 8. Bandeau patient (RG2) : collé en haut, jamais repliable ---------- */
+.bandeau-patient {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    max-width: none;
+    gap: var(--sp-1) var(--sp-5);
+    padding: var(--sp-2) var(--sp-4);
+    margin: calc(-1 * var(--sp-4)) calc(-1 * var(--sp-5)) var(--sp-4);
+    background: var(--bg-raised);
+    border: 0;
+    border-bottom: 1px solid var(--line);
+    border-left: 4px solid var(--accent);
+    align-items: center;
+}
+
+.bandeau-patient .identite {
+    display: flex;
+    align-items: baseline;
+    gap: var(--sp-2);
+    font-size: var(--fs-3);
+}
+
+.bandeau-patient .sexe {
+    color: var(--fg-muted);
+    font-size: var(--fs-1);
+}
+
+.bandeau-patient dl {
+    gap: var(--sp-1) var(--sp-4);
+}
+
+.bandeau-patient dl > div {
+    display: flex;
+    gap: var(--sp-1);
+    align-items: baseline;
+}
+
+.bandeau-patient dt {
+    font-size: var(--fs-0);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.bandeau-patient dt::after {
+    content: "";
+}
+
+.bandeau-patient .allergies {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--sp-1) var(--sp-2);
+    padding-top: var(--sp-1);
+    border-top: 1px dashed var(--line);
+}
+
+.bandeau-patient .alerte {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-1);
+    color: var(--st-alert-fg);
+}
+
+.bandeau-patient .allergies li {
+    margin: 0;
+    background: var(--st-alert-bg);
+    color: var(--st-alert-fg);
+    border: 1px solid var(--st-alert-line);
+    border-radius: var(--radius);
+    font-weight: 600;
+}
+
+.bandeau-patient .aucune-allergie {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-1);
+    color: var(--st-done-fg);
+}
+
+/* ---------- 9. En-tête de page, état vide, résumé chiffré ---------- */
+.page-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-2) var(--sp-4);
+    margin-bottom: var(--sp-4);
+}
+
+.page-header .form-title {
+    margin: 0;
+}
+
+.page-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-2);
+    margin: 0;
+}
+
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--sp-2);
+    padding: var(--sp-6) var(--sp-4);
+    text-align: center;
+    color: var(--fg-muted);
+    background: var(--bg-raised);
+    border: 1px dashed var(--line-strong);
+    border-radius: var(--radius-lg);
+}
+
+.empty-state .icon {
+    color: var(--fg-subtle);
+}
+
+.empty-state p {
+    margin: 0;
+}
+
+.empty-state .empty-title {
+    color: var(--fg);
+    font-weight: 600;
+}
+
+.stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-2);
+    margin: 0 0 var(--sp-4);
+    padding: 0;
+    list-style: none;
+}
+
+.stats li {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--sp-1);
+    padding: var(--sp-1) var(--sp-3);
+    background: var(--bg-raised);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    color: var(--fg-muted);
+    font-size: var(--fs-1);
+}
+
+.stats .stat-value {
+    font-size: var(--fs-3);
+    font-weight: 700;
+    color: var(--fg);
+}
+
+.stats .stat--late .stat-value {
+    color: var(--st-late-fg);
+}
+
+/* ---------- 10. Dossier du séjour : fiche en cartes ---------- */
+.dossier dl {
+    max-width: none;
+    padding: var(--sp-3) var(--sp-4);
+    background: var(--bg-raised);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+}
+
+.dossier .liens-dossier {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-3);
+    margin: var(--sp-3) 0 0;
+}
+
+/* ---------- 11. Agenda patient : chronologie du jour, retards épinglés, rotations ---------- */
+.agenda-nav {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-2);
+    margin: 0 0 var(--sp-3);
+    max-width: none;
+}
+
+.agenda-nav .agenda-day {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-2);
+    font-weight: 600;
+}
+
+.agenda-nav input[type="date"] {
+    height: 36px;
+    padding: 0 var(--sp-2);
+}
+
+.agenda-nav .nav-day {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    min-height: 36px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+    color: var(--fg-muted);
+    text-decoration: none;
+}
+
+.agenda-nav .nav-day:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+}
+
+.agenda-section {
+    margin: 0 0 var(--sp-5);
+}
+
+.agenda-section h2 {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    margin: 0 0 var(--sp-2);
+}
+
+.agenda-section .count {
+    color: var(--fg-subtle);
+    font-weight: 400;
+}
+
+.agenda-section--late h2 {
+    color: var(--st-late-fg);
+}
+
+.agenda-section--late .agenda-table {
+    border-color: var(--st-late-line);
+}
+
+.agenda-section .agenda-empty {
+    margin: 0;
+    padding: var(--sp-2) var(--sp-3);
+    color: var(--fg-subtle);
+    background: var(--bg-raised);
+    border: 1px dashed var(--line);
+    border-radius: var(--radius);
+}
+
+.agenda-table .col-time {
+    width: 64px;
+    white-space: nowrap;
+    font-weight: 700;
+}
+
+.agenda-table .col-kind {
+    width: 110px;
+}
+
+.agenda-table .col-status {
+    white-space: nowrap;
+}
+
+.agenda-table .col-action {
+    width: 1%;
+    white-space: nowrap;
+    text-align: right;
+}
+
+.agenda-table .item-label {
+    font-weight: 600;
+}
+
+.agenda-table .item-details,
+.agenda-table .trace,
+.agenda-table .note {
+    display: block;
+    color: var(--fg-muted);
+    font-size: var(--fs-1);
+}
+
+.agenda-table tr.is-late .col-time {
+    color: var(--st-late-fg);
+}
+
+.agenda-table tr.is-done td {
+    color: var(--fg-muted);
+}
+
+/* ---------- 12. Dialogue de validation (balisage ; l'écriture en base viendra avec son ticket) ---------- */
+.dialog {
+    width: min(480px, calc(100vw - 2 * var(--sp-4)));
+    padding: 0;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-lg);
+    background: var(--bg-raised);
+    color: var(--fg);
+}
+
+.dialog::backdrop {
+    background: rgba(15, 20, 25, 0.55);
+}
+
+.dialog-form {
+    max-width: none;
+    padding: var(--sp-4) var(--sp-5);
+}
+
+.dialog-form h2 {
+    margin: 0 0 var(--sp-3);
+}
+
+.dialog-context {
+    margin: 0 0 var(--sp-3);
+    padding: var(--sp-2) var(--sp-3);
+    background: var(--bg-muted);
+    border-radius: var(--radius);
+    font-weight: 600;
+}
+
+.dialog-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-1);
+    margin-bottom: var(--sp-3);
+}
+
+.dialog-field label {
+    color: var(--fg-muted);
+    font-size: var(--fs-1);
+}
+
+.dialog-field input,
+.dialog-field select,
+.dialog-field textarea {
+    min-height: 36px;
+    padding: var(--sp-1) var(--sp-2);
+}
+
+.dialog-hint {
+    display: flex;
+    gap: var(--sp-1);
+    margin: 0 0 var(--sp-3);
+    color: var(--fg-subtle);
+    font-size: var(--fs-1);
+}
+
+.dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--sp-2);
+}
+
+/* ---------- 13. Vue consolidée du service : patients × créneaux ---------- */
+.service-grid th.col-patient {
+    text-align: left;
+    min-width: 180px;
+}
+
+.service-grid td.cell-slot {
+    text-align: center;
+    vertical-align: middle;
+}
+
+.service-grid .slot-items {
+    display: inline-flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 2px;
+}
+
+.service-grid .patient-name {
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.service-grid .patient-bed {
+    display: block;
+    color: var(--fg-muted);
+    font-size: var(--fs-1);
+}
+
+.service-grid td.col-late {
+    text-align: center;
+}
+
+.service-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-2);
+    margin: var(--sp-3) 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+/* ---------- 14. Petits écrans : tableaux défilants, formulaires en colonne ---------- */
+.table-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 760px) {
+    #main {
+        padding: var(--sp-3) var(--sp-4) var(--sp-5);
+    }
+
+    .bandeau-patient {
+        margin: calc(-1 * var(--sp-3)) calc(-1 * var(--sp-4)) var(--sp-3);
+    }
+
+    .form-row {
+        grid-template-columns: 1fr 20px;
+    }
+
+    .form-row label {
+        grid-column: 1;
+    }
+
+    .form-row .req {
+        grid-column: 2;
+    }
+
+    .form-row input[type="text"],
+    .form-row input[type="date"],
+    .form-row input[type="number"],
+    .form-row textarea,
+    .form-row select,
+    .form-row .field-group,
+    .form-row .field-error,
+    .form-row .field-status,
+    .radio-group {
+        grid-column: 1 / -1;
+    }
+
+    .form-actions {
+        margin-left: 0;
+    }
+
+    .b3-body {
+        flex-direction: column;
+    }
+
+    .b3-entry {
+        flex-basis: auto;
+    }
+}
+
+/* ---------- 15. Impression : vue du jour pour les transmissions ---------- */
+@media print {
+    :root {
+        --bg: #fff;
+        --bg-raised: #fff;
+        --bg-muted: #f2f2f2;
+        --line: #999;
+        --fg: #000;
+        --fg-muted: #222;
+        --fg-subtle: #444;
+    }
+
+    body {
+        font-size: 11pt;
+        background: #fff;
+        color: #000;
+    }
+
+    .topbar,
+    .sidenav,
+    .skip-link,
+    .page-actions,
+    .agenda-nav,
+    .episode-actions,
+    .col-action,
+    .dialog,
+    .stop-form,
+    .ajouter-allergie,
+    .retirer-allergie,
+    .liens-dossier {
+        display: none !important;
+    }
+
+    #main {
+        max-width: none;
+        padding: 0;
+    }
+
+    .bandeau-patient {
+        position: static;
+        margin: 0 0 8pt;
+        border: 1px solid #000;
+        border-left-width: 4px;
+    }
+
+    .agenda-section,
+    .agenda-table tr {
+        break-inside: avoid;
+    }
+
+    .badge {
+        border: 1px solid #000;
+        background: none !important;
+        color: #000 !important;
+    }
+
+    .agenda-table tbody tr:hover {
+        background: none;
+    }
+
+    a {
+        color: #000;
+        text-decoration: none;
+    }
+}
+
+/* Petits écrans (suite) : le bandeau et les titres ne doivent jamais élargir la page */
+.bandeau-patient dl > div {
+    flex-wrap: wrap;
+}
+
+.bandeau-patient,
+.bandeau-patient .identite,
+.bandeau-patient dd,
+.page-header .form-title {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.page-header .form-title {
+    flex: 1 1 280px;
+}
+
+/* Traçabilité sous un badge (liste des prescriptions, agenda) : « par X, le … » sur sa propre ligne */
+.col-status .trace {
+    display: block;
+    margin-top: var(--sp-1);
+    color: var(--fg-muted);
+    font-size: var(--fs-1);
+}
+
+/* Les libellés .sr-only (position absolue) des cellules restent contenus dans la zone défilante */
+.table-scroll {
+    position: relative;
+}
