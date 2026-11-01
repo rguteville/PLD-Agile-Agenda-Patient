@@ -16,20 +16,26 @@ use Aura\Domain\CarePlan;
 <?= View::render('components/bandeau_patient', ['bandeau' => $banner]) ?>
 
 <section class="care-plans">
-    <h1 class="form-title">Prescriptions du séjour n° <?= View::e($banner['numeroSejour']) ?></h1>
-
-    <p class="episode-actions">
-        <a class="button" href="/sejour?id=<?= View::e($idEpisodeOfCare) ?>">Retour au dossier</a>
-        <?php if ($isOpen) : ?>
-            <a class="button" href="/care-plans/new?idEpisodeOfCare=<?= View::e($idEpisodeOfCare) ?>">
-                Nouvelle prescription
-            </a>
-        <?php endif; ?>
-    </p>
+    <div class="page-header">
+        <h1 class="form-title">Prescriptions du séjour n° <?= View::e($banner['numeroSejour']) ?></h1>
+        <p class="page-actions">
+            <a class="button button--secondary"
+               href="/sejour?id=<?= View::e($idEpisodeOfCare) ?>">Dossier du séjour</a>
+            <?php if ($isOpen) : ?>
+                <a class="button" href="/care-plans/new?idEpisodeOfCare=<?= View::e($idEpisodeOfCare) ?>">
+                    Nouvelle prescription
+                </a>
+            <?php endif; ?>
+        </p>
+    </div>
 
     <?php if ($lines === []) : ?>
-        <p class="liste-vide">Aucune prescription pour ce séjour.</p>
+        <?= View::render('components/empty_state', [
+            'title' => 'Aucune prescription pour ce séjour.',
+            'text' => $isOpen ? 'Créez la première depuis « Nouvelle prescription ».' : 'Le séjour est clos.',
+        ]) ?>
     <?php else : ?>
+        <div class="table-scroll">
         <table class="care-plan-lines">
             <thead>
                 <tr>
@@ -74,19 +80,22 @@ use Aura\Domain\CarePlan;
                         <td><?= View::e($line['endDate'] ?? '—') ?></td>
                         <td><?= View::e($line['mode']) ?></td>
                         <td><?= View::e($line['prescriber']) ?></td>
-                        <td>
+                        <td class="col-status">
                             <?php if ($line['status'] === CarePlan::STATUS_STOPPED) : ?>
-                                Arrêtée par <?= View::e($line['stop']) ?>
+                                <?= View::render('components/status_badge', ['status' => 'stopped']) ?>
+                                <span class="trace">par <?= View::e($line['stop']) ?></span>
                             <?php elseif ($line['status'] === CarePlan::STATUS_VALIDATED) : ?>
-                                Validée par <?= View::e($line['validation']) ?>
+                                <?= View::render('components/status_badge', ['status' => 'validated']) ?>
+                                <span class="trace">par <?= View::e($line['validation']) ?></span>
                             <?php else : ?>
                                 <?php /* Le « petit stylo » du SI réel (RG5) : visible mais non validée. */ ?>
-                                <span class="not-validated">✎ Non validée</span>
+                                <?= View::render('components/status_badge', ['status' => 'to_validate']) ?>
                             <?php endif; ?>
                         </td>
                     </tr>
                 <?php endforeach; ?>
             </tbody>
         </table>
+        </div>
     <?php endif; ?>
 </section>

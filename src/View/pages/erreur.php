@@ -8,7 +8,10 @@ use Aura\Core\View;
  */
 ?>
 <section class="erreur" role="alert">
-    <h1 class="form-title">Erreur <?= View::e($code) ?></h1>
+    <h1 class="form-title">
+        <?= View::render('components/icon', ['name' => 'circle-alert']) ?>
+        Erreur <?= View::e($code) ?>
+    </h1>
     <p><?= View::e($message) ?></p>
-    <p><a href="/">Retour à l'accueil</a></p>
+    <p><a class="button button--secondary" href="/patients">Retour à la liste des patients</a></p>
 </section>

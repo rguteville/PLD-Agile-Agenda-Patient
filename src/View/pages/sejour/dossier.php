@@ -20,16 +20,29 @@ $allergyError = $allergyError ?? null;
 <?= View::render('components/bandeau_patient', ['bandeau' => $bandeau]) ?>
 
 <section class="dossier">
-    <h1 class="form-title">Dossier du séjour n° <?= View::e($bandeau['numeroSejour']) ?></h1>
-    <?php if ($sejour['enCours']) : ?>
-        <?php /* AURA-20 : vers l'écran B3 « Nouvelles prescriptions » (séjour en cours seulement). */ ?>
-        <p class="episode-actions">
-            <a class="button" href="/care-plans/new?idEpisodeOfCare=<?= View::e($idSejour) ?>">Prescription</a>
+    <div class="page-header">
+        <h1 class="form-title">Dossier du séjour n° <?= View::e($bandeau['numeroSejour']) ?></h1>
+        <p class="page-actions">
+            <a class="button button--secondary"
+               href="/agenda-patient?id=<?= View::e($idSejour) ?>">Agenda du jour</a>
+            <a class="button button--secondary"
+               href="/care-plans?idEpisodeOfCare=<?= View::e($idSejour) ?>">Toutes les prescriptions</a>
+            <?php if ($sejour['enCours']) : ?>
+                <?php /* AURA-20 : vers l'écran B3 « Nouvelles prescriptions » (séjour en cours seulement). */ ?>
+                <a class="button" href="/care-plans/new?idEpisodeOfCare=<?= View::e($idSejour) ?>">Prescription</a>
+            <?php endif; ?>
         </p>
-    <?php endif; ?>
+    </div>
     <dl>
         <dt>Statut</dt>
-        <dd><?= $sejour['enCours'] ? 'En cours' : 'Clos le ' . View::e($sejour['dateSortie']) ?></dd>
+        <dd>
+            <?php if ($sejour['enCours']) : ?>
+                <?= View::render('components/status_badge', ['status' => 'planned', 'label' => 'En cours']) ?>
+            <?php else : ?>
+                <?= View::render('components/status_badge', ['status' => 'stopped', 'label' => 'Clos']) ?>
+                le <?= View::e($sejour['dateSortie']) ?>
+            <?php endif; ?>
+        </dd>
         <dt>Admission</dt>
         <dd><?= View::e($bandeau['dateAdmission'] ?? 'non renseignée') ?></dd>
         <dt>Service</dt>
@@ -59,7 +72,10 @@ $allergyError = $allergyError ?? null;
     <?php endif; ?>
 
     <?php if ($allergies === []) : ?>
-        <p class="aucune-allergie">Aucune allergie connue</p>
+        <p class="aucune-allergie">
+            <?= View::render('components/icon', ['name' => 'circle-check']) ?>
+            Aucune allergie connue
+        </p>
     <?php else : ?>
         <ul class="liste-allergies">
             <?php foreach ($allergies as $allergy) : ?>
@@ -123,8 +139,12 @@ $allergyError = $allergyError ?? null;
     <?php /* RG5 : seules les prescriptions validées par un médecin, et pas celles qui sont arrêtées. */ ?>
     <h2 class="dossier-subtitle">Prescriptions en cours</h2>
     <?php if ($prescriptions === []) : ?>
-        <p class="liste-vide">Aucune prescription validée.</p>
+        <?= View::render('components/empty_state', [
+            'title' => 'Aucune prescription validée.',
+            'text' => 'Les ordonnances en attente de validation médicale sont sur l\'écran Prescription.',
+        ]) ?>
     <?php else : ?>
+        <div class="table-scroll">
         <table class="dossier-prescriptions">
             <thead>
                 <tr>
@@ -191,7 +211,6 @@ $allergyError = $allergyError ?? null;
                 <?php endforeach; ?>
             </tbody>
         </table>
+        </div>
     <?php endif; ?>
-    <p><a href="/care-plans?idEpisodeOfCare=<?= View::e($idSejour) ?>">Toutes les prescriptions du séjour</a></p>
-    <a href="/agenda-patient?numSejour=<?= urlencode((string)$bandeau['numeroSejour']) ?>">Vers l'agenda.</a>
 </section>

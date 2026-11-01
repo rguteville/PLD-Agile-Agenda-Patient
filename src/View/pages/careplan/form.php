@@ -60,11 +60,13 @@ $medicationParams = [
 <?= View::render('components/bandeau_patient', ['bandeau' => $banner]) ?>
 
 <section class="b3">
-    <h1 class="form-title">Nouvelles prescriptions</h1>
-    <?php /* Même bouton bleu que « Prescription » sur le dossier du séjour. */ ?>
-    <p class="episode-actions">
-        <a class="button" href="/sejour?id=<?= View::e($idEpisodeOfCare) ?>">Retour au dossier du séjour</a>
-    </p>
+    <div class="page-header">
+        <h1 class="form-title">Nouvelles prescriptions</h1>
+        <p class="page-actions">
+            <a class="button button--secondary"
+               href="/sejour?id=<?= View::e($idEpisodeOfCare) ?>">Dossier du séjour</a>
+        </p>
+    </div>
 
     <?php if ($savedCarePlanId !== null) : ?>
         <p class="b3-success" role="status">Ordonnance n° <?= View::e($savedCarePlanId) ?> enregistrée.</p>
@@ -257,7 +259,8 @@ $medicationParams = [
             <?php foreach ($pendingCarePlans as $carePlan) : ?>
                 <div class="b3-pending">
                     <p class="b3-pending-header">
-                        &#9998; Ordonnance n° <?= View::e($carePlan['idCarePlan']) ?>
+                        <?= View::render('components/status_badge', ['status' => 'to_validate']) ?>
+                        Ordonnance n° <?= View::e($carePlan['idCarePlan']) ?>
                         du <?= View::e($carePlan['recordedAt']) ?>
                         · <?= View::e($carePlan['mode']) ?> · par <?= View::e($carePlan['prescriber']) ?>
                     </p>
