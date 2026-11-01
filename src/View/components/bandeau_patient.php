@@ -5,6 +5,8 @@ use Aura\Core\View;
 /**
  * Bandeau identité + allergies (RG2). À inclure en tête de TOUTE page liée à un séjour
  * (dossier, prescriptions, agenda) : View::render('components/bandeau_patient', ['bandeau' => …]).
+ * Il reste collé en haut de l'écran (position: sticky) et ne se replie jamais : les allergies
+ * doivent rester visibles pendant toute la consultation du séjour.
  *
  * @var array<string, mixed> $bandeau vue-modèle de DossierPatientService::presenterBandeau()
  */
@@ -38,12 +40,27 @@ use Aura\Core\View;
                 admission le <?= View::e($bandeau['dateAdmission'] ?? '?') ?>
             </dd>
         </div>
+        <div>
+            <dt>Poids</dt>
+            <dd><?= View::e($bandeau['poids'] ?? 'non renseigné') ?></dd>
+        </div>
+        <div>
+            <dt>Taille</dt>
+            <dd><?= View::e($bandeau['taille'] ?? 'non renseignée') ?></dd>
+        </div>
     </dl>
     <div class="allergies">
         <?php if ($bandeau['allergies'] === []) : ?>
-            <span class="aucune-allergie">Aucune allergie connue</span>
+            <?php /* État distinct, pas un bandeau vide : « aucune connue » n'est pas « non renseigné ». */ ?>
+            <span class="aucune-allergie">
+                <?= View::render('components/icon', ['name' => 'circle-check']) ?>
+                Aucune allergie connue
+            </span>
         <?php else : ?>
-            <span class="alerte">Allergies :</span>
+            <span class="alerte">
+                <?= View::render('components/icon', ['name' => 'triangle-alert']) ?>
+                Allergies :
+            </span>
             <ul>
                 <?php foreach ($bandeau['allergies'] as $allergie) : ?>
                     <li>

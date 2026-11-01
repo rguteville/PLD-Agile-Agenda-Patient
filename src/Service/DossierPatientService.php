@@ -90,6 +90,9 @@ final class DossierPatientService
                 ? trim($sejour->getNumSejour())
                 : (string) $sejour->getIdSejour(),
             'dateAdmission' => $sejour->getDateAdmission()->format('d/m/Y H:i'),
+            // Mesures à l'admission, affichées dans le bandeau (dosage, matériel) ; null = non renseigné.
+            'poids' => self::mesure($sejour->getPoids(), 'kg'),
+            'taille' => self::mesure($sejour->getTaille(), 'cm'),
             'allergies' => array_values(array_map(
                 static fn (Allergie $a): array => [
                     'libelle' => trim($a->getSubstance()),

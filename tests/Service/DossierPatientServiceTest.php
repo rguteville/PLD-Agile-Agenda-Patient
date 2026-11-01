@@ -59,7 +59,22 @@ final class DossierPatientServiceTest extends TestCase
         self::assertNull($bandeau['ipp'], 'un IPP absent doit rester null, pas devenir une chaîne vide');
         self::assertSame('2026-000009', $bandeau['numeroSejour']);
         self::assertSame('13/10/2026 09:30', $bandeau['dateAdmission']);
+        self::assertNull($bandeau['poids'], 'mesure absente = null, la vue affiche « non renseigné »');
+        self::assertNull($bandeau['taille']);
         self::assertSame([], $bandeau['allergies'], 'liste vide = « Aucune allergie connue » dans la vue');
+    }
+
+    public function testBandeauAffichePoidsEtTailleDuSejour(): void
+    {
+        $bandeau = DossierPatientService::presenterBandeau(
+            $this->patient(ipp: null),
+            $this->sejour(poids: 62.5, taille: 164.0),
+            [],
+            new DateTimeImmutable(self::AUJOURDHUI)
+        );
+
+        self::assertSame('62,5 kg', $bandeau['poids']);
+        self::assertSame('164 cm', $bandeau['taille']);
     }
 
     public function testBandeauAvecIppEtAllergies(): void
