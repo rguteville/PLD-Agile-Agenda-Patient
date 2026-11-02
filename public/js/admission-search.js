@@ -17,7 +17,6 @@
         return;
     }
     const ippInput = form.querySelector('input[name="ipp"]');
-    const ippButton = document.getElementById('ipp-rechercher');
     const ippStatus = document.getElementById('ipp-statut');
     const searchInput = form.querySelector('input[name="patientSearch"]');
     const searchStatus = document.getElementById('patient-search-status');
@@ -374,9 +373,6 @@
         }
         onKeydown(event);
     });
-    if (ippButton) {
-        ippButton.addEventListener('click', () => search(ippInput.value, ippInput, ippStatus));
-    }
     [searchInput, ippInput].forEach(input => {
         input.addEventListener('blur', () => {
             // Laisser le mousedown d'une option s'exécuter avant de fermer.

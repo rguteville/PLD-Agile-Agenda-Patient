@@ -83,11 +83,11 @@ class RecordSectionService
             return [
                 'nom' => [
                     'entity' => 'identity', 'label' => 'Nom', 'type' => 'text', 'max' => 50, 'required' => true,
-                    'placeholder' => 'Ex. : DUPONT',
+                    'placeholder' => 'DUPONT',
                 ],
                 'prenom' => [
                     'entity' => 'identity', 'label' => 'Prénom', 'type' => 'text', 'max' => 50, 'required' => true,
-                    'placeholder' => 'Ex. : Marie',
+                    'placeholder' => 'Marie',
                 ],
                 'dateNaissance' => ['entity' => 'identity', 'label' => 'Date de naissance', 'type' => 'date'],
                 'sexe' => [
@@ -96,16 +96,16 @@ class RecordSectionService
                 'ipp' => ['entity' => 'identity',
                 'label' => 'IPP',
                 'type' => 'text',
-                'placeholder' => 'Ex. : 100000123'],
+                'placeholder' => '100000123'],
                 'telephone' => [
                     'entity' => 'identity',
                     'label' => 'Téléphone',
                     'type' => 'tel',
-                    'placeholder' => 'Ex. : 0612345678',
+                    'placeholder' => '0612345678',
                 ],
                 'email' => [
                     'entity' => 'identity', 'label' => 'E-mail', 'type' => 'email', 'max' => 50,
-                    'placeholder' => 'Ex. : prenom.nom@exemple.fr',
+                    'placeholder' => 'prenom.nom@exemple.fr',
                 ],
                 'idHealthcareService' => [
                     'entity' => 'episode', 'label' => 'Service', 'type' => 'select', 'options' => $services,
@@ -116,14 +116,14 @@ class RecordSectionService
                     'label' => 'Lit',
                     'type' => 'text',
                     'max' => 20,
-                    'placeholder' => 'Ex. : L01',
+                    'placeholder' => 'L01',
                 ],
                 'boxNumber' => [
                     'entity' => 'location',
                     'label' => 'Box',
                     'type' => 'text',
                     'max' => 20,
-                    'placeholder' => 'Ex. : B01',
+                    'placeholder' => 'B01',
                 ],
                 'precautions' => [
                     'entity' => 'episode', 'label' => 'Précautions', 'type' => 'textarea',
@@ -145,10 +145,10 @@ class RecordSectionService
         if ($part === 'measures') {
             $fields['weight'] = [
                 'entity' => 'episode', 'label' => 'Poids à l\'admission (kg)', 'type' => 'number',
-                'placeholder' => 'Ex. : 68,5',
+                'placeholder' => '68,5',
             ];
             $fields['height'] = [
-                'entity' => 'episode', 'label' => 'Taille (cm)', 'type' => 'number', 'placeholder' => 'Ex. : 172',
+                'entity' => 'episode', 'label' => 'Taille (cm)', 'type' => 'number', 'placeholder' => '172',
             ];
         }
         foreach (RecordFields::PATIENT as $field => $spec) {

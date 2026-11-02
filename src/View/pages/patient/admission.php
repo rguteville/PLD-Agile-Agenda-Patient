@@ -62,20 +62,12 @@ $recherche = [
     // Les suggestions s'affichent dans la liste sous les deux champs ; la sélection demande une
     // confirmation, puis la fiche pré-remplit le formulaire (public/js/admission-search.js).
     [
-        'name' => 'recherche-patient',
-        'label' => 'Rechercher un patient existant',
-        'type' => 'heading',
-        'help' => 'Un patient déjà venu dans le service est rattaché à son dossier au lieu d\'être recréé. '
-            . 'Vérifiez la date de naissance et l\'IPP avant de sélectionner un homonyme.',
-    ],
-    [
         'name' => 'ipp',
         'label' => 'IPP (identifiant permanent du patient)',
-        'help' => 'Saisissez l\'IPP pour retrouver un patient. Nouveau patient : laissez vide, '
-            . 'un IPP est attribué automatiquement à l\'admission.',
-        'button' => ['id' => 'ipp-rechercher', 'label' => 'Rechercher'],
+        'help' => 'Recherche automatique dès 6 chiffres. Nouveau patient : laissez vide, un IPP est attribué '
+            . 'à l\'admission.',
         'status' => 'ipp-statut',
-        'placeholder' => 'Ex. : 100000123',
+        'placeholder' => '100000123',
         'attributes' => [
             'inputmode' => 'numeric', 'autocomplete' => 'off',
             'role' => 'combobox', 'aria-autocomplete' => 'list', 'aria-expanded' => 'false',
@@ -88,7 +80,7 @@ $recherche = [
         'help' => 'Au moins 2 lettres ; casse, accents, tirets et ordre des mots indifférents.',
         'status' => 'patient-search-status',
         'listbox' => 'patient-suggestions',
-        'placeholder' => 'Ex. : dupont marie',
+        'placeholder' => 'dupont marie',
         'attributes' => [
             'autocomplete' => 'off', 'maxlength' => '100',
             'role' => 'combobox', 'aria-autocomplete' => 'list', 'aria-expanded' => 'false',
@@ -102,8 +94,8 @@ $recherche = [
 // Colonne de gauche : identité, admission et allergies ; à droite, les sections complémentaires.
 $essentiels = [
     ['name' => 'identite', 'label' => 'Identité', 'type' => 'heading'],
-    ['name' => 'lastname', 'label' => 'Nom', 'required' => true, 'placeholder' => 'Ex. : DUPONT'],
-    ['name' => 'firstname', 'label' => 'Prénom', 'required' => true, 'placeholder' => 'Ex. : Marie'],
+    ['name' => 'lastname', 'label' => 'Nom', 'required' => true, 'placeholder' => 'DUPONT'],
+    ['name' => 'firstname', 'label' => 'Prénom', 'required' => true, 'placeholder' => 'Marie'],
     ['name' => 'birthDate', 'label' => 'Date de naissance', 'type' => 'date'],
     [
         'name' => 'gender',
@@ -142,14 +134,14 @@ $mesures = [
         'name' => 'taille',
         'label' => 'Taille (cm)',
         'type' => 'number',
-        'placeholder' => 'Ex. : 172',
+        'placeholder' => '172',
         'attributes' => ['min' => '0.01', 'max' => '999.99', 'step' => '0.01', 'inputmode' => 'decimal'],
     ],
     [
         'name' => 'poids',
         'label' => 'Poids à l\'admission (kg)',
         'type' => 'number',
-        'placeholder' => 'Ex. : 68,5',
+        'placeholder' => '68,5',
         'attributes' => ['min' => '0.01', 'max' => '999.99', 'step' => '0.01', 'inputmode' => 'decimal'],
     ],
 ];

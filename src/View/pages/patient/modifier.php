@@ -15,9 +15,9 @@ $valeurs = $valeurs ?? [];
 $erreurs = $erreurs ?? [];
 
 $champs = [
-    ['name' => 'lastname', 'label' => 'Nom', 'required' => true, 'placeholder' => 'Ex. : DUPONT'],
-    ['name' => 'firstname', 'label' => 'Prénom', 'required' => true, 'placeholder' => 'Ex. : Marie'],
-    ['name' => 'ipp', 'label' => 'IPP (identifiant permanent du patient)', 'placeholder' => 'Ex. : 100000123'],
+    ['name' => 'lastname', 'label' => 'Nom', 'required' => true, 'placeholder' => 'DUPONT'],
+    ['name' => 'firstname', 'label' => 'Prénom', 'required' => true, 'placeholder' => 'Marie'],
+    ['name' => 'ipp', 'label' => 'IPP (identifiant permanent du patient)', 'placeholder' => '100000123'],
     ['name' => 'birthDate', 'label' => 'Date de naissance', 'type' => 'date'],
     [
         'name' => 'gender',
