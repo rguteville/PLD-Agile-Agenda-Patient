@@ -163,8 +163,8 @@ $valeurLigne = static function (array $row): string {
              visible (repliée) avec « Non renseigné » : l'information est absente, pas cachée. */ ?>
     <h2 class="dossier-subtitle" id="titre-dossier-complet">Dossier complet</h2>
     <?php if ($editable) : ?>
-        <p class="dossier-aide">Chaque valeur se modifie en place : cliquez dessus (ou Entrée au clavier),
-            puis confirmez l'enregistrement. Échap annule.</p>
+        <p class="dossier-aide">Pour modifier une valeur, cliquez sur le crayon qui apparaît au survol
+            (ou Entrée au clavier), corrigez-la puis cliquez sur « Confirmer ». Échap annule.</p>
     <?php endif; ?>
     <div class="dossier-sections" aria-labelledby="titre-dossier-complet"<?= $editable
         ? ' data-inline-edit data-endpoint="/sejour/champ/modifier" data-csrf="' . View::e($csrfToken) . '"'
@@ -197,9 +197,14 @@ $valeurLigne = static function (array $row): string {
                                 ? ' data-options="'
                                     . View::e(json_encode($row['options'], JSON_UNESCAPED_UNICODE)) . '"'
                                 : '' ?>>
+                            <?php /* Crayon visible au survol ou au focus seulement. */ ?>
                             <button type="button" class="inline-edit__value"
                                     aria-label="Modifier : <?= View::e($row['label']) ?>"
-                                    ><?= $valeurLigne($row) ?></button>
+                                    ><span class="inline-edit__text"><?= $valeurLigne($row) ?></span><?=
+                                    View::render('components/icon', [
+                                        'name' => 'pen-line',
+                                        'class' => 'inline-edit__pencil',
+                                    ]) ?></button>
                         </dd>
                     <?php else : ?>
                         <?php /* Valeur collée à la balise : pre-line conserve les retours à la ligne. */ ?>

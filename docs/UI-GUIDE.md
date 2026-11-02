@@ -72,10 +72,10 @@ RG2 antérieure). Produire `unknown` demande une donnée d'évaluation des aller
 | `form` → `sections` | Sections repliables `<details>` des formulaires longs, compteur « n sur m renseignés » | Repliées par défaut, ouvertes si un champ est en erreur (`form-sections.js`). |
 | `status_badge` | Icône + texte + couleur d'un statut | Clés dans `docs/ui.md`. `late` est désormais rouge. |
 | `empty_state` | Écran ou section sans donnée | Titre, explication, action principale à côté quand elle existe. |
-| `.confirm-box` | Confirmation en place (rattachement d'un patient, édition d'un champ) | « Ancienne → nouvelle », Enregistrer / Annuler, `role="group"`, jamais une modale centrée. |
+| `.confirm-box` | Confirmation en place du rattachement d'un patient à l'admission | Texte de confirmation, Confirmer / Annuler, `role="group"`, jamais une modale centrée. |
 | `.patient-banner` | Bandeau orange « Données issues du dossier existant… vérifiez-les » | Avec « Changer de patient ». |
 | `.suggestions` | Liste de suggestions d'une combobox | `role="listbox"`, options `role="option"`, avertissement d'homonymie en tête. |
-| `.inline-edit` | Valeur éditable du dossier (bouton) | Clic ou Entrée → saisie ; Échap annule ; « Enregistré » en `aria-live`. |
+| `.inline-edit` | Valeur éditable du dossier (bouton) | Crayon au survol ou au focus ; clic ou Entrée → le champ remplace la valeur sur place (jamais affichée deux fois) avec un seul bouton « Confirmer » ; Entrée confirme, Échap annule ; « Enregistré » en `aria-live`. |
 
 ## Formulaires
 

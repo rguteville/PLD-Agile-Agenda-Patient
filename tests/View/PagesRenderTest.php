@@ -282,6 +282,9 @@ final class PagesRenderTest extends TestCase
         );
         self::assertStringContainsString('aria-label="Modifier : Score ASA"', $html);
         self::assertSame(2, substr_count($html, 'class="inline-edit__value"'), 'valeur calculée non éditable');
+        // Crayon d'édition dans chaque bouton-valeur, la valeur elle-même dans un span (jamais dupliquée).
+        self::assertSame(2, substr_count($html, 'inline-edit__pencil'));
+        self::assertStringContainsString('<span class="inline-edit__text">ASA &quot;II&quot;</span>', $html);
         self::assertStringContainsString('id="dossier-historique"', $html);
         self::assertStringContainsString('<td>Non &lt;fumeur&gt;</td>', $html);
         self::assertStringContainsString('<small>précision &lt;x&gt;</small>', $html);

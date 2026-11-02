@@ -357,8 +357,8 @@ Scénarios manuels avec les données de démo (`database/test.sql`), serveur lan
    IPP, dernier séjour) ; flèche bas, Entrée, Confirmer → formulaire pré-rempli, bandeau orange « Données issues
    du dossier existant » ; Admettre → aucun doublon dans `Patient`, rattachement visible dans « Historique des
    modifications ». L'IPP `100000001` puis « Rechercher » donne un résultat unique avec la même confirmation.
-3. **Édition en place** : `/sejour?id=1`, cliquer « ATCD médicaux », modifier, Tab, Enregistrer → « Enregistré »
-   et ligne d'historique ; Échap pendant la saisie restaure la valeur. Dans deux onglets, modifier le même champ :
+3. **Édition en place** : `/sejour?id=1`, section « Dossier complet », survoler « ATCD médicaux » (un crayon
+   apparaît), cliquer, modifier, « Confirmer » → « Enregistré » et ligne d'historique ; Échap restaure la valeur. Dans deux onglets, modifier le même champ :
    le second est refusé (valeur modifiée entre-temps, rechargée).
 4. **Allergies** : `/sejour?id=8` → « Aucune allergie connue » (vert) ; `/sejour?id=1` → allergies en rouge dans
    le bandeau ; ajout et retrait depuis la section « Allergies connues ».

@@ -2602,38 +2602,67 @@ h2,
     }
 }
 
-/* ===== AURA-EDIT : édition champ par champ du dossier, confirmation, historique ===== */
+/* ===== AURA-EDIT : édition champ par champ du dossier (crayon au survol, saisie en place, historique) ===== */
+/* L'attribut hidden doit toujours gagner sur un display posé par une classe (sinon la valeur
+   resterait affichée sous le champ de saisie). */
+[hidden] {
+    display: none !important;
+}
+
 .dossier-aide {
     margin: 0 0 var(--sp-3);
     color: var(--fg-muted);
     font-size: var(--fs-1);
 }
 
-/* La <dd> éditable contient du balisage : les blancs du gabarit ne doivent pas s'afficher (pre-line sur le bouton). */
+/* La <dd> éditable contient du balisage : les blancs du gabarit ne doivent pas s'afficher. */
 .dossier-section dd.inline-edit {
     white-space: normal;
 }
 
 .inline-edit__value {
-    display: block;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--sp-2);
     width: 100%;
     min-height: 32px;
     margin: 0;
     padding: var(--sp-1) var(--sp-2);
-    border: 1px dashed transparent;
+    border: 1px solid transparent;
     border-radius: var(--radius);
     background: transparent;
     color: var(--fg);
     font: inherit;
     text-align: left;
-    white-space: pre-line;
-    cursor: text;
+    cursor: pointer;
     transition: background var(--transition), border-color var(--transition);
 }
 
-.inline-edit__value:hover {
+.inline-edit__text {
+    flex: 1 1 auto;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+}
+
+/* Crayon : invisible au repos, visible au survol et au focus clavier. */
+.inline-edit__pencil {
+    flex: 0 0 auto;
+    margin-top: 2px;
+    color: var(--accent);
+    opacity: 0;
+    transition: opacity var(--transition);
+}
+
+.inline-edit__value:hover,
+.inline-edit__value:focus-visible {
     background: var(--accent-soft);
-    border-color: var(--line-strong);
+    border-color: var(--line);
+}
+
+.inline-edit__value:hover .inline-edit__pencil,
+.inline-edit__value:focus-visible .inline-edit__pencil {
+    opacity: 1;
 }
 
 .inline-edit__value:focus-visible {
@@ -2641,36 +2670,47 @@ h2,
     outline-offset: var(--focus-offset);
 }
 
-.inline-edit--editing {
-    background: var(--accent-soft);
-    border-radius: var(--radius);
-    padding: var(--sp-2);
+/* Écrans tactiles (pas de survol) : crayon toujours visible, discret. */
+@media (hover: none) {
+    .inline-edit__pencil {
+        opacity: 0.55;
+    }
+}
+
+/* Saisie en place : le champ prend la place de la valeur, « Confirmer » à côté (dessous si étroit). */
+.inline-edit__editor {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: var(--sp-2);
 }
 
 .inline-edit__input {
-    width: 100%;
+    flex: 1 1 240px;
+    min-width: 0;
     box-sizing: border-box;
     padding: var(--sp-2);
-    border: 1px solid var(--line-strong);
+    border: 2px solid var(--accent);
     border-radius: var(--radius);
     background: var(--bg-raised);
     color: var(--fg);
     font: inherit;
 }
 
-/* .confirm-box (bloc AURA-SEARCH) : même composant que la confirmation de rattachement ; ici dans une <dd>. */
-.inline-edit__confirm {
-    margin: var(--sp-2) 0 0;
+.inline-edit__input:focus {
+    outline: var(--focus-ring);
+    outline-offset: 1px;
 }
 
-.inline-edit__confirm p {
-    white-space: pre-line;
+.inline-edit__confirm-button {
+    flex: 0 0 auto;
 }
 
 .inline-edit__error {
     margin: var(--sp-1) 0 0;
     color: var(--st-alert-fg);
     font-size: var(--fs-1);
+    font-weight: 600;
 }
 
 .inline-edit__status {
