@@ -150,6 +150,7 @@ class PatientDao
         return "CONCAT(' ', REPLACE(REPLACE(COALESCE(" . $column . ", ''), '-', ' '), '\\'', ' '))";
     }
 
+    /** Patient par identifiant interne, champs complémentaires compris ; null s'il n'existe pas. */
     public function findById(int $id): ?Patient
     {
         $stmt = $this->pdo->prepare('SELECT ' . self::columns() . ' FROM Patient WHERE idPatient = :id');
@@ -159,6 +160,7 @@ class PatientDao
         return $r ? $this->mapToEntity($r) : null;
     }
 
+    /** Patient portant cet IPP (unique) ; null s'il n'existe pas. */
     public function findByIpp(string $ipp): ?Patient
     {
         $stmt = $this->pdo->prepare('SELECT ' . self::columns() . ' FROM Patient WHERE ipp = :ipp');
@@ -168,6 +170,7 @@ class PatientDao
         return $r ? $this->mapToEntity($r) : null;
     }
 
+    /** Vrai si un patient porte cet IPP. */
     public function existsByIpp(string $ipp): bool
     {
         $stmt = $this->pdo->prepare('SELECT 1 FROM Patient WHERE ipp = :ipp');

@@ -14,6 +14,12 @@ use Aura\Service\RechercheIppService;
 use InvalidArgumentException;
 use LogicException;
 
+/**
+ * Écrans et endpoints autour du patient : admission (formulaire, création), liste, modification
+ * de l'identité, recherche par IPP (AURA-15) et par nom / prénom, fiche pour pré-remplissage.
+ * Le contrôleur lit la requête, mappe les champs du formulaire vers les clés du domaine, appelle
+ * le service et répond (HTML ou JSON) ; il ne valide rien lui-même.
+ */
 class PatientController
 {
     /**
@@ -258,6 +264,7 @@ class PatientController
         header('Location: ' . $destination, true, 303);
     }
 
+    /** GET /patients/modifier?id=… (AURA-12.2) : formulaire pré-rempli avec l'identité du patient ; 400 / 404 sinon. */
     public function edit(): void
     {
         $service = $this->modificationPatientService();
@@ -282,6 +289,10 @@ class PatientController
         ], []);
     }
 
+    /**
+     * POST /patients/modifier?id=… : enregistre l'identité modifiée puis redirige vers la liste (303) ;
+     * réaffiche le formulaire en 422 avec les erreurs par champ en cas de refus.
+     */
     public function update(): void
     {
         $service = $this->modificationPatientService();

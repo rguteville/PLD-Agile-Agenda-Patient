@@ -16,6 +16,10 @@ use DateTimeImmutable;
 use InvalidArgumentException;
 use LogicException;
 
+/**
+ * Écrans d'un séjour : dossier (bandeau RG2, allergies, dossier complet éditable, prescriptions
+ * validées, historique), ajout / retrait d'allergie (AURA-13.2) et agenda du jour (AURA-24).
+ */
 final class SejourController
 {
     private const RECORD_VIEW = 'sejour/dossier';

@@ -33,6 +33,7 @@ final class RecordController
     {
     }
 
+    /** Traite la requête (voir l'en-tête de classe pour le contrat JSON et les codes HTTP). */
     public function update(): void
     {
         $body = $this->readBody();

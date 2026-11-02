@@ -43,6 +43,7 @@ class SejourDao
         return self::BASE_COLUMNS . ', ' . implode(', ', RecordFields::episodeColumns());
     }
 
+    /** Séjour par identifiant interne, champs complémentaires compris ; null s'il n'existe pas. */
     public function findById(int $id): ?Sejour
     {
         $stmt = $this->pdo->prepare('SELECT ' . self::columns() . ' FROM EpisodeOfCare WHERE idEpisodeOfCare = :id');
@@ -95,6 +96,7 @@ class SejourDao
         return array_map(fn(array $r) => $this->mapToEntity($r), $rows);
     }
 
+    /** Enregistre la date de sortie (clôture du séjour). */
     public function updateSortie(int $idSejour, DateTimeInterface $dateSortie): void
     {
         $stmt = $this->pdo->prepare(
@@ -103,6 +105,7 @@ class SejourDao
         $stmt->execute(['dischargeDate' => $dateSortie->format('Y-m-d H:i:s'), 'id' => $idSejour]);
     }
 
+    /** Change le lit et le box d'un séjour (null = non attribué). */
     public function updateEmplacement(int $idSejour, ?string $numLit, ?string $numBox): void
     {
         $stmt = $this->pdo->prepare(

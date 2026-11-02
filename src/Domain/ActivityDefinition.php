@@ -6,6 +6,7 @@ namespace Aura\Domain;
 
 use DateTimeImmutable;
 
+/** Type de soin du référentiel (table ActivityDefinition, RG6) : identifiant, nom, description. */
 class ActivityDefinition
 {
     public function __construct(
