@@ -71,6 +71,90 @@ class PatientDao
         return array_map(fn(array $r) => $this->mapToEntity($r), $stmt->fetchAll(PDO::FETCH_ASSOC));
     }
 
+    /**
+     * Patients dont chaque mot recherché commence un mot du nom d'usage, du nom de naissance ou du
+     * prénom (PR « admission-recherche-patient »). Les mots sont déjà découpés et nettoyés par
+     * PatientSearchService ; ici ils sont passés en paramètres préparés, jokers échappés.
+     *
+     * Casse et accents : la table est en utf8mb4_unicode_ci (vérifié sur MariaDB 11.8), LIKE et =
+     * ignorent donc les deux. Tirets et apostrophes des noms stockés sont remplacés par des espaces
+     * avant comparaison (« Jean-Pierre » contient le mot « Pierre »). Tri : nom d'usage égal à l'un
+     * des mots d'abord, puis nom, prénom. Avec la date du dernier séjour (admission la plus récente).
+     * Performance : l'expression calculée empêche l'usage d'un index pour le filtre (balayage de la
+     * table Patient, quelques milliers de lignes au plus dans un service) ; les index sur lastName et
+     * firstName servent au tri et à findByIdentite().
+     *
+     * @param list<string> $words mots non vides
+     * @return list<array{patient: Patient, lastAdmission: ?DateTimeImmutable}>
+     */
+    public function searchByWords(array $words, int $limit): array
+    {
+        if ($words === []) {
+            return [];
+        }
+
+        $conditions = [];
+        $exact = [];
+        $params = [];
+        foreach (array_values($words) as $i => $word) {
+            $pattern = '% ' . addcslashes($word, '\\%_') . '%';
+            // Sans émulation des requêtes préparées, chaque paramètre nommé ne sert qu'une fois.
+            $params['ln' . $i] = $pattern;
+            $params['fn' . $i] = $pattern;
+            $params['bn' . $i] = $pattern;
+            $params['ex' . $i] = $word;
+            $conditions[] = sprintf(
+                "(%s LIKE :ln%d ESCAPE '\\\\' OR %s LIKE :fn%d ESCAPE '\\\\' OR %s LIKE :bn%d ESCAPE '\\\\')",
+                self::wordsOf('lastName'),
+                $i,
+                self::wordsOf('firstName'),
+                $i,
+                self::wordsOf('birthLastName'),
+                $i
+            );
+            $exact[] = 'lastName = :ex' . $i;
+        }
+
+        $stmt = $this->pdo->prepare(
+            'SELECT ' . self::columns() . ',
+                    (SELECT MAX(e.admissionDate) FROM EpisodeOfCare e WHERE e.idPatient = Patient.idPatient)
+                        AS lastAdmission
+             FROM Patient
+             WHERE ' . implode(' AND ', $conditions) . '
+             ORDER BY (' . implode(' OR ', $exact) . ') DESC, lastName, firstName, idPatient
+             LIMIT ' . max(1, $limit)
+        );
+        $stmt->execute($params);
+
+        $results = [];
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            $results[] = [
+                'patient' => $this->mapToEntity($r),
+                'lastAdmission' => $r['lastAdmission'] !== null ? new DateTimeImmutable($r['lastAdmission']) : null,
+            ];
+        }
+
+        return $results;
+    }
+
+    /** Date d'admission la plus récente d'un patient (null s'il n'a aucun séjour). */
+    public function lastAdmissionDate(int $idPatient): ?DateTimeImmutable
+    {
+        $stmt = $this->pdo->prepare('SELECT MAX(admissionDate) FROM EpisodeOfCare WHERE idPatient = :idPatient');
+        $stmt->execute(['idPatient' => (string) $idPatient]);
+        $value = $stmt->fetchColumn();
+
+        return is_string($value) && $value !== '' ? new DateTimeImmutable($value) : null;
+    }
+
+    /** Expression SQL : la colonne précédée d'un espace, tirets et apostrophes remplacés par des espaces. */
+    private static function wordsOf(string $column): string
+    {
+        // Apostrophe droite et apostrophe typographique (’), comme le découpage de PatientSearchService::words().
+        return "CONCAT(' ', REPLACE(REPLACE(REPLACE(COALESCE(" . $column . ", ''), '-', ' '), '\\'', ' '), '’', ' '))";
+    }
+
+    /** Patient par identifiant interne, champs complémentaires compris ; null s'il n'existe pas. */
     public function findById(int $id): ?Patient
     {
         $stmt = $this->pdo->prepare('SELECT ' . self::columns() . ' FROM Patient WHERE idPatient = :id');
@@ -80,6 +164,7 @@ class PatientDao
         return $r ? $this->mapToEntity($r) : null;
     }
 
+    /** Patient portant cet IPP (unique) ; null s'il n'existe pas. */
     public function findByIpp(string $ipp): ?Patient
     {
         $stmt = $this->pdo->prepare('SELECT ' . self::columns() . ' FROM Patient WHERE ipp = :ipp');
@@ -89,6 +174,7 @@ class PatientDao
         return $r ? $this->mapToEntity($r) : null;
     }
 
+    /** Vrai si un patient porte cet IPP. */
     public function existsByIpp(string $ipp): bool
     {
         $stmt = $this->pdo->prepare('SELECT 1 FROM Patient WHERE ipp = :ipp');
@@ -204,6 +290,25 @@ class PatientDao
             'UPDATE Patient SET ' . self::assignments(array_keys($details)) . ' WHERE idPatient = :idPatient'
         );
         $stmt->execute(['idPatient' => (string) $idPatient] + $details);
+    }
+
+    /**
+     * Met à jour UN champ seulement si sa valeur en base est encore celle attendue (contrôle de
+     * concurrence optimiste, atomique : la comparaison est faite par l'UPDATE lui-même, <=> traite
+     * NULL). Renvoie false si la ligne n'existe pas ou si la valeur a changé entre-temps.
+     * Le nom de colonne doit appartenir à la liste blanche, sinon LogicException.
+     */
+    public function updateDetailIfUnchanged(int $id, string $column, ?string $new, ?string $expected): bool
+    {
+        if (!isset((RecordFields::PATIENT)[$column])) {
+            throw new LogicException('Colonne non modifiable : ' . $column);
+        }
+        $stmt = $this->pdo->prepare(
+            'UPDATE Patient SET ' . $column . ' = :new WHERE idPatient = :id AND ' . $column . ' <=> :expected'
+        );
+        $stmt->execute(['new' => $new, 'id' => (string) $id, 'expected' => $expected]);
+
+        return $stmt->rowCount() === 1;
     }
 
     /** « col1 = :col1, col2 = :col2 » pour des noms de colonnes issus du catalogue (jamais de la requête). */

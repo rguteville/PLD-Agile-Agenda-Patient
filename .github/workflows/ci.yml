@@ -3,8 +3,9 @@ name: CI
 on:
   push:
     branches: [main]
+  # Toute pull request, quelle que soit sa base : les PR empilées (base = branche précédente) sont
+  # vérifiées comme celles qui visent la branche principale.
   pull_request:
-    branches: [main]
 
 env:
   # À ALIGNER sur la VM de développement (commande `php -v` sur la VM)

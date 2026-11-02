@@ -26,8 +26,14 @@
         button.title = dark ? 'Passer en mode clair' : 'Passer en mode sombre';
     }
 
+    // ?theme=light|dark dans l'URL force le thème pour cette page sans le mémoriser (captures, tests).
+    const forced = new URLSearchParams(window.location.search).get('theme');
+    if (forced === 'dark' || forced === 'light') {
+        root.dataset.theme = forced;
+    }
+
     const saved = stored();
-    if (saved === 'dark' || saved === 'light') {
+    if (forced === null && (saved === 'dark' || saved === 'light')) {
         root.dataset.theme = saved;
     }
 

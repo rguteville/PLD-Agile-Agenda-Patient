@@ -107,6 +107,10 @@ final class DossierPatientService
                 ],
                 $allergies
             )),
+            // 'known' (liste non vide) ou 'none'. L'état 'unknown' (« Allergies non renseignées ») existe
+            // dans le composant mais aucune donnée ne permet encore de le produire : il faudrait une
+            // colonne Patient.allergyStatus renseignée à l'admission (à proposer au responsable BDD).
+            'allergiesStatus' => $allergies === [] ? 'none' : 'known',
         ];
     }
 
@@ -121,6 +125,7 @@ final class DossierPatientService
 
         return [
             'idSejour' => $sejour->getIdSejour(),
+            'idPatient' => $sejour->getIdPatient(),
             'enCours' => $sortie === null,
             'dateSortie' => $sortie?->format('d/m/Y H:i'),
             // Nom du service si le référentiel le connaît, sinon l'identifiant brut (on ne cache rien).

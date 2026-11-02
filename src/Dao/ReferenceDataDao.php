@@ -120,6 +120,7 @@ class ReferenceDataDao
         return $list;
     }
 
+    /** Praticien par identifiant, avec son rôle (libellé, droit de validation RG5) ; null s'il n'existe pas. */
     public function practitioner(string $idPractitioner): ?Practitioner
     {
         $stmt = $this->pdo->prepare(
