@@ -2594,3 +2594,124 @@ h2,
         grid-column: 1 / -1;
     }
 }
+
+/* ===== AURA-EDIT : édition champ par champ du dossier, confirmation, historique ===== */
+.dossier-aide {
+    margin: 0 0 var(--sp-3);
+    color: var(--fg-muted);
+    font-size: var(--fs-1);
+}
+
+.inline-edit__value {
+    display: block;
+    width: 100%;
+    min-height: 32px;
+    margin: 0;
+    padding: var(--sp-1) var(--sp-2);
+    border: 1px dashed transparent;
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--fg);
+    font: inherit;
+    text-align: left;
+    white-space: pre-line;
+    cursor: text;
+    transition: background var(--transition), border-color var(--transition);
+}
+
+.inline-edit__value:hover {
+    background: var(--accent-soft);
+    border-color: var(--line-strong);
+}
+
+.inline-edit__value:focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: var(--focus-offset);
+}
+
+.inline-edit--editing {
+    background: var(--accent-soft);
+    border-radius: var(--radius);
+    padding: var(--sp-2);
+}
+
+.inline-edit__input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: var(--sp-2);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+    color: var(--fg);
+    font: inherit;
+}
+
+.inline-edit__confirm {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-2);
+    margin-top: var(--sp-2);
+    padding: var(--sp-2) var(--sp-3);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+}
+
+.inline-edit__confirm p {
+    flex: 1 1 100%;
+    margin: 0 0 var(--sp-1);
+    white-space: pre-line;
+}
+
+.inline-edit__error {
+    margin: var(--sp-1) 0 0;
+    color: var(--st-alert-fg);
+    font-size: var(--fs-1);
+}
+
+.inline-edit__status {
+    position: fixed;
+    right: var(--sp-4);
+    bottom: var(--sp-4);
+    z-index: 50;
+    margin: 0;
+    padding: var(--sp-2) var(--sp-4);
+    border: 1px solid var(--st-done-line);
+    border-radius: var(--radius);
+    background: var(--st-done-bg);
+    color: var(--st-done-fg);
+    font-weight: 600;
+}
+
+.inline-edit__status--error {
+    border-color: var(--st-alert-line);
+    background: var(--st-alert-bg);
+    color: var(--st-alert-fg);
+}
+
+.dossier-historique__vide {
+    margin: 0;
+    padding: var(--sp-3) var(--sp-4);
+    border-top: 1px solid var(--line);
+    color: var(--fg-muted);
+}
+
+.dossier-historique__table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.dossier-historique__table th,
+.dossier-historique__table td {
+    padding: var(--sp-2) var(--sp-3);
+    border-top: 1px solid var(--line);
+    text-align: left;
+    vertical-align: top;
+    white-space: pre-line;
+}
+
+.dossier-historique__table th {
+    background: var(--bg-muted);
+    font-weight: 600;
+}
