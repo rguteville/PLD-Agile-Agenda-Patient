@@ -19,7 +19,8 @@ class Sejour
         private ?string $idService = null,
         private ?float $poids = null,
         private ?float $taille = null,
-        private ?string $precautions = null
+        private ?string $precautions = null,
+        private array $details = []
     ) {
     }
 
@@ -79,6 +80,23 @@ class Sejour
     public function getPrecautions(): ?string
     {
         return $this->precautions;
+    }
+
+    /**
+     * Champs complémentaires de l'admission (RecordFields::EPISODE) : valeur texte ou null si
+     * non renseigné. Les clés absentes sont traitées comme non renseignées.
+     *
+     * @return array<string, ?string>
+     */
+    public function getDetails(): array
+    {
+        return $this->details;
+    }
+
+    /** Valeur d'un champ complémentaire, null si non renseigné ou inconnu. */
+    public function getDetail(string $field): ?string
+    {
+        return $this->details[$field] ?? null;
     }
 
     public function estEnCours(): bool

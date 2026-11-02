@@ -16,7 +16,8 @@ class Patient
         private ?DateTimeInterface $dateNaissance,
         private ?string $sexe,
         private ?string $telephone = null,
-        private ?string $email = null
+        private ?string $email = null,
+        private array $details = []
     ) {
     }
 
@@ -60,6 +61,23 @@ class Patient
     public function getEmail(): ?string
     {
         return $this->email;
+    }
+
+    /**
+     * Champs complémentaires du dossier (RecordFields::PATIENT) : valeur texte ou null si non
+     * renseigné. Les clés absentes sont traitées comme non renseignées.
+     *
+     * @return array<string, ?string>
+     */
+    public function getDetails(): array
+    {
+        return $this->details;
+    }
+
+    /** Valeur d'un champ complémentaire, null si non renseigné ou inconnu. */
+    public function getDetail(string $field): ?string
+    {
+        return $this->details[$field] ?? null;
     }
 
     /** Patient inscrit « sous X » : identité inconnue. */
