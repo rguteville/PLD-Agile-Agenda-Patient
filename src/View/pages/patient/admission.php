@@ -53,7 +53,7 @@ $champsSection = static function (string $section) use ($champCatalogue): array 
     return $champs;
 };
 
-$essentiels = [
+$recherche = [
     // Recherche d'un patient existant (identitovigilance) : par IPP (AURA-15, prioritaire) ou par
     // nom / prénom (un seul champ : l'ordre des mots est libre, « dupont jean » = « jean dupont »).
     // Les suggestions s'affichent dans la liste sous les deux champs ; la sélection demande une
@@ -90,6 +90,10 @@ $essentiels = [
     ],
     ['name' => 'idPatient', 'type' => 'hidden'],
     ['name' => 'searchMode', 'type' => 'hidden'],
+];
+
+// Colonne de gauche : identité, admission et allergies ; à droite, les sections complémentaires.
+$essentiels = [
     ['name' => 'identite', 'label' => 'Identité', 'type' => 'heading'],
     ['name' => 'lastname', 'label' => 'Nom', 'required' => true],
     ['name' => 'firstname', 'label' => 'Prénom', 'required' => true],
@@ -177,6 +181,7 @@ $remplir = static function (array $champs) use ($valeurs, $erreurs): array {
 
     return $champs;
 };
+$recherche = $remplir($recherche);
 $essentiels = $remplir($essentiels);
 foreach ($sections as &$section) {
     $section['fields'] = $remplir($section['fields']);
@@ -195,6 +200,7 @@ unset($section);
     'title' => "Formulaire d'admission",
     'action' => '/patients/create',
     'submit' => 'Admettre',
+    'lead' => $recherche,
     'fields' => $essentiels,
     'sections' => $sections,
     'error' => $erreurFormulaire,

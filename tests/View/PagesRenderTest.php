@@ -187,6 +187,15 @@ final class PagesRenderTest extends TestCase
 
         self::assertStringContainsString('name="lastname"', $html);
         self::assertStringContainsString('name="admissionReason"', $html);
+        // Deux colonnes : identité → note sur les allergies à gauche, sections à droite, recherche en tête.
+        $gauche = strpos($html, 'form-columns__main');
+        $droite = strpos($html, 'form-columns__more');
+        self::assertNotFalse($gauche);
+        self::assertNotFalse($droite);
+        self::assertLessThan($gauche, strpos($html, 'name="patientSearch"'), 'recherche avant les colonnes');
+        self::assertGreaterThan($gauche, strpos($html, 'name="allergyNote"'));
+        self::assertLessThan($droite, strpos($html, 'name="allergyNote"'), 'note sur les allergies à gauche');
+        self::assertGreaterThan($droite, strpos($html, 'id="section-history"'), 'Antécédents à droite');
         // Recherche d'un patient existant : combobox accessible, liste de suggestions, champs cachés.
         self::assertMatchesRegularExpression('/name="patientSearch"[^>]*role="combobox"/', $html);
         self::assertStringContainsString('aria-controls="patient-suggestions"', $html);

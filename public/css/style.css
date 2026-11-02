@@ -3452,3 +3452,40 @@ form[data-ajax] {
     padding: var(--sp-3);
     color: var(--fg-muted);
 }
+
+/* Admission sur deux colonnes (grand écran) : identité → note sur les allergies à gauche,
+   Antécédents → Administratif complémentaire à droite ; recherche du patient sur toute la largeur. */
+form.form--columns {
+    max-width: 1240px;
+}
+
+form.form--columns .form-heading,
+form.form--columns > .form-row {
+    max-width: 680px;
+}
+
+.form-columns {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0 var(--sp-6);
+    align-items: start;
+}
+
+.form-columns__more .form-section:first-child {
+    margin-top: 0;
+}
+
+.form-columns__more .form-section__body .form-row > * {
+    max-width: none;
+}
+
+@media (min-width: 1100px) {
+    .form-columns {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+
+    /* Les sections commencent à la hauteur du titre « Identité ». */
+    .form-columns__more {
+        padding-top: var(--sp-5);
+    }
+}
