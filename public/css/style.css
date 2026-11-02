@@ -2295,3 +2295,203 @@ h2,
 .table-scroll {
     position: relative;
 }
+
+/* ===== AURA-ADM : champs complets de l'admission et du dossier (sections repliables, aide, listes à cases) ===== */
+.field-help {
+    margin: 0 0 var(--sp-1);
+    font-size: var(--fs-1);
+    color: var(--fg-muted);
+}
+
+.field-help--warning {
+    color: var(--st-late-fg);
+}
+
+.form-row .form-label {
+    display: inline-block;
+    font-weight: 600;
+}
+
+.checkbox-group {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: var(--sp-1) var(--sp-3);
+    padding: var(--sp-2) var(--sp-3);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+}
+
+.form-row .checkbox-group label {
+    grid-column: auto;
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    min-height: 32px;
+    font-weight: 400;
+    cursor: pointer;
+}
+
+.checkbox-group input {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    accent-color: var(--accent);
+}
+
+.form-section {
+    margin: var(--sp-4) 0;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: var(--bg-raised);
+}
+
+.form-section > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-3);
+    min-height: 44px;
+    padding: var(--sp-2) var(--sp-4);
+    cursor: pointer;
+    list-style: none;
+    font-weight: 600;
+}
+
+.form-section > summary::-webkit-details-marker {
+    display: none;
+}
+
+.form-section > summary::before {
+    content: "";
+    flex: 0 0 auto;
+    width: 8px;
+    height: 8px;
+    margin-right: var(--sp-1);
+    border-right: 2px solid var(--fg-muted);
+    border-bottom: 2px solid var(--fg-muted);
+    transform: rotate(-45deg);
+    transition: transform var(--transition);
+}
+
+.form-section[open] > summary::before {
+    transform: rotate(45deg);
+}
+
+.form-section > summary:focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: var(--focus-offset);
+    border-radius: var(--radius-lg);
+}
+
+.form-section__title {
+    flex: 1 1 auto;
+}
+
+.form-section__count {
+    font-size: var(--fs-1);
+    font-weight: 400;
+    color: var(--fg-muted);
+    white-space: nowrap;
+}
+
+.form-section--filled .form-section__count {
+    color: var(--st-done-fg);
+}
+
+.form-section__body {
+    padding: var(--sp-2) var(--sp-4) var(--sp-4);
+    border-top: 1px solid var(--line);
+}
+
+/* Grille des lignes de formulaire (230px | 24px | 1fr) : aide, listes à cases et libellé de groupe à leur place */
+.form-row .field-help,
+.form-row .checkbox-group {
+    grid-column: 3;
+}
+
+.form-row .form-label {
+    grid-column: 1;
+    align-self: start;
+}
+
+.form-row .form-label + .req {
+    grid-column: 2;
+}
+
+.form-row--checkbox-group,
+.form-row--textarea {
+    align-items: start;
+}
+
+@media (max-width: 640px) {
+    .form-row .field-help,
+    .form-row .checkbox-group {
+        grid-column: 1 / -1;
+    }
+}
+
+/* Dossier : sections du dossier complet, « Non renseigné » explicite */
+.dossier-section {
+    margin: var(--sp-3) 0;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: var(--bg-raised);
+}
+
+.dossier-section > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-3);
+    min-height: 44px;
+    padding: var(--sp-2) var(--sp-4);
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.dossier-section > summary:focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: var(--focus-offset);
+}
+
+.dossier-section__count {
+    font-size: var(--fs-1);
+    font-weight: 400;
+    color: var(--fg-muted);
+}
+
+.dossier-section dl {
+    display: grid;
+    grid-template-columns: minmax(180px, 1fr) 2fr;
+    gap: var(--sp-2) var(--sp-4);
+    margin: 0;
+    padding: var(--sp-3) var(--sp-4);
+    border-top: 1px solid var(--line);
+}
+
+.dossier-section dt {
+    color: var(--fg-muted);
+}
+
+.dossier-section dd {
+    margin: 0;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+}
+
+.dossier-section .non-renseigne {
+    color: var(--fg-subtle);
+    font-style: italic;
+}
+
+.dossier-section dd small {
+    display: block;
+    color: var(--fg-subtle);
+}
+
+@media (max-width: 640px) {
+    .dossier-section dl {
+        grid-template-columns: 1fr;
+    }
+}
