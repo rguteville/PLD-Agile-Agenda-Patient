@@ -4,10 +4,19 @@ declare(strict_types=1);
 
 namespace Aura\Core;
 
+/**
+ * Rendu des vues PHP de src/View : un gabarit reçoit ses données en variables locales (extract).
+ * Les vues doivent échapper toute valeur avec e().
+ */
 class View
 {
     private const BASE_PATH = __DIR__ . '/../View/';
 
+    /**
+     * Rend un gabarit (chemin relatif à src/View, sans .php) et renvoie le HTML sans l'afficher.
+     *
+     * @param array<string, mixed> $data variables mises à disposition du gabarit
+     */
     public static function render(string $template, array $data = []): string
     {
         extract($data, EXTR_SKIP);
@@ -30,6 +39,7 @@ class View
         self::page('erreur', ['code' => $code, 'message' => $message], 'AURA - Erreur ' . $code);
     }
 
+    /** Échappe une valeur pour l'HTML (texte et attributs, guillemets compris), en UTF-8. */
     public static function e(mixed $value): string
     {
         return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');

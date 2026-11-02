@@ -1,5 +1,9 @@
 # AURA — système de design de l'IHM
 
+> Document d'origine de la refonte AURA-UI (2026-11-01). Les jetons, règles de couleur et composants ont été
+> complétés le 2026-11-02 par [docs/UI-GUIDE.md](UI-GUIDE.md), qui fait foi en cas de divergence (notamment :
+> police Source Sans 3 vendorisée, base 16 px, **retard = rouge**, orange = avertissement).
+
 Guide pour reprendre ou étendre l'interface sans la casser. Référence visuelle : Philips IntelliSpace
 Critical Care (dense, chronologique, piloté par les statuts), rendue plus calme : typographie, espacements et
 clarté, sans animation décorative ni dégradé.
@@ -26,7 +30,7 @@ clarté, sans animation décorative ni dégradé.
 | Rayons | `--radius` (4 px), `--radius-lg` (6 px) | Petits rayons, bordures de 1 px plutôt que des ombres. |
 | Neutres | `--bg`, `--bg-raised`, `--bg-muted`, `--line`, `--line-strong`, `--fg`, `--fg-muted`, `--fg-subtle` | `--bg-raised` = cartes et tableaux, `--bg-muted` = en-têtes de tableau, champs verrouillés. |
 | Accent | `--accent`, `--accent-hover`, `--accent-soft`, `--accent-fg` | Un seul accent (bleu profond). `--accent-soft` = ligne en cours d'édition, survol. |
-| Statuts | `--st-<statut>-fg / -bg / -line` pour `planned`, `done`, `late`, `validate`, `alert`, `neutral` | Conventions hospitalières : retard = ambre, alerte bloquante (allergie, non fait) = rouge. |
+| Statuts | `--st-<statut>-fg / -bg / -line` pour `planned`, `done`, `late`, `validate`, `alert`, `warn`, `neutral` | Retard et alerte bloquante (allergie, non fait) = rouge ; avertissement = orange (`warn`). |
 | Focus | `--focus-ring`, `--focus-offset` | Anneau visible sur tout élément focalisable (`:focus-visible`). |
 | Transitions | `--transition` (120 ms) | Uniquement en retour d'état (survol, ouverture du menu). Jamais décoratives. |
 
@@ -68,7 +72,7 @@ Classes utilitaires : `.button` (+ `.button--secondary`, `.button--danger`), `.p
 | Clé | Libellé | Icône | Couleur | Origine |
 | --- | --- | --- | --- | --- |
 | `planned` | Prévu | `clock` | bleu-gris | `Appointment.status = PLANIFIE`, heure non dépassée |
-| `late` | En retard | `clock-alert` | ambre | `PLANIFIE` et heure prévue dépassée (**calcul d'affichage**, pas une donnée) |
+| `late` | En retard | `clock-alert` | rouge (ambre avant la PR ui-polish) | `PLANIFIE` et heure prévue dépassée (**calcul d'affichage**, pas une donnée) |
 | `done` | Effectué | `circle-check` | vert | `REALISE` |
 | `not_done` | Non fait | `octagon-x` | rouge | `NON_FAIT` |
 | `cancelled` | Annulé | `circle-x` | gris | `ANNULE` |

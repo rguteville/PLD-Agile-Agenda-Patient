@@ -1,5 +1,6 @@
--- Schéma de la base AURA (V1).
--- Mettez ici les CREATE TABLE du modèle validé (section 8 du dossier de cadrage).
+-- Schéma de la base AURA : structure complète, rejouée sur une base vide (CI, installation neuve).
+-- Modèle validé en section 8 du dossier de cadrage, noms HL7 (voir docs/ARCHITECTURE.md pour le diagramme).
+-- Base existante : les évolutions additives sont dans database/migrations/ (à rejouer dans l'ordre des dates).
 -- La CI charge ce fichier dans une base MariaDB vide : une erreur SQL fait échouer la CI.
 -- Règles : moteur InnoDB, encodage utf8mb4, aucune donnée réelle de patient.
 
