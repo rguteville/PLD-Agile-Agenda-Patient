@@ -25,7 +25,7 @@ use DateTimeImmutable;
  *    avec la valeur actuelle ;
  *  - traçabilité : chaque modification écrit une ligne AuditEvent dans la même transaction.
  */
-final class RecordEditService
+class RecordEditService
 {
     public const ENTITY_PATIENT = 'patient';
     public const ENTITY_EPISODE = 'episode';

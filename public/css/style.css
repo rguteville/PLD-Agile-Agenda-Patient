@@ -2602,6 +2602,11 @@ h2,
     font-size: var(--fs-1);
 }
 
+/* La <dd> éditable contient du balisage : les blancs du gabarit ne doivent pas s'afficher (pre-line sur le bouton). */
+.dossier-section dd.inline-edit {
+    white-space: normal;
+}
+
 .inline-edit__value {
     display: block;
     width: 100%;
@@ -2646,21 +2651,12 @@ h2,
     font: inherit;
 }
 
+/* .confirm-box (bloc AURA-SEARCH) : même composant que la confirmation de rattachement ; ici dans une <dd>. */
 .inline-edit__confirm {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--sp-2);
-    margin-top: var(--sp-2);
-    padding: var(--sp-2) var(--sp-3);
-    border: 1px solid var(--line-strong);
-    border-radius: var(--radius);
-    background: var(--bg-raised);
+    margin: var(--sp-2) 0 0;
 }
 
 .inline-edit__confirm p {
-    flex: 1 1 100%;
-    margin: 0 0 var(--sp-1);
     white-space: pre-line;
 }
 

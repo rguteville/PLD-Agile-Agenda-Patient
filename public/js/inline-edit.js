@@ -212,7 +212,8 @@
     function showConfirmation(cell, input, oldRaw, newRaw) {
         cell.querySelectorAll('.inline-edit__confirm').forEach(el => el.remove());
         const box = document.createElement('div');
-        box.className = 'inline-edit__confirm';
+        // Même composant visuel que la confirmation de rattachement de l'admission (.confirm-box).
+        box.className = 'confirm-box inline-edit__confirm';
         box.setAttribute('role', 'group');
         box.setAttribute('aria-label', 'Confirmer la modification');
 
