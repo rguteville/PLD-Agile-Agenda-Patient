@@ -45,21 +45,42 @@ if (PHP_SAPI === 'cli-server' && is_file(__DIR__ . $path)) {
 // qui l'utilisent peuvent lever ConfigurationException, les autres fonctionnent
 // sans config/config.php.
 try {
-    //Page par défaut
+    // Listes de l'admission lues en base (service hospitalier, allergènes du référentiel).
+    // Sans config.php ni base, la page d'accueil reste affichable : listes vides, le reste du
+    // formulaire fonctionne (la saisie sera refusée à l'envoi, qui a besoin de la base).
+    $referentielsAdmission = static function (): array {
+        try {
+            $pdo = Database::get();
+
+            return [
+                'services' => (new ReferenceDataDao($pdo))->healthcareServices(),
+                'substances' => DossierPatientService::availableSubstances((new SubstanceDao($pdo))->findAll(), []),
+            ];
+        } catch (ConfigurationException | \PDOException) {
+            // Base absente, injoignable ou pas encore migrée : l'accueil reste affichable sans les listes.
+            return [];
+        }
+    };
+
+    //Page par défaut : formulaire d'admission
     if ($path === '/') {
-        View::page('patient/admission', [], 'AURA - Admission', PatientController::SCRIPTS_ADMISSION);
+        (new PatientController(referentiels: $referentielsAdmission()))->showAdmissionForm();
         exit;
     }
 
-    // AURA-10.4 : l'admission écrit en base (patient + séjour) ; connexion ouverte pour cette route.
-    $admettrePatient = static function (): void {
+    // AURA-10.4 : l'admission écrit en base (patient + séjour + allergies) ; connexion ouverte pour cette route.
+    $admettrePatient = static function () use ($referentielsAdmission): void {
         $pdo = Database::get();
-        $controller = new PatientController(new AdmissionService(
-            null,
-            new PatientDao($pdo),
-            new SejourService(new SejourDao($pdo)),
-            new Transaction($pdo)
-        ));
+        $controller = new PatientController(
+            new AdmissionService(
+                null,
+                new PatientDao($pdo),
+                new SejourService(new SejourDao($pdo)),
+                new Transaction($pdo),
+                new AllergieDao($pdo)
+            ),
+            referentiels: $referentielsAdmission()
+        );
         $controller->create();
     };
 
@@ -73,7 +94,8 @@ try {
             new PatientDao($pdo),
             new AllergieDao($pdo),
             new SubstanceDao($pdo),
-            new DateTimeImmutable('today')
+            new DateTimeImmutable('today'),
+            new ReferenceDataDao($pdo)
         );
 
         return new SejourController(

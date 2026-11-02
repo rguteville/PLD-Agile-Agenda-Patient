@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace Aura\Service;
 
+use Aura\Dao\AllergieDao;
 use Aura\Dao\PatientDao;
 use Aura\Dao\Transaction;
+use Aura\Domain\Allergie;
 use Aura\Domain\Patient;
+use Aura\Domain\RecordFields;
 use Aura\Domain\Sejour;
 use DateTimeImmutable;
 use InvalidArgumentException;
@@ -19,6 +22,10 @@ use LogicException;
  * à la base, aucune dépendance PDO, aucune sortie HTTP.
  * AURA-10.4 : admettre() enregistre le patient (ou le retrouve par son IPP) et
  * ouvre son séjour (numéro généré, AURA-10.3) dans une seule transaction.
+ * PR « admission-champs-complets » : les champs facultatifs du catalogue RecordFields
+ * (antécédents, histoire de la maladie, scores, administratif), le service hospitalier et
+ * les allergies choisies dans le référentiel sont validés et enregistrés dans la même
+ * transaction. Leur règle de validation vit dans FieldValidationService.
  */
 class AdmissionService
 {
@@ -37,18 +44,23 @@ class AdmissionService
     /** Longueur maximale des précautions, en caractères (colonne Sejour.precautions VARCHAR(500)). */
     public const PRECAUTIONS_LONGUEUR_MAX = 500;
 
+    private FieldValidationService $fields;
+
     /**
      * @param DateTimeImmutable|null $aujourdhui date de référence (injectable pour les tests)
      * @param PatientDao|null $patientDao accès aux patients, requis par admettre() seulement
      * @param SejourService|null $sejourService ouverture du séjour, requis par admettre() seulement
      * @param Transaction|null $transaction patient + séjour validés ensemble, requis par admettre() seulement
+     * @param AllergieDao|null $allergieDao enregistrement des allergies choisies à l'admission (facultatif)
      */
     public function __construct(
         private ?DateTimeImmutable $aujourdhui = null,
         private ?PatientDao $patientDao = null,
         private ?SejourService $sejourService = null,
-        private ?Transaction $transaction = null
+        private ?Transaction $transaction = null,
+        private ?AllergieDao $allergieDao = null
     ) {
+        $this->fields = new FieldValidationService($aujourdhui);
     }
 
     /**
@@ -60,42 +72,115 @@ class AdmissionService
      * Taille, poids et précautions sont des mesures du séjour (AURA-10.1) : elles sont
      * enregistrées sur le séjour ouvert, pas sur le patient.
      *
+     * Patient déjà connu (retrouvé par son IPP) : son identité n'est pas modifiée, mais les
+     * champs complémentaires saisis non vides complètent son dossier (les vides ne l'effacent
+     * pas). Les allergènes choisis qu'il n'a pas encore sont ajoutés, les autres sont ignorés.
+     *
      * @param array<string, mixed> $donnees clés du domaine (voir valider())
+     * @param array<string, array<string, string>> $referentiels voir valider()
      * @return Sejour le séjour ouvert, avec son identifiant et son numéro
      * @throws InvalidArgumentException données invalides ou admission refusée (message affichable)
      * @throws LogicException si le service a été construit sans accès à la base
      */
-    public function admettre(array $donnees): Sejour
+    public function admettre(array $donnees, array $referentiels = []): Sejour
     {
         if ($this->patientDao === null || $this->sejourService === null || $this->transaction === null) {
             throw new LogicException('AdmissionService::admettre() requiert PatientDao, SejourService et Transaction.');
         }
 
-        $erreurs = $this->valider($donnees);
+        $erreurs = $this->valider($donnees, $referentiels);
         if ($erreurs !== []) {
             throw new InvalidArgumentException(implode(' ', $erreurs));
         }
 
-        $patient = $this->construirePatient($donnees);
+        $patientDetails = $this->fields->normalize(RecordFields::PATIENT, $donnees);
+        $patient = $this->construirePatient($donnees, $patientDetails);
         $poids = $this->mesure($donnees['poids'] ?? null);
         $taille = $this->mesure($donnees['taille'] ?? null);
         $precautions = $this->precautions($donnees['precautions'] ?? null);
+        $idService = $this->texte($donnees['idService'] ?? null);
+        $episodeDetails = $this->fields->normalize(RecordFields::EPISODE, $donnees);
+        $allergies = $this->allergenes($donnees['allergies'] ?? null);
+        if ($allergies !== [] && $this->allergieDao === null) {
+            throw new LogicException(
+                'AdmissionService::admettre() requiert AllergieDao pour enregistrer des allergies.'
+            );
+        }
         $patientDao = $this->patientDao;
         $sejourService = $this->sejourService;
+        $allergieDao = $this->allergieDao;
 
         return $this->transaction->run(
-            function () use ($patient, $patientDao, $sejourService, $poids, $taille, $precautions): Sejour {
+            function () use (
+                $patient,
+                $patientDao,
+                $sejourService,
+                $allergieDao,
+                $poids,
+                $taille,
+                $precautions,
+                $idService,
+                $patientDetails,
+                $episodeDetails,
+                $allergies
+            ): Sejour {
                 $existant = $patient->getIpp() !== null ? $patientDao->findByIpp($patient->getIpp()) : null;
-                $idPatient = $existant?->getIdPatient() ?? $patientDao->insert($patient);
+                if ($existant !== null) {
+                    $idPatient = (int) $existant->getIdPatient();
+                    $patientDao->updateDetails(
+                        $idPatient,
+                        array_filter($patientDetails, static fn (?string $v): bool => $v !== null)
+                    );
+                } else {
+                    $idPatient = $patientDao->insert($patient);
+                }
 
-                return $sejourService->ouvrirSejour(
+                $sejour = $sejourService->ouvrirSejour(
                     $idPatient,
                     poids: $poids,
                     taille: $taille,
-                    precautions: $precautions
+                    precautions: $precautions,
+                    idService: $idService !== '' ? $idService : null,
+                    details: $episodeDetails
                 );
+
+                if ($allergies !== [] && $allergieDao !== null) {
+                    $connues = array_map(
+                        static fn (Allergie $a): string => $a->getIdAllergene(),
+                        $allergieDao->findByPatient($idPatient)
+                    );
+                    foreach ($allergies as $idSubstance) {
+                        if (!in_array($idSubstance, $connues, true)) {
+                            $allergieDao->insert(new Allergie(null, $idPatient, $idSubstance, ''));
+                        }
+                    }
+                }
+
+                return $sejour;
             }
         );
+    }
+
+    /**
+     * Identifiants d'allergènes choisis (liste à cases), dédoublonnés, sans valeur vide ni
+     * non textuelle. Une valeur scalaire unique est acceptée (formulaire sans JavaScript).
+     *
+     * @return list<string>
+     */
+    private function allergenes(mixed $valeur): array
+    {
+        if ($valeur === null || $valeur === '') {
+            return [];
+        }
+        $liste = is_array($valeur) ? $valeur : [$valeur];
+        $ids = [];
+        foreach ($liste as $id) {
+            if (is_string($id) && trim($id) !== '') {
+                $ids[] = trim($id);
+            }
+        }
+
+        return array_values(array_unique($ids));
     }
 
     /**
@@ -121,8 +206,9 @@ class AdmissionService
      * Construit l'entité à partir de données validées (champs vides = null).
      *
      * @param array<string, mixed> $donnees
+     * @param array<string, ?string> $details champs complémentaires normalisés (RecordFields::PATIENT)
      */
-    private function construirePatient(array $donnees): Patient
+    private function construirePatient(array $donnees, array $details = []): Patient
     {
         $ipp = $this->texte($donnees['ipp'] ?? null);
         $dateNaissance = $this->texte($donnees['dateNaissance'] ?? null);
@@ -136,7 +222,8 @@ class AdmissionService
             dateNaissance: $dateNaissance !== ''
                 ? DateTimeImmutable::createFromFormat('!' . self::FORMAT_DATE, $dateNaissance) ?: null
                 : null,
-            sexe: $sexe !== '' ? $sexe : null
+            sexe: $sexe !== '' ? $sexe : null,
+            details: $details
         );
     }
 
@@ -185,15 +272,38 @@ class AdmissionService
      * Valide les données d'admission (RG1 : nom et prénom obligatoires, IPP facultatif).
      *
      * Clés attendues (celles du domaine) : nom, prenom, ipp, dateNaissance, sexe,
-     * taille, poids, precautions. Une clé absente est traitée comme vide.
-     * Les messages ne reprennent jamais la valeur saisie (données de santé).
+     * taille, poids, precautions, idService, allergies (liste d'identifiants d'allergènes)
+     * et tous les champs facultatifs de RecordFields::PATIENT et ::EPISODE. Une clé absente
+     * est traitée comme vide. Les messages ne reprennent jamais la valeur saisie (données de santé).
      *
      * @param array<string, mixed> $donnees
+     * @param array<string, array<string, string>> $referentiels listes autorisées, lues en base par
+     *        l'appelant : 'services' (idHealthcareService => nom) et 'substances' (idSubstance => libellé).
+     *        Une liste absente désactive le contrôle d'appartenance correspondant (tests unitaires).
      * @return array<string, string> erreurs indexées par champ ; [] si les données sont valides
      */
-    public function valider(array $donnees): array
+    public function valider(array $donnees, array $referentiels = []): array
     {
         $erreurs = $this->validerPatientIdentite($donnees);
+        $erreurs += $this->fields->validate(RecordFields::PATIENT, $donnees);
+        $erreurs += $this->fields->validate(RecordFields::EPISODE, $donnees);
+
+        $idService = $this->texte($donnees['idService'] ?? null);
+        if ($idService !== '' && isset($referentiels['services']) && !isset($referentiels['services'][$idService])) {
+            $erreurs['idService'] = 'Le service hospitalier choisi est inconnu.';
+        }
+
+        $allergies = $donnees['allergies'] ?? null;
+        if ($allergies !== null && $allergies !== '' && !is_array($allergies) && !is_string($allergies)) {
+            $erreurs['allergies'] = 'La liste des allergènes est invalide.';
+        } elseif (isset($referentiels['substances'])) {
+            foreach ($this->allergenes($allergies) as $idSubstance) {
+                if (!isset($referentiels['substances'][$idSubstance])) {
+                    $erreurs['allergies'] = 'Un allergène choisi est inconnu du référentiel.';
+                    break;
+                }
+            }
+        }
 
         $taille = $this->texte($donnees['taille'] ?? null);
         if ($taille !== '' && !$this->estStrictementPositif($taille)) {

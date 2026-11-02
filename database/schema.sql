@@ -33,7 +33,32 @@ CREATE TABLE Patient( -- Patient
     deceased BOOLEAN,
     generalPractitioner VARCHAR(100),
     address VARCHAR(100),
-    bloodType VARCHAR(3)
+    bloodType VARCHAR(3),
+    -- Champs complémentaires du dossier patient (PR « admission-champs-complets », 2026-11-02),
+    -- tous facultatifs : identité de naissance, INS, personne de confiance, DMP, directives
+    -- anticipées, note libre sur les allergies, antécédents (ATCD) en texte libre.
+    -- Stables au fil des séjours : ils vivent sur Patient, pas sur EpisodeOfCare.
+    birthLastName VARCHAR(50) NULL,
+    birthFirstName VARCHAR(50) NULL,
+    insNumber VARCHAR(20) NULL,
+    trustedPersonName VARCHAR(100) NULL,
+    trustedPersonPhone VARCHAR(20) NULL,
+    trustedPersonEmail VARCHAR(100) NULL,
+    dmpIdentifier VARCHAR(100) NULL,
+    advanceDirectives TEXT NULL,
+    allergyNote TEXT NULL,
+    medicalHistory TEXT NULL,
+    surgicalHistory TEXT NULL,
+    obstetricHistory TEXT NULL,
+    transfusionHistory TEXT NULL,
+    vaccinationHistory TEXT NULL,
+    anestheticHistory TEXT NULL,
+    toxicHistory TEXT NULL,
+    familySocialHistory TEXT NULL,
+    lifestyle TEXT NULL,
+    foreignTravel TEXT NULL,
+    comorbidities TEXT NULL,
+    currentTreatment TEXT NULL
 );
 
 CREATE TABLE HealthcareService( -- Service Hospitalier
@@ -59,6 +84,27 @@ CREATE TABLE EpisodeOfCare( -- Séjour
     weight DECIMAL(5,2) NULL,
     height DECIMAL(5,2) NULL,
     precautions VARCHAR(500) NULL,
+    -- Champs complémentaires de l'admission (PR « admission-champs-complets », 2026-11-02), tous
+    -- facultatifs et propres à l'hospitalisation : statut spécial, plan blanc, histoire de la maladie
+    -- (5 zones), scores à l'admission (valeurs contrôlées par Aura\Domain\ClinicalScales), chirurgie.
+    specialStatus VARCHAR(100) NULL,
+    whitePlan TEXT NULL,
+    diseaseHistory1 TEXT NULL,
+    diseaseHistory2 TEXT NULL,
+    diseaseHistory3 TEXT NULL,
+    diseaseHistory4 TEXT NULL,
+    diseaseHistory5 TEXT NULL,
+    asaScore VARCHAR(5) NULL,
+    nyhaClass VARCHAR(5) NULL,
+    mcCabeScore VARCHAR(5) NULL,
+    knausScore VARCHAR(5) NULL,
+    girScore VARCHAR(5) NULL,
+    intermacsProfile VARCHAR(5) NULL,
+    intubationCriteria TEXT NULL,
+    surgeryDate DATE NULL,
+    materialLeftInPlace TEXT NULL,
+    removableProstheses VARCHAR(200) NULL,
+    completedBy VARCHAR(100) NULL,
 
     CONSTRAINT fk_patient_episode FOREIGN KEY (idPatient) REFERENCES Patient(idPatient) ON DELETE RESTRICT,
     CONSTRAINT fk_healthcareservice_episode FOREIGN KEY (idHealthcareService) REFERENCES HealthcareService(idHealthcareService) ON DELETE RESTRICT

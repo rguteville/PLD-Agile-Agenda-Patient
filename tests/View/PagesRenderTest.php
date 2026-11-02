@@ -132,6 +132,100 @@ final class PagesRenderTest extends TestCase
         self::assertStringContainsString('badge--planned', $html, 'statut « En cours »');
     }
 
+    /** Dossier complet : sections présentes même vides, « Non renseigné » explicite, valeurs échappées. */
+    public function testDossierAfficheLesSectionsDuDossierComplet(): void
+    {
+        $html = View::render('pages/sejour/dossier', [
+            'bandeau' => ComponentsRenderTest::bandeau(),
+            'sejour' => [
+                'enCours' => true, 'dateSortie' => null, 'service' => null, 'motifAdmission' => null, 'lit' => null,
+                'box' => null, 'precautions' => null, 'telephone' => null, 'email' => null,
+            ],
+            'idSejour' => 1,
+            'prescriptions' => [],
+            'doctors' => [],
+            'allergies' => [],
+            'substances' => [],
+            'criticalities' => [],
+            'sections' => [
+                ['id' => 'history', 'title' => 'Antécédents', 'filled' => 1, 'total' => 2, 'rows' => [
+                    ['entity' => 'patient', 'field' => 'medicalHistory', 'label' => 'ATCD médicaux',
+                        'type' => 'textarea', 'options' => null, 'computed' => false, 'help' => null,
+                        'raw' => "HTA <b>\nDiabète", 'value' => "HTA <b>\nDiabète"],
+                    ['entity' => 'patient', 'field' => 'lifestyle', 'label' => 'Mode de vie',
+                        'type' => 'textarea', 'options' => null, 'computed' => false, 'help' => null,
+                        'raw' => null, 'value' => null],
+                ]],
+                ['id' => 'disease', 'title' => 'Histoire de la maladie', 'filled' => 0, 'total' => 1, 'rows' => [
+                    ['entity' => 'episode', 'field' => 'bmi', 'label' => 'IMC', 'type' => 'computed',
+                        'options' => null, 'computed' => true, 'help' => 'Non calculable : taille manquante.',
+                        'raw' => null, 'value' => null],
+                ]],
+            ],
+        ]);
+
+        self::assertStringContainsString('id="dossier-history" open', $html, 'section renseignée ouverte');
+        self::assertStringContainsString('id="dossier-disease"', $html, 'section vide toujours présente');
+        self::assertStringNotContainsString('id="dossier-disease" open', $html, 'section vide repliée');
+        self::assertMatchesRegularExpression('/1 sur 2\s+renseigné/', $html);
+        self::assertStringContainsString("HTA &lt;b&gt;\nDiabète", $html);
+        self::assertStringContainsString('<span class="non-renseigne">Non renseigné</span>', $html);
+        self::assertStringContainsString('<span class="non-renseigne">Non calculable</span>', $html);
+        self::assertStringContainsString('<small>Non calculable : taille manquante.</small>', $html);
+        self::assertMatchesRegularExpression('/data-entity="patient"\s+data-field="medicalHistory"/', $html);
+    }
+
+    /** Formulaire d'admission : essentiels visibles, sections repliées avec compteur, référentiels. */
+    public function testAdmissionAffichLesSectionsRepliesEtLesReferentiels(): void
+    {
+        $html = View::render('pages/patient/admission', [
+            'referentiels' => [
+                'services' => ['SRV01' => 'Réa <1>'],
+                'substances' => ['ALG01' => 'Pénicilline'],
+            ],
+        ]);
+
+        self::assertStringContainsString('name="lastname"', $html);
+        self::assertStringContainsString('name="admissionReason"', $html);
+        self::assertStringContainsString('<option value="SRV01"', $html);
+        self::assertStringContainsString('Réa &lt;1&gt;', $html);
+        self::assertStringContainsString('name="allergies[]" value="ALG01"', $html);
+        foreach (['history', 'disease', 'scores', 'measures', 'admin'] as $section) {
+            self::assertMatchesRegularExpression('/id="section-' . $section . '"\s+data-form-section/', $html);
+        }
+        self::assertStringNotContainsString('data-form-section open', $html, 'sections repliées par défaut');
+        self::assertStringContainsString('0 sur 12', $html, 'compteur des antécédents');
+        self::assertStringContainsString('name="asaScore"', $html);
+        self::assertStringContainsString('ASA III – maladie systémique sévère', $html);
+        self::assertStringContainsString('À remplir par le médecin en charge uniquement en cas de plan blanc.', $html);
+    }
+
+    public function testAdmissionApresRefusOuvreLaSectionEnErreurEtRessaisitLesValeurs(): void
+    {
+        $html = View::render('pages/patient/admission', [
+            'valeurs' => [
+                'lastname' => 'Durand', 'asaScore' => 'III', 'allergies' => ['ALG01'], 'medicalHistory' => 'HTA',
+            ],
+            'erreurs' => ['girScore' => 'Hors échelle'],
+            'referentiels' => ['services' => [], 'substances' => ['ALG01' => 'Pénicilline', 'ALG02' => 'Latex']],
+        ]);
+
+        self::assertStringContainsString('id="section-scores"', $html);
+        self::assertSame(1, substr_count($html, 'data-form-section open'), 'seule la section en erreur est ouverte');
+        self::assertStringContainsString('1 sur 12', $html, 'compteur des antécédents tient compte de la ressaisie');
+        self::assertStringContainsString('role="alert">Hors échelle</p>', $html);
+        self::assertMatchesRegularExpression('/value="ALG01"\s+checked/', $html);
+        self::assertStringContainsString('Référentiel indisponible', $html, 'liste des services vide');
+    }
+
+    public function testAdmissionSansBaseResteAffichable(): void
+    {
+        $html = View::render('pages/patient/admission', []);
+
+        self::assertStringContainsString('Référentiel des allergènes indisponible', $html);
+        self::assertStringContainsString('name="lastname"', $html);
+    }
+
     public function testListeDesPatientsVideEtAvecRecherche(): void
     {
         $vide = View::render('pages/patient/list', ['patients' => [], 'recherche' => 'zz<q>']);

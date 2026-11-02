@@ -14,8 +14,23 @@ use Aura\Core\View;
  * @var array<string, string> $substances allergènes du référentiel non encore enregistrés, id => libellé
  * @var list<string> $criticalities
  * @var ?string $allergyError message d'un ajout ou d'un retrait refusé, null sinon
+ * @var list<array<string, mixed>> $sections dossier complet, vue-modèle de DossierPatientService::presentSections()
  */
 $allergyError = $allergyError ?? null;
+$sections = $sections ?? [];
+// Contenu HTML (échappé) d'une ligne du dossier complet : valeur, ou état explicite si absente.
+$valeurLigne = static function (array $row): string {
+    if ($row['value'] !== null) {
+        $html = View::e($row['value']);
+    } else {
+        $html = '<span class="non-renseigne">' . ($row['computed'] ? 'Non calculable' : 'Non renseigné') . '</span>';
+    }
+    if ($row['computed'] && $row['help'] !== null) {
+        $html .= ' <small>' . View::e($row['help']) . '</small>';
+    }
+
+    return $html;
+};
 ?>
 <?= View::render('components/bandeau_patient', ['bandeau' => $bandeau]) ?>
 
@@ -47,14 +62,12 @@ $allergyError = $allergyError ?? null;
         <dd><?= View::e($bandeau['dateAdmission'] ?? 'non renseignée') ?></dd>
         <dt>Service</dt>
         <dd><?= View::e($sejour['service'] ?? 'non renseigné') ?></dd>
+        <dt>Motif d'admission</dt>
+        <dd><?= isset($sejour['motifAdmission']) ? nl2br(View::e($sejour['motifAdmission'])) : 'non renseigné' ?></dd>
         <dt>Lit</dt>
         <dd><?= View::e($sejour['lit'] ?? 'non attribué') ?></dd>
         <dt>Box</dt>
         <dd><?= View::e($sejour['box'] ?? 'non attribué') ?></dd>
-        <dt>Poids à l'admission</dt>
-        <dd><?= View::e($sejour['poids'] ?? 'non renseigné') ?></dd>
-        <dt>Taille à l'admission</dt>
-        <dd><?= View::e($sejour['taille'] ?? 'non renseignée') ?></dd>
         <dt>Précautions</dt>
         <?php /* « non renseignées », pas « aucune » : rien de saisi ne veut pas dire aucun risque. */ ?>
         <dd><?= isset($sejour['precautions']) ? nl2br(View::e($sejour['precautions'])) : 'non renseignées' ?></dd>
@@ -135,6 +148,32 @@ $allergyError = $allergyError ?? null;
         </form>
     <?php endif; ?>
 </section>
+
+    <?php /* Dossier complet : mêmes sections que le formulaire d'admission. Une section vide reste
+             visible (repliée) avec « Non renseigné » : l'information est absente, pas cachée. */ ?>
+    <h2 class="dossier-subtitle" id="titre-dossier-complet">Dossier complet</h2>
+    <div class="dossier-sections" aria-labelledby="titre-dossier-complet">
+    <?php foreach ($sections as $section) : ?>
+        <details class="dossier-section"
+                 id="dossier-<?= View::e($section['id']) ?>"<?= $section['filled'] > 0 ? ' open' : '' ?>>
+            <summary>
+                <span><?= View::e($section['title']) ?></span>
+                <span class="dossier-section__count">
+                    <?= View::e($section['filled']) ?> sur <?= View::e($section['total']) ?>
+                    renseigné<?= $section['filled'] > 1 ? 's' : '' ?>
+                </span>
+            </summary>
+            <dl>
+                <?php foreach ($section['rows'] as $row) : ?>
+                    <dt><?= View::e($row['label']) ?></dt>
+                    <?php /* Valeur collée à la balise : white-space: pre-line conserve les retours à la ligne. */ ?>
+                    <dd data-entity="<?= View::e($row['entity']) ?>"
+                        data-field="<?= View::e($row['field']) ?>"><?= $valeurLigne($row) ?></dd>
+                <?php endforeach; ?>
+            </dl>
+        </details>
+    <?php endforeach; ?>
+    </div>
 
     <?php /* RG5 : seules les prescriptions validées par un médecin, et pas celles qui sont arrêtées. */ ?>
     <h2 class="dossier-subtitle">Prescriptions en cours</h2>

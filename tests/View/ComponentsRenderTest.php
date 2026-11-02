@@ -101,6 +101,63 @@ final class ComponentsRenderTest extends TestCase
     }
 
     /** @return array<string, mixed> */
+    public function testChampAvecAideEstDecritPourLesLecteursDEcran(): void
+    {
+        $html = View::render('components/field', ['field' => [
+            'name' => 'insNumber', 'label' => 'Matricule INS', 'help' => 'Aide <courte>', 'value' => '', 'error' => '',
+        ]]);
+
+        self::assertStringContainsString('<p class="field-help" id="insNumber-help">Aide &lt;courte&gt;</p>', $html);
+        self::assertStringContainsString('aria-describedby="insNumber-help"', $html);
+        self::assertStringContainsString('<label for="insNumber">', $html);
+    }
+
+    public function testChampEnErreurAvecAideCumuleLesDeuxDescriptions(): void
+    {
+        $html = View::render('components/field', ['field' => [
+            'name' => 'x', 'label' => 'X', 'help' => 'Aide', 'value' => '', 'error' => 'Trop long',
+        ]]);
+
+        self::assertStringContainsString('aria-invalid="true"', $html);
+        self::assertStringContainsString('aria-describedby="x-help x-error"', $html);
+        self::assertStringContainsString('role="alert"', $html);
+    }
+
+    public function testListeACasesCocheLesValeursEtPorteUnGroupeNomme(): void
+    {
+        $html = View::render('components/field', ['field' => [
+            'name' => 'allergies', 'label' => 'Allergies', 'type' => 'checkbox-group',
+            'options' => ['ALG01' => 'Pénicilline', 'ALG02' => 'Latex <x>'], 'value' => ['ALG02'], 'error' => '',
+        ]]);
+
+        self::assertStringContainsString('role="group" aria-labelledby="allergies-label"', $html);
+        self::assertStringContainsString('name="allergies[]" value="ALG02"', $html);
+        self::assertSame(1, substr_count($html, 'checked'));
+        self::assertStringContainsString('Latex &lt;x&gt;', $html);
+    }
+
+    public function testListeACasesVideAfficheLeMessageDeRepli(): void
+    {
+        $html = View::render('components/field', ['field' => [
+            'name' => 'allergies', 'label' => 'Allergies', 'type' => 'checkbox-group', 'options' => [],
+            'emptyMessage' => 'Référentiel indisponible', 'value' => [], 'error' => '',
+        ]]);
+
+        self::assertStringContainsString('Référentiel indisponible', $html);
+        self::assertStringNotContainsString('type="checkbox"', $html);
+    }
+
+    public function testListeDeroulanteFacultativeProposeUnChoixVide(): void
+    {
+        $html = View::render('components/field', ['field' => [
+            'name' => 'asaScore', 'label' => 'ASA', 'type' => 'select', 'empty' => 'Non renseigné',
+            'options' => ['I' => 'ASA I', 'II' => 'ASA II'], 'value' => 'II', 'error' => '',
+        ]]);
+
+        self::assertStringContainsString('<option value="">Non renseigné</option>', $html);
+        self::assertMatchesRegularExpression('/value="II"\s+selected/', $html);
+    }
+
     public static function bandeau(array $allergies = []): array
     {
         return [
