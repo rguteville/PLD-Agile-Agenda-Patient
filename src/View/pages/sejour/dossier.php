@@ -280,8 +280,7 @@ $valeurLigne = static function (array $row): string {
                 <tr>
                     <th scope="col">Prescription</th>
                     <th scope="col">Fréquence</th>
-                    <th scope="col">Début</th>
-                    <th scope="col">Fin</th>
+                    <th scope="col">Période</th>
                     <th scope="col">Validée par</th>
                     <?php if ($sejour['enCours']) : ?>
                         <th scope="col">Arrêt</th>
@@ -316,8 +315,7 @@ $valeurLigne = static function (array $row): string {
                             <?php endforeach; ?>
                         </td>
                         <td><?= View::e($line['frequency']) ?></td>
-                        <td><?= View::e($line['startDate']) ?></td>
-                        <td><?= View::e($line['endDate'] ?? '—') ?></td>
+                        <td><?= View::e($line['period']) ?></td>
                         <td><?= View::e($line['validation']) ?></td>
                         <?php if ($sejour['enCours']) : ?>
                             <td>

@@ -3268,3 +3268,16 @@ form[data-ajax] {
         max-width: none;
     }
 }
+
+/* ===== AURA-RETOURS : retours du 2026-11-02 (prescriptions, allergies, admission deux colonnes, menu du dossier) ===== */
+/* Prescriptions : avertissement non bloquant (médicament déjà prescrit) */
+.b3-notice {
+    margin: var(--sp-1) var(--sp-2) var(--sp-2);
+    padding: var(--sp-2) var(--sp-3);
+    border: 1px solid var(--st-warn-line);
+    border-left: 4px solid var(--st-warn-fg);
+    border-radius: var(--radius);
+    background: var(--st-warn-bg);
+    color: var(--st-warn-fg);
+    font-weight: 600;
+}

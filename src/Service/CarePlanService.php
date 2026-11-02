@@ -38,7 +38,7 @@ final class CarePlanService
     /** Nature d'une ligne : un médicament (MedicationRequest) ou un soin (ServiceRequest). */
     public const KIND_MEDICATION = 'MEDICATION';
     public const KIND_CARE = 'CARE';
-    /** Nature d'une catégorie qui regroupe plusieurs prescriptions (protocole) : pas encore en base. */
+    /** Nature d'une catégorie qui regroupe plusieurs prescriptions : un protocole (PlanDefinition). */
     public const KIND_GROUP = 'GROUP';
 
     /**
@@ -47,7 +47,7 @@ final class CarePlanService
      * Une catégorie de plus = une ligne ici, rien d'autre à changer.
      */
     public const CATEGORIES = [
-        'GROUPS' => ['label' => 'Groupes de prescriptions', 'kind' => self::KIND_GROUP],
+        'GROUPS' => ['label' => 'Protocoles', 'kind' => self::KIND_GROUP],
         'MEDICATIONS' => ['label' => 'Médicaments', 'kind' => self::KIND_MEDICATION],
         'CARE' => ['label' => 'Soins', 'kind' => self::KIND_CARE],
     ];
@@ -223,8 +223,16 @@ final class CarePlanService
         $activityDefinitions = $this->referenceDataDao->activityDefinitions();
         $carePlanIds = [];
         $pendingCarePlans = [];
+        // Médicaments déjà prescrits et non arrêtés dans ce séjour (validés ou en attente) : l'écran
+        // prévient avant d'en ajouter un de plus, sans l'interdire (nouvelle dose, autre voie…).
+        $activeMedications = [];
         foreach ($this->carePlanDao->findByEpisodeOfCare($idEpisodeOfCare) as $carePlan) {
             $carePlanIds[] = $carePlan->getIdCarePlan();
+            foreach ($carePlan->getLines() as $line) {
+                if ($line instanceof MedicationRequest && !$line->isStopped()) {
+                    $activeMedications[$line->getIdMedication()] = true;
+                }
+            }
             if ($carePlan->isValidated()) {
                 continue;
             }
@@ -258,6 +266,7 @@ final class CarePlanService
             'frequencyTypes' => self::FREQUENCY_TYPES,
             'routes' => self::ROUTES,
             'pendingCarePlans' => $pendingCarePlans,
+            'activeMedications' => array_keys($activeMedications),
         ];
     }
 
@@ -514,7 +523,7 @@ final class CarePlanService
         $startText = self::text($line['startDate'] ?? null);
         $start = self::date($startText);
         if ($startText === '') {
-            $errors['startDate'] = 'la date de début est obligatoire (RG3).';
+            $errors['startDate'] = 'la date de début (« du ») est obligatoire (RG3).';
         } elseif ($start === null) {
             $errors['startDate'] = 'la date de début est invalide.';
         }
@@ -523,11 +532,11 @@ final class CarePlanService
         if ($endText !== '') {
             $end = self::date($endText);
             if ($end === null) {
-                $errors['endDate'] = 'la date d\'arrêt est invalide.';
+                $errors['endDate'] = 'la date de fin (« au ») est invalide.';
             } elseif ($frequencyType === 'ONCE') {
-                $errors['endDate'] = 'une prescription « Une fois » n\'a pas de date d\'arrêt.';
+                $errors['endDate'] = 'une prescription « Une fois » n\'a pas de date de fin.';
             } elseif ($start !== null && $end < $start) {
-                $errors['endDate'] = 'l\'arrêt doit être après le début.';
+                $errors['endDate'] = 'la date de fin (« au ») doit être après la date de début (« du »).';
             }
         }
 
@@ -659,6 +668,11 @@ final class CarePlanService
             'frequency' => self::frequencyLabel($line->getFrequencyHours()),
             'startDate' => $line->getStartDate()->format('d/m/Y H:i'),
             'endDate' => $line->getEndDate()?->format('d/m/Y H:i'),
+            // « du 20/10/2026 08:00 au 27/10/2026 08:00 », ou « du …, sans date de fin ».
+            'period' => self::period(
+                $line->getStartDate()->format('d/m/Y H:i'),
+                $line->getEndDate()?->format('d/m/Y H:i')
+            ),
             'timeConstraint' => $line->getTimeConstraint(),
             'important' => $line instanceof MedicationRequest ? $line->getImportant() : null,
             'nurseInstructions' => $line instanceof MedicationRequest ? $line->getNurseInstructions() : null,
@@ -700,6 +714,12 @@ final class CarePlanService
         }
 
         return $text;
+    }
+
+    /** Période d'une ligne : « du D au F », ou « du D, sans date de fin » si l'arrêt n'est pas prévu. */
+    public static function period(string $start, ?string $end): string
+    {
+        return $end === null ? sprintf('du %s, sans date de fin', $start) : sprintf('du %s au %s', $start, $end);
     }
 
     /** « Une fois », « Toutes les 6 h », « Une fois par jour », « Tous les 2 jours »… */

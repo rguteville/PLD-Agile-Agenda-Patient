@@ -24,6 +24,7 @@ use Aura\Service\CarePlanService;
  * @var list<array{idCarePlan: int, mode: string, recordedAt: string, prescriber: string, lines: list<string>}>
  *      $pendingCarePlans ordonnances du séjour en attente de validation (RG5)
  * @var string $formError ordonnance refusée sans JavaScript (sinon form.js affiche l'erreur)
+ * @var list<string> $activeMedications idMedication déjà prescrits et non arrêtés dans ce séjour
  */
 
 // Données des listes 2 et 3, lues par public/js/care-plan.js. JSON_FORCE_OBJECT : toujours des
@@ -31,6 +32,8 @@ use Aura\Service\CarePlanService;
 $lists = [
     'careTypes' => $careTypes,
     'medications' => $medications,
+    // Médicaments déjà prescrits et non arrêtés dans ce séjour : avertissement, pas interdiction.
+    'activeMedications' => array_fill_keys($activeMedications ?? [], true),
     'planDefinitions' => $planDefinitions,
 ];
 // Le séjour est passé dans l'URL des deux formulaires, comme pour les pages GET.
@@ -49,8 +52,8 @@ $medicationParams = [
     ['med-solvent', 'Solvant', false, 'text'],
     ['med-important', 'Important ->', false, 'text'],
     ['med-nurseInstructions', 'Consignes pour IDE', false, 'text'],
-    ['med-start', 'Début', true, 'date'],
-    ['med-end', 'Arrêt', false, 'date'],
+    ['med-start', 'Du', true, 'date'],
+    ['med-end', 'Au (date de fin)', false, 'date'],
     ['med-administrationDuration', "Durée d'administration", false, 'dose'],
     ['med-antibioticReason', 'Motif (si antibiotique)', false, 'text'],
     ['med-germ', 'Germe (si antibiotique)', false, 'text'],
@@ -136,6 +139,8 @@ $medicationParams = [
             </div>
 
             <p id="b3-message" class="b3-message" role="alert" hidden></p>
+            <?php /* Avertissement non bloquant : médicament déjà prescrit (dans le séjour ou l'ordonnance). */ ?>
+            <p id="b3-notice" class="b3-notice" role="status" hidden></p>
             <p id="b3-warning" class="b3-warning" hidden>
                 &#9998; Prescripteur non médecin : l'ordonnance devra être validée par un médecin.
             </p>
@@ -220,11 +225,11 @@ $medicationParams = [
                         </span>
                     </div>
 
-                    <label for="care-start">Début</label>
+                    <label for="care-start">Du</label>
                     <span class="b3-required">*</span>
                     <div class="b3-value"><input type="datetime-local" id="care-start"></div>
 
-                    <label for="care-end">Arrêt</label>
+                    <label for="care-end">Au (date de fin)</label>
                     <span class="b3-required"></span>
                     <div class="b3-value"><input type="datetime-local" id="care-end"></div>
 
@@ -249,7 +254,7 @@ $medicationParams = [
                     <span class="b3-required">*</span>
                     <div class="b3-value"><input type="text" id="group-name" readonly tabindex="-1"></div>
 
-                    <label for="group-start">Début</label>
+                    <label for="group-start">Du</label>
                     <span class="b3-required">*</span>
                     <div class="b3-value"><input type="datetime-local" id="group-start"></div>
                 </div>

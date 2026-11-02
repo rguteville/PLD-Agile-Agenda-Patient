@@ -404,6 +404,7 @@ final class PagesRenderTest extends TestCase
         $line = [
             'idCarePlan' => 1, 'idLine' => 1, 'isMedication' => false, 'activity' => 'Soin A', 'label' => 'Soin A',
             'frequency' => 'Toutes les 8 h', 'startDate' => '14/10/2026 08:00', 'endDate' => null,
+            'period' => 'du 14/10/2026 08:00, sans date de fin',
             'mode' => 'Médical', 'prescriber' => 'Dr Test', 'recordedAt' => '14/10/2026 08:00',
             'status' => $status, 'validation' => $validation, 'stop' => $stop,
         ];

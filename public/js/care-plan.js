@@ -86,7 +86,7 @@ if (carePlanForm) {
         } else if (kind === 'GROUP') {
             fill(item, lists.planDefinitions);
             if (Object.keys(lists.planDefinitions).length === 0) {
-                showMessage('Aucun groupe de prescriptions (protocole) n\'est encore défini.');
+                showMessage('Aucun protocole n\'est encore défini.');
             }
         } else {
             fill(item, {});
@@ -163,20 +163,20 @@ if (carePlanForm) {
             return 'Indiquez tous les combien de jours.';
         }
         if (fields.startDate === '') {
-            return 'La date de début est obligatoire.';
+            return 'La date de début (« du ») est obligatoire.';
         }
         if (fields.endDate !== '' && fields.frequencyType === 'ONCE') {
-            return 'Une prescription « Une fois » n\'a pas de date d\'arrêt.';
+            return 'Une prescription « Une fois » n\'a pas de date de fin.';
         }
         if (fields.endDate !== '' && fields.endDate < fields.startDate) {
-            return 'L\'arrêt doit être après le début.';
+            return 'La date de fin (« au ») doit être après la date de début (« du »).';
         }
         return '';
     }
 
-    // « du 20/10/2026 08:00 au 27/10/2026 08:00 »
+    // « du 20/10/2026 08:00 au 27/10/2026 08:00 », ou « du …, sans date de fin »
     const period = fields => ` du ${readableDate(fields.startDate)}`
-        + (fields.endDate !== '' ? ` au ${readableDate(fields.endDate)}` : '');
+        + (fields.endDate !== '' ? ` au ${readableDate(fields.endDate)}` : ', sans date de fin');
 
     // ── Lecture des fiches : renvoie la ligne à ajouter, ou { error }.
     // Les clés de « fields » sont les noms envoyés au serveur (CarePlanService::LINE_FIELDS).
@@ -228,7 +228,8 @@ if (carePlanForm) {
         }
         label += period(fields);
 
-        return { category: categoryLabel, label, fields, key: `MEDICATION|${fields.idMedication}` };
+        // Clé = la ligne complète : seule une ligne strictement identique est un doublon.
+        return { category: categoryLabel, label, fields, key: Object.values(fields).join('|') };
     }
 
     // Ligne de panier d'un soin : « Prise des constantes (/4h) du … -> à jeun ».
@@ -261,6 +262,31 @@ if (carePlanForm) {
     }
 
     const inCart = line => [...hiddenLines.children].some(block => block.dataset.key === line.key);
+    const notice = document.getElementById('b3-notice');
+
+    function showNotice(text) {
+        notice.textContent = text;
+        notice.hidden = text === '';
+    }
+
+    // Même médicament déjà prescrit dans le séjour ou déjà dans l'ordonnance : on prévient, on n'interdit
+    // pas (nouvelle dose, autre voie, relais…). Le prescripteur reste juge.
+    function medicationNotice(line) {
+        if (line.fields.kind !== 'MEDICATION') {
+            return '';
+        }
+        const id = line.fields.idMedication;
+        const inOrder = [...hiddenLines.children].some(block => block.dataset.medication === id);
+        if (lists.activeMedications && lists.activeMedications[id]) {
+            return 'Attention : ce médicament est déjà prescrit et en cours pour ce séjour. Nouvelle prescription '
+                + 'ajoutée : vérifiez qu\'il ne s\'agit pas d\'un doublon.';
+        }
+        if (inOrder) {
+            return 'Attention : ce médicament figure déjà dans l\'ordonnance. Nouvelle ligne ajoutée : vérifiez '
+                + 'qu\'il ne s\'agit pas d\'un doublon.';
+        }
+        return '';
+    }
 
     // ── « OK » : ajoute la ligne à l'ordonnance en cours de saisie
     function add(line, params) {
@@ -269,9 +295,10 @@ if (carePlanForm) {
             return;
         }
         if (inCart(line)) {
-            showMessage('Cette prescription est déjà dans l\'ordonnance.');
+            showMessage('Cette ligne, strictement identique, est déjà dans l\'ordonnance.');
             return;
         }
+        showNotice(medicationNotice(line));
         addToCart(line);
 
         showMessage('');
@@ -287,6 +314,9 @@ if (carePlanForm) {
         const n = counter++;
         const block = document.createElement('div');
         block.dataset.key = line.key;
+        if (line.fields.kind === 'MEDICATION') {
+            block.dataset.medication = line.fields.idMedication;
+        }
         Object.entries(line.fields).forEach(([field, value]) => {
             const input = document.createElement('input');
             input.type = 'hidden';
