@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Aura\Dao;
 
+use Aura\Domain\RecordFields;
 use Aura\Domain\Sejour;
 use DateTimeImmutable;
 use DateTimeInterface;
@@ -16,13 +17,13 @@ use PDOException;
  */
 class SejourDao
 {
-    /** Colonnes lues, renommées vers les clés utilisées par mapToEntity(). */
-    private const COLUMNS =
+    /** Colonnes lues, renommées vers les clés utilisées par mapToEntity() (sans les champs complémentaires). */
+    private const BASE_COLUMNS =
         'idEpisodeOfCare AS idSejour, idPatient, episodeNumber AS sejourNumber, admissionDate, dischargeDate,
          bedNumber, boxNumber, idHealthcareService AS idService, weight, height, precautions';
 
-    /** Colonnes écrites par insert(), dans l'ordre des paramètres. */
-    private const INSERT_COLUMNS =
+    /** Colonnes écrites par insert(), dans l'ordre des paramètres (sans les champs complémentaires). */
+    private const BASE_INSERT_COLUMNS =
         'idEpisodeOfCare, idPatient, episodeNumber, admissionDate, dischargeDate, bedNumber, boxNumber,
          idHealthcareService, weight, height, precautions';
 
@@ -36,9 +37,15 @@ class SejourDao
     {
     }
 
+    /** Colonnes lues : les colonnes de base + les champs complémentaires (RecordFields::EPISODE). */
+    private static function columns(): string
+    {
+        return self::BASE_COLUMNS . ', ' . implode(', ', RecordFields::episodeColumns());
+    }
+
     public function findById(int $id): ?Sejour
     {
-        $stmt = $this->pdo->prepare('SELECT ' . self::COLUMNS . ' FROM EpisodeOfCare WHERE idEpisodeOfCare = :id');
+        $stmt = $this->pdo->prepare('SELECT ' . self::columns() . ' FROM EpisodeOfCare WHERE idEpisodeOfCare = :id');
         $stmt->execute(['id' => $id]);
         $r = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -48,7 +55,7 @@ class SejourDao
     /** Séjour par son numéro (AAAA-NNNNNN, cf. insert()) ; null s'il n'existe pas. */
     public function findByNumber(string $number): ?Sejour
     {
-        $stmt = $this->pdo->prepare('SELECT ' . self::COLUMNS . ' FROM EpisodeOfCare WHERE episodeNumber = :number');
+        $stmt = $this->pdo->prepare('SELECT ' . self::columns() . ' FROM EpisodeOfCare WHERE episodeNumber = :number');
         $stmt->execute(['number' => $number]);
         $r = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -63,7 +70,7 @@ class SejourDao
     public function findByPatient(int $idPatient): array
     {
         $stmt = $this->pdo->prepare(
-            'SELECT ' . self::COLUMNS . ' FROM EpisodeOfCare
+            'SELECT ' . self::columns() . ' FROM EpisodeOfCare
              WHERE idPatient = :idPatient
              ORDER BY admissionDate DESC, CAST(idEpisodeOfCare AS UNSIGNED) DESC'
         );
@@ -80,7 +87,7 @@ class SejourDao
     public function findEnCours(): array
     {
         $rows = $this->pdo->query(
-            'SELECT ' . self::COLUMNS . ' FROM EpisodeOfCare
+            'SELECT ' . self::columns() . ' FROM EpisodeOfCare
              WHERE dischargeDate IS NULL
              ORDER BY admissionDate, CAST(idEpisodeOfCare AS UNSIGNED)'
         )->fetchAll(PDO::FETCH_ASSOC);
@@ -133,12 +140,16 @@ class SejourDao
                 $id = (int) $suivant['id'];
                 $numSejour = sprintf('%s-%06d', $annee, (int) $suivant['compteur']);
 
+                $details = self::detailValues($s);
                 try {
                     $this->pdo->prepare(
-                        'INSERT INTO EpisodeOfCare (' . self::INSERT_COLUMNS . ')
+                        'INSERT INTO EpisodeOfCare (' . self::BASE_INSERT_COLUMNS . ', '
+                        . implode(', ', array_keys($details)) . ')
                          VALUES (:idSejour, :idPatient, :sejourNumber, :admissionDate,
                                  :dischargeDate, :bedNumber, :boxNumber, :idService,
-                                 :weight, :height, :precautions)'
+                                 :weight, :height, :precautions, '
+                        . implode(', ', array_map(static fn (string $c): string => ':' . $c, array_keys($details)))
+                        . ')'
                     )->execute([
                         'idSejour' => (string) $id,
                         'idPatient' => (string) $s->getIdPatient(),
@@ -151,7 +162,7 @@ class SejourDao
                         'weight' => $s->getPoids(),
                         'height' => $s->getTaille(),
                         'precautions' => $s->getPrecautions(),
-                    ]);
+                    ] + $details);
                     break;
                 } catch (PDOException $e) {
                     if (($e->errorInfo[1] ?? null) !== self::ERREUR_DOUBLON || $essai >= self::ESSAIS_INSERTION) {
@@ -171,9 +182,46 @@ class SejourDao
                 idService: $s->getIdService(),
                 poids: $s->getPoids(),
                 taille: $s->getTaille(),
-                precautions: $s->getPrecautions()
+                precautions: $s->getPrecautions(),
+                details: $s->getDetails()
             );
         });
+    }
+
+    /**
+     * Met à jour seulement les champs complémentaires fournis (clés de RecordFields::EPISODE ;
+     * toute autre clé est ignorée).
+     *
+     * @param array<string, ?string> $details
+     */
+    public function updateDetails(int $idSejour, array $details): void
+    {
+        $details = array_intersect_key($details, RecordFields::EPISODE);
+        if ($details === []) {
+            return;
+        }
+
+        $stmt = $this->pdo->prepare(
+            'UPDATE EpisodeOfCare SET '
+            . implode(', ', array_map(static fn (string $c): string => $c . ' = :' . $c, array_keys($details)))
+            . ' WHERE idEpisodeOfCare = :id'
+        );
+        $stmt->execute(['id' => (string) $idSejour] + $details);
+    }
+
+    /**
+     * Valeurs des champs complémentaires à écrire, une par colonne du catalogue (null si absente).
+     *
+     * @return array<string, ?string>
+     */
+    private static function detailValues(Sejour $s): array
+    {
+        $values = [];
+        foreach (RecordFields::episodeColumns() as $column) {
+            $values[$column] = $s->getDetail($column);
+        }
+
+        return $values;
     }
 
     private function mapToEntity(array $r): Sejour
@@ -190,7 +238,11 @@ class SejourDao
             // DECIMAL arrive en chaîne ("62.50") depuis PDO MySQL.
             poids: $r['weight'] !== null ? (float) $r['weight'] : null,
             taille: $r['height'] !== null ? (float) $r['height'] : null,
-            precautions: $r['precautions']
+            precautions: $r['precautions'],
+            details: array_map(
+                static fn ($v): ?string => $v === null ? null : (string) $v,
+                array_intersect_key($r, RecordFields::EPISODE)
+            )
         );
     }
 }

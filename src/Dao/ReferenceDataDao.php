@@ -60,6 +60,26 @@ class ReferenceDataDao
     }
 
     /**
+     * Services hospitaliers par ordre alphabétique : idHealthcareService => serviceName
+     * (liste « Service hospitalier » de l'admission).
+     *
+     * @return array<string, string>
+     */
+    public function healthcareServices(): array
+    {
+        $rows = $this->pdo->query(
+            'SELECT idHealthcareService, serviceName FROM HealthcareService ORDER BY serviceName'
+        )->fetchAll(PDO::FETCH_ASSOC);
+
+        $list = [];
+        foreach ($rows as $r) {
+            $list[(string) $r['idHealthcareService']] = (string) $r['serviceName'];
+        }
+
+        return $list;
+    }
+
+    /**
      * Types de soin par ordre alphabétique : idActivityDefinition => name.
      *
      * @return array<string, string>

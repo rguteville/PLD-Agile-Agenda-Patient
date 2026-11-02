@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Aura\Dao;
 
 use Aura\Domain\Patient;
+use Aura\Domain\RecordFields;
 use DateTimeImmutable;
 use DateTimeInterface;
 use LogicException;
@@ -16,16 +17,29 @@ use PDO;
  */
 class PatientDao
 {
-    private const COLUMNS = 'idPatient, ipp, lastName, firstName, birthDate, sex, phoneNumber, email';
+    /** Colonnes d'identité, lues et écrites par toutes les méthodes. */
+    private const IDENTITY_COLUMNS = 'idPatient, ipp, lastName, firstName, birthDate, sex, phoneNumber, email';
+
+    /**
+     * Colonnes d'identité + champs complémentaires (RecordFields::PATIENT, dont les clés SONT
+     * les noms de colonnes). Construite une fois : la liste blanche du catalogue borne ce que
+     * le DAO lit et écrit.
+     */
+    private static ?string $columns = null;
 
     public function __construct(private PDO $pdo)
     {
     }
 
+    private static function columns(): string
+    {
+        return self::$columns ??= self::IDENTITY_COLUMNS . ', ' . implode(', ', RecordFields::patientColumns());
+    }
+
     /** @return Patient[] */
     public function findAll(): array
     {
-        $rows = $this->pdo->query('SELECT ' . self::COLUMNS . ' FROM Patient ORDER BY lastName, firstName')
+        $rows = $this->pdo->query('SELECT ' . self::columns() . ' FROM Patient ORDER BY lastName, firstName')
             ->fetchAll(PDO::FETCH_ASSOC);
 
         return array_map(fn(array $r) => $this->mapToEntity($r), $rows);
@@ -45,7 +59,7 @@ class PatientDao
 
         // Sans émulation des requêtes préparées, un paramètre nommé ne peut servir qu'une fois.
         $stmt = $this->pdo->prepare(
-            'SELECT ' . self::COLUMNS . ' FROM Patient
+            'SELECT ' . self::columns() . ' FROM Patient
              WHERE lastName LIKE :nom ESCAPE \'\\\\\'
                 OR firstName LIKE :prenom ESCAPE \'\\\\\'
                 OR CAST(ipp AS CHAR) LIKE :ipp ESCAPE \'\\\\\'
@@ -58,7 +72,7 @@ class PatientDao
 
     public function findById(int $id): ?Patient
     {
-        $stmt = $this->pdo->prepare('SELECT ' . self::COLUMNS . ' FROM Patient WHERE idPatient = :id');
+        $stmt = $this->pdo->prepare('SELECT ' . self::columns() . ' FROM Patient WHERE idPatient = :id');
         $stmt->execute(['id' => $id]);
         $r = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -67,7 +81,7 @@ class PatientDao
 
     public function findByIpp(string $ipp): ?Patient
     {
-        $stmt = $this->pdo->prepare('SELECT ' . self::COLUMNS . ' FROM Patient WHERE ipp = :ipp');
+        $stmt = $this->pdo->prepare('SELECT ' . self::columns() . ' FROM Patient WHERE ipp = :ipp');
         $stmt->execute(['ipp' => $ipp]);
         $r = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -91,7 +105,7 @@ class PatientDao
     public function findByIdentite(string $nom, string $prenom, DateTimeInterface $dateNaissance): array
     {
         $stmt = $this->pdo->prepare(
-            'SELECT ' . self::COLUMNS . ' FROM Patient
+            'SELECT ' . self::columns() . ' FROM Patient
              WHERE lastName = :lastName AND firstName = :firstName AND birthDate = :birthDate'
         );
         $stmt->execute([
@@ -118,9 +132,11 @@ class PatientDao
                 ->query('SELECT COALESCE(MAX(CAST(idPatient AS UNSIGNED)), 0) + 1 FROM Patient FOR UPDATE')
                 ->fetchColumn();
 
+            $details = self::detailValues($p);
             $stmt = $this->pdo->prepare(
-                'INSERT INTO Patient (' . self::COLUMNS . ')
-                 VALUES (:idPatient, :ipp, :lastName, :firstName, :birthDate, :sex, :phoneNumber, :email)'
+                'INSERT INTO Patient (' . self::columns() . ')
+                 VALUES (:idPatient, :ipp, :lastName, :firstName, :birthDate, :sex, :phoneNumber, :email, '
+                . implode(', ', array_map(static fn (string $c): string => ':' . $c, array_keys($details))) . ')'
             );
             $stmt->execute([
                 'idPatient' => (string) $id,
@@ -131,15 +147,16 @@ class PatientDao
                 'sex' => $p->getSexe(),
                 'phoneNumber' => $p->getTelephone(),
                 'email' => $p->getEmail(),
-            ]);
+            ] + $details);
 
             return $id;
         });
     }
 
     /**
-     * Met à jour toutes les colonnes du patient (AURA-12.2). L'id n'est jamais modifié ;
-     * une seule instruction SQL, donc pas de transaction ici.
+     * Met à jour toutes les colonnes du patient (AURA-12.2), champs complémentaires compris :
+     * l'appelant doit donc transmettre les détails existants s'il ne veut pas les effacer.
+     * L'id n'est jamais modifié ; une seule instruction SQL, donc pas de transaction ici.
      */
     public function update(Patient $p): void
     {
@@ -148,10 +165,12 @@ class PatientDao
             throw new LogicException('PatientDao::update() requiert un patient déjà enregistré (id non nul).');
         }
 
+        $details = self::detailValues($p);
         $stmt = $this->pdo->prepare(
             'UPDATE Patient
             SET ipp = :ipp, lastName = :lastName, firstName = :firstName, birthDate = :birthDate,
-                sex = :sex, phoneNumber = :phoneNumber, email = :email
+                sex = :sex, phoneNumber = :phoneNumber, email = :email, '
+            . self::assignments(array_keys($details)) . '
             WHERE idPatient = :idPatient'
         );
         $stmt->execute([
@@ -163,7 +182,48 @@ class PatientDao
             'sex' => $p->getSexe(),
             'phoneNumber' => $p->getTelephone(),
             'email' => $p->getEmail(),
-        ]);
+        ] + $details);
+    }
+
+    /**
+     * Met à jour seulement les champs complémentaires fournis (clés de RecordFields::PATIENT ;
+     * toute autre clé est ignorée). Sert à compléter un patient déjà connu lors d'une
+     * nouvelle admission sans toucher à son identité.
+     *
+     * @param array<string, ?string> $details
+     */
+    public function updateDetails(int $idPatient, array $details): void
+    {
+        $details = array_intersect_key($details, RecordFields::PATIENT);
+        if ($details === []) {
+            return;
+        }
+
+        $stmt = $this->pdo->prepare(
+            'UPDATE Patient SET ' . self::assignments(array_keys($details)) . ' WHERE idPatient = :idPatient'
+        );
+        $stmt->execute(['idPatient' => (string) $idPatient] + $details);
+    }
+
+    /** « col1 = :col1, col2 = :col2 » pour des noms de colonnes issus du catalogue (jamais de la requête). */
+    private static function assignments(array $columns): string
+    {
+        return implode(', ', array_map(static fn (string $c): string => $c . ' = :' . $c, $columns));
+    }
+
+    /**
+     * Valeurs des champs complémentaires à écrire, une par colonne du catalogue (null si absente).
+     *
+     * @return array<string, ?string>
+     */
+    private static function detailValues(Patient $p): array
+    {
+        $values = [];
+        foreach (RecordFields::patientColumns() as $column) {
+            $values[$column] = $p->getDetail($column);
+        }
+
+        return $values;
     }
 
     private function mapToEntity(array $r): Patient
@@ -176,7 +236,11 @@ class PatientDao
             dateNaissance: $r['birthDate'] !== null ? new DateTimeImmutable($r['birthDate']) : null,
             sexe: $r['sex'],
             telephone: $r['phoneNumber'],
-            email: $r['email']
+            email: $r['email'],
+            details: array_map(
+                static fn ($v): ?string => $v === null ? null : (string) $v,
+                array_intersect_key($r, RecordFields::PATIENT)
+            )
         );
     }
 }
