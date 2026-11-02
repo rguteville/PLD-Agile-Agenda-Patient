@@ -2,8 +2,9 @@
 //
 // Chaque <dd class="inline-edit"> porte l'entité, l'identifiant, le champ, le type et la valeur brute.
 // Au survol (ou au focus clavier), un crayon apparaît sur la valeur. Clic ou Entrée : la valeur est
-// REMPLACÉE sur place par un champ du bon type (elle n'est jamais affichée deux fois), suivi d'un seul
-// bouton « Confirmer ». Entrée (Ctrl+Entrée en multiligne) confirme aussi ; Échap annule et restaure.
+// REMPLACÉE sur place par un champ du bon type (elle n'est jamais affichée deux fois), suivi du bouton
+// « Confirmer » et d'une petite croix d'annulation (indispensable au doigt sur tablette, où Échap
+// n'existe pas). Entrée (Ctrl+Entrée en multiligne) confirme aussi ; Échap annule et restaure.
 // Une valeur inchangée referme simplement le champ. Enregistrement en JSON (POST, un champ à la fois,
 // ancienne valeur jointe pour détecter un conflit). Le serveur reste la garantie : liste blanche,
 // validation, concurrence et historique sont faits côté PHP.
@@ -155,7 +156,11 @@
         return (value || '').replace(/\r\n/g, '\n').trim();
     }
 
-    async function confirm(cell, input, button) {
+    async function submitEdit(cell, input, button) {
+        // Un seul envoi à la fois : Entrée répétée ou double clic ne renvoient pas la même modification.
+        if (button.disabled) {
+            return;
+        }
         const oldRaw = normalize(cell.dataset.raw);
         const newRaw = normalize(input.value);
         if (newRaw === oldRaw) {
@@ -229,15 +234,24 @@
         button.type = 'button';
         button.className = 'button inline-edit__confirm-button';
         button.textContent = 'Confirmer';
+        button.setAttribute('aria-label', `Confirmer : ${cell.dataset.label || ''}`);
+        const cancel = document.createElement('button');
+        cancel.type = 'button';
+        cancel.className = 'inline-edit__cancel-button';
+        cancel.textContent = '✕';
+        cancel.title = 'Annuler (Échap)';
+        cancel.setAttribute('aria-label', `Annuler la modification : ${cell.dataset.label || ''}`);
         editor.appendChild(input);
         editor.appendChild(button);
+        editor.appendChild(cancel);
         cell.appendChild(editor);
         input.focus();
         if (typeof input.select === 'function' && input.tagName !== 'SELECT') {
             input.select();
         }
 
-        button.addEventListener('click', () => confirm(cell, input, button));
+        button.addEventListener('click', () => submitEdit(cell, input, button));
+        cancel.addEventListener('click', () => leaveEditMode(cell, true));
         editor.addEventListener('keydown', event => {
             if (event.key === 'Escape') {
                 event.preventDefault();
@@ -245,7 +259,7 @@
             } else if (event.key === 'Enter' && event.target === input
                 && (input.tagName !== 'TEXTAREA' || event.ctrlKey || event.metaKey)) {
                 event.preventDefault();
-                confirm(cell, input, button);
+                submitEdit(cell, input, button);
             }
         });
         // Focus sorti de la cellule sans rien changer : on referme. Une saisie modifiée reste ouverte
@@ -259,6 +273,19 @@
             }, 0);
         });
     }
+
+    // Fermeture ou rechargement de la page avec une saisie modifiée non confirmée : le navigateur demande
+    // confirmation, rien n'est perdu sans que l'utilisateur le sache.
+    window.addEventListener('beforeunload', event => {
+        const pending = [...root.querySelectorAll('.inline-edit--editing')].some(cell => {
+            const input = cell.querySelector('.inline-edit__input');
+            return input && normalize(input.value) !== normalize(cell.dataset.raw);
+        });
+        if (pending) {
+            event.preventDefault();
+            event.returnValue = '';
+        }
+    });
 
     root.querySelectorAll('.inline-edit').forEach(cell => {
         cell.querySelector('.inline-edit__value').addEventListener('click', () => enterEditMode(cell));

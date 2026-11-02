@@ -2603,12 +2603,6 @@ h2,
 }
 
 /* ===== AURA-EDIT : édition champ par champ du dossier (crayon au survol, saisie en place, historique) ===== */
-/* L'attribut hidden doit toujours gagner sur un display posé par une classe (sinon la valeur
-   resterait affichée sous le champ de saisie). */
-[hidden] {
-    display: none !important;
-}
-
 .dossier-aide {
     margin: 0 0 var(--sp-3);
     color: var(--fg-muted);
@@ -3588,4 +3582,35 @@ form.form--columns > .form-row {
 /* Valeurs non éditables (calculs) alignées sur le texte des boutons-valeurs éditables voisins. */
 .dossier-section dd[data-field]:not(.inline-edit) {
     padding: calc(var(--sp-1) + 1px) calc(var(--sp-2) + 1px);
+}
+
+/* Base : l'attribut hidden l'emporte toujours sur un display posé par une classe. Sans cette règle, la
+   valeur d'une cellule éditée restait affichée sous le champ de saisie (bouton en display: flex). */
+[hidden] {
+    display: none !important;
+}
+
+/* Édition en ligne : croix d'annulation discrète à côté de « Confirmer » (utile au doigt, sans Échap). */
+.inline-edit__cancel-button {
+    flex: 0 0 auto;
+    width: var(--tap);
+    min-height: var(--tap);
+    padding: 0;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+    color: var(--fg-muted);
+    font: inherit;
+    font-size: var(--fs-3);
+    cursor: pointer;
+}
+
+.inline-edit__cancel-button:hover {
+    background: var(--bg-muted);
+    color: var(--fg);
+}
+
+.inline-edit__cancel-button:focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: var(--focus-offset);
 }
