@@ -21,6 +21,7 @@ final class PagesRenderTest extends TestCase
         $html = (string) ob_get_clean();
 
         self::assertStringContainsString('<html lang="fr">', $html);
+        self::assertStringNotContainsString('menu-toggle', $html, 'plus de menu à trois barres');
         self::assertStringContainsString('<title>AURA - &lt;Erreur&gt;</title>', $html);
         self::assertStringContainsString('name="color-scheme" content="light dark"', $html);
         self::assertStringContainsString('<script src="/js/theme.js"></script>', $html);
@@ -41,6 +42,8 @@ final class PagesRenderTest extends TestCase
 
         self::assertStringContainsString('class="bandeau-patient"', $html);
         self::assertStringContainsString('Aucun soin ni médicament prévu ce jour.', $html);
+        // « Dossier du séjour » en tête du menu de gauche, à la place d'« Agenda du jour » dans le dossier.
+        self::assertStringContainsString('class="button dossier-menu__agenda" href="/sejour?id=1"', $html);
         self::assertStringContainsString('Mercredi 14 octobre 2026', $html);
         self::assertStringContainsString('href="/agenda-patient?id=1&amp;date=2026-10-13"', $html);
         self::assertStringNotContainsString('agenda-section--late', $html);
@@ -339,6 +342,7 @@ final class PagesRenderTest extends TestCase
         ]], 'recherche' => null]);
         self::assertStringContainsString('href="/sejour?id=7"', $pleine);
         self::assertStringContainsString('aria-label="Dossier de DUPONT Test"', $pleine);
+        self::assertStringNotContainsString('/patients/modifier', $pleine, 'modification depuis le dossier seulement');
         self::assertStringContainsString('<th scope="col">', $pleine);
     }
 

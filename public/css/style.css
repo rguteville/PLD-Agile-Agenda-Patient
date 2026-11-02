@@ -3614,3 +3614,51 @@ form.form--columns > .form-row {
     outline: var(--focus-ring);
     outline-offset: var(--focus-offset);
 }
+
+/* Retours du 2026-11-02 (2) : bandeau patient sans fond coloré autour des allergies, seules les
+   étiquettes portent la couleur (criticité) ; « Aucune allergie connue » et « Allergies non renseignées »
+   deviennent elles aussi des étiquettes. */
+.bandeau-patient .allergies--known,
+.bandeau-patient .allergies--none,
+.bandeau-patient .allergies--unknown {
+    padding: var(--sp-1) 0 0;
+    border: 0;
+    background: transparent;
+}
+
+.bandeau-patient .allergies--none .aucune-allergie,
+.bandeau-patient .allergies--unknown .allergies-inconnues {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-1);
+    padding: 2px var(--sp-2);
+    border-radius: var(--radius);
+    font-weight: 600;
+}
+
+.bandeau-patient .allergies--none .aucune-allergie {
+    border: 1px solid var(--st-done-line);
+    background: var(--st-done-bg);
+    color: var(--st-done-fg);
+}
+
+.bandeau-patient .allergies--unknown .allergies-inconnues {
+    border: 1px solid var(--st-warn-line);
+    background: var(--st-warn-bg);
+}
+
+/* Écran de prescription : les lignes de la fiche de paramètres s'étirent sur toute la hauteur de la
+   rangée, pour que les traits de séparation soient alignés (y compris sous une colonne « * » vide). */
+.b3-grid {
+    align-items: stretch;
+}
+
+.b3-grid > label,
+.b3-grid > .b3-required {
+    display: flex;
+    align-items: center;
+}
+
+.b3-grid > .b3-required {
+    justify-content: center;
+}

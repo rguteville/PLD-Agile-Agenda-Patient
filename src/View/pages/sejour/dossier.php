@@ -47,29 +47,32 @@ $valeurLigne = static function (array $row): string {
 <div class="dossier-layout">
 <?php /* Menu figé à gauche (retours du 2026-11-02) : agenda en tête, puis les parties du dossier ; les
          sous-catégories du dossier complet ouvrent leur section (public/js/dossier-menu.js). */ ?>
-<nav class="dossier-menu" aria-label="Parties du dossier">
-    <a class="button dossier-menu__agenda" href="/agenda-patient?id=<?= View::e($idSejour) ?>">
-        <?= View::render('components/icon', ['name' => 'calendar']) ?>
-        Agenda du jour
-    </a>
-    <ul class="dossier-menu__list">
-        <li><a href="#dossier-resume">Dossier</a></li>
-        <li><a href="#titre-allergies">Allergies</a></li>
-        <li>
-            <a href="#titre-dossier-complet">Dossier complet</a>
-            <ul class="dossier-menu__sub">
-                <?php foreach ($sections as $section) : ?>
-                    <li><a href="#dossier-<?= View::e($section['id']) ?>"
-                           data-open-details><?= View::e($section['title']) ?></a></li>
-                <?php endforeach; ?>
-                <?php if ($editable) : ?>
-                    <li><a href="#dossier-historique" data-open-details>Historique des modifications</a></li>
-                <?php endif; ?>
-            </ul>
-        </li>
-        <li><a href="#titre-prescriptions">Prescriptions en cours</a></li>
-    </ul>
-</nav>
+<?php
+$sousParties = array_map(
+    static fn (array $section): array => [
+        'href' => '#dossier-' . $section['id'],
+        'label' => $section['title'],
+        'openDetails' => true,
+    ],
+    $sections
+);
+if ($editable) {
+    $sousParties[] = [
+        'href' => '#dossier-historique',
+        'label' => 'Historique des modifications',
+        'openDetails' => true,
+    ];
+}
+?>
+<?= View::render('components/sejour_menu', [
+    'primary' => ['href' => '/agenda-patient?id=' . $idSejour, 'label' => 'Agenda du jour', 'icon' => 'calendar'],
+    'items' => [
+        ['href' => '#dossier-resume', 'label' => 'Dossier'],
+        ['href' => '#titre-allergies', 'label' => 'Allergies'],
+        ['href' => '#titre-dossier-complet', 'label' => 'Dossier complet', 'children' => $sousParties],
+        ['href' => '#titre-prescriptions', 'label' => 'Prescriptions en cours'],
+    ],
+]) ?>
 
 <section class="dossier">
     <div class="page-header" id="dossier-resume">
