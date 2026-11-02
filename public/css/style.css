@@ -3683,3 +3683,27 @@ textarea::placeholder {
     font-style: italic;
     opacity: 1;
 }
+
+/* Admission : recherche du patient sur deux colonnes (IPP à gauche, nom ou prénom à droite), titre et
+   aide sur toute la largeur ; une seule colonne sous 1100 px. */
+.form-lead {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0 var(--sp-6);
+    align-items: start;
+}
+
+.form-lead > .form-heading {
+    grid-column: 1 / -1;
+    max-width: none;
+}
+
+form.form--columns .form-lead > .form-row {
+    max-width: none;
+}
+
+@media (min-width: 1100px) {
+    .form-lead {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+}

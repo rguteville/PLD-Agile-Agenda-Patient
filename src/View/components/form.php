@@ -22,9 +22,14 @@ $lead = $lead ?? [];
         <p class="form-error" role="alert"><?= View::e($error) ?></p>
     <?php endif; ?>
 
-    <?php foreach ($lead as $field) : ?>
-        <?= View::render('components/field', ['field' => $field]) ?>
-    <?php endforeach; ?>
+    <?php if ($lead !== []) : ?>
+        <?php /* Bloc de tête (recherche du patient) : sur grand écran, ses champs sont côte à côte. */ ?>
+    <div class="form-lead">
+        <?php foreach ($lead as $field) : ?>
+            <?= View::render('components/field', ['field' => $field]) ?>
+        <?php endforeach; ?>
+    </div>
+    <?php endif; ?>
 
     <?php if ($sections !== []) : ?>
     <div class="form-columns">

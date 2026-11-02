@@ -196,6 +196,7 @@ final class PagesRenderTest extends TestCase
         self::assertNotFalse($gauche);
         self::assertNotFalse($droite);
         self::assertLessThan($gauche, strpos($html, 'name="patientSearch"'), 'recherche avant les colonnes');
+        self::assertStringContainsString('<div class="form-lead">', $html, 'recherche : IPP et nom côte à côte');
         self::assertGreaterThan($gauche, strpos($html, 'name="allergyNote"'));
         self::assertLessThan($droite, strpos($html, 'name="allergyNote"'), 'note sur les allergies à gauche');
         self::assertGreaterThan($droite, strpos($html, 'id="section-history"'), 'Antécédents à droite');
