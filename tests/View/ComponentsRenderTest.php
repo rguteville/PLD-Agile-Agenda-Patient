@@ -158,6 +158,20 @@ final class ComponentsRenderTest extends TestCase
         self::assertMatchesRegularExpression('/value="II"\s+selected/', $html);
     }
 
+    public function testChampCacheEtTitreDeGroupe(): void
+    {
+        $cache = View::render('components/field', ['field' => [
+            'name' => 'idPatient', 'type' => 'hidden', 'value' => '9',
+        ]]);
+        self::assertSame('<input type="hidden" id="idPatient" name="idPatient" value="9">', trim($cache));
+
+        $titre = View::render('components/field', ['field' => [
+            'name' => 'identite', 'type' => 'heading', 'label' => 'Identité <x>', 'help' => 'Aide',
+        ]]);
+        self::assertStringContainsString('<h2 class="form-subtitle" id="identite">Identité &lt;x&gt;</h2>', $titre);
+        self::assertStringNotContainsString('<input', $titre);
+    }
+
     public static function bandeau(array $allergies = []): array
     {
         return [
