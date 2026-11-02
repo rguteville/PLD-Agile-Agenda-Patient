@@ -295,6 +295,17 @@ final class PagesRenderTest extends TestCase
         self::assertSame(2, substr_count($html, 'inline-edit__pencil'));
         self::assertStringContainsString('<span class="inline-edit__text">ASA &quot;II&quot;</span>', $html);
         self::assertStringContainsString('id="dossier-historique"', $html);
+        // Menu figé : agenda en tête, parties du dossier, sous-catégories du dossier complet.
+        self::assertStringContainsString('<nav class="dossier-menu" aria-label="Parties du dossier">', $html);
+        self::assertLessThan(
+            strpos($html, 'href="#dossier-resume"'),
+            strpos($html, 'class="button dossier-menu__agenda" href="/agenda-patient?id=1"'),
+            'bouton Agenda en haut du menu'
+        );
+        self::assertStringContainsString('href="#titre-allergies"', $html);
+        self::assertMatchesRegularExpression('/href="#dossier-scores"\s+data-open-details/', $html);
+        self::assertStringContainsString('href="#dossier-historique" data-open-details', $html);
+        self::assertStringContainsString('id="titre-prescriptions"', $html);
         self::assertStringContainsString('<td>Non &lt;fumeur&gt;</td>', $html);
         self::assertStringContainsString('<small>précision &lt;x&gt;</small>', $html);
         self::assertStringContainsString('data-id-sejour="1"', $html);

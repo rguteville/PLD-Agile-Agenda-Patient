@@ -68,6 +68,7 @@ RG2 antérieure). Produire `unknown` demande une donnée d'évaluation des aller
 | Composant | Rôle | Règles |
 | --- | --- | --- |
 | `breadcrumb` | Fil d'Ariane sur les écrans de séjour (Patients › Dossier › Agenda / Prescriptions) | Dernier élément = page courante (`aria-current`), sans lien. |
+| `.dossier-menu` | Menu figé à gauche du dossier patient : « Agenda du jour » en tête, Dossier, Allergies, Dossier complet (sous-catégories), Prescriptions en cours | Collant sous le bandeau dès 1024 px, en tête de page en dessous ; partie visible signalée par `aria-current="location"` (`dossier-menu.js`), sous-catégorie = ouverture de sa section. |
 | `form` + `field` | Formulaires : une colonne, libellé au-dessus, aide (`help`) sous le libellé, erreur sous le champ | Types : text, date, number, email, tel, radio, select (`empty`), textarea, checkbox-group, hidden, heading ; `listbox` pour une combobox. |
 | `form` → `sections` | Sections repliables `<details>` des formulaires longs, compteur « n sur m renseignés » | Repliées par défaut, ouvertes si un champ est en erreur (`form-sections.js`). |
 | `status_badge` | Icône + texte + couleur d'un statut | Clés dans `docs/ui.md`. `late` est désormais rouge. |
@@ -80,8 +81,10 @@ RG2 antérieure). Produire `unknown` demande une donnée d'évaluation des aller
 
 ## Formulaires
 
-- Une colonne, libellé au-dessus, étoile rouge pour l'obligatoire, aide courte sous le libellé, erreur sous le
-  champ avec bordure rouge à gauche (GOV.UK : message spécifique, à côté du champ, jamais effacer la saisie).
+- Libellé au-dessus, étoile rouge pour l'obligatoire, aide courte sous le libellé, erreur sous le champ avec
+  bordure rouge à gauche (GOV.UK : message spécifique, à côté du champ, jamais effacer la saisie).
+- Admission : deux colonnes dès 1100 px (identité → note sur les allergies à gauche, sections complémentaires à
+  droite), recherche du patient sur toute la largeur au-dessus ; une seule colonne en dessous (retours du 2026-11-02).
 - Champs ≥ 44 px de haut, cases et boutons radio 20 px avec libellé cliquable ≥ 44 px.
 - Sections repliables pour tout formulaire de plus d'une dizaine de champs ; l'essentiel reste visible en haut.
 - Un seul bouton primaire (« Admettre », « Enregistrer ») ; recherche et actions secondaires en style secondaire.

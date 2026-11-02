@@ -44,12 +44,37 @@ $valeurLigne = static function (array $row): string {
     ['label' => 'Dossier du séjour n° ' . $bandeau['numeroSejour']],
 ]]) ?>
 
+<div class="dossier-layout">
+<?php /* Menu figé à gauche (retours du 2026-11-02) : agenda en tête, puis les parties du dossier ; les
+         sous-catégories du dossier complet ouvrent leur section (public/js/dossier-menu.js). */ ?>
+<nav class="dossier-menu" aria-label="Parties du dossier">
+    <a class="button dossier-menu__agenda" href="/agenda-patient?id=<?= View::e($idSejour) ?>">
+        <?= View::render('components/icon', ['name' => 'calendar']) ?>
+        Agenda du jour
+    </a>
+    <ul class="dossier-menu__list">
+        <li><a href="#dossier-resume">Dossier</a></li>
+        <li><a href="#titre-allergies">Allergies</a></li>
+        <li>
+            <a href="#titre-dossier-complet">Dossier complet</a>
+            <ul class="dossier-menu__sub">
+                <?php foreach ($sections as $section) : ?>
+                    <li><a href="#dossier-<?= View::e($section['id']) ?>"
+                           data-open-details><?= View::e($section['title']) ?></a></li>
+                <?php endforeach; ?>
+                <?php if ($editable) : ?>
+                    <li><a href="#dossier-historique" data-open-details>Historique des modifications</a></li>
+                <?php endif; ?>
+            </ul>
+        </li>
+        <li><a href="#titre-prescriptions">Prescriptions en cours</a></li>
+    </ul>
+</nav>
+
 <section class="dossier">
-    <div class="page-header">
+    <div class="page-header" id="dossier-resume">
         <h1 class="form-title">Dossier du séjour n° <?= View::e($bandeau['numeroSejour']) ?></h1>
         <p class="page-actions">
-            <a class="button button--secondary"
-               href="/agenda-patient?id=<?= View::e($idSejour) ?>">Agenda du jour</a>
             <a class="button button--secondary"
                href="/care-plans?idEpisodeOfCare=<?= View::e($idSejour) ?>">Toutes les prescriptions</a>
             <?php if ($sejour['enCours']) : ?>
@@ -268,7 +293,7 @@ $valeurLigne = static function (array $row): string {
     </div>
 
     <?php /* RG5 : seules les prescriptions validées par un médecin, et pas celles qui sont arrêtées. */ ?>
-    <h2 class="dossier-subtitle">Prescriptions en cours</h2>
+    <h2 class="dossier-subtitle" id="titre-prescriptions">Prescriptions en cours</h2>
     <?php if ($prescriptions === []) : ?>
         <?= View::render('components/empty_state', [
             'title' => 'Aucune prescription validée.',
@@ -343,3 +368,4 @@ $valeurLigne = static function (array $row): string {
         </div>
     <?php endif; ?>
 </section>
+</div>

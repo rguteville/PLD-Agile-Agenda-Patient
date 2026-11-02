@@ -3489,3 +3489,103 @@ form.form--columns > .form-row {
         padding-top: var(--sp-5);
     }
 }
+
+/* Dossier patient : menu figé à gauche (agenda en tête, parties du dossier, sous-catégories du dossier complet) */
+.dossier-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--sp-4) var(--sp-5);
+    align-items: start;
+}
+
+.dossier-menu {
+    padding: var(--sp-3);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: var(--bg-raised);
+    box-shadow: var(--shadow-soft);
+}
+
+.dossier-menu__agenda {
+    width: 100%;
+    box-sizing: border-box;
+    margin-bottom: var(--sp-3);
+}
+
+.dossier-menu__list,
+.dossier-menu__sub {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.dossier-menu__sub {
+    margin: 0 0 var(--sp-1) var(--sp-3);
+    border-left: 2px solid var(--line);
+}
+
+.dossier-menu a:not(.button) {
+    display: flex;
+    align-items: center;
+    min-height: 36px;
+    padding: var(--sp-1) var(--sp-2);
+    border-radius: var(--radius);
+    color: var(--fg);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.dossier-menu__sub a:not(.button) {
+    min-height: 32px;
+    font-size: var(--fs-1);
+    font-weight: 400;
+    color: var(--fg-muted);
+}
+
+.dossier-menu a:not(.button):hover {
+    background: var(--accent-soft);
+    color: var(--accent);
+}
+
+.dossier-menu a[aria-current="location"] {
+    background: var(--accent-soft);
+    color: var(--accent);
+    box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.dossier-menu a:focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: var(--focus-offset);
+}
+
+/* Poste fixe et tablette paysage : menu figé à gauche, sous le bandeau patient collant. */
+@media (min-width: 1024px) {
+    .dossier-layout {
+        grid-template-columns: 230px minmax(0, 1fr);
+    }
+
+    .dossier-menu {
+        position: sticky;
+        top: calc(var(--bandeau-height, 0px) + var(--sp-3));
+        max-height: calc(100vh - var(--bandeau-height, 0px) - var(--sp-5));
+        overflow-y: auto;
+    }
+}
+
+/* Petit écran : le menu reste en tête, sous-catégories masquées pour ne pas allonger la page. */
+@media (max-width: 1023px) {
+    .dossier-menu__list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--sp-1);
+    }
+
+    .dossier-menu__sub {
+        display: none;
+    }
+}
+
+/* Valeurs non éditables (calculs) alignées sur le texte des boutons-valeurs éditables voisins. */
+.dossier-section dd[data-field]:not(.inline-edit) {
+    padding: calc(var(--sp-1) + 1px) calc(var(--sp-2) + 1px);
+}
