@@ -1,6 +1,7 @@
 <?php
 
 use Aura\Core\View;
+use Aura\Domain\Allergie;
 use Aura\Domain\RecordFields;
 use Aura\Service\AdmissionService;
 
@@ -110,12 +111,14 @@ $essentiels = [
     [
         'name' => 'allergies',
         'label' => 'Allergies connues (référentiel)',
-        'type' => 'checkbox-group',
+        'type' => 'allergy-picker',
         'options' => $substances,
+        'criticalities' => is_array($valeurs['allergyCriticality'] ?? null) ? $valeurs['allergyCriticality'] : [],
+        'criticalityOptions' => Allergie::CRITICALITIES,
         'emptyMessage' => 'Référentiel des allergènes indisponible : les allergies pourront être saisies '
             . 'depuis le dossier du séjour.',
-        'help' => 'Cochez les allergènes connus. Un patient retrouvé par son IPP conserve '
-            . 'ses allergies déjà enregistrées.',
+        'help' => 'Cochez chaque allergène connu et indiquez sa criticité. Un patient déjà connu conserve '
+            . 'ses allergies enregistrées.',
     ],
     $champCatalogue('allergyNote', RecordFields::PATIENT['allergyNote']),
 ];
@@ -166,7 +169,8 @@ $sections = [
 // Valeurs ressaisies, erreurs par champ et compteur « n sur m renseignés » de chaque section.
 $remplir = static function (array $champs) use ($valeurs, $erreurs): array {
     foreach ($champs as &$champ) {
-        $champ['value'] = $valeurs[$champ['name']] ?? (($champ['type'] ?? 'text') === 'checkbox-group' ? [] : '');
+        $champ['value'] = $valeurs[$champ['name']]
+            ?? (in_array($champ['type'] ?? 'text', ['checkbox-group', 'allergy-picker'], true) ? [] : '');
         $champ['error'] = $erreurs[$champ['name']] ?? '';
     }
     unset($champ);

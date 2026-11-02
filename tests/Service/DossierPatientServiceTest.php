@@ -113,8 +113,8 @@ final class DossierPatientServiceTest extends TestCase
         self::assertSame('100200300', $bandeau['ipp']);
         self::assertSame(
             [
-                ['libelle' => 'Pénicilline', 'criticite' => 'sévère'],
-                ['libelle' => 'Latex', 'criticite' => null],
+                ['libelle' => 'Pénicilline', 'criticite' => 'sévère', 'niveau' => 'unknown'],
+                ['libelle' => 'Latex', 'criticite' => null, 'niveau' => 'unknown'],
             ],
             $bandeau['allergies']
         );
@@ -287,8 +287,14 @@ final class DossierPatientServiceTest extends TestCase
 
         self::assertSame(
             [
-                ['idAllergy' => 1, 'label' => 'Pénicilline', 'criticality' => 'Élevée', 'recordedAt' => '02/06/2026'],
-                ['idAllergy' => 2, 'label' => 'Latex', 'criticality' => null, 'recordedAt' => null],
+                [
+                    'idAllergy' => 1, 'label' => 'Pénicilline', 'criticality' => 'Élevée', 'level' => 'high',
+                    'recordedAt' => '02/06/2026',
+                ],
+                [
+                    'idAllergy' => 2, 'label' => 'Latex', 'criticality' => null, 'level' => 'unknown',
+                    'recordedAt' => null,
+                ],
             ],
             DossierPatientService::presentAllergies($allergies)
         );

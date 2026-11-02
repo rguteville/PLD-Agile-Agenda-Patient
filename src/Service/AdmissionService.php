@@ -113,6 +113,7 @@ class AdmissionService
         $idService = $this->texte($donnees['idService'] ?? null);
         $episodeDetails = $this->fields->normalize(RecordFields::EPISODE, $donnees);
         $allergies = $this->allergenes($donnees['allergies'] ?? null);
+        $criticites = $this->criticites($donnees['allergyCriticalities'] ?? null);
         if ($allergies !== [] && $this->allergieDao === null) {
             throw new LogicException(
                 'AdmissionService::admettre() requiert AllergieDao pour enregistrer des allergies.'
@@ -138,6 +139,7 @@ class AdmissionService
                 $patientDetails,
                 $episodeDetails,
                 $allergies,
+                $criticites,
                 $idSelectionne,
                 $modeRecherche
             ): Sejour {
@@ -197,7 +199,13 @@ class AdmissionService
                     );
                     foreach ($allergies as $idSubstance) {
                         if (!in_array($idSubstance, $connues, true)) {
-                            $allergieDao->insert(new Allergie(null, $idPatient, $idSubstance, ''));
+                            $allergieDao->insert(new Allergie(
+                                null,
+                                $idPatient,
+                                $idSubstance,
+                                '',
+                                $criticites[$idSubstance] ?? null
+                            ));
                         }
                     }
                 }
@@ -314,6 +322,24 @@ class AdmissionService
     }
 
     /**
+     * Criticité choisie par allergène (idSubstance => « Faible » | « Élevée ») ; vide ou absente =
+     * non évaluée (null en base). Valeurs déjà contrôlées par valider().
+     *
+     * @return array<string, string>
+     */
+    private function criticites(mixed $valeur): array
+    {
+        $criticites = [];
+        foreach (is_array($valeur) ? $valeur : [] as $id => $criticite) {
+            if (is_string($criticite) && trim($criticite) !== '') {
+                $criticites[(string) $id] = trim($criticite);
+            }
+        }
+
+        return $criticites;
+    }
+
+    /**
      * Identifiants d'allergènes choisis (liste à cases), dédoublonnés, sans valeur vide ni
      * non textuelle. Une valeur scalaire unique est acceptée (formulaire sans JavaScript).
      *
@@ -424,7 +450,8 @@ class AdmissionService
      * Valide les données d'admission (RG1 : nom et prénom obligatoires, IPP facultatif).
      *
      * Clés attendues (celles du domaine) : nom, prenom, ipp, dateNaissance, sexe,
-     * taille, poids, precautions, idService, allergies (liste d'identifiants d'allergènes)
+     * taille, poids, precautions, idService, allergies (liste d'identifiants d'allergènes),
+     * allergyCriticalities (idSubstance => criticité de Allergie::CRITICALITIES ou vide)
      * et tous les champs facultatifs de RecordFields::PATIENT et ::EPISODE. Une clé absente
      * est traitée comme vide. Les messages ne reprennent jamais la valeur saisie (données de santé).
      *
@@ -449,6 +476,21 @@ class AdmissionService
         $idPatient = $this->texte($donnees['idPatient'] ?? null);
         if ($idPatient !== '' && preg_match('/^[1-9][0-9]{0,17}$/', $idPatient) !== 1) {
             $erreurs['idPatient'] = 'Le patient sélectionné est invalide : relancez la recherche.';
+        }
+
+        $criticites = $donnees['allergyCriticalities'] ?? [];
+        if (!is_array($criticites)) {
+            $erreurs['allergyCriticalities'] = 'La criticité des allergies est invalide.';
+        } else {
+            foreach ($criticites as $criticite) {
+                $criticite = is_string($criticite) ? trim($criticite) : null;
+                $inconnue = $criticite !== '' && !in_array($criticite, Allergie::CRITICALITIES, true);
+                if ($criticite === null || $inconnue) {
+                    $erreurs['allergyCriticalities'] = 'Criticité d\'allergie inconnue : choisissez Faible, Élevée '
+                        . 'ou non évaluée.';
+                    break;
+                }
+            }
         }
 
         $allergies = $donnees['allergies'] ?? null;

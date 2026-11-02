@@ -216,6 +216,7 @@ final class AdmissionIntegrationTest extends TestCase
             'surgeryDate' => '2026-10-12',
             'completedBy' => 'Dr Zztest',
             'allergies' => [$idSubstance],
+            'allergyCriticalities' => [$idSubstance => 'Élevée'],
         ]);
 
         $reluSejour = (new SejourDao($this->pdo))->findById((int) $sejour->getIdSejour());
@@ -236,6 +237,7 @@ final class AdmissionIntegrationTest extends TestCase
         $allergies = (new AllergieDao($this->pdo))->findByPatient($sejour->getIdPatient());
         self::assertCount(1, $allergies);
         self::assertSame($idSubstance, $allergies[0]->getIdAllergene());
+        self::assertSame('Élevée', $allergies[0]->getCriticite(), 'criticité choisie à l\'admission enregistrée');
     }
 
     /** Un patient connu par son IPP : les champs saisis complètent son dossier, les vides ne l'effacent pas. */

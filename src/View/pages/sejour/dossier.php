@@ -103,7 +103,8 @@ $valeurLigne = static function (array $row): string {
         <ul class="liste-allergies">
             <?php foreach ($allergies as $allergy) : ?>
                 <li>
-                    <span class="libelle"><?= View::e($allergy['label']) ?></span>
+                    <span class="libelle allergie allergie--<?= View::e($allergy['level'] ?? 'unknown') ?>"
+                        ><?= View::e($allergy['label']) ?></span>
                     <?php
                     $details = $allergy['criticality'] !== null
                         ? 'criticité ' . $allergy['criticality']

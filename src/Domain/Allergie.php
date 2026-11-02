@@ -19,6 +19,20 @@ class Allergie
      */
     public const CRITICALITIES = ['Faible', 'Élevée'];
 
+    /**
+     * Niveau d'affichage d'une criticité (couleur du bandeau et des listes) : 'high' pour « Élevée »,
+     * 'low' pour « Faible », 'unknown' si non évaluée ou valeur inattendue (traitée avec prudence,
+     * comme une allergie à surveiller). Le texte de la criticité est toujours affiché en plus.
+     */
+    public static function criticalityLevel(?string $criticality): string
+    {
+        return match ($criticality === null ? null : trim($criticality)) {
+            'Élevée' => 'high',
+            'Faible' => 'low',
+            default => 'unknown',
+        };
+    }
+
     public function __construct(
         private ?int $idAllergie,
         private int $idPatient,

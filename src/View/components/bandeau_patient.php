@@ -74,11 +74,11 @@ use Aura\Core\View;
             </span>
             <ul>
                 <?php foreach ($bandeau['allergies'] as $allergie) : ?>
-                    <li>
+                    <?php /* Couleur selon la criticité : rouge plein = élevée, orange = faible,
+                             rouge pâle = non évaluée (le texte de la criticité est toujours affiché). */ ?>
+                    <li class="allergie allergie--<?= View::e($allergie['niveau'] ?? 'unknown') ?>">
                         <?= View::e($allergie['libelle']) ?>
-                        <?php if ($allergie['criticite'] !== null) : ?>
-                            (<?= View::e($allergie['criticite']) ?>)
-                        <?php endif; ?>
+                        (<?= View::e($allergie['criticite'] ?? 'criticité non évaluée') ?>)
                     </li>
                 <?php endforeach; ?>
             </ul>

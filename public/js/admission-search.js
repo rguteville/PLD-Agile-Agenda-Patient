@@ -250,10 +250,15 @@
             setFieldValue(name, fiche.patient[name]);
         });
         const allergies = fiche.allergies || [];
+        const criticalities = fiche.allergiesCriticites || {};
         form.querySelectorAll('input[type="checkbox"][name="allergies[]"]').forEach(box => {
             box.checked = allergies.includes(box.value);
-            box.dispatchEvent(new Event('change', { bubbles: true }));
+            const select = form.querySelector(`select[name="allergyCriticality[${CSS.escape(box.value)}]"]`);
+            if (select) {
+                select.value = box.checked ? (criticalities[box.value] || '') : '';
+            }
         });
+        form.dispatchEvent(new CustomEvent('aura:allergies-filled'));
     }
 
     function showBanner(p) {

@@ -3281,3 +3281,174 @@ form[data-ajax] {
     color: var(--st-warn-fg);
     font-weight: 600;
 }
+
+/* Allergies : couleur selon la criticité (le texte « (Élevée) », « (Faible) », « (criticité non évaluée) »
+   est toujours affiché : jamais la couleur seule). Élevée = rouge plein, Faible = orange,
+   non évaluée = rouge pâle (à traiter avec prudence tant qu'elle n'est pas évaluée). */
+.allergie {
+    border-radius: var(--radius);
+    font-weight: 600;
+}
+
+.bandeau-patient .allergies li.allergie--high,
+.allergies-dossier .libelle.allergie--high {
+    background: var(--st-alert-fg);
+    border: 1px solid var(--st-alert-fg);
+    color: #ffffff;
+}
+
+.bandeau-patient .allergies li.allergie--low,
+.allergies-dossier .libelle.allergie--low {
+    background: var(--st-warn-bg);
+    border: 1px solid var(--st-warn-line);
+    color: var(--st-warn-fg);
+}
+
+.bandeau-patient .allergies li.allergie--unknown,
+.allergies-dossier .libelle.allergie--unknown {
+    background: var(--bg-raised);
+    border: 1px solid var(--st-alert-line);
+    color: var(--st-alert-fg);
+}
+
+.allergies-dossier .libelle.allergie {
+    padding: 2px var(--sp-2);
+}
+
+/* En sombre, le rouge plein garde un texte foncé lisible sur la teinte claire du jeton. */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .bandeau-patient .allergies li.allergie--high,
+    :root:not([data-theme="light"]) .allergies-dossier .libelle.allergie--high {
+        color: #1c0a0a;
+    }
+}
+
+:root[data-theme="dark"] .bandeau-patient .allergies li.allergie--high,
+:root[data-theme="dark"] .allergies-dossier .libelle.allergie--high {
+    color: #1c0a0a;
+}
+
+/* Admission : liste des allergènes filtrable, criticité à côté de chaque allergène coché */
+.form-row > .allergy-picker {
+    flex: 0 0 100%;
+    width: 100%;
+    box-sizing: border-box;
+    order: 2;
+}
+
+.allergy-picker {
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+}
+
+.allergy-picker__toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-2) var(--sp-3);
+    padding: var(--sp-2) var(--sp-3);
+    border-bottom: 1px solid var(--line);
+}
+
+.allergy-picker__filter {
+    flex: 1 1 200px;
+    min-height: 40px;
+    padding: var(--sp-1) var(--sp-3);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    background: var(--bg);
+    color: var(--fg);
+    font: inherit;
+}
+
+.allergy-picker__count {
+    color: var(--fg-muted);
+    font-size: var(--fs-1);
+}
+
+.allergy-picker__list {
+    max-height: 288px;
+    margin: 0;
+    padding: var(--sp-1) 0;
+    overflow-y: auto;
+    list-style: none;
+}
+
+.allergy-option {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-1) var(--sp-3);
+    min-height: var(--tap);
+    padding: 0 var(--sp-3);
+}
+
+.allergy-option:hover {
+    background: var(--accent-soft);
+}
+
+.allergy-option:has(input:checked) {
+    background: var(--st-alert-bg);
+}
+
+.allergy-option__check {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    gap: var(--sp-2);
+    min-height: var(--tap);
+    font-weight: 400;
+    color: var(--fg);
+    cursor: pointer;
+}
+
+.form-row .allergy-option__check {
+    font-weight: 400;
+    color: var(--fg);
+}
+
+.form-row .allergy-option:has(input:checked) .allergy-option__check {
+    font-weight: 700;
+    color: var(--st-alert-fg);
+}
+
+.allergy-option__check input {
+    width: 20px;
+    height: 20px;
+    margin: 0;
+    accent-color: var(--st-alert-fg);
+}
+
+/* La criticité n'apparaît que pour un allergène coché (sans JavaScript aussi, via :has). */
+.allergy-option__criticality {
+    display: none;
+    min-height: 36px;
+    padding: 0 var(--sp-2);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+    color: var(--fg);
+    font: inherit;
+}
+
+.allergy-option:has(input:checked) .allergy-option__criticality {
+    display: inline-block;
+}
+
+/* Les règles historiques des listes du formulaire (.form-row select : largeur 100 %) ne s'appliquent pas ici. */
+.form-row .allergy-option .allergy-option__criticality {
+    flex: 0 0 auto;
+    grid-column: auto;
+    width: auto;
+    min-width: 200px;
+    max-width: none;
+    height: auto;
+}
+
+.allergy-picker__empty {
+    margin: 0;
+    padding: var(--sp-3);
+    color: var(--fg-muted);
+}

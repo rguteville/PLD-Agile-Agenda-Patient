@@ -29,7 +29,7 @@ $status = $field['status'] ?? null;
 $empty = $field['empty'] ?? null;
 // Liste à cases (type checkbox-group) : $value est la liste des valeurs cochées
 $checked = is_array($value) ? array_map('strval', $value) : [];
-$isGroup = $type === 'radio' || $type === 'checkbox-group';
+$isGroup = $type === 'radio' || $type === 'checkbox-group' || $type === 'allergy-picker';
 // Liste de suggestions (combobox accessible) rendue après le champ : ['listbox' => 'id-de-la-liste']
 $listbox = $field['listbox'] ?? null;
 ?>
@@ -80,6 +80,22 @@ $listbox = $field['listbox'] ?? null;
                     </label>
                 <?php endforeach; ?>
             </div>
+        <?php endif; ?>
+
+    <?php elseif ($type === 'allergy-picker') : ?>
+        <?php if (($field['options'] ?? []) === []) : ?>
+            <p class="field-help field-help--warning">
+                <?= View::e($field['emptyMessage'] ?? 'Aucune valeur disponible.') ?>
+            </p>
+        <?php else : ?>
+            <?= View::render('components/allergy_picker', [
+                'name' => $name,
+                'options' => $field['options'],
+                'checked' => $checked,
+                'criticalities' => $field['criticalities'] ?? [],
+                'criticalityOptions' => $field['criticalityOptions'] ?? [],
+                'ariaError' => $ariaError,
+            ]) ?>
         <?php endif; ?>
 
     <?php elseif ($type === 'select') : ?>

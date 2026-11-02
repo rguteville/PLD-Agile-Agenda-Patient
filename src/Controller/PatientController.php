@@ -48,6 +48,9 @@ class PatientController
      */
     private const CHAMP_ALLERGIES = 'allergies';
 
+    /** Criticité choisie pour chaque allergène coché : allergyCriticality[idSubstance] = « Faible »… */
+    private const CHAMP_CRITICITES = 'allergyCriticality';
+
     /** Le formulaire propose H/F, le domaine attend M/F (colonne Patient.sexe). */
     private const SEXE_FORMULAIRE_VERS_DOMAINE = ['H' => 'M', 'F' => 'F'];
 
@@ -57,7 +60,12 @@ class PatientController
      * Scripts du formulaire d'admission : envoi AJAX (AURA-10.2), recherche par IPP (AURA-15),
      * sections repliables avec compteur de champs renseignés (form-sections.js).
      */
-    public const SCRIPTS_ADMISSION = ['/js/form.js', '/js/admission-search.js', '/js/form-sections.js'];
+    public const SCRIPTS_ADMISSION = [
+        '/js/form.js',
+        '/js/admission-search.js',
+        '/js/form-sections.js',
+        '/js/allergy-picker.js',
+    ];
 
     /** Message renvoyé quand aucun patient ne porte l'IPP recherché (AURA-15). */
     public const MESSAGE_IPP_INCONNU = 'IPP inconnu, saisie manuelle.';
@@ -150,6 +158,8 @@ class PatientController
             'patient' => $patient,
             'allergies' => array_column($fiche['allergies'], 'idSubstance'),
             'allergiesLibelles' => array_column($fiche['allergies'], 'libelle'),
+            // Criticité connue de chaque allergie, pour pré-régler la liste de l'admission.
+            'allergiesCriticites' => array_column($fiche['allergies'], 'criticite', 'idSubstance'),
         ]);
     }
 
@@ -390,6 +400,14 @@ class PatientController
             is_array($allergies) ? $allergies : [$allergies],
             static fn ($v): bool => is_string($v) && trim($v) !== ''
         ));
+        // Criticités : seules les paires (identifiant texte => valeur texte) sont gardées.
+        $criticites = $post[self::CHAMP_CRITICITES] ?? [];
+        $saisie[self::CHAMP_CRITICITES] = [];
+        foreach (is_array($criticites) ? $criticites : [] as $id => $valeur) {
+            if (is_string($valeur)) {
+                $saisie[self::CHAMP_CRITICITES][(string) $id] = trim($valeur);
+            }
+        }
 
         return $saisie;
     }
@@ -407,6 +425,7 @@ class PatientController
             }
         }
         $donnees[self::CHAMP_ALLERGIES] = $saisie[self::CHAMP_ALLERGIES] ?? [];
+        $donnees['allergyCriticalities'] = $saisie[self::CHAMP_CRITICITES] ?? [];
         // Une valeur de sexe inconnue est transmise telle quelle : le service la refusera.
         $donnees['sexe'] = self::SEXE_FORMULAIRE_VERS_DOMAINE[$donnees['sexe']] ?? $donnees['sexe'];
 
@@ -415,7 +434,8 @@ class PatientController
 
     /**
      * Ré-indexe les erreurs du domaine par nom de champ du formulaire, pour les
-     * afficher à côté du bon champ. Une clé sans correspondance (allergies) est reprise telle quelle.
+     * afficher à côté du bon champ. Une clé sans correspondance (allergies) est reprise telle quelle ;
+     * une erreur de criticité est affichée sous la liste des allergies.
      *
      * @param array<string, string> $erreurs
      * @return array<string, string>
@@ -428,6 +448,11 @@ class PatientController
                 $parChamp[$champ] = $erreurs[$cle];
                 unset($erreurs[$cle]);
             }
+        }
+
+        if (isset($erreurs['allergyCriticalities'])) {
+            $erreurs[self::CHAMP_ALLERGIES] ??= $erreurs['allergyCriticalities'];
+            unset($erreurs['allergyCriticalities']);
         }
 
         return $parChamp + $erreurs;

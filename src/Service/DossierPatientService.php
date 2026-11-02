@@ -104,6 +104,7 @@ final class DossierPatientService
                 static fn (Allergie $a): array => [
                     'libelle' => trim($a->getSubstance()),
                     'criticite' => self::texteOuNull($a->getCriticite()),
+                    'niveau' => Allergie::criticalityLevel($a->getCriticite()),
                 ],
                 $allergies
             )),
@@ -148,7 +149,7 @@ final class DossierPatientService
      * antérieur d'une allergie découverte pendant le séjour en cours.
      *
      * @param Allergie[] $allergies
-     * @return list<array{idAllergy: ?int, label: string, criticality: ?string, recordedAt: ?string}>
+     * @return list<array{idAllergy: ?int, label: string, criticality: ?string, level: string, recordedAt: ?string}>
      */
     public static function presentAllergies(array $allergies): array
     {
@@ -157,6 +158,7 @@ final class DossierPatientService
                 'idAllergy' => $a->getIdAllergie(),
                 'label' => trim($a->getSubstance()),
                 'criticality' => self::texteOuNull($a->getCriticite()),
+                'level' => Allergie::criticalityLevel($a->getCriticite()),
                 'recordedAt' => $a->getDateSaisie()?->format('d/m/Y'),
             ],
             $allergies

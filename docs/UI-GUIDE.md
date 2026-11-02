@@ -55,7 +55,7 @@ puis la zone allergies avec **trois états distincts** :
 
 | État | Clé `allergiesStatus` | Rendu |
 | --- | --- | --- |
-| Allergies connues | `known` | Fond rouge pâle, icône triangle, étiquettes (criticité entre parenthèses) |
+| Allergies connues | `known` | Fond rouge pâle, icône triangle, une étiquette par allergie colorée selon sa criticité : **Élevée** rouge plein, **Faible** orange, **non évaluée** contour rouge ; la criticité est toujours écrite entre parenthèses |
 | Aucune allergie connue | `none` | Fond vert pâle, coche, texte « Aucune allergie connue » |
 | Allergies non renseignées | `unknown` | Fond orange pâle, icône alerte, texte « Allergies non renseignées » |
 
@@ -74,6 +74,7 @@ RG2 antérieure). Produire `unknown` demande une donnée d'évaluation des aller
 | `empty_state` | Écran ou section sans donnée | Titre, explication, action principale à côté quand elle existe. |
 | `.confirm-box` | Confirmation en place du rattachement d'un patient à l'admission | Texte de confirmation, Confirmer / Annuler, `role="group"`, jamais une modale centrée. |
 | `.patient-banner` | Bandeau orange « Données issues du dossier existant… vérifiez-les » | Avec « Changer de patient ». |
+| `allergy_picker` (type de champ `allergy-picker`) | Allergies à l'admission : liste filtrable du référentiel, criticité par allergène coché | Envoie `allergies[]` et `allergyCriticality[id]` ; filtre sans accents ni casse ; un allergène coché reste visible quel que soit le filtre. |
 | `.suggestions` | Liste de suggestions d'une combobox | `role="listbox"`, options `role="option"`, avertissement d'homonymie en tête. |
 | `.inline-edit` | Valeur éditable du dossier (bouton) | Crayon au survol ou au focus ; clic ou Entrée → le champ remplace la valeur sur place (jamais affichée deux fois) avec un seul bouton « Confirmer » ; Entrée confirme, Échap annule ; « Enregistré » en `aria-live`. |
 
