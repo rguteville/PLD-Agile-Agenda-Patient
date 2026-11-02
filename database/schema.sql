@@ -7,6 +7,7 @@
 #CREATE DATABASE IF NOT EXISTS aura;
 #USE aura;
 
+DROP TABLE IF EXISTS AuditEvent; -- Historique des modifications du dossier (aucune clé étrangère)
 DROP TABLE IF EXISTS Appointment; -- SoinPlanifié ->[ServiceRequest,MedicationRequest]
 DROP TABLE IF EXISTS ServiceRequest; -- PrescriptionSoin ->[ActivityDefinition,CarePlan,Practitioner]
 DROP TABLE IF EXISTS MedicationRequest; -- PrescriptionMedicament ->[Medication,CarePlan,Practitioner]
@@ -58,7 +59,14 @@ CREATE TABLE Patient( -- Patient
     lifestyle TEXT NULL,
     foreignTravel TEXT NULL,
     comorbidities TEXT NULL,
-    currentTreatment TEXT NULL
+    currentTreatment TEXT NULL,
+
+    -- Recherche d'un patient existant à l'admission (PR « admission-recherche-patient ») : index pour le tri
+    -- (ORDER BY lastName, firstName), l'égalité « nom exact » et findByIdentite() ; le filtre par début de mot
+    -- (expression REPLACE/CONCAT) ne les utilise pas.
+    INDEX idx_patient_lastname (lastName),
+    INDEX idx_patient_firstname (firstName),
+    INDEX idx_patient_birthlastname (birthLastName)
 );
 
 CREATE TABLE HealthcareService( -- Service Hospitalier
@@ -279,4 +287,25 @@ CREATE TABLE Appointment( -- SoinPlanifie
 
     CONSTRAINT fk_servicerequest_appointment FOREIGN KEY (idServiceRequest) REFERENCES ServiceRequest(idServiceRequest) ON DELETE RESTRICT,
     CONSTRAINT fk_medicationrequest_appointment FOREIGN KEY (idMedicationRequest) REFERENCES MedicationRequest(idMedicationRequest) ON DELETE RESTRICT
+);
+
+-- Historique des modifications champ par champ du dossier patient (PR « dossier-patient-edition-inline »,
+-- 2026-11-02, exigence de traçabilité du cahier des charges). Nom FHIR : AuditEvent. Une ligne par
+-- modification enregistrée depuis le dossier : entité (Patient ou EpisodeOfCare), identifiant, champ
+-- (nom de colonne), ancienne et nouvelle valeur, auteur (« non identifié » tant qu'AURA-18 n'existe pas),
+-- horodatage. Pas de clé étrangère : l'historique survit à toute évolution des tables tracées et
+-- ne bloque jamais une écriture. AUTO_INCREMENT : table de journal, jamais lue par un id calculé.
+CREATE TABLE AuditEvent(
+    idAuditEvent INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    entity VARCHAR(20) NOT NULL,
+    entityId VARCHAR(20) NOT NULL,
+    field VARCHAR(50) NOT NULL,
+    oldValue TEXT NULL,
+    newValue TEXT NULL,
+    author VARCHAR(100) NOT NULL,
+    -- Précision libre (ex. mode de recherche ayant conduit à un rattachement : « recherche par nom »).
+    detail VARCHAR(200) NULL,
+    recordedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    INDEX idx_auditevent_entity (entity, entityId, recordedAt)
 );

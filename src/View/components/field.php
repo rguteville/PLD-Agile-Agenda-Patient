@@ -30,7 +30,19 @@ $empty = $field['empty'] ?? null;
 // Liste à cases (type checkbox-group) : $value est la liste des valeurs cochées
 $checked = is_array($value) ? array_map('strval', $value) : [];
 $isGroup = $type === 'radio' || $type === 'checkbox-group';
+// Liste de suggestions (combobox accessible) rendue après le champ : ['listbox' => 'id-de-la-liste']
+$listbox = $field['listbox'] ?? null;
 ?>
+<?php if ($type === 'hidden') : ?>
+<input type="hidden" id="<?= View::e($name) ?>" name="<?= View::e($name) ?>" value="<?= View::e($value) ?>">
+<?php elseif ($type === 'heading') : ?>
+<div class="form-heading">
+    <h2 class="form-subtitle" id="<?= View::e($name) ?>"><?= View::e($label) ?></h2>
+    <?php if ($help !== '') : ?>
+        <p class="field-help"><?= View::e($help) ?></p>
+    <?php endif; ?>
+</div>
+<?php else : ?>
 <div class="form-row form-row--<?= View::e($type) ?><?= $error !== '' ? ' has-error' : '' ?>">
     <?php if ($isGroup) : ?>
         <span class="form-label" id="<?= View::e($name) ?>-label"><?= View::e($label) ?></span>
@@ -100,6 +112,10 @@ $isGroup = $type === 'radio' || $type === 'checkbox-group';
                 </button>
             </div>
         <?php endif; ?>
+        <?php if ($listbox !== null) : ?>
+            <ul id="<?= View::e($listbox) ?>" class="suggestions" role="listbox"
+                aria-label="Patients correspondants" hidden></ul>
+        <?php endif; ?>
     <?php endif; ?>
 
     <?php if ($error !== '') : ?>
@@ -109,3 +125,4 @@ $isGroup = $type === 'radio' || $type === 'checkbox-group';
         <div class="field-status" id="<?= View::e($status) ?>" aria-live="polite"></div>
     <?php endif; ?>
 </div>
+<?php endif; ?>

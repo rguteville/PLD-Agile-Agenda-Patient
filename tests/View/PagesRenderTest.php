@@ -187,6 +187,13 @@ final class PagesRenderTest extends TestCase
 
         self::assertStringContainsString('name="lastname"', $html);
         self::assertStringContainsString('name="admissionReason"', $html);
+        // Recherche d'un patient existant : combobox accessible, liste de suggestions, champs cachés.
+        self::assertMatchesRegularExpression('/name="patientSearch"[^>]*role="combobox"/', $html);
+        self::assertStringContainsString('aria-controls="patient-suggestions"', $html);
+        self::assertStringContainsString('<ul id="patient-suggestions" class="suggestions" role="listbox"', $html);
+        self::assertStringContainsString('<input type="hidden" id="idPatient" name="idPatient" value="">', $html);
+        self::assertStringContainsString('<input type="hidden" id="searchMode" name="searchMode" value="">', $html);
+        self::assertStringContainsString('id="patient-search-status" aria-live="polite"', $html);
         self::assertStringContainsString('<option value="SRV01"', $html);
         self::assertStringContainsString('Réa &lt;1&gt;', $html);
         self::assertStringContainsString('name="allergies[]" value="ALG01"', $html);

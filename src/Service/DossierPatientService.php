@@ -121,6 +121,7 @@ final class DossierPatientService
 
         return [
             'idSejour' => $sejour->getIdSejour(),
+            'idPatient' => $sejour->getIdPatient(),
             'enCours' => $sortie === null,
             'dateSortie' => $sortie?->format('d/m/Y H:i'),
             // Nom du service si le référentiel le connaît, sinon l'identifiant brut (on ne cache rien).

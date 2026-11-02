@@ -189,14 +189,23 @@ class SejourDao
     }
 
     /**
-     * Met à jour seulement les champs complémentaires fournis (clés de RecordFields::EPISODE ;
-     * toute autre clé est ignorée).
+     * Colonnes de base modifiables champ par champ depuis le dossier (RecordEditService), en plus
+     * du catalogue RecordFields::EPISODE : mesures d'admission, précautions, service.
+     */
+    public const EDITABLE_BASE_COLUMNS = ['weight', 'height', 'precautions', 'idHealthcareService'];
+
+    /**
+     * Met à jour seulement les champs fournis : clés de RecordFields::EPISODE ou colonnes de
+     * EDITABLE_BASE_COLUMNS ; toute autre clé est ignorée (liste blanche).
      *
      * @param array<string, ?string> $details
      */
     public function updateDetails(int $idSejour, array $details): void
     {
-        $details = array_intersect_key($details, RecordFields::EPISODE);
+        $details = array_intersect_key(
+            $details,
+            RecordFields::EPISODE + array_fill_keys(self::EDITABLE_BASE_COLUMNS, true)
+        );
         if ($details === []) {
             return;
         }
