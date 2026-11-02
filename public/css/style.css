@@ -3662,3 +3662,15 @@ form.form--columns > .form-row {
 .b3-grid > .b3-required {
     justify-content: center;
 }
+
+/* Fil d'Ariane : chaque élément a la hauteur de la cible des liens (32 px), centré verticalement ;
+   sinon le lien « Patients » descendait plus bas que les éléments sans lien. */
+.breadcrumb ol {
+    align-items: center;
+}
+
+.breadcrumb li {
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+}
