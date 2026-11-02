@@ -1,6 +1,7 @@
 <?php
 
 use Aura\Core\View;
+use Aura\Service\RecordSectionService;
 
 /**
  * Dossier du séjour (AURA-14) et gestion des allergies connues du patient (AURA-13.2).
@@ -24,6 +25,13 @@ $sections = $sections ?? [];
 $editable = $editable ?? false;
 $csrfToken = $csrfToken ?? null;
 $history = $history ?? [];
+$partValues = $partValues ?? [];
+$services = $services ?? [];
+// Crayon « Modifier » d'une partie entière (retours du 2026-11-02), à côté du titre de la partie.
+$crayonPartie = static fn (string $part, string $title): string =>
+    '<button type="button" class="part-edit" data-part-edit="' . View::e($part) . '" aria-label="Modifier la partie : '
+    . View::e($title) . '" title="Modifier toute la partie">'
+    . View::render('components/icon', ['name' => 'pen-line']) . '<span>Modifier</span></button>';
 // Contenu HTML (échappé) d'une ligne du dossier complet : valeur, ou état explicite si absente.
 $valeurLigne = static function (array $row): string {
     if ($row['value'] !== null) {
@@ -77,9 +85,30 @@ if ($editable) {
 <section class="dossier">
     <div class="page-header" id="dossier-resume">
         <h1 class="form-title">Dossier du séjour n° <?= View::e($bandeau['numeroSejour']) ?></h1>
-
+        <?php if ($editable) : ?>
+            <p class="page-actions">
+                <?= $crayonPartie(RecordSectionService::PART_SUMMARY, 'Dossier') ?>
+                <?php if ($sejour['enCours']) : ?>
+                    <?php /* Fin du séjour : validée par un médecin dans la même fenêtre que les modifications. */ ?>
+                    <button type="button" class="button button--danger" data-end-stay>
+                        Mettre fin au séjour
+                    </button>
+                <?php endif; ?>
+            </p>
+        <?php endif; ?>
     </div>
-    <dl>
+    <dl class="dossier-resume" data-part-view="<?= RecordSectionService::PART_SUMMARY ?>">
+        <dt>Patient</dt>
+        <dd>
+            <?= View::e(mb_strtoupper($bandeau['nom']) . ' ' . $bandeau['prenom']) ?>
+            <?php if ($bandeau['sexe'] !== null) : ?>
+                (<?= View::e($bandeau['sexe']) ?>)
+            <?php endif; ?>
+        </dd>
+        <dt>Né(e) le</dt>
+        <dd><?= View::e($bandeau['dateNaissance'] ?? 'non renseignée') ?></dd>
+        <dt>IPP</dt>
+        <dd><?= View::e($bandeau['ipp'] ?? 'sans IPP') ?></dd>
         <dt>Statut</dt>
         <dd>
             <?php if ($sejour['enCours']) : ?>
@@ -107,6 +136,14 @@ if ($editable) {
         <dt>E-mail</dt>
         <dd><?= View::e($sejour['email'] ?? 'non renseigné') ?></dd>
     </dl>
+    <?php if ($editable) : ?>
+        <?= View::render('components/part_form', [
+            'part' => RecordSectionService::PART_SUMMARY,
+            'title' => 'Dossier',
+            'fields' => RecordSectionService::partFields(RecordSectionService::PART_SUMMARY, $services),
+            'values' => $partValues[RecordSectionService::PART_SUMMARY] ?? [],
+        ]) ?>
+    <?php endif; ?>
 
 <section class="allergies-dossier" aria-labelledby="titre-allergies">
     <h2 id="titre-allergies">Allergies connues</h2>
@@ -198,13 +235,14 @@ if ($editable) {
         <details class="dossier-section"
                  id="dossier-<?= View::e($section['id']) ?>"<?= $section['filled'] > 0 ? ' open' : '' ?>>
             <summary>
-                <span><?= View::e($section['title']) ?></span>
+                <span class="dossier-section__title"><?= View::e($section['title']) ?></span>
+                <?= $editable ? $crayonPartie($section['id'], $section['title']) : '' ?>
                 <span class="dossier-section__count">
                     <?= View::e($section['filled']) ?> sur <?= View::e($section['total']) ?>
                     renseigné<?= $section['filled'] > 1 ? 's' : '' ?>
                 </span>
             </summary>
-            <dl>
+            <dl data-part-view="<?= View::e($section['id']) ?>">
                 <?php foreach ($section['rows'] as $row) : ?>
                     <dt><?= View::e($row['label']) ?></dt>
                     <?php if ($editable && !$row['computed']) : ?>
@@ -236,6 +274,14 @@ if ($editable) {
                     <?php endif; ?>
                 <?php endforeach; ?>
             </dl>
+            <?php if ($editable) : ?>
+                <?= View::render('components/part_form', [
+                    'part' => $section['id'],
+                    'title' => $section['title'],
+                    'fields' => RecordSectionService::partFields($section['id'], $services),
+                    'values' => $partValues[$section['id']] ?? [],
+                ]) ?>
+            <?php endif; ?>
         </details>
     <?php endforeach; ?>
 
@@ -367,3 +413,43 @@ if ($editable) {
 </aside>
 
 </div>
+
+<?php if ($editable) : ?>
+    <?php /* Fenêtre de validation par un médecin : AUTHENTIFICATION FACTICE (le mot de passe n'est pas
+             vérifié) en attendant l'identification des praticiens (AURA-18). Elle sert aux modifications
+             d'une partie et à la fin du séjour (public/js/part-edit.js). */ ?>
+    <dialog id="auth-dialog" class="auth-dialog" aria-labelledby="auth-dialog-title">
+        <form method="dialog" class="auth-dialog__form" novalidate>
+            <h2 id="auth-dialog-title" class="auth-dialog__title">Validation par un médecin</h2>
+            <p class="auth-dialog__summary" data-auth-summary></p>
+            <div class="auth-dialog__discharge" data-auth-discharge hidden>
+                <?= View::render('components/field', ['field' => [
+                    'name' => 'dischargeDate', 'id' => 'auth-discharge-date', 'label' => 'Date de sortie',
+                    'type' => 'date', 'value' => '', 'error' => '',
+                ]]) ?>
+                <?= View::render('components/field', ['field' => [
+                    'name' => 'dischargeTime', 'id' => 'auth-discharge-time', 'label' => 'Heure de sortie',
+                    'type' => 'time', 'value' => '', 'error' => '',
+                ]]) ?>
+            </div>
+            <?= View::render('components/field', ['field' => [
+                'name' => 'validator', 'id' => 'auth-validator', 'label' => 'Médecin qui valide', 'type' => 'select',
+                'options' => $doctors, 'empty' => 'Choisir le médecin', 'value' => '', 'error' => '',
+            ]]) ?>
+            <?= View::render('components/field', ['field' => [
+                'name' => 'password', 'id' => 'auth-password', 'label' => 'Mot de passe', 'type' => 'password',
+                'value' => '', 'error' => '', 'attributes' => ['autocomplete' => 'off'],
+            ]]) ?>
+            <p class="auth-dialog__notice">
+                <?= View::render('components/icon', ['name' => 'info']) ?>
+                Authentification de démonstration : le mot de passe n'est pas vérifié. Elle sera remplacée par
+                l'identification des praticiens.
+            </p>
+            <p class="form-error" role="alert" data-auth-error hidden></p>
+            <div class="auth-dialog__actions">
+                <button type="submit" class="button" value="confirm">Valider</button>
+                <button type="button" class="button button--secondary" data-auth-cancel>Annuler</button>
+            </div>
+        </form>
+    </dialog>
+<?php endif; ?>

@@ -33,6 +33,7 @@ final class SejourController
         '/js/inline-edit.js',
         '/js/dossier-menu.js',
         '/js/date-input.js',
+        '/js/part-edit.js',
     ];
     /** agenda.js : impression de la journée et dialogue de validation. */
     private const AGENDA_SCRIPTS = ['/js/agenda.js'];

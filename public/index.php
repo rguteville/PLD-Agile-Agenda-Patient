@@ -6,6 +6,11 @@ use Aura\Dao\ActivityDefinitionDao;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
+// Heure du service (Lyon) quel que soit le réglage de PHP : sans cela, un PHP en UTC (Homebrew, Debian
+// sans date.timezone) décale d'une à deux heures l'heure d'admission, la fin de séjour et les retards
+// de l'agenda par rapport à l'heure affichée par le navigateur.
+date_default_timezone_set('Europe/Paris');
+
 use Aura\Controller\CarePlanController;
 use Aura\Controller\PatientController;
 use Aura\Controller\RecordController;
@@ -36,6 +41,7 @@ use Aura\Service\PatientSearchService;
 use Aura\Service\PlanDefinitionService;
 use Aura\Service\RechercheIppService;
 use Aura\Service\RecordEditService;
+use Aura\Service\RecordSectionService;
 use Aura\Service\SejourService;
 use Aura\Service\AgendaService;
 
@@ -232,6 +238,26 @@ try {
     $router->post('/sejour/allergies/ajouter', static fn () => $controleurSejour()->addAllergy());
     $router->post('/sejour/allergies/retirer', static fn () => $controleurSejour()->removeAllergy());
     $router->post('/sejour/champ/modifier', static fn () => (new RecordController($recordEditService()))->update());
+    // Retours du 2026-11-02 : modification d'une partie entière du dossier et fin de séjour, validées par
+    // un médecin (authentification factice en attendant AURA-18).
+    $recordController = static function () use ($recordEditService): RecordController {
+        $pdo = Database::get();
+
+        return new RecordController(
+            $recordEditService(),
+            new RecordSectionService(
+                new PatientDao($pdo),
+                new SejourDao($pdo),
+                new SejourService(new SejourDao($pdo)),
+                $recordEditService(),
+                new AuditEventDao($pdo),
+                new Transaction($pdo),
+                new ReferenceDataDao($pdo)
+            )
+        );
+    };
+    $router->post('/sejour/partie/modifier', static fn () => $recordController()->updatePart());
+    $router->post('/sejour/cloturer', static fn () => $recordController()->endStay());
     $router->get('/care-plans', static fn () => $carePlans()->list());
     $router->get('/care-plans/new', static fn () => $carePlans()->newForm());
     $router->post('/care-plans/create', static fn () => $carePlans()->create());

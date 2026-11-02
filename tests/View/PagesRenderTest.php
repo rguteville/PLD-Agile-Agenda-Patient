@@ -311,6 +311,14 @@ final class PagesRenderTest extends TestCase
         self::assertStringContainsString('href="#dossier-historique" data-open-details', $html);
         self::assertStringContainsString('id="titre-prescriptions"', $html);
         self::assertStringContainsString('<aside class="dossier-aside" aria-labelledby="titre-prescriptions">', $html);
+        // Modification d'une partie entière : crayon à côté du titre, formulaire masqué, fenêtre de validation.
+        self::assertStringContainsString('data-part-edit="summary"', $html);
+        self::assertStringContainsString('data-part-edit="scores"', $html);
+        self::assertMatchesRegularExpression('/<form class="part-form" data-part="summary"/', $html);
+        self::assertStringContainsString('id="summary-nom"', $html, 'identifiants préfixés par la partie');
+        self::assertStringContainsString('data-end-stay', $html, 'séjour en cours : bouton de fin de séjour');
+        self::assertStringContainsString('<dialog id="auth-dialog"', $html);
+        self::assertStringContainsString('le mot de passe n\'est pas vérifié', $html, 'authentification factice');
         self::assertStringContainsString('<td>Non &lt;fumeur&gt;</td>', $html);
         self::assertStringContainsString('<small>précision &lt;x&gt;</small>', $html);
         self::assertStringContainsString('data-id-sejour="1"', $html);

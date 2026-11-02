@@ -5,14 +5,17 @@ use Aura\Core\View;
 
 $type     = $field['type'] ?? 'text';
 $name     = $field['name'];
+// Identifiant HTML : le nom par défaut ; un préfixe (« summary-nom ») évite les doublons quand plusieurs
+// formulaires de la même page ont un champ du même nom (parties du dossier).
+$fieldId  = $field['id'] ?? $name;
 $label    = $field['label'] ?? ucfirst($name);
 $required = !empty($field['required']);
 $value    = $field['value'] ?? '';
 $error    = $field['error'] ?? '';
-$errorId  = $name . '-error';
+$errorId  = $fieldId . '-error';
 // Aide contextuelle courte sous le libellé (formulaires longs) : reliée au champ par aria-describedby.
 $help     = $field['help'] ?? '';
-$helpId   = $name . '-help';
+$helpId   = $fieldId . '-help';
 // Attributs d'accessibilité : aria-describedby cumule l'aide et le message d'erreur (lecteurs d'écran).
 $describedBy = array_filter([$help !== '' ? $helpId : null, $error !== '' ? $errorId : null]);
 $ariaError = ($error !== '' ? ' aria-invalid="true"' : '')
@@ -54,10 +57,10 @@ $isGroup = $type === 'radio' || $type === 'checkbox-group' || $type === 'allergy
 $listbox = $field['listbox'] ?? null;
 ?>
 <?php if ($type === 'hidden') : ?>
-<input type="hidden" id="<?= View::e($name) ?>" name="<?= View::e($name) ?>" value="<?= View::e($value) ?>">
+<input type="hidden" id="<?= View::e($fieldId) ?>" name="<?= View::e($name) ?>" value="<?= View::e($value) ?>">
 <?php elseif ($type === 'heading') : ?>
 <div class="form-heading">
-    <h2 class="form-subtitle" id="<?= View::e($name) ?>"><?= View::e($label) ?></h2>
+    <h2 class="form-subtitle" id="<?= View::e($fieldId) ?>"><?= View::e($label) ?></h2>
     <?php if ($help !== '') : ?>
         <p class="field-help"><?= View::e($help) ?></p>
     <?php endif; ?>
@@ -65,9 +68,9 @@ $listbox = $field['listbox'] ?? null;
 <?php else : ?>
 <div class="form-row form-row--<?= View::e($type) ?><?= $error !== '' ? ' has-error' : '' ?>">
     <?php if ($isGroup) : ?>
-        <span class="form-label" id="<?= View::e($name) ?>-label"><?= View::e($label) ?></span>
+        <span class="form-label" id="<?= View::e($fieldId) ?>-label"><?= View::e($label) ?></span>
     <?php else : ?>
-        <label for="<?= View::e($name) ?>"><?= View::e($label) ?></label>
+        <label for="<?= View::e($fieldId) ?>"><?= View::e($label) ?></label>
     <?php endif; ?>
     <span class="req"><?= $required ? '*' : '' ?></span>
     <?php if ($help !== '') : ?>
@@ -75,7 +78,7 @@ $listbox = $field['listbox'] ?? null;
     <?php endif; ?>
 
     <?php if ($type === 'radio') : ?>
-        <div class="radio-group" role="radiogroup" aria-labelledby="<?= View::e($name) ?>-label">
+        <div class="radio-group" role="radiogroup" aria-labelledby="<?= View::e($fieldId) ?>-label">
             <?php foreach ($field['options'] as $optValue => $optLabel) : ?>
                 <label>
                     <input type="radio" name="<?= View::e($name) ?>" value="<?= View::e($optValue) ?>"
@@ -91,7 +94,7 @@ $listbox = $field['listbox'] ?? null;
                 <?= View::e($field['emptyMessage'] ?? 'Aucune valeur disponible.') ?>
             </p>
         <?php else : ?>
-            <div class="checkbox-group" role="group" aria-labelledby="<?= View::e($name) ?>-label">
+            <div class="checkbox-group" role="group" aria-labelledby="<?= View::e($fieldId) ?>-label">
                 <?php foreach ($field['options'] as $optValue => $optLabel) : ?>
                     <label>
                         <input type="checkbox" name="<?= View::e($name) ?>[]" value="<?= View::e($optValue) ?>"
@@ -119,7 +122,7 @@ $listbox = $field['listbox'] ?? null;
         <?php endif; ?>
 
     <?php elseif ($type === 'select') : ?>
-        <select id="<?= View::e($name) ?>" name="<?= View::e($name) ?>"
+        <select id="<?= View::e($fieldId) ?>" name="<?= View::e($name) ?>"
             <?= $required ? 'required' : '' ?><?= $attributes ?><?= $ariaError ?>>
             <?php if ($empty !== null) : ?>
                 <option value=""<?= (string) $value === '' ? ' selected' : '' ?>><?= View::e($empty) ?></option>
@@ -133,14 +136,14 @@ $listbox = $field['listbox'] ?? null;
         </select>
 
     <?php elseif ($type === 'textarea') : ?>
-        <textarea id="<?= View::e($name) ?>" name="<?= View::e($name) ?>"
+        <textarea id="<?= View::e($fieldId) ?>" name="<?= View::e($name) ?>"
             <?= $required ? 'required' : '' ?><?= $attributes ?><?= $ariaError ?>><?= View::e($value) ?></textarea>
 
     <?php else : ?>
         <?php if ($button !== null) : ?>
             <div class="field-group">
         <?php endif; ?>
-        <input type="<?= View::e($type) ?>" id="<?= View::e($name) ?>" name="<?= View::e($name) ?>"
+        <input type="<?= View::e($type) ?>" id="<?= View::e($fieldId) ?>" name="<?= View::e($name) ?>"
             value="<?= View::e($value) ?>" <?= $required ? 'required' : '' ?><?= $attributes ?><?= $ariaError ?>>
         <?php if ($button !== null) : ?>
                 <button type="button" class="field-button" id="<?= View::e($button['id']) ?>">

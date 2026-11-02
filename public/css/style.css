@@ -3807,3 +3807,148 @@ form.form--columns .form-lead > .form-row {
     flex: 1 1 160px;
     min-height: 40px;
 }
+
+/* Dossier : crayon « Modifier » d'une partie entière, à côté du titre (retours du 2026-11-02). */
+.part-edit {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-1);
+    min-height: 32px;
+    padding: 0 var(--sp-2);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+    color: var(--accent);
+    font: inherit;
+    font-size: var(--fs-1);
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.part-edit:hover {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+}
+
+.part-edit:focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: var(--focus-offset);
+}
+
+.dossier-section > summary .dossier-section__title {
+    flex: 1 1 auto;
+}
+
+.dossier-section > summary .part-edit {
+    margin-right: var(--sp-2);
+}
+
+.page-header .page-actions .button--danger {
+    border: 1px solid var(--st-alert-fg);
+    background: var(--bg-raised);
+    color: var(--st-alert-fg);
+}
+
+.page-header .page-actions .button--danger:hover {
+    background: var(--st-alert-bg);
+}
+
+/* Formulaire d'une partie : une colonne, à la place des valeurs */
+.part-form {
+    padding: var(--sp-3) var(--sp-4);
+    border-top: 1px solid var(--line);
+}
+
+.dossier > .part-form {
+    margin: 0 0 var(--sp-4);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: var(--bg-raised);
+    box-shadow: var(--shadow-soft);
+}
+
+.part-form .form-row > input,
+.part-form .form-row > textarea,
+.part-form .form-row > select {
+    max-width: none;
+}
+
+.part-form__actions {
+    display: flex;
+    gap: var(--sp-2);
+    padding: var(--sp-3) var(--sp-2) 0;
+}
+
+/* Fenêtre de validation par un médecin (authentification factice) */
+.auth-dialog {
+    width: min(520px, calc(100vw - 2 * var(--sp-4)));
+    padding: 0;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-lg);
+    background: var(--bg-raised);
+    color: var(--fg);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+}
+
+.auth-dialog::backdrop {
+    background: rgba(20, 23, 27, 0.45);
+}
+
+.auth-dialog__form {
+    padding: var(--sp-4) var(--sp-4) var(--sp-3);
+}
+
+.auth-dialog__title {
+    margin: 0 0 var(--sp-2);
+    font-size: var(--fs-4);
+}
+
+.auth-dialog__summary {
+    margin: 0 0 var(--sp-3);
+    color: var(--fg-muted);
+}
+
+.auth-dialog__notice {
+    display: flex;
+    gap: var(--sp-2);
+    align-items: flex-start;
+    margin: var(--sp-2) var(--sp-2) var(--sp-3);
+    padding: var(--sp-2) var(--sp-3);
+    border: 1px solid var(--st-warn-line);
+    border-radius: var(--radius);
+    background: var(--st-warn-bg);
+    color: var(--st-warn-fg);
+    font-size: var(--fs-1);
+}
+
+.auth-dialog__actions {
+    display: flex;
+    gap: var(--sp-2);
+    padding: 0 var(--sp-2);
+}
+
+.auth-dialog .form-row > input,
+.auth-dialog .form-row > select {
+    max-width: none;
+}
+
+/* Résumé du dossier : l'identité en tête, lisible sans le bandeau */
+.dossier-resume dt:first-of-type + dd {
+    font-weight: 700;
+}
+
+/* Mêmes dimensions et police pour tous les types de champ texte (téléphone, e-mail, mot de passe, heure). */
+.form-row input[type="tel"],
+.form-row input[type="email"],
+.form-row input[type="password"],
+.form-row input[type="time"] {
+    min-height: var(--tap);
+    box-sizing: border-box;
+    width: 100%;
+    padding: var(--sp-2) var(--sp-3);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+    color: var(--fg);
+    font: inherit;
+}

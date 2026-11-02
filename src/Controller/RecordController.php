@@ -6,6 +6,8 @@ namespace Aura\Controller;
 
 use Aura\Core\Csrf;
 use Aura\Service\RecordEditService;
+use Aura\Service\RecordSectionService;
+use LogicException;
 
 /**
  * POST /sejour/champ/modifier : modification d'un champ du dossier, sans rechargement de page
@@ -30,8 +32,122 @@ final class RecordController
         RecordEditService::STATUS_CONFLICT => 409,
     ];
 
-    public function __construct(private RecordEditService $recordEditService)
+    /** Codes HTTP des réponses d'une partie du dossier ou de la fin de séjour. */
+    private const PART_HTTP_STATUS = [
+        RecordSectionService::STATUS_SAVED => 200,
+        RecordSectionService::STATUS_INVALID => 422,
+        RecordSectionService::STATUS_AUTH => 422,
+        RecordSectionService::STATUS_CONFLICT => 409,
+        RecordSectionService::STATUS_NOT_FOUND => 404,
+    ];
+
+    public function __construct(
+        private RecordEditService $recordEditService,
+        private ?RecordSectionService $recordSectionService = null
+    ) {
+    }
+
+    /**
+     * POST /sejour/partie/modifier (retours du 2026-11-02) : toute une partie du dossier d'un coup.
+     * Corps JSON {sejour, part, values: {champ: valeur}, oldValues: {champ: valeur}, validator, password},
+     * en-tête X-CSRF-Token. Réponses : 200 {ok, redirect} ; 422 {erreurs} (champ ou « auth ») ;
+     * 409 conflit ; 404 dossier ou partie inconnue ; 403 jeton ; 400 requête incomplète.
+     */
+    public function updatePart(): void
     {
+        $body = $this->readBody();
+        if (!$this->checkToken($body)) {
+            return;
+        }
+        $idSejour = $body['sejour'] ?? null;
+        $part = $body['part'] ?? null;
+        $values = $body['values'] ?? null;
+        $oldValues = $body['oldValues'] ?? null;
+        if (
+            !is_string($part) || !is_array($values) || !is_array($oldValues)
+            || !is_string($idSejour) && !is_int($idSejour) || preg_match(self::ID_PATTERN, (string) $idSejour) !== 1
+        ) {
+            $this->respond(400, ['ok' => false, 'message' => 'Requête incomplète.']);
+            return;
+        }
+
+        $result = $this->sectionService()->updatePart(
+            (int) $idSejour,
+            $part,
+            $values,
+            $oldValues,
+            self::text($body['validator'] ?? null),
+            self::text($body['password'] ?? null)
+        );
+        $this->respondPart($result, (int) $idSejour, '#dossier-' . preg_replace('/[^a-z]/', '', $part));
+    }
+
+    /**
+     * POST /sejour/cloturer : fin du séjour. Corps JSON {sejour, date (JJ/MM/AAAA), time (HH:MM),
+     * validator, password}, en-tête X-CSRF-Token. Mêmes réponses que updatePart().
+     */
+    public function endStay(): void
+    {
+        $body = $this->readBody();
+        if (!$this->checkToken($body)) {
+            return;
+        }
+        $idSejour = $body['sejour'] ?? null;
+        if (!is_string($idSejour) && !is_int($idSejour) || preg_match(self::ID_PATTERN, (string) $idSejour) !== 1) {
+            $this->respond(400, ['ok' => false, 'message' => 'Requête incomplète.']);
+            return;
+        }
+
+        $result = $this->sectionService()->endStay(
+            (int) $idSejour,
+            self::text($body['date'] ?? null),
+            self::text($body['time'] ?? null),
+            self::text($body['validator'] ?? null),
+            self::text($body['password'] ?? null)
+        );
+        $this->respondPart($result, (int) $idSejour, '#dossier-resume');
+    }
+
+    /** @param array{status: string, errors: array<string, string>, message: ?string} $result */
+    private function respondPart(array $result, int $idSejour, string $anchor): void
+    {
+        $status = self::PART_HTTP_STATUS[$result['status']] ?? 500;
+        if ($status === 200) {
+            $this->respond(200, ['ok' => true, 'redirect' => '/sejour?id=' . $idSejour . $anchor]);
+            return;
+        }
+        $this->respond($status, [
+            'ok' => false,
+            'conflict' => $result['status'] === RecordSectionService::STATUS_CONFLICT,
+            'message' => $result['message'],
+            'erreurs' => $result['errors'],
+        ]);
+    }
+
+    /** @param array<string, mixed> $body */
+    private function checkToken(array $body): bool
+    {
+        $token = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? $body['csrf'] ?? null;
+        if (Csrf::check(is_string($token) ? $token : null)) {
+            return true;
+        }
+        $this->respond(403, ['ok' => false, 'message' => 'Session expirée : rechargez la page puis réessayez.']);
+
+        return false;
+    }
+
+    private function sectionService(): RecordSectionService
+    {
+        if ($this->recordSectionService === null) {
+            throw new LogicException('RecordController : les parties du dossier requièrent un RecordSectionService.');
+        }
+
+        return $this->recordSectionService;
+    }
+
+    private static function text(mixed $value): string
+    {
+        return is_string($value) ? $value : '';
     }
 
     /** Traite la requête (voir l'en-tête de classe pour le contrat JSON et les codes HTTP). */
