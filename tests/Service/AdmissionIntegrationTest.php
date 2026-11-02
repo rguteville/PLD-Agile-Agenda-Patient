@@ -362,6 +362,34 @@ final class AdmissionIntegrationTest extends TestCase
         );
     }
 
+    /** Une valeur refusée sur un champ du patient sélectionné annule toute l'admission (rien n'est écrit). */
+    public function testUneValeurRefuseeSurLePatientSelectionneAnnuleLAdmission(): void
+    {
+        $service = $this->serviceComplet();
+        $premier = $service->admettre([
+            'nom' => self::NOM, 'prenom' => 'Alice', 'trustedPersonEmail' => 'a@example.com',
+        ]);
+        (new SejourService(new SejourDao($this->pdo)))->cloturerSejour((int) $premier->getIdSejour());
+        [$patientsAvant, $sejoursAvant] = $this->compter();
+
+        // Le contrôle d'admission accepte la clé idPatient ; la validation du champ est celle de RecordEditService.
+        try {
+            $service->admettre([
+                'idPatient' => (string) $premier->getIdPatient(), 'nom' => self::NOM, 'prenom' => 'Alice',
+                'trustedPersonEmail' => 'pas-un-mail',
+            ]);
+            self::fail('Une adresse invalide aurait dû être refusée.');
+        } catch (InvalidArgumentException $e) {
+            self::assertStringContainsString('e-mail', $e->getMessage());
+        }
+
+        self::assertSame([$patientsAvant, $sejoursAvant], $this->compter(), 'aucun séjour créé');
+        self::assertSame(
+            'a@example.com',
+            (new PatientDao($this->pdo))->findById($premier->getIdPatient())?->getDetail('trustedPersonEmail')
+        );
+    }
+
     /** @return array{int, int} */
     private function compter(): array
     {

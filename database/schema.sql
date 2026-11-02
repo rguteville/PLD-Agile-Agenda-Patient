@@ -61,7 +61,9 @@ CREATE TABLE Patient( -- Patient
     comorbidities TEXT NULL,
     currentTreatment TEXT NULL,
 
-    -- Recherche d'un patient existant par nom / prénom à l'admission (PR « admission-recherche-patient »).
+    -- Recherche d'un patient existant à l'admission (PR « admission-recherche-patient ») : index pour le tri
+    -- (ORDER BY lastName, firstName), l'égalité « nom exact » et findByIdentite() ; le filtre par début de mot
+    -- (expression REPLACE/CONCAT) ne les utilise pas.
     INDEX idx_patient_lastname (lastName),
     INDEX idx_patient_firstname (firstName),
     INDEX idx_patient_birthlastname (birthLastName)
