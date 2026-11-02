@@ -310,6 +310,7 @@ final class PagesRenderTest extends TestCase
         self::assertMatchesRegularExpression('/href="#dossier-scores"\s+data-open-details/', $html);
         self::assertStringContainsString('href="#dossier-historique" data-open-details', $html);
         self::assertStringContainsString('id="titre-prescriptions"', $html);
+        self::assertStringContainsString('<aside class="dossier-aside" aria-labelledby="titre-prescriptions">', $html);
         self::assertStringContainsString('<td>Non &lt;fumeur&gt;</td>', $html);
         self::assertStringContainsString('<small>précision &lt;x&gt;</small>', $html);
         self::assertStringContainsString('data-id-sejour="1"', $html);

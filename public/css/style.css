@@ -3707,3 +3707,103 @@ form.form--columns .form-lead > .form-row {
         grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     }
 }
+
+/* Dossier : trois colonnes sur grand écran (menu figé | dossier | prescriptions en cours) ;
+   sous 1280 px, les prescriptions passent sous le dossier. */
+@media (min-width: 1280px) {
+    .dossier-layout:has(> .dossier-aside) {
+        grid-template-columns: 220px minmax(0, 1fr) minmax(300px, 360px);
+    }
+
+    .dossier-aside {
+        position: sticky;
+        top: calc(var(--bandeau-height, 0px) + var(--sp-3));
+        max-height: calc(100vh - var(--bandeau-height, 0px) - var(--sp-5));
+        overflow-y: auto;
+    }
+
+    /* La page dossier a besoin de toute la largeur utile. */
+    #main:has(.dossier-aside) {
+        max-width: 1600px;
+    }
+}
+
+@media (min-width: 1024px) and (max-width: 1279px) {
+    .dossier-layout:has(> .dossier-aside) > .dossier-aside {
+        grid-column: 2;
+    }
+}
+
+.dossier-aside {
+    padding: var(--sp-3);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: var(--bg-raised);
+    box-shadow: var(--shadow-soft);
+}
+
+.dossier-aside__header .dossier-subtitle {
+    margin: 0 0 var(--sp-2);
+    font-size: var(--fs-3);
+}
+
+.dossier-aside__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-2);
+    margin: 0 0 var(--sp-3);
+}
+
+.prescription-cards {
+    display: grid;
+    gap: var(--sp-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.prescription-card {
+    padding: var(--sp-2) var(--sp-3);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--st-done-line);
+    border-radius: var(--radius);
+    background: var(--bg);
+}
+
+.prescription-card__label {
+    margin: 0 0 var(--sp-1);
+    font-weight: 600;
+}
+
+.prescription-card__note {
+    margin: 0;
+    color: var(--fg-muted);
+    font-size: var(--fs-1);
+}
+
+.prescription-card__meta {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 2px var(--sp-2);
+    margin: var(--sp-2) 0;
+    font-size: var(--fs-1);
+}
+
+.prescription-card__meta dt {
+    color: var(--fg-muted);
+}
+
+.prescription-card__meta dd {
+    margin: 0;
+}
+
+.prescription-card .stop-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-2);
+}
+
+.prescription-card .stop-form select {
+    flex: 1 1 160px;
+    min-height: 40px;
+}

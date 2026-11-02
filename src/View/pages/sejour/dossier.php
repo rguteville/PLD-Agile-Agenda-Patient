@@ -77,14 +77,7 @@ if ($editable) {
 <section class="dossier">
     <div class="page-header" id="dossier-resume">
         <h1 class="form-title">Dossier du séjour n° <?= View::e($bandeau['numeroSejour']) ?></h1>
-        <p class="page-actions">
-            <a class="button button--secondary"
-               href="/care-plans?idEpisodeOfCare=<?= View::e($idSejour) ?>">Toutes les prescriptions</a>
-            <?php if ($sejour['enCours']) : ?>
-                <?php /* AURA-20 : vers l'écran B3 « Nouvelles prescriptions » (séjour en cours seulement). */ ?>
-                <a class="button" href="/care-plans/new?idEpisodeOfCare=<?= View::e($idSejour) ?>">Prescription</a>
-            <?php endif; ?>
-        </p>
+
     </div>
     <dl>
         <dt>Statut</dt>
@@ -296,80 +289,81 @@ if ($editable) {
     <?php endif; ?>
     </div>
 
-    <?php /* RG5 : seules les prescriptions validées par un médecin, et pas celles qui sont arrêtées. */ ?>
-    <h2 class="dossier-subtitle" id="titre-prescriptions">Prescriptions en cours</h2>
+</section>
+
+<?php /* Prescriptions en cours dans une colonne à droite du dossier (retours du 2026-11-02) ; sous le
+         dossier sur un écran plus étroit. RG5 : seules les lignes validées par un médecin et non arrêtées. */ ?>
+<aside class="dossier-aside" aria-labelledby="titre-prescriptions">
+    <div class="dossier-aside__header">
+        <h2 class="dossier-subtitle" id="titre-prescriptions">Prescriptions en cours</h2>
+        <p class="dossier-aside__actions">
+            <?php if ($sejour['enCours']) : ?>
+                <?php /* AURA-20 : vers l'écran B3 « Nouvelles prescriptions » (séjour en cours seulement). */ ?>
+                <a class="button" href="/care-plans/new?idEpisodeOfCare=<?= View::e($idSejour) ?>">Prescription</a>
+            <?php endif; ?>
+            <a class="button button--secondary"
+               href="/care-plans?idEpisodeOfCare=<?= View::e($idSejour) ?>">Toutes les prescriptions</a>
+        </p>
+    </div>
     <?php if ($prescriptions === []) : ?>
         <?= View::render('components/empty_state', [
             'title' => 'Aucune prescription validée.',
             'text' => 'Les ordonnances en attente de validation médicale sont sur l\'écran Prescription.',
         ]) ?>
     <?php else : ?>
-        <div class="table-scroll">
-        <table class="dossier-prescriptions">
-            <thead>
-                <tr>
-                    <th scope="col">Prescription</th>
-                    <th scope="col">Fréquence</th>
-                    <th scope="col">Période</th>
-                    <th scope="col">Validée par</th>
-                    <?php if ($sejour['enCours']) : ?>
-                        <th scope="col">Arrêt</th>
-                    <?php endif; ?>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($prescriptions as $line) : ?>
-                    <tr>
-                        <td>
-                            <?= View::e($line['label']) ?>
-                            <?php
-                            $notes = [
-                                'important' => 'Important : ',
-                                'nurseInstructions' => 'Consignes IDE : ',
-                                'maxDose' => 'Dose max : ',
-                                'dilutionVolume' => 'Volume de dilution : ',
-                                'solvent' => 'Solvant : ',
-                                'administrationDuration' => 'Durée d\'administration : ',
-                                'antibioticReason' => 'Motif antibiotique : ',
-                                'germ' => 'Germe : ',
-                                'renalAdjustment' => 'Adaptation rénale : ',
-                                'adjustmentCriterion' => 'Critère d\'adaptation : ',
-                                'offGhsReason' => 'Motif hors GHS : ',
-                                'timeConstraint' => '',
-                            ];
-                            ?>
-                            <?php foreach ($notes as $note => $prefix) : ?>
-                                <?php if ($line[$note] !== null) : ?>
-                                    <br><small><?= View::e($prefix . $line[$note]) ?></small>
-                                <?php endif; ?>
-                            <?php endforeach; ?>
-                        </td>
-                        <td><?= View::e($line['frequency']) ?></td>
-                        <td><?= View::e($line['period']) ?></td>
-                        <td><?= View::e($line['validation']) ?></td>
-                        <?php if ($sejour['enCours']) : ?>
-                            <td>
-                                <?php /* AURA-22 : un médecin arrête la ligne ; elle quitte alors cette liste. */ ?>
-                                <form class="stop-form" method="post" data-ajax
-                                      action="/care-plans/stop?idEpisodeOfCare=<?= View::e($idSejour) ?>">
-                                    <input type="hidden" name="idLine" value="<?= View::e($line['idLine']) ?>">
-                                    <input type="hidden" name="isMedication"
-                                           value="<?= $line['isMedication'] ? '1' : '0' ?>">
-                                    <select name="idStoppedBy" aria-label="Médecin qui arrête">
-                                        <option value="">— médecin —</option>
-                                        <?php foreach ($doctors as $value => $label) : ?>
-                                            <option value="<?= View::e($value) ?>"><?= View::e($label) ?></option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                    <button type="submit">Arrêter</button>
-                                </form>
-                            </td>
+        <?php
+        $notes = [
+            'important' => 'Important : ',
+            'nurseInstructions' => 'Consignes IDE : ',
+            'maxDose' => 'Dose max : ',
+            'dilutionVolume' => 'Volume de dilution : ',
+            'solvent' => 'Solvant : ',
+            'administrationDuration' => 'Durée d\'administration : ',
+            'antibioticReason' => 'Motif antibiotique : ',
+            'germ' => 'Germe : ',
+            'renalAdjustment' => 'Adaptation rénale : ',
+            'adjustmentCriterion' => 'Critère d\'adaptation : ',
+            'offGhsReason' => 'Motif hors GHS : ',
+            'timeConstraint' => '',
+        ];
+        ?>
+        <ul class="prescription-cards dossier-prescriptions">
+            <?php foreach ($prescriptions as $line) : ?>
+                <li class="prescription-card">
+                    <p class="prescription-card__label"><?= View::e($line['label']) ?></p>
+                    <?php foreach ($notes as $note => $prefix) : ?>
+                        <?php if ($line[$note] !== null) : ?>
+                            <p class="prescription-card__note"><?= View::e($prefix . $line[$note]) ?></p>
                         <?php endif; ?>
-                    </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
-        </div>
+                    <?php endforeach; ?>
+                    <dl class="prescription-card__meta">
+                        <dt>Fréquence</dt>
+                        <dd><?= View::e($line['frequency']) ?></dd>
+                        <dt>Période</dt>
+                        <dd><?= View::e($line['period']) ?></dd>
+                        <dt>Validée</dt>
+                        <dd><?= View::e($line['validation']) ?></dd>
+                    </dl>
+                    <?php if ($sejour['enCours']) : ?>
+                        <?php /* AURA-22 : un médecin arrête la ligne ; elle quitte alors cette liste. */ ?>
+                        <form class="stop-form" method="post" data-ajax
+                              action="/care-plans/stop?idEpisodeOfCare=<?= View::e($idSejour) ?>">
+                            <input type="hidden" name="idLine" value="<?= View::e($line['idLine']) ?>">
+                            <input type="hidden" name="isMedication"
+                                   value="<?= $line['isMedication'] ? '1' : '0' ?>">
+                            <select name="idStoppedBy" aria-label="Médecin qui arrête : <?= View::e($line['label']) ?>">
+                                <option value="">— médecin —</option>
+                                <?php foreach ($doctors as $value => $label) : ?>
+                                    <option value="<?= View::e($value) ?>"><?= View::e($label) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <button type="submit">Arrêter</button>
+                        </form>
+                    <?php endif; ?>
+                </li>
+            <?php endforeach; ?>
+        </ul>
     <?php endif; ?>
-</section>
+</aside>
+
 </div>
