@@ -100,6 +100,8 @@ final class DossierPatientService
             // Mesures à l'admission, affichées dans le bandeau (dosage, matériel) ; null = non renseigné.
             'poids' => self::mesure($sejour->getPoids(), 'kg'),
             'taille' => self::mesure($sejour->getTaille(), 'cm'),
+            // Groupe sanguin (Patient.bloodType) ; null = non renseigné.
+            'groupeSanguin' => self::texteOuNull($patient->getDetail('bloodType')),
             'allergies' => array_values(array_map(
                 static fn (Allergie $a): array => [
                     'libelle' => trim($a->getSubstance()),

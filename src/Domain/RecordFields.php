@@ -37,7 +37,19 @@ final class RecordFields
      * @var array<string, array{label: string, type: string, section: string, max?: int,
      *                          options?: array<string, string>, help?: string}>
      */
+    /** Groupes sanguins ABO et rhésus D (colonne existante Patient.bloodType VARCHAR(3)). */
+    public const BLOOD_TYPES = [
+        'A+' => 'A+', 'A-' => 'A−', 'B+' => 'B+', 'B-' => 'B−',
+        'AB+' => 'AB+', 'AB-' => 'AB−', 'O+' => 'O+', 'O-' => 'O−',
+    ];
+
     public const PATIENT = [
+        'bloodType' => [
+            'label' => 'Groupe sanguin',
+            'type' => 'select',
+            'section' => 'admission',
+            'options' => self::BLOOD_TYPES,
+        ],
         'allergyNote' => [
             'label' => 'Note libre sur les allergies', 'type' => 'textarea', 'section' => 'admission',
             'max' => self::TEXT_MAX,

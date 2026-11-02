@@ -64,6 +64,18 @@ final class DossierPatientServiceTest extends TestCase
         self::assertSame([], $bandeau['allergies'], 'liste vide = « Aucune allergie connue » dans la vue');
     }
 
+    public function testBandeauAfficheLeGroupeSanguin(): void
+    {
+        $aujourdhui = new DateTimeImmutable(self::AUJOURDHUI);
+        $patient = new Patient(9, null, 'Durand', 'Alice', null, 'F', details: ['bloodType' => 'O-']);
+
+        $avec = DossierPatientService::presenterBandeau($patient, $this->sejour(), [], $aujourdhui);
+        $sans = DossierPatientService::presenterBandeau($this->patient(null), $this->sejour(), [], $aujourdhui);
+
+        self::assertSame('O-', $avec['groupeSanguin']);
+        self::assertNull($sans['groupeSanguin'], 'non renseigné');
+    }
+
     public function testBandeauPorteLEtatDesAllergies(): void
     {
         $sans = DossierPatientService::presenterBandeau(

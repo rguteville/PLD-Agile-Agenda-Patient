@@ -48,6 +48,10 @@ use Aura\Core\View;
             <dt>Taille</dt>
             <dd><?= View::e($bandeau['taille'] ?? 'non renseignée') ?></dd>
         </div>
+        <div>
+            <dt>Groupe sanguin</dt>
+            <dd><?= View::e($bandeau['groupeSanguin'] ?? 'non renseigné') ?></dd>
+        </div>
     </dl>
     <?php
     // Trois états distincts (identitovigilance) : allergies connues (rouge), « Aucune allergie connue »

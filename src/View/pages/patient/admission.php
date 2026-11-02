@@ -106,6 +106,7 @@ $essentiels = [
         'type' => 'radio',
         'options' => ['M' => 'M', 'F' => 'F']
     ],
+    $champCatalogue('bloodType', RecordFields::PATIENT['bloodType']),
     $champCatalogue('admissionReason', RecordFields::EPISODE['admissionReason']),
     [
         'name' => 'idHealthcareService',
