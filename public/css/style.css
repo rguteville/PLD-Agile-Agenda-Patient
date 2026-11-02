@@ -2558,44 +2558,6 @@ h2,
     font-weight: 600;
 }
 
-.confirm-box {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--sp-2);
-    margin: var(--sp-2) 8px var(--sp-3);
-    padding: var(--sp-3) var(--sp-4);
-    border: 1px solid var(--line-strong);
-    border-left: 4px solid var(--accent);
-    border-radius: var(--radius);
-    background: var(--bg-raised);
-}
-
-.confirm-box p {
-    flex: 1 1 100%;
-    margin: 0 0 var(--sp-1);
-    font-weight: 600;
-}
-
-.patient-banner {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--sp-2) var(--sp-4);
-    margin: var(--sp-3) 8px;
-    padding: var(--sp-3) var(--sp-4);
-    border: 1px solid var(--st-late-line);
-    border-radius: var(--radius);
-    background: var(--st-late-bg);
-    color: var(--st-late-fg);
-}
-
-.patient-banner p {
-    flex: 1 1 auto;
-    margin: 0;
-    font-weight: 600;
-}
-
 @media (max-width: 640px) {
     .form-row .suggestions {
         grid-column: 1 / -1;
@@ -3214,13 +3176,10 @@ form[data-ajax] {
 .dossier dl,
 .form-section,
 .dossier-section,
-.empty-state,
-.confirm-box,
-.patient-banner {
+.empty-state {
     box-shadow: var(--shadow-soft);
 }
 
-.patient-banner,
 .suggestions__warning {
     background: var(--st-warn-bg);
     border-color: var(--st-warn-line);

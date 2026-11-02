@@ -105,7 +105,7 @@ try {
         $controller->create();
     };
 
-    // Recherche d'un patient existant à l'admission (IPP ou nom / prénom) et fiche après confirmation.
+    // Recherche d'un patient existant à l'admission (IPP ou nom / prénom) et fiche à la sélection.
     $recherchePatients = static function (): PatientController {
         $pdo = Database::get();
 

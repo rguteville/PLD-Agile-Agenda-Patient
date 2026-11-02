@@ -38,7 +38,7 @@ modules, le trajet d'une requête, le modèle de données réel et les décision
 | `GET /patients/modifier?id=`, `POST /patients/modifier?id=` | Modification de l'identité d'un patient. |
 | `GET /patients/recherche-ipp?ipp=` | Identité d'un patient par IPP (JSON, AURA-15, conservé). |
 | `GET /patients/recherche?q=` | Recherche par IPP ou mots du nom / prénom (JSON, identité seulement, 20 max). |
-| `GET /patients/fiche?id=` | Fiche complète d'un patient pour pré-remplir l'admission (JSON, après confirmation). |
+| `GET /patients/fiche?id=` | Fiche complète d'un patient pour pré-remplir l'admission (JSON, à la sélection d'un résultat). |
 | `GET /sejour?id=` | Dossier du séjour : bandeau, allergies, dossier complet éditable, prescriptions validées, historique. |
 | `POST /sejour/allergies/ajouter`, `POST /sejour/allergies/retirer` | Allergies du patient depuis le dossier. |
 | `POST /sejour/champ/modifier` | Modification d'un champ du dossier (JSON, jeton CSRF, concurrence optimiste, trace AuditEvent). |
@@ -297,7 +297,7 @@ modifications (sans clé étrangère). Régénérer le diagramme : parser les `C
 ## Décisions de conception retrouvées dans le dépôt
 
 - **Identité et IPP** : nom et prénom obligatoires, IPP facultatif (RG1, patient admis en urgence). L'existence d'un
-  patient est vérifiée dans la base locale d'AURA (par IPP, puis par nom / prénom avec confirmation explicite) ;
+  patient est vérifiée dans la base locale d'AURA (par IPP, puis par nom / prénom, sélection explicite d'un résultat) ;
   **OpenEMR n'est pas connecté** (AURA-38 hors périmètre), le SI est autonome.
 - **Numéro de séjour** `AAAA-NNNNNN` généré uniquement par `SejourDao::insert()` dans une transaction verrouillée,
   jamais saisi (AURA-10.3).

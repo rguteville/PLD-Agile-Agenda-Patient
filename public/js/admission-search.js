@@ -5,9 +5,10 @@
 //
 // Identitovigilance : rien n'est sélectionné automatiquement. Les résultats affichent nom, prénom,
 // nom de naissance, date de naissance et âge, sexe, IPP, dernier séjour ; un avertissement
-// apparaît en cas d'homonymes ; la sélection demande une confirmation ; seule la confirmation
-// charge la fiche (/patients/fiche?id=…) pour pré-remplir le formulaire. Le champ caché idPatient
-// rattache ensuite le séjour au patient existant (contrôlé côté serveur).
+// apparaît en cas d'homonymes ; la sélection (clic ou Entrée, jamais automatique) charge la fiche
+// (/patients/fiche?id=…), affiche l'identité dans une carte en lecture seule et pré-remplit le
+// formulaire. Le champ caché idPatient rattache ensuite le séjour au patient existant (contrôlé
+// côté serveur) ; « Ce n'est pas ce patient » annule ce rattachement.
 //
 // Accessibilité : combobox (role, aria-expanded, aria-activedescendant), listbox, flèches / Entrée /
 // Échap, nombre de résultats annoncé en aria-live.
@@ -40,7 +41,6 @@
         refine: 'Plus de 20 résultats : affinez votre recherche.',
         homonyms: 'Plusieurs patients portent ce nom — vérifiez la date de naissance et l\'IPP avant de sélectionner.',
         results: n => `${n} résultat${n > 1 ? 's' : ''}`,
-        confirm: p => `Rattacher ce séjour à : ${p.nom} ${p.prenom}, né(e) le ${p.dateNaissance || 'date inconnue'}, IPP ${p.ipp || 'sans IPP'} ?`,
         cardTitle: 'Patient existant',
         correct: 'Corriger l\'identité',
         detach: 'Ce n\'est pas ce patient',
@@ -187,11 +187,9 @@
         timer = setTimeout(() => search(input.value, input, statusTarget), DEBOUNCE_MS);
     }
 
-    // ---- Sélection : confirmation explicite, puis chargement de la fiche ----
-
-    function removeConfirmation() {
-        form.querySelectorAll('.confirm-box--patient').forEach(el => el.remove());
-    }
+    // ---- Sélection : chargement direct de la fiche ----
+    // Pas de confirmation intermédiaire (retours du 2026-11-02) : la carte affichée après la sélection
+    // montre l'identité complète, et « Ce n'est pas ce patient » annule le rattachement.
 
     function select(index) {
         const p = results[index];
@@ -200,32 +198,7 @@
         }
         const mode = IPP_PATTERN.test(activeInput.value.trim()) ? 'ipp' : 'name';
         closeList();
-        removeConfirmation();
-
-        const box = document.createElement('div');
-        box.className = 'confirm-box confirm-box--patient';
-        box.setAttribute('role', 'group');
-        box.setAttribute('aria-label', 'Confirmer le rattachement');
-        const text = document.createElement('p');
-        text.textContent = MESSAGES.confirm(p);
-        const confirmButton = document.createElement('button');
-        confirmButton.type = 'button';
-        confirmButton.className = 'button';
-        confirmButton.textContent = 'Confirmer';
-        confirmButton.addEventListener('click', () => loadRecord(p, mode));
-        const cancelButton = document.createElement('button');
-        cancelButton.type = 'button';
-        cancelButton.className = 'button button--secondary';
-        cancelButton.textContent = 'Annuler';
-        cancelButton.addEventListener('click', () => {
-            removeConfirmation();
-            activeInput.focus();
-        });
-        box.appendChild(text);
-        box.appendChild(confirmButton);
-        box.appendChild(cancelButton);
-        listbox.insertAdjacentElement('afterend', box);
-        confirmButton.focus();
+        loadRecord(p, mode);
     }
 
     function setFieldValue(name, value) {
@@ -374,7 +347,6 @@
         modeInput.value = '';
         removeCard();
         showIdentityFields(true);
-        removeConfirmation();
         closeList();
         setStatus(searchStatus, '', null);
         form.querySelectorAll('input, textarea, select').forEach(control => {
@@ -384,7 +356,6 @@
     }
 
     async function loadRecord(p, mode) {
-        removeConfirmation();
         let data;
         try {
             const response = await fetch(`${RECORD_URL}?id=${encodeURIComponent(p.idPatient)}`, {
@@ -442,10 +413,6 @@
     searchInput.addEventListener('keydown', onKeydown);
     searchInput.addEventListener('blur', () => {
         // Laisser le mousedown d'une option s'exécuter avant de fermer.
-        setTimeout(() => {
-            if (!form.querySelector('.confirm-box--patient')) {
-                closeList();
-            }
-        }, 150);
+        setTimeout(closeList, 150);
     });
 })();
