@@ -57,6 +57,18 @@ final class DerivedMeasuresServiceTest extends TestCase
         self::assertNull(DerivedMeasuresService::predictedBodyWeight('M', 50.0));
     }
 
+    public function testPresentationExpliqueUneTailleHorsDomaine(): void
+    {
+        $vue = DerivedMeasuresService::present(20.0, 90.0, 'M');
+
+        self::assertNull($vue['predictedBodyWeight']['value']);
+        self::assertSame(
+            'taille hors du domaine de la formule ARDSNet (adulte)',
+            $vue['predictedBodyWeight']['reason']
+        );
+        self::assertNotNull($vue['bmi']['value'], 'l\'IMC reste calculable');
+    }
+
     public function testVtTheoriqueEntre6Et8MlParKg(): void
     {
         self::assertSame([420.0, 560.0], DerivedMeasuresService::tidalVolumeRange(70.0));

@@ -39,7 +39,8 @@ class PatientDao
     /** @return Patient[] */
     public function findAll(): array
     {
-        $rows = $this->pdo->query('SELECT ' . self::columns() . ' FROM Patient ORDER BY lastName, firstName')
+        // Liste : l'identité suffit, les champs complémentaires (TEXT) ne sont pas chargés.
+        $rows = $this->pdo->query('SELECT ' . self::IDENTITY_COLUMNS . ' FROM Patient ORDER BY lastName, firstName')
             ->fetchAll(PDO::FETCH_ASSOC);
 
         return array_map(fn(array $r) => $this->mapToEntity($r), $rows);
@@ -59,7 +60,7 @@ class PatientDao
 
         // Sans émulation des requêtes préparées, un paramètre nommé ne peut servir qu'une fois.
         $stmt = $this->pdo->prepare(
-            'SELECT ' . self::columns() . ' FROM Patient
+            'SELECT ' . self::IDENTITY_COLUMNS . ' FROM Patient
              WHERE lastName LIKE :nom ESCAPE \'\\\\\'
                 OR firstName LIKE :prenom ESCAPE \'\\\\\'
                 OR CAST(ipp AS CHAR) LIKE :ipp ESCAPE \'\\\\\'

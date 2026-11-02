@@ -21,6 +21,10 @@ final class FieldValidationService
     /** Téléphone : chiffres, espaces, +, parenthèses, points et tirets, 6 à 20 caractères. */
     private const PHONE_PATTERN = '/^[0-9 +().-]{6,20}$/';
 
+    /**
+     * @param DateTimeImmutable|null $today date de référence, réservée aux règles futures sur les dates
+     *        (aucune borne aujourd'hui : une date de chirurgie peut être programmée, donc future)
+     */
     public function __construct(private ?DateTimeImmutable $today = null)
     {
     }
@@ -101,7 +105,10 @@ final class FieldValidationService
                 break;
             case 'tel':
                 if (preg_match(self::PHONE_PATTERN, $value) !== 1) {
-                    return sprintf('« %s » : numéro de téléphone invalide (chiffres, espaces et + seulement).', $label);
+                    return sprintf(
+                        '« %s » : numéro de téléphone invalide (chiffres, espaces, +, parenthèses, points, tirets).',
+                        $label
+                    );
                 }
                 break;
             case 'number':

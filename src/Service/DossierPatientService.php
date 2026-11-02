@@ -231,11 +231,12 @@ final class DossierPatientService
                     $sejour->getTaille(),
                     $patient->getSexe()
                 );
+                // Valeurs indicatives, formules adultes : une aide, pas une consigne de réglage.
                 $labels = [
-                    'bmi' => 'IMC (calculé)',
-                    'bodySurfaceArea' => 'Surface corporelle (calculée, Mosteller)',
-                    'predictedBodyWeight' => 'Poids théorique (calculé, ARDSNet)',
-                    'tidalVolume' => 'Vt théorique (6 à 8 ml/kg de poids théorique)',
+                    'bmi' => 'IMC (calculé, indicatif)',
+                    'bodySurfaceArea' => 'Surface corporelle (calculée, Mosteller, indicative)',
+                    'predictedBodyWeight' => 'Poids théorique (calculé, ARDSNet adulte, indicatif)',
+                    'tidalVolume' => 'Vt théorique (6 à 8 ml/kg de poids théorique, indicatif)',
                 ];
                 foreach ($labels as $key => $label) {
                     $rows[] = [

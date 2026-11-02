@@ -51,14 +51,15 @@ try {
     $referentielsAdmission = static function (): array {
         try {
             $pdo = Database::get();
-        } catch (ConfigurationException) {
+
+            return [
+                'services' => (new ReferenceDataDao($pdo))->healthcareServices(),
+                'substances' => DossierPatientService::availableSubstances((new SubstanceDao($pdo))->findAll(), []),
+            ];
+        } catch (ConfigurationException | \PDOException) {
+            // Base absente, injoignable ou pas encore migrée : l'accueil reste affichable sans les listes.
             return [];
         }
-
-        return [
-            'services' => (new ReferenceDataDao($pdo))->healthcareServices(),
-            'substances' => DossierPatientService::availableSubstances((new SubstanceDao($pdo))->findAll(), []),
-        ];
     };
 
     //Page par défaut : formulaire d'admission

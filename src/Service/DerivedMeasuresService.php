@@ -106,6 +106,10 @@ final class DerivedMeasuresService
         $pbw = self::predictedBodyWeight($sex, $heightCm);
         $vt = self::tidalVolumeRange($pbw);
         $pbwMissing = array_merge($heightCm === null ? ['taille manquante'] : [], $missingSex);
+        if ($pbw === null && $pbwMissing === []) {
+            // Taille connue et sexe connu mais résultat non positif : formule adulte hors de son domaine.
+            $pbwMissing[] = 'taille hors du domaine de la formule ARDSNet (adulte)';
+        }
 
         return [
             'bmi' => [
