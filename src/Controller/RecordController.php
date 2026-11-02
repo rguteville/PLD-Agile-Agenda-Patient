@@ -9,8 +9,9 @@ use Aura\Service\RecordEditService;
 
 /**
  * POST /sejour/champ/modifier : modification d'un champ du dossier, sans rechargement de page
- * (public/js/inline-edit.js). Corps JSON {entity, id, field, value, oldValue} ou formulaire
- * classique avec les mêmes noms ; en-tête X-CSRF-Token (ou champ csrf) obligatoire.
+ * (public/js/inline-edit.js). Corps JSON {entity, id, sejour, field, value, oldValue} ou formulaire
+ * classique avec les mêmes noms ; en-tête X-CSRF-Token (ou champ csrf) obligatoire. `sejour` est
+ * le séjour affiché : un patient n'est modifiable que depuis le dossier d'un de ses séjours.
  *
  * Réponses JSON : 200 {ok:true, saved, value, display, message} ; 400 corps illisible ;
  * 403 jeton absent ou faux ; 404 dossier inconnu ; 409 conflit de concurrence (valeur actuelle
@@ -46,10 +47,18 @@ final class RecordController
         $entity = $body['entity'] ?? null;
         $id = $body['id'] ?? null;
         $field = $body['field'] ?? null;
+        $idSejour = $body['sejour'] ?? null;
+        $value = $body['value'] ?? null;
+        $oldValue = $body['oldValue'] ?? null;
         if (
             !is_string($entity) || !is_string($field) || $field === ''
             || !is_string($id) && !is_int($id)
             || preg_match(self::ID_PATTERN, (string) $id) !== 1
+            || !is_string($idSejour) && !is_int($idSejour)
+            || preg_match(self::ID_PATTERN, (string) $idSejour) !== 1
+            // Une valeur non scalaire (tableau, objet) n'est jamais interprétée comme un vidage du champ.
+            || !is_scalar($value) && $value !== null
+            || !is_scalar($oldValue) && $oldValue !== null
         ) {
             $this->respond(400, ['ok' => false, 'message' => 'Requête incomplète.']);
             return;
@@ -59,8 +68,9 @@ final class RecordController
             $entity,
             (int) $id,
             $field,
-            $body['value'] ?? null,
-            $body['oldValue'] ?? null
+            $value,
+            $oldValue,
+            idSejour: (int) $idSejour
         );
 
         $status = self::HTTP_STATUS[$result['status']] ?? 500;

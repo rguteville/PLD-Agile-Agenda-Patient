@@ -295,7 +295,7 @@ class AdmissionService
             return;
         }
         foreach ($details as $champ => $valeur) {
-            $this->recordEditService->update(
+            $resultat = $this->recordEditService->update(
                 RecordEditService::ENTITY_PATIENT,
                 $idPatient,
                 $champ,
@@ -303,6 +303,13 @@ class AdmissionService
                 $existant->getDetail($champ),
                 AuditEvent::AUTHOR_UNKNOWN
             );
+            $statut = $resultat['status'];
+            if ($statut !== RecordEditService::STATUS_SAVED && $statut !== RecordEditService::STATUS_UNCHANGED) {
+                // Rien ne doit passer inaperçu dans la transaction d'admission : elle est annulée.
+                throw new InvalidArgumentException(
+                    (string) ($resultat['message'] ?? 'La mise à jour du dossier existant a été refusée.')
+                );
+            }
         }
     }
 

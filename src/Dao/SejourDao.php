@@ -8,6 +8,7 @@ use Aura\Domain\RecordFields;
 use Aura\Domain\Sejour;
 use DateTimeImmutable;
 use DateTimeInterface;
+use LogicException;
 use PDO;
 use PDOException;
 
@@ -219,6 +220,26 @@ class SejourDao
             . ' WHERE idEpisodeOfCare = :id'
         );
         $stmt->execute(['id' => (string) $idSejour] + $details);
+    }
+
+    /**
+     * Met à jour UN champ seulement si sa valeur en base est encore celle attendue (contrôle de
+     * concurrence optimiste, atomique : la comparaison est faite par l'UPDATE lui-même, <=> traite
+     * NULL). Renvoie false si la ligne n'existe pas ou si la valeur a changé entre-temps.
+     * Le nom de colonne doit appartenir à la liste blanche, sinon LogicException.
+     */
+    public function updateDetailIfUnchanged(int $id, string $column, ?string $new, ?string $expected): bool
+    {
+        if (!isset((RecordFields::EPISODE + array_fill_keys(self::EDITABLE_BASE_COLUMNS, true))[$column])) {
+            throw new LogicException('Colonne non modifiable : ' . $column);
+        }
+        $stmt = $this->pdo->prepare(
+            'UPDATE EpisodeOfCare SET ' . $column . ' = :new
+             WHERE idEpisodeOfCare = :id AND ' . $column . ' <=> :expected'
+        );
+        $stmt->execute(['new' => $new, 'id' => (string) $id, 'expected' => $expected]);
+
+        return $stmt->rowCount() === 1;
     }
 
     /**

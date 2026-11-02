@@ -52,7 +52,7 @@ final class RecordEditServiceTest extends TestCase
     public function testChampHorsListeBlancheEstRefuseSansLireLaBase(): void
     {
         $this->patients->expects($this->never())->method('findById');
-        $this->patients->expects($this->never())->method('updateDetails');
+        $this->patients->expects($this->never())->method('updateDetailIfUnchanged');
 
         foreach (['lastName', 'idPatient', 'ipp', 'medicalHistory; DROP TABLE Patient'] as $field) {
             $r = $this->service->update('patient', 9, $field, 'x', null);
@@ -74,8 +74,8 @@ final class RecordEditServiceTest extends TestCase
     public function testSuccesEcritLeChampEtUneLigneDHistorique(): void
     {
         $this->patients->method('findById')->with(9)->willReturn($this->patient(['medicalHistory' => 'HTA']));
-        $this->patients->expects($this->once())->method('updateDetails')
-            ->with(9, ['medicalHistory' => "HTA\nDiabète"]);
+        $this->patients->expects($this->once())->method('updateDetailIfUnchanged')
+            ->with(9, 'medicalHistory', "HTA\nDiabète", 'HTA')->willReturn(true);
         $this->audit->expects($this->once())->method('insert')
             ->with(self::callback(static function (AuditEvent $e): bool {
                 return $e->getEntity() === AuditEvent::ENTITY_PATIENT && $e->getEntityId() === 9
@@ -95,7 +95,7 @@ final class RecordEditServiceTest extends TestCase
     public function testValeurInvalideRefuseeAvecLeMessageDuChamp(): void
     {
         $this->sejours->method('findById')->with(9)->willReturn($this->sejour(['asaScore' => 'III']));
-        $this->sejours->expects($this->never())->method('updateDetails');
+        $this->sejours->expects($this->never())->method('updateDetailIfUnchanged');
         $this->audit->expects($this->never())->method('insert');
 
         $r = $this->service->update('episode', 9, 'asaScore', 'IX', 'III');
@@ -108,7 +108,7 @@ final class RecordEditServiceTest extends TestCase
     public function testConflitDeConcurrenceRenvoieLaValeurActuelle(): void
     {
         $this->patients->method('findById')->willReturn($this->patient(['medicalHistory' => 'HTA, diabète']));
-        $this->patients->expects($this->never())->method('updateDetails');
+        $this->patients->expects($this->never())->method('updateDetailIfUnchanged');
 
         $r = $this->service->update('patient', 9, 'medicalHistory', 'HTA, asthme', 'HTA');
 
@@ -120,7 +120,7 @@ final class RecordEditServiceTest extends TestCase
     public function testValeurInchangeeNEcritRien(): void
     {
         $this->sejours->method('findById')->willReturn($this->sejour([], poids: 62.5));
-        $this->sejours->expects($this->never())->method('updateDetails');
+        $this->sejours->expects($this->never())->method('updateDetailIfUnchanged');
         $this->audit->expects($this->never())->method('insert');
 
         $r = $this->service->update('episode', 9, 'weight', '62.50', '62.5');
@@ -132,7 +132,8 @@ final class RecordEditServiceTest extends TestCase
     public function testChampsDeBaseDuSejourSontModifiablesEtArrondisCommeLAdmission(): void
     {
         $this->sejours->method('findById')->willReturn($this->sejour([], poids: 62.5));
-        $this->sejours->expects($this->once())->method('updateDetails')->with(9, ['weight' => '63.46']);
+        $this->sejours->expects($this->once())->method('updateDetailIfUnchanged')
+            ->with(9, 'weight', '63.46', '62.5')->willReturn(true);
         $this->audit->expects($this->once())->method('insert')->willReturn(1);
 
         $r = $this->service->update('episode', 9, 'weight', '63.456', '62.5');
@@ -148,7 +149,8 @@ final class RecordEditServiceTest extends TestCase
         $refuse = $this->service->update('episode', 9, 'idHealthcareService', 'SRV99', 'REA');
         self::assertSame(RecordEditService::STATUS_INVALID, $refuse['status']);
 
-        $this->sejours->expects($this->once())->method('updateDetails')->with(9, ['idHealthcareService' => 'SRV01']);
+        $this->sejours->expects($this->once())->method('updateDetailIfUnchanged')
+            ->with(9, 'idHealthcareService', 'SRV01', 'REA')->willReturn(true);
         $this->audit->method('insert')->willReturn(1);
         $ok = $this->service->update('episode', 9, 'idHealthcareService', 'SRV01', 'REA');
         self::assertSame(RecordEditService::STATUS_SAVED, $ok['status']);
@@ -158,13 +160,42 @@ final class RecordEditServiceTest extends TestCase
     public function testViderUnChampEstUneModificationTracee(): void
     {
         $this->patients->method('findById')->willReturn($this->patient(['lifestyle' => 'Fumeur']));
-        $this->patients->expects($this->once())->method('updateDetails')->with(9, ['lifestyle' => null]);
+        $this->patients->expects($this->once())->method('updateDetailIfUnchanged')
+            ->with(9, 'lifestyle', null, 'Fumeur')->willReturn(true);
         $this->audit->expects($this->once())->method('insert')->willReturn(1);
 
         $r = $this->service->update('patient', 9, 'lifestyle', '   ', 'Fumeur');
 
         self::assertSame(RecordEditService::STATUS_SAVED, $r['status']);
         self::assertNull($r['value']);
+    }
+
+    public function testConflitDetecteParLEcritureConditionnelleRenvoieLaValeurRelue(): void
+    {
+        // Lecture : « HTA » ; entre la lecture et l'UPDATE, quelqu'un écrit « HTA, asthme » : l'UPDATE
+        // conditionnel ne touche aucune ligne, la valeur est relue et renvoyée en conflit.
+        $this->patients->method('findById')->willReturnOnConsecutiveCalls(
+            $this->patient(['medicalHistory' => 'HTA']),
+            $this->patient(['medicalHistory' => 'HTA, asthme'])
+        );
+        $this->patients->method('updateDetailIfUnchanged')->willReturn(false);
+        $this->audit->expects($this->never())->method('insert');
+
+        $r = $this->service->update('patient', 9, 'medicalHistory', 'HTA, diabète', 'HTA');
+
+        self::assertSame(RecordEditService::STATUS_CONFLICT, $r['status']);
+        self::assertSame('HTA, asthme', $r['value']);
+    }
+
+    public function testUnPatientNEstModifiableQueDepuisUnDeSesSejours(): void
+    {
+        $this->sejours->method('findById')->with(3)->willReturn($this->sejour([]));
+        $this->patients->expects($this->never())->method('updateDetailIfUnchanged');
+
+        // Le séjour 3 appartient au patient 9 : le patient 4 est refusé comme introuvable.
+        $r = $this->service->update('patient', 4, 'medicalHistory', 'x', null, idSejour: 3);
+
+        self::assertSame(RecordEditService::STATUS_NOT_FOUND, $r['status']);
     }
 
     public function testHistoriqueTraduitLesLibellesEtLesEchelles(): void
@@ -181,6 +212,17 @@ final class RecordEditServiceTest extends TestCase
                 new DateTimeImmutable('2026-10-14 08:05')
             ),
             new AuditEvent(1, 'Patient', 9, 'inconnu', null, 'x', 'non identifié', new DateTimeImmutable('2026-10-13')),
+            new AuditEvent(
+                0,
+                'EpisodeOfCare',
+                3,
+                'idPatient',
+                null,
+                '9',
+                'non identifié',
+                new DateTimeImmutable('2026-10-13'),
+                'rattachement après recherche par nom'
+            ),
         ]);
 
         $rows = $this->service->history(9, 3);
@@ -191,6 +233,9 @@ final class RecordEditServiceTest extends TestCase
         self::assertSame('14/10/2026 08:05', $rows[0]['recordedAt']);
         self::assertSame('inconnu', $rows[1]['label'], 'un champ hors catalogue garde son nom brut');
         self::assertNull($rows[1]['oldValue']);
+        self::assertSame('Rattachement du séjour au patient', $rows[2]['label']);
+        self::assertSame('patient n° 9', $rows[2]['newValue']);
+        self::assertSame('rattachement après recherche par nom', $rows[2]['detail']);
     }
 
     /** @param array<string, ?string> $details */

@@ -80,6 +80,9 @@ class PatientDao
      * ignorent donc les deux. Tirets et apostrophes des noms stockés sont remplacés par des espaces
      * avant comparaison (« Jean-Pierre » contient le mot « Pierre »). Tri : nom d'usage égal à l'un
      * des mots d'abord, puis nom, prénom. Avec la date du dernier séjour (admission la plus récente).
+     * Performance : l'expression calculée empêche l'usage d'un index pour le filtre (balayage de la
+     * table Patient, quelques milliers de lignes au plus dans un service) ; les index sur lastName et
+     * firstName servent au tri et à findByIdentite().
      *
      * @param list<string> $words mots non vides
      * @return list<array{patient: Patient, lastAdmission: ?DateTimeImmutable}>
@@ -147,7 +150,8 @@ class PatientDao
     /** Expression SQL : la colonne précédée d'un espace, tirets et apostrophes remplacés par des espaces. */
     private static function wordsOf(string $column): string
     {
-        return "CONCAT(' ', REPLACE(REPLACE(COALESCE(" . $column . ", ''), '-', ' '), '\\'', ' '))";
+        // Apostrophe droite et apostrophe typographique (’), comme le découpage de PatientSearchService::words().
+        return "CONCAT(' ', REPLACE(REPLACE(REPLACE(COALESCE(" . $column . ", ''), '-', ' '), '\\'', ' '), '’', ' '))";
     }
 
     /** Patient par identifiant interne, champs complémentaires compris ; null s'il n'existe pas. */
@@ -286,6 +290,25 @@ class PatientDao
             'UPDATE Patient SET ' . self::assignments(array_keys($details)) . ' WHERE idPatient = :idPatient'
         );
         $stmt->execute(['idPatient' => (string) $idPatient] + $details);
+    }
+
+    /**
+     * Met à jour UN champ seulement si sa valeur en base est encore celle attendue (contrôle de
+     * concurrence optimiste, atomique : la comparaison est faite par l'UPDATE lui-même, <=> traite
+     * NULL). Renvoie false si la ligne n'existe pas ou si la valeur a changé entre-temps.
+     * Le nom de colonne doit appartenir à la liste blanche, sinon LogicException.
+     */
+    public function updateDetailIfUnchanged(int $id, string $column, ?string $new, ?string $expected): bool
+    {
+        if (!isset((RecordFields::PATIENT)[$column])) {
+            throw new LogicException('Colonne non modifiable : ' . $column);
+        }
+        $stmt = $this->pdo->prepare(
+            'UPDATE Patient SET ' . $column . ' = :new WHERE idPatient = :id AND ' . $column . ' <=> :expected'
+        );
+        $stmt->execute(['new' => $new, 'id' => (string) $id, 'expected' => $expected]);
+
+        return $stmt->rowCount() === 1;
     }
 
     /** « col1 = :col1, col2 = :col2 » pour des noms de colonnes issus du catalogue (jamais de la requête). */

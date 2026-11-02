@@ -264,7 +264,8 @@ final class PagesRenderTest extends TestCase
             ],
             'history' => [
                 ['recordedAt' => '14/10/2026 08:05', 'author' => 'non identifié', 'entity' => 'Patient',
-                    'field' => 'lifestyle', 'label' => 'Mode de vie', 'oldValue' => null, 'newValue' => 'Non <fumeur>'],
+                    'field' => 'lifestyle', 'label' => 'Mode de vie', 'detail' => 'précision <x>',
+                    'oldValue' => null, 'newValue' => 'Non <fumeur>'],
             ],
         ]);
 
@@ -283,6 +284,8 @@ final class PagesRenderTest extends TestCase
         self::assertSame(2, substr_count($html, 'class="inline-edit__value"'), 'valeur calculée non éditable');
         self::assertStringContainsString('id="dossier-historique"', $html);
         self::assertStringContainsString('<td>Non &lt;fumeur&gt;</td>', $html);
+        self::assertStringContainsString('<small>précision &lt;x&gt;</small>', $html);
+        self::assertStringContainsString('data-id-sejour="1"', $html);
         self::assertStringContainsString('<span class="non-renseigne">vide</span>', $html);
     }
 
