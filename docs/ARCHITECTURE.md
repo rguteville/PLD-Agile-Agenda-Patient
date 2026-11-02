@@ -45,6 +45,7 @@ modules, le trajet d'une requête, le modèle de données réel et les décision
 | `GET /care-plans?idEpisodeOfCare=` | Prescriptions du séjour (statut de validation RG5). |
 | `GET /care-plans/new?idEpisodeOfCare=`, `POST /care-plans/create` | Nouvelle prescription (écran B3). |
 | `POST /care-plans/validate`, `POST /care-plans/stop` | Validation par un médecin ; arrêt d'une ligne (AURA-22). |
+| `GET /care-plans/protocol-lines?idPlanDefinition=&startDate=` | Lignes d'un protocole datées à partir d'une date de début, pour pré-remplir l'ordonnance (JSON, #41). |
 | `GET /agenda-patient?id=` ou `?numSejour=`, `&date=` | Agenda du jour du séjour (retards épinglés, rotations). |
 
 ## Modèle de données (généré depuis `database/schema.sql`)
@@ -147,6 +148,16 @@ erDiagram
         VARCHAR_10 phoneNumber
         VARCHAR_50 email
     }
+    Pathology {
+        VARCHAR_20 idPathology PK
+        VARCHAR_100 label UK
+    }
+    PlanDefinition {
+        VARCHAR_20 idPlanDefinition PK
+        VARCHAR_100 title
+        VARCHAR_20 idPathology
+        BOOLEAN active
+    }
     CarePlan {
         VARCHAR_20 idCarePlan PK
         VARCHAR_20 idEpisodeOfCare
@@ -155,6 +166,7 @@ erDiagram
         DATETIME recordedAt
         VARCHAR_20 idValidator
         DATETIME validatedAt
+        VARCHAR_20 idPlanDefinition
     }
     Medication {
         VARCHAR_20 idMedication PK
@@ -165,6 +177,31 @@ erDiagram
         VARCHAR_20 idActivityDefinition PK
         VARCHAR_100 name
         VARCHAR_200 description
+    }
+    PlanDefinitionAction {
+        VARCHAR_20 idPlanDefinitionAction PK
+        VARCHAR_20 idPlanDefinition
+        VARCHAR_20 kind
+        VARCHAR_20 idActivityDefinition
+        VARCHAR_20 idMedication
+        VARCHAR_50 dose
+        VARCHAR_50 route
+        VARCHAR_200 important
+        VARCHAR_200 nurseInstructions
+        VARCHAR_50 maxDose
+        VARCHAR_50 dilutionVolume
+        VARCHAR_200 solvent
+        VARCHAR_50 administrationDuration
+        VARCHAR_200 antibioticReason
+        VARCHAR_200 germ
+        VARCHAR_200 renalAdjustment
+        VARCHAR_200 adjustmentCriterion
+        VARCHAR_200 offGhsReason
+        SMALLINT startOffsetHours
+        SMALLINT durationHours
+        SMALLINT frequencyHours
+        VARCHAR_200 timeConstraint
+        IS durationHours
     }
     ServiceRequest {
         VARCHAR_20 idServiceRequest PK
@@ -228,9 +265,14 @@ erDiagram
     Patient ||--o{ AllergyIntolerance : "idPatient"
     Substance ||--o{ AllergyIntolerance : "idSubstance"
     PractitionerRole ||--o{ Practitioner : "idPractitionerRole"
+    Pathology ||--o{ PlanDefinition : "idPathology"
     EpisodeOfCare ||--o{ CarePlan : "idEpisodeOfCare"
     Practitioner ||--o{ CarePlan : "idPrescriber"
     Practitioner ||--o{ CarePlan : "idValidator"
+    PlanDefinition ||--o{ CarePlan : "idPlanDefinition"
+    PlanDefinition ||--o{ PlanDefinitionAction : "idPlanDefinition"
+    ActivityDefinition ||--o{ PlanDefinitionAction : "idActivityDefinition"
+    Medication ||--o{ PlanDefinitionAction : "idMedication"
     CarePlan ||--o{ ServiceRequest : "idCarePlan"
     ActivityDefinition ||--o{ ServiceRequest : "idActivityDefinition"
     Practitioner ||--o{ ServiceRequest : "idStoppedBy"
@@ -244,7 +286,9 @@ erDiagram
 
 Lecture : `EpisodeOfCare` = séjour (numéro `AAAA-NNNNNN` généré), `CarePlan` = ordonnance, `ServiceRequest` /
 `MedicationRequest` = lignes de prescription (soin / médicament), `Appointment` = soin planifié (rendez-vous de soin),
-`AllergyIntolerance` = allergie d'un patient à une `Substance` du référentiel, `AuditEvent` = journal des
+`AllergyIntolerance` = allergie d'un patient à une `Substance` du référentiel, `PlanDefinition` = protocole
+(groupe de prescriptions modèle) et `PlanDefinitionAction` ses lignes, `Pathology` = référentiel des pathologies
+d'un protocole, `AuditEvent` = journal des
 modifications (sans clé étrangère). Régénérer le diagramme : parser les `CREATE TABLE` et `FOREIGN KEY` de
 `schema.sql` (script utilisé pour cette version : voir la PR « documentation-repo »).
 

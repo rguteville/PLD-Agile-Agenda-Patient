@@ -1,9 +1,18 @@
 # Journal des changements
 
-Format : une entrée par pull request, de la plus récente à la plus ancienne. Les PR du 2026-11-02 sont empilées
-(à fusionner dans l'ordre #42 → #43 → #44 → #45 → #46).
+Format : une entrée par pull request, de la plus récente à la plus ancienne.
 
 ## 2026-11-02
+
+### Intégration de la pile #43 à #46 dans la branche principale (`chore/integration-pile-2026-11-02`)
+- #43 à #46 avaient été fusionnées chacune dans la branche de la PR précédente, pas dans la branche
+  principale : cette PR les y apporte, par-dessus #41 (protocoles).
+- Correctif : `/care-plans` et `/care-plans/new` levaient une TypeError depuis #41 (argument `SubstanceDao`
+  manquant), et le test des protocoles rendait le CI rouge.
+
+### #41 Protocoles (`aura-epic4`)
+- Tables `Pathology`, `PlanDefinition`, `PlanDefinitionAction`, lien `CarePlan.idPlanDefinition` ; un protocole
+  pré-remplit une ordonnance (`GET /care-plans/protocol-lines`).
 
 ### #46 Documentation du dépôt (`docs/documentation-repo`)
 - README : installation sur la VM Debian LAMP (Apache), tests, structure à jour, conventions de commit et de PR,
