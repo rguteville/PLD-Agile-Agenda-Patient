@@ -3952,3 +3952,87 @@ form.form--columns .form-lead > .form-row {
     color: var(--fg);
     font: inherit;
 }
+
+/* Admission (retours du 2026-11-02, 3) : un seul champ de recherche « IPP, nom ou prénom » sur toute la
+   largeur en tête ; carte en lecture seule du patient existant sélectionné. */
+.form-lead {
+    grid-template-columns: minmax(0, 1fr) !important;
+}
+
+.patient-card {
+    margin: var(--sp-2) var(--sp-2) var(--sp-3);
+    padding: var(--sp-3) var(--sp-4);
+    border: 1px solid var(--line-strong);
+    border-left: 4px solid var(--accent);
+    border-radius: var(--radius-lg);
+    background: var(--bg-raised);
+    box-shadow: var(--shadow-soft);
+}
+
+.patient-card__title {
+    margin: 0 0 var(--sp-1);
+    color: var(--fg-muted);
+    font-size: var(--fs-0);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.patient-card__name {
+    margin: 0;
+    font-size: var(--fs-3);
+}
+
+.patient-card__ids {
+    margin: var(--sp-1) 0 var(--sp-2);
+    color: var(--fg-muted);
+}
+
+.patient-card__allergies {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-1) var(--sp-2);
+}
+
+.patient-card__allergies-label {
+    color: var(--st-alert-fg);
+    font-weight: 700;
+}
+
+.patient-card .allergie {
+    padding: 2px var(--sp-2);
+    border-radius: var(--radius);
+    font-weight: 600;
+}
+
+.patient-card .allergie--high {
+    border: 1px solid var(--st-alert-fg);
+    background: var(--st-alert-fg);
+    color: #ffffff;
+}
+
+.patient-card .allergie--low {
+    border: 1px solid var(--st-warn-line);
+    background: var(--st-warn-bg);
+    color: var(--st-warn-fg);
+}
+
+.patient-card .allergie--unknown {
+    border: 1px solid var(--st-alert-line);
+    background: var(--bg-raised);
+    color: var(--st-alert-fg);
+}
+
+.patient-card .allergie--none {
+    border: 1px solid var(--st-done-line);
+    background: var(--st-done-bg);
+    color: var(--st-done-fg);
+}
+
+.patient-card__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-2);
+    margin: var(--sp-3) 0 0;
+}

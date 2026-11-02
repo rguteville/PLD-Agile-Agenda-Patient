@@ -57,30 +57,16 @@ $champsSection = static function (string $section) use ($champCatalogue): array 
 };
 
 $recherche = [
-    // Recherche d'un patient existant (identitovigilance) : par IPP (AURA-15, prioritaire) ou par
-    // nom / prénom (un seul champ : l'ordre des mots est libre, « dupont jean » = « jean dupont »).
-    // Les suggestions s'affichent dans la liste sous les deux champs ; la sélection demande une
-    // confirmation, puis la fiche pré-remplit le formulaire (public/js/admission-search.js).
-    [
-        'name' => 'ipp',
-        'label' => 'IPP (identifiant permanent du patient)',
-        'help' => 'Recherche automatique dès 6 chiffres. Nouveau patient : laissez vide, un IPP est attribué '
-            . 'à l\'admission.',
-        'status' => 'ipp-statut',
-        'placeholder' => '100000123',
-        'attributes' => [
-            'inputmode' => 'numeric', 'autocomplete' => 'off',
-            'role' => 'combobox', 'aria-autocomplete' => 'list', 'aria-expanded' => 'false',
-            'aria-controls' => 'patient-suggestions',
-        ],
-    ],
+    // Recherche d'un patient déjà venu (identitovigilance) : un seul champ en tête, qui reconnaît un IPP
+    // (6 à 9 chiffres) ou des mots du nom et du prénom (ordre libre). Recherche automatique à l'arrêt de
+    // la frappe ; la sélection demande une confirmation, puis l'identité s'affiche en carte en lecture
+    // seule et la fiche pré-remplit le formulaire (public/js/admission-search.js).
     [
         'name' => 'patientSearch',
-        'label' => 'Nom ou prénom',
-        'help' => 'Au moins 2 lettres ; casse, accents, tirets et ordre des mots indifférents.',
+        'label' => 'Patient déjà venu ? IPP, nom ou prénom',
         'status' => 'patient-search-status',
         'listbox' => 'patient-suggestions',
-        'placeholder' => 'dupont marie',
+        'placeholder' => '100000001 ou dupont marie',
         'attributes' => [
             'autocomplete' => 'off', 'maxlength' => '100',
             'role' => 'combobox', 'aria-autocomplete' => 'list', 'aria-expanded' => 'false',
@@ -97,6 +83,13 @@ $essentiels = [
     ['name' => 'lastname', 'label' => 'Nom', 'required' => true, 'placeholder' => 'DUPONT'],
     ['name' => 'firstname', 'label' => 'Prénom', 'required' => true, 'placeholder' => 'Marie'],
     ['name' => 'birthDate', 'label' => 'Date de naissance', 'type' => 'date'],
+    [
+        'name' => 'ipp',
+        'label' => 'IPP (identifiant permanent du patient)',
+        'help' => 'Nouveau patient : laissez vide, un IPP est attribué à l\'admission.',
+        'placeholder' => '100000123',
+        'attributes' => ['inputmode' => 'numeric', 'autocomplete' => 'off'],
+    ],
     [
         'name' => 'gender',
         'label' => 'Sexe',
