@@ -171,7 +171,9 @@ try {
                     new SejourDao($pdo),
                     new PatientDao($pdo),
                     new AllergieDao($pdo),
-                    new DateTimeImmutable('today')
+                    new SubstanceDao($pdo),
+                    new DateTimeImmutable('today'),
+                    new ReferenceDataDao($pdo)
                 )
             ),
             new PlanDefinitionService(new PlanDefinitionDao($pdo))
