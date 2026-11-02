@@ -6,6 +6,8 @@ namespace Aura\Controller;
 
 use Aura\Core\View;
 use Aura\Service\CarePlanService;
+use Aura\Service\PlanDefinitionService;
+use DateTimeImmutable;
 use InvalidArgumentException;
 
 /**
@@ -26,8 +28,10 @@ final class CarePlanController
     /** form.js envoie les formulaires (AJAX) ; care-plan.js anime les listes et le panier de B3. */
     private const FORM_SCRIPTS = ['/js/form.js', '/js/care-plan.js'];
 
-    public function __construct(private CarePlanService $carePlanService)
-    {
+    public function __construct(
+        private CarePlanService $carePlanService,
+        private PlanDefinitionService $planDefinitionService
+    ) {
     }
 
     /** GET /care-plans?idEpisodeOfCare=… : prescriptions du séjour, bandeau en tête (RG2). */
@@ -170,6 +174,30 @@ final class CarePlanController
     }
 
     /**
+     * GET /care-plans/protocol-lines?idPlanDefinition=…&startDate=2026-10-20T08:00 : lignes d'un
+     * protocole appliqué à cette date, en JSON, que care-plan.js ajoute au panier de l'écran B3.
+     * Rien n'est enregistré : l'ordonnance passe ensuite par create(), comme une saisie à la main.
+     */
+    public function protocolLines(): void
+    {
+        $startText = self::text($_GET['startDate'] ?? null);
+        $start = DateTimeImmutable::createFromFormat('!' . CarePlanService::INPUT_DATE_FORMAT, $startText);
+        $idPlanDefinition = self::text($_GET['idPlanDefinition'] ?? null);
+
+        try {
+            if ($start === false || $start->format(CarePlanService::INPUT_DATE_FORMAT) !== $startText) {
+                throw new InvalidArgumentException('La date de début est invalide.');
+            }
+            $lines = $this->planDefinitionService->linesToPrefill($idPlanDefinition, $start);
+        } catch (InvalidArgumentException $e) {
+            $this->respondJson(422, ['ok' => false, 'erreurs' => [self::FORM_ERROR => $e->getMessage()]]);
+            return;
+        }
+
+        $this->respondJson(200, ['ok' => true, 'lines' => $lines]);
+    }
+
+    /**
      * Séjour demandé dans l'URL (?idEpisodeOfCare=…). Affiche l'erreur 400 et renvoie null
      * s'il manque ou n'est pas un entier positif.
      */
@@ -188,7 +216,10 @@ final class CarePlanController
     {
         View::page(
             self::FORM_VIEW,
-            $form + ['formError' => $formError],
+            $form + [
+                'formError' => $formError,
+                'planDefinitions' => $this->planDefinitionService->activePlans(),
+            ],
             $this->title('Nouvelles prescriptions', $form),
             self::FORM_SCRIPTS
         );

@@ -46,14 +46,51 @@ INSERT INTO Medication (idMedication, inn, form) VALUES
     ('MED02', 'Noradrénaline', 'Solution pour perfusion'),
     ('MED03', 'Héparine sodique', 'Solution injectable'),
     ('MED04', 'Amoxicilline', 'Poudre pour solution injectable'),
-    ('MED05', 'Midazolam', 'Solution injectable');
+    ('MED05', 'Midazolam', 'Solution injectable'),
+    ('MED06', 'Céfotaxime', 'Poudre pour solution injectable'),
+    ('MED07', 'Chlorure de sodium 0,9 %', 'Solution pour perfusion'),
+    ('MED08', 'Altéplase', 'Poudre et solvant pour solution injectable');
 
 INSERT INTO ActivityDefinition (idActivityDefinition, name, description) VALUES
     ('TYP01', 'Administration médicamenteuse', 'Administration d''un traitement prescrit'),
     ('TYP02', 'Prise des constantes', 'Pression artérielle, fréquence cardiaque, SpO2, température'),
     ('TYP03', 'Prélèvement sanguin', 'Bilan biologique sur prescription'),
     ('TYP04', 'Réfection de pansement', 'Pansement de voie centrale ou de plaie'),
-    ('TYP05', 'Aspiration trachéale', 'Pour patient intubé ou trachéotomisé');
+    ('TYP05', 'Aspiration trachéale', 'Pour patient intubé ou trachéotomisé'),
+    ('TYP06', 'Surveillance neurologique', 'Score de Glasgow, NIHSS, pupilles');
+
+-- ---------------------------------------------------------------------------
+-- Protocoles = groupes de prescriptions (dépend de Pathology, ActivityDefinition, Medication)
+-- Exemples de démonstration, à faire valider par le service avant tout usage réel.
+-- startOffsetHours / durationHours : en heures à partir de l'application du protocole ;
+-- durationHours NULL = sans date d'arrêt.
+--   PLD01 : choc septique, bundle de la première heure puis antibiothérapie 7 jours
+--   PLD02 : AVC ischémique thrombolysé, surveillance rapprochée 24 h
+--   PLD03 : ancien protocole retiré (active = FALSE) : ne doit PAS être proposé
+-- ---------------------------------------------------------------------------
+
+INSERT INTO Pathology (idPathology, label) VALUES
+    ('PTH01', 'Sepsis et choc septique'),
+    ('PTH02', 'AVC ischémique'),
+    ('PTH03', 'Détresse respiratoire aiguë');
+
+INSERT INTO PlanDefinition (idPlanDefinition, title, idPathology, active) VALUES
+    ('PLD01', 'Choc septique : prise en charge initiale', 'PTH01', TRUE),
+    ('PLD02', 'AVC ischémique : thrombolyse et surveillance', 'PTH02', TRUE),
+    ('PLD03', 'Sédation continue (ancienne version)', 'PTH03', FALSE);
+
+INSERT INTO PlanDefinitionAction (idPlanDefinitionAction, idPlanDefinition, kind, idActivityDefinition, idMedication, dose, route, nurseInstructions, maxDose, administrationDuration, antibioticReason, germ, startOffsetHours, durationHours, frequencyHours, timeConstraint) VALUES
+    ('PDA01', 'PLD01', 'CARE',       'TYP03', NULL,    NULL,            NULL,   NULL,                                         NULL,    NULL,     NULL,     NULL,             0, NULL, NULL, 'Hémocultures et lactates, avant l''antibiotique'),
+    ('PDA02', 'PLD01', 'MEDICATION', 'TYP01', 'MED07', '30 mL/kg',      'IV',   'Remplissage, réévaluer après chaque 500 mL', NULL,    '3 h',    NULL,     NULL,             0, NULL, NULL, NULL),
+    ('PDA03', 'PLD01', 'MEDICATION', 'TYP01', 'MED02', '0,1 µg/kg/min', 'IVSE', NULL,                                         NULL,    NULL,     NULL,     NULL,             0, NULL, 24,   'Débit selon PAM, objectif ≥ 65 mmHg'),
+    ('PDA04', 'PLD01', 'MEDICATION', 'TYP01', 'MED06', '2 g',           'IV',   NULL,                                         NULL,    '30 min', 'Sepsis', 'Non documenté',  1,  168, 8,    NULL),
+    ('PDA05', 'PLD01', 'CARE',       'TYP02', NULL,    NULL,            NULL,   NULL,                                         NULL,    NULL,     NULL,     NULL,             0,  24,  1,    NULL),
+    ('PDA06', 'PLD01', 'CARE',       'TYP03', NULL,    NULL,            NULL,   NULL,                                         NULL,    NULL,     NULL,     NULL,             3, NULL, NULL, 'Lactates de contrôle'),
+    ('PDA07', 'PLD02', 'MEDICATION', 'TYP01', 'MED08', '0,9 mg/kg',     'IV',   '10 % en bolus sur 1 min, le reste sur 60 min', '90 mg', '60 min', NULL,     NULL,             0, NULL, NULL, NULL),
+    ('PDA08', 'PLD02', 'CARE',       'TYP06', NULL,    NULL,            NULL,   NULL,                                         NULL,    NULL,     NULL,     NULL,             0,  24,  1,    NULL),
+    ('PDA09', 'PLD02', 'CARE',       'TYP02', NULL,    NULL,            NULL,   NULL,                                         NULL,    NULL,     NULL,     NULL,             0,  24,  1,    'PA < 180/105 mmHg'),
+    ('PDA10', 'PLD02', 'CARE',       'TYP03', NULL,    NULL,            NULL,   NULL,                                         NULL,    NULL,     NULL,     NULL,            24, NULL, NULL, 'Bilan de contrôle à H24'),
+    ('PDA11', 'PLD03', 'MEDICATION', 'TYP01', 'MED05', '2 mg/h',        'IVSE', NULL,                                         NULL,    NULL,     NULL,     NULL,             0, NULL, 24,   'Seringue électrique');
 
 -- ---------------------------------------------------------------------------
 -- Praticiens (dépend de PractitionerRole)

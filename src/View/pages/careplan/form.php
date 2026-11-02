@@ -18,6 +18,7 @@ use Aura\Service\CarePlanService;
  * @var array<string, array{label: string, kind: string}> $categories figure 8 (kind : GROUP, MEDICATION, CARE)
  * @var array<string, string> $careTypes idActivityDefinition => nom du soin
  * @var array<string, array<string, string>> $medications DCI => [idMedication => forme]
+ * @var array<string, string> $planDefinitions protocoles actifs : idPlanDefinition => « titre (pathologie) »
  * @var array<string, string> $frequencyTypes ONCE / SCHEDULED / DAYS => libellé
  * @var array<string, string> $routes code => libellé
  * @var list<array{idCarePlan: int, mode: string, recordedAt: string, prescriber: string, lines: list<string>}>
@@ -30,6 +31,7 @@ use Aura\Service\CarePlanService;
 $lists = [
     'careTypes' => $careTypes,
     'medications' => $medications,
+    'planDefinitions' => $planDefinitions,
 ];
 // Le séjour est passé dans l'URL des deux formulaires, comme pour les pages GET.
 $episodeQuery = '?idEpisodeOfCare=' . $idEpisodeOfCare;
@@ -230,6 +232,28 @@ $medicationParams = [
                 </div>
                 <div class="b3-buttons">
                     <button type="button" id="care-ok" class="b3-primary">OK</button>
+                    <button type="button" class="b3-cancel">Annuler</button>
+                </div>
+            </div>
+
+            <!-- Groupe de prescriptions (protocole) : « OK » ajoute toutes ses lignes à l'ordonnance -->
+            <div id="b3-group-params" class="b3-params" hidden>
+                <div class="b3-params-title">&#8863; <span class="b3-params-category"></span></div>
+                <div class="b3-grid">
+                    <label for="group-name" class="b3-greyed">Protocole</label>
+                    <span class="b3-required">*</span>
+                    <div class="b3-value"><input type="text" id="group-name" readonly tabindex="-1"></div>
+
+                    <label for="group-start">Début</label>
+                    <span class="b3-required">*</span>
+                    <div class="b3-value"><input type="datetime-local" id="group-start"></div>
+                </div>
+                <p class="b3-group-hint">
+                    Les dates de chaque ligne sont calculées à partir de ce début ; chaque ligne peut
+                    ensuite être retirée de l'ordonnance avant l'enregistrement.
+                </p>
+                <div class="b3-buttons">
+                    <button type="button" id="group-ok">OK</button>
                     <button type="button" class="b3-cancel">Annuler</button>
                 </div>
             </div>
