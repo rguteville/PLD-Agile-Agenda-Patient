@@ -348,7 +348,8 @@
     }
 
     searchInput.addEventListener('input', () => {
-        // Toute nouvelle saisie annule un rattachement non confirmé par une fiche chargée.
+        // Un rattachement déjà confirmé (idPatient posé) reste en place tant que l'utilisateur ne confirme
+        // pas un autre patient ou ne clique pas « Changer de patient ».
         scheduleSearch(searchInput, searchStatus);
     });
     searchInput.addEventListener('keydown', onKeydown);
