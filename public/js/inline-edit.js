@@ -14,6 +14,7 @@
     }
     const endpoint = root.dataset.endpoint;
     const csrf = root.dataset.csrf;
+    const idSejour = root.dataset.idSejour;
     const status = document.getElementById('inline-edit-status');
     const EMPTY_LABEL = 'Non renseigné';
     const STATUS_DELAY_MS = 2000;
@@ -173,6 +174,7 @@
                 body: JSON.stringify({
                     entity: cell.dataset.entity,
                     id: cell.dataset.id,
+                    sejour: idSejour,
                     field: cell.dataset.field,
                     value: newRaw,
                     oldValue: oldRaw,
@@ -186,8 +188,11 @@
         }
 
         if (data.conflict) {
-            // Quelqu'un d'autre a modifié le champ : on repart de la valeur actuelle, la saisie reste ouverte.
+            // Quelqu'un d'autre a modifié le champ : on repart de la valeur actuelle (nouvelle « ancienne
+            // valeur »), la saisie reste ouverte et la confirmation périmée est retirée : Entrée ou blur
+            // en proposera une nouvelle, avec la bonne référence.
             cell.dataset.raw = data.value === null ? '' : data.value;
+            cell.querySelectorAll('.inline-edit__confirm').forEach(el => el.remove());
             showError(cell, `${data.message} (${data.display === null ? EMPTY_LABEL : data.display})`);
             input.focus();
             return;

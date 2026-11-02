@@ -164,6 +164,7 @@ $valeurLigne = static function (array $row): string {
     <?php endif; ?>
     <div class="dossier-sections" aria-labelledby="titre-dossier-complet"<?= $editable
         ? ' data-inline-edit data-endpoint="/sejour/champ/modifier" data-csrf="' . View::e($csrfToken) . '"'
+            . ' data-id-sejour="' . View::e($idSejour) . '"'
         : '' ?>>
     <?php /* Messages d'enregistrement et d'erreur annoncés aux lecteurs d'écran (aria-live). */ ?>
     <p class="inline-edit__status" id="inline-edit-status" aria-live="polite" hidden></p>
@@ -234,7 +235,12 @@ $valeurLigne = static function (array $row): string {
                             <tr>
                                 <td><?= View::e($event['recordedAt']) ?></td>
                                 <td><?= View::e($event['author']) ?></td>
-                                <td><?= View::e($event['label']) ?></td>
+                                <td>
+                                    <?= View::e($event['label']) ?>
+                                    <?php if (($event['detail'] ?? null) !== null) : ?>
+                                        <br><small><?= View::e($event['detail']) ?></small>
+                                    <?php endif; ?>
+                                </td>
                                 <td><?= $event['oldValue'] !== null
                                     ? View::e($event['oldValue'])
                                     : '<span class="non-renseigne">vide</span>' ?></td>

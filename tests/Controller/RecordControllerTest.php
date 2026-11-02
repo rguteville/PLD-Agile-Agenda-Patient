@@ -32,7 +32,8 @@ final class RecordControllerTest extends TestCase
         $service->expects($this->never())->method('update');
 
         [$statut, $corps] = $this->appeler($service, null, [
-            'entity' => 'patient', 'id' => '9', 'field' => 'medicalHistory', 'value' => 'HTA', 'oldValue' => '',
+            'entity' => 'patient', 'id' => '9', 'sejour' => '3', 'field' => 'medicalHistory', 'value' => 'HTA',
+            'oldValue' => '',
         ]);
 
         self::assertSame(403, $statut);
@@ -45,14 +46,15 @@ final class RecordControllerTest extends TestCase
     {
         $service = $this->createMock(RecordEditService::class);
         $service->expects($this->once())->method('update')
-            ->with('patient', 9, 'medicalHistory', 'HTA', '')
+            ->with('patient', 9, 'medicalHistory', 'HTA', '', 'non identifié', 3)
             ->willReturn([
                 'status' => RecordEditService::STATUS_SAVED, 'message' => 'Enregistré',
                 'value' => 'HTA', 'display' => 'HTA',
             ]);
 
         [$statut, $corps] = $this->appeler($service, Csrf::token(), [
-            'entity' => 'patient', 'id' => '9', 'field' => 'medicalHistory', 'value' => 'HTA', 'oldValue' => '',
+            'entity' => 'patient', 'id' => '9', 'sejour' => '3', 'field' => 'medicalHistory', 'value' => 'HTA',
+            'oldValue' => '',
         ]);
 
         self::assertSame(200, $statut);
@@ -72,7 +74,8 @@ final class RecordControllerTest extends TestCase
         ]);
 
         [$statut, $corps] = $this->appeler($service, Csrf::token(), [
-            'entity' => 'patient', 'id' => '9', 'field' => 'medicalHistory', 'value' => 'x', 'oldValue' => 'HTA',
+            'entity' => 'patient', 'id' => '9', 'sejour' => '3', 'field' => 'medicalHistory', 'value' => 'x',
+            'oldValue' => 'HTA',
         ]);
 
         self::assertSame(409, $statut);
@@ -91,7 +94,8 @@ final class RecordControllerTest extends TestCase
         ]);
 
         [$statut, $corps] = $this->appeler($service, Csrf::token(), [
-            'entity' => 'patient', 'id' => '9', 'field' => 'lastName', 'value' => 'x', 'oldValue' => '',
+            'entity' => 'patient', 'id' => '9', 'sejour' => '3', 'field' => 'lastName', 'value' => 'x',
+            'oldValue' => '',
         ]);
 
         self::assertSame(422, $statut);
@@ -107,8 +111,18 @@ final class RecordControllerTest extends TestCase
         $service->expects($this->never())->method('update');
 
         [$statut] = $this->appeler($service, Csrf::token(), ['entity' => 'patient', 'id' => 'abc', 'field' => 'x']);
+        self::assertSame(400, $statut, 'id invalide');
 
-        self::assertSame(400, $statut);
+        [$statut] = $this->appeler($service, Csrf::token(), [
+            'entity' => 'patient', 'id' => '9', 'field' => 'medicalHistory', 'value' => 'x', 'oldValue' => '',
+        ]);
+        self::assertSame(400, $statut, 'séjour absent');
+
+        [$statut] = $this->appeler($service, Csrf::token(), [
+            'entity' => 'patient', 'id' => '9', 'sejour' => '3', 'field' => 'medicalHistory',
+            'value' => ['forgé'], 'oldValue' => '',
+        ]);
+        self::assertSame(400, $statut, 'valeur non scalaire : jamais interprétée comme un vidage');
     }
 
     /**

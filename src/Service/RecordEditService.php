@@ -98,7 +98,8 @@ class RecordEditService
         string $field,
         mixed $newValue,
         mixed $oldValue,
-        string $author = AuditEvent::AUTHOR_UNKNOWN
+        string $author = AuditEvent::AUTHOR_UNKNOWN,
+        ?int $idSejour = null
     ): array {
         $specs = $this->editableFields($entity);
         if (!isset($specs[$field])) {
@@ -106,7 +107,18 @@ class RecordEditService
         }
         $spec = $specs[$field];
 
-        $record = $entity === self::ENTITY_PATIENT ? $this->patientDao->findById($id) : $this->sejourDao->findById($id);
+        // Depuis le dossier d'un séjour, un patient n'est modifiable que s'il est celui de ce séjour :
+        // l'identifiant envoyé par le client ne suffit pas.
+        if ($entity === self::ENTITY_PATIENT && $idSejour !== null) {
+            $sejour = $this->sejourDao->findById($idSejour);
+            if ($sejour === null || $sejour->getIdPatient() !== $id) {
+                return self::result(self::STATUS_NOT_FOUND, 'Dossier introuvable.');
+            }
+        }
+
+        $record = $entity === self::ENTITY_PATIENT
+            ? $this->patientDao->findById($id)
+            : $this->sejourDao->findById($id);
         if ($record === null) {
             return self::result(self::STATUS_NOT_FOUND, 'Dossier introuvable.');
         }
@@ -136,15 +148,38 @@ class RecordEditService
             return self::result(self::STATUS_UNCHANGED, null, $current, self::display($spec, $current));
         }
 
+        // Écriture conditionnelle (« si la valeur en base est encore $current ») + trace, dans une
+        // transaction : une modification concurrente entre la lecture et l'écriture est détectée par
+        // l'UPDATE lui-même, pas seulement par la comparaison faite plus haut.
         $entityName = $entity === self::ENTITY_PATIENT ? AuditEvent::ENTITY_PATIENT : AuditEvent::ENTITY_EPISODE;
-        $this->transaction->run(function () use ($entity, $id, $field, $new, $current, $author, $entityName): void {
-            if ($entity === self::ENTITY_PATIENT) {
-                $this->patientDao->updateDetails($id, [$field => $new]);
-            } else {
-                $this->sejourDao->updateDetails($id, [$field => $new]);
+        $expected = $current;
+        $written = $this->transaction->run(
+            function () use ($entity, $id, $field, $new, $current, $expected, $author, $entityName): bool {
+                $ok = $entity === self::ENTITY_PATIENT
+                    ? $this->patientDao->updateDetailIfUnchanged($id, $field, $new, $expected)
+                    : $this->sejourDao->updateDetailIfUnchanged($id, $field, $new, $expected);
+                if ($ok) {
+                    $this->auditEventDao->insert(
+                        new AuditEvent(null, $entityName, $id, $field, $current, $new, $author)
+                    );
+                }
+
+                return $ok;
             }
-            $this->auditEventDao->insert(new AuditEvent(null, $entityName, $id, $field, $current, $new, $author));
-        });
+        );
+        if (!$written) {
+            $record = $entity === self::ENTITY_PATIENT
+                ? $this->patientDao->findById($id)
+                : $this->sejourDao->findById($id);
+            $latest = $record === null ? null : $this->currentValue($record, $field);
+
+            return self::result(
+                self::STATUS_CONFLICT,
+                'Ce champ a été modifié entre-temps par quelqu\'un d\'autre. Valeur actuelle rechargée.',
+                $latest,
+                self::display($spec, $latest)
+            );
+        }
 
         return self::result(self::STATUS_SAVED, 'Enregistré', $new, self::display($spec, $new));
     }
@@ -153,7 +188,7 @@ class RecordEditService
      * Historique d'un dossier prêt à afficher : date, auteur, libellé du champ, valeurs affichables.
      *
      * @return list<array{recordedAt: string, author: string, entity: string, field: string,
-     *               label: string, oldValue: ?string, newValue: ?string}>
+     *               label: string, detail: ?string, oldValue: ?string, newValue: ?string}>
      */
     public function history(int $idPatient, int $idEpisode, int $limit = 20): array
     {
@@ -161,18 +196,33 @@ class RecordEditService
             AuditEvent::ENTITY_PATIENT => $this->editableFields(self::ENTITY_PATIENT),
             AuditEvent::ENTITY_EPISODE => $this->editableFields(self::ENTITY_EPISODE),
         ];
+        // Événements écrits hors édition en ligne (AdmissionService) : libellé français dédié.
+        $special = [
+            'idPatient' => ['label' => 'Rattachement du séjour au patient', 'type' => 'text'],
+            'lastName' => ['label' => 'Nom', 'type' => 'text'],
+            'firstName' => ['label' => 'Prénom', 'type' => 'text'],
+            'birthDate' => ['label' => 'Date de naissance', 'type' => 'date'],
+            'sex' => ['label' => 'Sexe', 'type' => 'text'],
+            'ipp' => ['label' => 'IPP', 'type' => 'text'],
+        ];
         $rows = [];
         foreach ($this->auditEventDao->findForRecord($idPatient, $idEpisode, $limit) as $event) {
             $spec = $labels[$event->getEntity()][$event->getField()]
+                ?? $special[$event->getField()]
                 ?? ['label' => $event->getField(), 'type' => 'text'];
+            $newValue = self::display($spec, $event->getNewValue());
+            if ($event->getField() === 'idPatient' && $newValue !== null) {
+                $newValue = 'patient n° ' . $newValue;
+            }
             $rows[] = [
                 'recordedAt' => $event->getRecordedAt()?->format('d/m/Y H:i') ?? '',
                 'author' => $event->getAuthor(),
                 'entity' => $event->getEntity(),
                 'field' => $event->getField(),
                 'label' => (string) $spec['label'],
+                'detail' => $event->getDetail(),
                 'oldValue' => self::display($spec, $event->getOldValue()),
-                'newValue' => self::display($spec, $event->getNewValue()),
+                'newValue' => $newValue,
             ];
         }
 
