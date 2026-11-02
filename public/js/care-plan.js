@@ -338,6 +338,7 @@ if (carePlanForm) {
         remove.addEventListener('click', () => {
             row.remove();
             block.remove();
+            showNotice('');
         });
         row.insertCell().appendChild(remove);
     }
@@ -374,6 +375,7 @@ if (carePlanForm) {
 
         const protocol = chosenLabel(item);
         let skipped = 0;
+        const notices = new Set();
         body.lines.forEach(fields => {
             const line = fields.kind === 'MEDICATION'
                 ? medicationCartLine(protocol, fields, ...(medicationNames[fields.idMedication] ?? [fields.idMedication, '']))
@@ -381,9 +383,17 @@ if (carePlanForm) {
             if (inCart(line)) {
                 skipped++;
             } else {
+                // Même avertissement qu'une saisie à la main : médicament déjà en cours ou déjà dans l'ordonnance.
+                if (medicationNotice(line) !== '') {
+                    notices.add((medicationNames[fields.idMedication] ?? [fields.idMedication])[0]);
+                }
                 addToCart(line);
             }
         });
+        showNotice(notices.size > 0
+            ? `Attention : le protocole contient ${[...notices].join(', ')}, déjà prescrit(s) pour ce séjour ou déjà `
+                + 'dans l\'ordonnance. Vérifiez qu\'il ne s\'agit pas d\'un doublon.'
+            : '');
 
         closeParams();
         item.value = '';
@@ -396,6 +406,7 @@ if (carePlanForm) {
     $('#care-ok').addEventListener('click', () => add(careLine(), careParams));
     $('#group-ok').addEventListener('click', addGroup);
     carePlanForm.querySelectorAll('.b3-cancel').forEach(button => button.addEventListener('click', () => {
+        showNotice('');
         closeParams();
         item.value = '';
         fill(dosageForm, {});
