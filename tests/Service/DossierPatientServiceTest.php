@@ -297,6 +297,65 @@ final class DossierPatientServiceTest extends TestCase
         self::assertSame([], DossierPatientService::availableSubstances([], $allergies));
     }
 
+    /** Dossier complet : chaque section reste présente, une valeur absente est null (« Non renseigné »). */
+    public function testPresentSectionsCompteLesChampsRenseignesEtTraduitLesEchelles(): void
+    {
+        $patient = new Patient(9, null, 'Durand', 'Alice', new DateTimeImmutable('1990-06-15'), 'F', details: [
+            'medicalHistory' => "HTA\nDiabète",
+        ]);
+        $sejour = new Sejour(
+            idSejour: 9,
+            idPatient: 9,
+            numSejour: '2026-000009',
+            dateAdmission: new DateTimeImmutable('2026-10-13 09:30:00'),
+            idService: 'SRV01',
+            poids: 60.0,
+            taille: 160.0,
+            details: ['asaScore' => 'III', 'surgeryDate' => '2026-10-12', 'admissionReason' => 'Choc']
+        );
+
+        $sections = DossierPatientService::presentSections($patient, $sejour, ['SRV01' => 'Réanimation médicale']);
+
+        self::assertSame(
+            ['admission', 'history', 'disease', 'scores', 'measures', 'admin'],
+            array_column($sections, 'id')
+        );
+        $parId = array_column($sections, null, 'id');
+        self::assertSame(2, $parId['admission']['filled'], 'motif + service');
+        self::assertSame('Réanimation médicale', $parId['admission']['rows'][1]['value']);
+        self::assertSame(1, $parId['history']['filled']);
+        self::assertSame(12, $parId['history']['total']);
+        self::assertSame(0, $parId['disease']['filled'], 'section vide mais présente');
+        self::assertSame(5, $parId['disease']['total']);
+
+        $scores = array_column($parId['scores']['rows'], 'value', 'field');
+        self::assertSame('ASA III – maladie systémique sévère', $scores['asaScore'], 'clé traduite en libellé');
+        self::assertNull($scores['nyhaClass']);
+
+        $mesures = array_column($parId['measures']['rows'], 'value', 'field');
+        self::assertSame('60 kg', $mesures['weight']);
+        self::assertSame('23,4 kg/m²', $mesures['bmi'], 'IMC calculé');
+        self::assertSame('52,4 kg', $mesures['predictedBodyWeight'], 'femme, 160 cm');
+        self::assertSame('12/10/2026', $mesures['surgeryDate'], 'date à la française');
+        $computed = array_column($parId['measures']['rows'], 'computed', 'field');
+        self::assertTrue($computed['tidalVolume']);
+        self::assertFalse($computed['weight']);
+        self::assertSame(6, $parId['measures']['total'], 'les valeurs calculées ne comptent pas');
+    }
+
+    public function testPresentSectionsSansMesuresExpliquePourquoiLesCalculsManquent(): void
+    {
+        $patient = new Patient(9, null, 'Durand', 'Alice', null, null);
+        $sections = DossierPatientService::presentSections($patient, $this->sejour());
+        $parId = array_column($sections, null, 'id');
+        $rows = array_column($parId['measures']['rows'], null, 'field');
+
+        self::assertNull($rows['bmi']['value']);
+        self::assertSame('Non calculable : poids manquant, taille manquante.', $rows['bmi']['help']);
+        self::assertNull($rows['weight']['help']);
+        self::assertSame(0, $parId['measures']['filled']);
+    }
+
     private function patient(?string $ipp): Patient
     {
         return new Patient(9, $ipp, ' Durand ', 'Alice', new DateTimeImmutable('1990-06-15'), 'F');

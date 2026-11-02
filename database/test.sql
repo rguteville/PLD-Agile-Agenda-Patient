@@ -100,6 +100,29 @@ INSERT INTO EpisodeOfCare (idEpisodeOfCare, idPatient, idHealthcareService, epis
     ('7', '1', 'SRV03', '2026-000107', '2026-06-02 10:00:00', '2026-06-05 16:00:00', 'L08', 'B08', 'Séjour antérieur : décompensation respiratoire', NULL,  NULL,   NULL),
     ('8', '7', 'SRV01', '2026-000108', '2026-10-14 02:30:00', NULL,                  'L04', 'B04', 'Arrêt cardio-respiratoire récupéré',             NULL,  NULL,   NULL);
 
+-- Champs complémentaires (PR « admission-champs-complets ») : quelques valeurs sur le patient 1 et son
+-- séjour en cours pour que le dossier montre des sections renseignées ; les autres restent « Non renseigné ».
+UPDATE Patient SET
+    birthLastName = 'Durand',
+    generalPractitioner = 'Dr Lambert',
+    trustedPersonName = 'Paul Dupont (époux)',
+    trustedPersonPhone = '06 00 00 00 11',
+    medicalHistory = 'HTA traitée depuis 2015.\nBPCO stade II (tabagisme sevré en 2019).',
+    surgicalHistory = 'Cholécystectomie (2008).',
+    currentTreatment = 'Amlodipine 5 mg/j ; tiotropium 18 µg/j.'
+WHERE idPatient = '1';
+
+UPDATE EpisodeOfCare SET
+    diseaseHistory1 = 'Dyspnée croissante depuis 4 jours, fièvre à 39 °C, SpO2 86 % en air ambiant aux urgences.',
+    asaScore = 'III',
+    nyhaClass = 'II',
+    mcCabeScore = '1',
+    knausScore = 'B',
+    girScore = '5',
+    removableProstheses = 'Lunettes ; prothèse dentaire haut',
+    completedBy = 'Dr Morel (admission)'
+WHERE idEpisodeOfCare = '1';
+
 -- ---------------------------------------------------------------------------
 -- Allergies (dépend de Patient et Substance)
 -- idAllergy est un VARCHAR mais DOIT contenir un entier : AllergieDao le lit en int.

@@ -296,4 +296,58 @@ final class AdmissionServiceTest extends TestCase
         $this->assertSame($this->service->valider($donnees), $this->service->validerPatientIdentite($donnees));
         $this->assertSame(['nom', 'ipp', 'sexe'], array_keys($this->service->validerPatientIdentite($donnees)));
     }
+    /** Champs complémentaires (catalogue RecordFields) : refus d'une valeur hors échelle, le reste intact. */
+    public function testScoreHorsEchelleEstRefuseSurSonChampSeulement(): void
+    {
+        $erreurs = $this->service->valider(self::DONNEES_VALIDES + ['asaScore' => 'VII', 'nyhaClass' => 'II']);
+
+        self::assertSame(['asaScore'], array_keys($erreurs));
+    }
+
+    public function testChampsComplementairesValidesNeDonnentAucuneErreur(): void
+    {
+        $donnees = self::DONNEES_VALIDES + [
+            'admissionReason' => 'Choc septique',
+            'medicalHistory' => "HTA\nDiabète",
+            'asaScore' => 'III',
+            'girScore' => '4',
+            'surgeryDate' => '2026-10-12',
+            'trustedPersonEmail' => 'proche@example.com',
+            'allergies' => ['ALG01', 'ALG02'],
+            'idService' => 'SRV01',
+        ];
+
+        self::assertSame([], $this->service->valider($donnees));
+    }
+
+    public function testServiceInconnuDuReferentielEstRefuse(): void
+    {
+        $referentiels = ['services' => ['SRV01' => 'Réanimation médicale']];
+
+        $erreurs = $this->service->valider(self::DONNEES_VALIDES + ['idService' => 'SRV99'], $referentiels);
+
+        self::assertSame(['idService'], array_keys($erreurs));
+        self::assertSame([], $this->service->valider(self::DONNEES_VALIDES + ['idService' => 'SRV01'], $referentiels));
+    }
+
+    public function testAllergeneInconnuDuReferentielEstRefuse(): void
+    {
+        $referentiels = ['substances' => ['ALG01' => 'Pénicilline']];
+
+        $erreurs = $this->service->valider(self::DONNEES_VALIDES + ['allergies' => ['ALG01', 'ALG99']], $referentiels);
+
+        self::assertSame(['allergies'], array_keys($erreurs));
+        self::assertSame(
+            [],
+            $this->service->valider(self::DONNEES_VALIDES + ['allergies' => ['ALG01']], $referentiels)
+        );
+        self::assertSame([], $this->service->valider(self::DONNEES_VALIDES + ['allergies' => ''], $referentiels));
+    }
+
+    public function testSansReferentielLeControleDAppartenanceEstDesactive(): void
+    {
+        // Les tests unitaires et les pages sans base n'ont pas de référentiel : rien n'est refusé ici,
+        // la base refusera de toute façon une clé étrangère inconnue.
+        self::assertSame([], $this->service->valider(self::DONNEES_VALIDES + ['idService' => 'SRV99']));
+    }
 }
