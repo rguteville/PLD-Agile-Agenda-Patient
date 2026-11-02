@@ -10,27 +10,33 @@ use Aura\Core\View;
  * @var ?string $recherche terme saisi, null si aucun
  */
 ?>
-<h1 class="form-title">Patients</h1>
+<div class="page-header">
+    <h1 class="form-title">Patients</h1>
+    <p class="page-actions">
+        <a class="button" href="/">Admettre un patient</a>
+    </p>
+</div>
 
 <form class="recherche-patients" method="get" action="/patients" role="search">
     <label for="q">Rechercher</label>
     <input type="search" id="q" name="q" value="<?= View::e($recherche ?? '') ?>"
            placeholder="Nom, prénom ou IPP" maxlength="50" autocomplete="off">
-    <button type="submit">Rechercher</button>
+    <button type="submit" class="button--secondary">
+        <?= View::render('components/icon', ['name' => 'search']) ?>
+        Rechercher
+    </button>
     <?php if ($recherche !== null) : ?>
         <a href="/patients">Tous les patients</a>
     <?php endif; ?>
 </form>
 
 <?php if ($patients === []) : ?>
-    <p class="liste-vide">
-        <?php if ($recherche !== null) : ?>
-            Aucun patient ne correspond à « <?= View::e($recherche) ?> ».
-        <?php else : ?>
-            Aucun patient dans le service.
-        <?php endif; ?>
-    </p>
+    <?= View::render('components/empty_state', $recherche !== null
+        ? ['icon' => 'search', 'title' => 'Aucun patient ne correspond à « ' . $recherche . ' ».',
+            'text' => 'Vérifiez l\'orthographe ou l\'IPP, ou affichez tous les patients.']
+        : ['title' => 'Aucun patient dans le service.', 'text' => 'Admettez le premier patient depuis l\'accueil.']) ?>
 <?php else : ?>
+    <div class="table-scroll">
     <table class="liste-patients">
         <caption><?= count($patients) ?> patient<?= count($patients) > 1 ? 's' : '' ?></caption>
         <thead>
@@ -60,16 +66,17 @@ use Aura\Core\View;
                     </td>
                     <td>
                         <?php if ($p['idSejour'] !== null) : ?>
-                            <a href="/sejour?id=<?= View::e($p['idSejour']) ?>">Voir</a>
+                            <a href="/sejour?id=<?= View::e($p['idSejour']) ?>"
+                               aria-label="Dossier de <?= View::e($p['nom'] . ' ' . $p['prenom']) ?>">Dossier</a>
                         <?php endif; ?>
                     </td>
                     <td>
-                        <a href="/patients/modifier?id=<?= View::e($p['idPatient']) ?>">Modifier</a>
+                        <a href="/patients/modifier?id=<?= View::e($p['idPatient']) ?>"
+                           aria-label="Modifier <?= View::e($p['nom'] . ' ' . $p['prenom']) ?>">Modifier</a>
                     </td>
                 </tr>
             <?php endforeach; ?>
         </tbody>
     </table>
+    </div>
 <?php endif; ?>
-
-<p><a href="/">Admettre un patient</a></p>

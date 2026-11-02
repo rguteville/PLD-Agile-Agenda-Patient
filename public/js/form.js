@@ -71,6 +71,8 @@ document.querySelectorAll('form[data-ajax]').forEach(form => {
             if (Object.keys(erreurs).length === 0) {
                 afficherErreurFormulaire(form, MESSAGE_ERREUR_GENERIQUE);
             }
+            // Les sections repliées (form-sections.js) s'ouvrent sur le champ en erreur.
+            form.dispatchEvent(new CustomEvent('aura:form-errors'));
             return;
         }
 

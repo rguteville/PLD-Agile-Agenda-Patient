@@ -62,10 +62,13 @@ $medicationParams = [
 <?= View::render('components/bandeau_patient', ['bandeau' => $banner]) ?>
 
 <section class="b3">
-    <p class="b3-back">
-        <a href="/sejour?id=<?= View::e($idEpisodeOfCare) ?>">&larr; Retour au dossier du séjour</a>
-    </p>
-    <h1 class="b3-title">B3. Nouvelles prescriptions</h1>
+    <div class="page-header">
+        <h1 class="form-title">Nouvelles prescriptions</h1>
+        <p class="page-actions">
+            <a class="button button--secondary"
+               href="/sejour?id=<?= View::e($idEpisodeOfCare) ?>">Dossier du séjour</a>
+        </p>
+    </div>
 
     <?php if ($savedCarePlanId !== null) : ?>
         <p class="b3-success" role="status">Ordonnance n° <?= View::e($savedCarePlanId) ?> enregistrée.</p>
@@ -180,8 +183,8 @@ $medicationParams = [
                     <?php endforeach; ?>
                 </div>
                 <div class="b3-buttons">
-                    <button type="button" disabled>Nutriments</button>
-                    <button type="button" id="med-ok">OK</button>
+                    <!-- <button type="button" disabled>Nutriments</button> -->
+                    <button type="button" id="med-ok" class="b3-primary">OK</button>
                     <button type="button" class="b3-cancel">Annuler</button>
                 </div>
             </div>
@@ -228,7 +231,7 @@ $medicationParams = [
                     </div>
                 </div>
                 <div class="b3-buttons">
-                    <button type="button" id="care-ok">OK</button>
+                    <button type="button" id="care-ok" class="b3-primary">OK</button>
                     <button type="button" class="b3-cancel">Annuler</button>
                 </div>
             </div>
@@ -269,7 +272,7 @@ $medicationParams = [
                 <tbody id="b3-cart"></tbody>
             </table>
             <div class="b3-buttons">
-                <button type="submit" form="care-plan-form" class="b3-save">Enregistrer l'ordonnance</button>
+                <button type="submit" form="care-plan-form" class="b3-primary">Enregistrer l'ordonnance</button>
             </div>
 
             <!-- RG5 : ordonnances saisies par un non-médecin, à valider par un médecin (AURA-23) -->
@@ -280,7 +283,8 @@ $medicationParams = [
             <?php foreach ($pendingCarePlans as $carePlan) : ?>
                 <div class="b3-pending">
                     <p class="b3-pending-header">
-                        &#9998; Ordonnance n° <?= View::e($carePlan['idCarePlan']) ?>
+                        <?= View::render('components/status_badge', ['status' => 'to_validate']) ?>
+                        Ordonnance n° <?= View::e($carePlan['idCarePlan']) ?>
                         du <?= View::e($carePlan['recordedAt']) ?>
                         · <?= View::e($carePlan['mode']) ?> · par <?= View::e($carePlan['prescriber']) ?>
                     </p>

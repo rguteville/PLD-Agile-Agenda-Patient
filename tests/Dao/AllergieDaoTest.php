@@ -16,8 +16,9 @@ use PHPUnit\Framework\TestCase;
 
 /**
  * AURA-14 : les allergies du bandeau viennent de la base (tables Allergie / Allergene).
- * AURA-13.1 : contraintes du schéma (couple patient / allergène actif unique, substance
- * unique, ON DELETE RESTRICT), suppression logique et date de saisie remplie par la base.
+ * AURA-13.1 : contraintes du schéma (couple patient / allergène unique, substance unique,
+ * ON DELETE RESTRICT) et date de saisie remplie par la base.
+ * AURA-13.2 : insertion (id calculé) et retrait.
  *
  * Test d'intégration sur la base MariaDB du CI (variables DB_*), ignoré hors CI.
  * Tout est exécuté dans une transaction annulée à la fin : la base n'est pas modifiée.
@@ -144,6 +145,95 @@ final class AllergieDaoTest extends TestCase
         );
 
         $this->assertSame([], (new AllergieDao($this->pdo))->findByPatient($idPatient));
+    }
+
+    /** AURA-13.2 : id calculé comme PatientDao::insert() (MAX + 1), date de saisie laissée à la base. */
+    public function testInsertCalculeLIdentifiantEtLaisseLaDateALaBase(): void
+    {
+        $idPatient = $this->insererPatient('Insert');
+        $this->pdo->exec("INSERT INTO Substance (idSubstance, description) VALUES ('T_IN', 'Insert test')");
+        $dao = new AllergieDao($this->pdo);
+        $idAttendu = (int) $this->pdo
+            ->query('SELECT COALESCE(MAX(CAST(idAllergy AS UNSIGNED)), 0) + 1 FROM AllergyIntolerance')
+            ->fetchColumn();
+        $avant = $this->maintenantEnBase();
+
+        $id = $dao->insert(new Allergie(null, $idPatient, 'T_IN', 'Insert test', 'Élevée'));
+
+        $this->assertSame($idAttendu, $id);
+        $allergies = $dao->findByPatient($idPatient);
+        $this->assertCount(1, $allergies);
+        $this->assertSame($id, $allergies[0]->getIdAllergie());
+        $this->assertSame('T_IN', $allergies[0]->getIdAllergene());
+        $this->assertSame('Insert test', $allergies[0]->getSubstance(), 'libellé lu depuis le référentiel');
+        $this->assertSame('Élevée', $allergies[0]->getCriticite());
+        $this->assertGreaterThanOrEqual($avant, $allergies[0]->getDateSaisie(), 'recordedAt rempli par la base');
+    }
+
+    public function testInsertSansCriticite(): void
+    {
+        $idPatient = $this->insererPatient('SansCrit');
+        $this->pdo->exec("INSERT INTO Substance (idSubstance, description) VALUES ('T_NC', 'Sans criticité test')");
+        $dao = new AllergieDao($this->pdo);
+
+        $dao->insert(new Allergie(null, $idPatient, 'T_NC', 'Sans criticité test'));
+
+        $this->assertNull($dao->findByPatient($idPatient)[0]->getCriticite());
+    }
+
+    public function testInsertDeuxFoisLeMemeAllergeneRefuseParLaBase(): void
+    {
+        $idPatient = $this->insererPatient('DoublonDao');
+        $this->pdo->exec("INSERT INTO Substance (idSubstance, description) VALUES ('T_DD', 'Doublon dao test')");
+        $dao = new AllergieDao($this->pdo);
+        $dao->insert(new Allergie(null, $idPatient, 'T_DD', 'Doublon dao test'));
+
+        $this->assertErreurMariaDb(
+            1062,
+            fn() => $dao->insert(new Allergie(null, $idPatient, 'T_DD', 'Doublon dao test', 'Faible'))
+        );
+    }
+
+    public function testInsertAllergeneHorsReferentielRefuseParLaBase(): void
+    {
+        $idPatient = $this->insererPatient('Inconnu');
+
+        $this->assertErreurMariaDb(
+            1452,
+            fn() => (new AllergieDao($this->pdo))->insert(new Allergie(null, $idPatient, 'T_ABSENT', 'Absent'))
+        );
+    }
+
+    /** AURA-13.2 : retrait (suppression physique, décision d'équipe), limité au patient. */
+    public function testDeleteRetireSeulementLAllergieDemandee(): void
+    {
+        $idPatient = $this->insererPatient('Delete');
+        $this->pdo->exec(
+            "INSERT INTO Substance (idSubstance, description)
+             VALUES ('T_D1', 'Delete un test'), ('T_D2', 'Delete deux test')"
+        );
+        $dao = new AllergieDao($this->pdo);
+        $id1 = $dao->insert(new Allergie(null, $idPatient, 'T_D1', 'Delete un test'));
+        $dao->insert(new Allergie(null, $idPatient, 'T_D2', 'Delete deux test'));
+
+        $this->assertTrue($dao->delete($id1, $idPatient));
+
+        $restantes = $dao->findByPatient($idPatient);
+        $this->assertCount(1, $restantes);
+        $this->assertSame('T_D2', $restantes[0]->getIdAllergene());
+        $this->assertFalse($dao->delete($id1, $idPatient), 'déjà retirée : rien à supprimer');
+    }
+
+    public function testDeleteIgnoreLAllergieDUnAutrePatient(): void
+    {
+        $idPatient = $this->insererPatient('Proprietaire');
+        $idAutre = $this->insererPatient('Autre');
+        $this->pdo->exec("INSERT INTO Substance (idSubstance, description) VALUES ('T_AP', 'Autre patient test')");
+        $dao = new AllergieDao($this->pdo);
+        $id = $dao->insert(new Allergie(null, $idPatient, 'T_AP', 'Autre patient test'));
+
+        $this->assertFalse($dao->delete($id, $idAutre), 'un id forgé ne touche pas le dossier d\'un autre patient');
+        $this->assertCount(1, $dao->findByPatient($idPatient));
     }
 
     private function insererPatient(string $prenom): int

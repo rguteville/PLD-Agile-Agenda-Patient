@@ -69,7 +69,8 @@ final class ModificationPatientService
             sexe: $this->texte($donnees['sexe'] ?? null),
             // Hors formulaire : conservés tels quels, sinon update() les effacerait.
             telephone: $existant->getTelephone(),
-            email: $existant->getEmail()
+            email: $existant->getEmail(),
+            details: $existant->getDetails()
         ));
 
         return [];

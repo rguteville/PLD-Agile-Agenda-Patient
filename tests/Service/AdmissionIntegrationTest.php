@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Aura\Tests\Service;
 
 use Aura\Core\Database;
+use Aura\Dao\AllergieDao;
 use Aura\Dao\PatientDao;
 use Aura\Dao\SejourDao;
 use Aura\Dao\Transaction;
@@ -152,6 +153,112 @@ final class AdmissionIntegrationTest extends TestCase
         self::assertFalse($this->pdo->inTransaction(), 'la transaction est bien terminée');
     }
 
+    /**
+     * AURA-15 : réadmettre un patient déjà connu par son IPP ouvre un nouveau séjour sans
+     * recréer le patient : la table Patient garde une seule ligne pour cet IPP.
+     */
+    public function testUnPatientDejaConnuParSonIppNEstPasRecreeALaReadmission(): void
+    {
+        $sejourService = new SejourService(new SejourDao($this->pdo));
+        $service = new AdmissionService(null, new PatientDao($this->pdo), $sejourService, new Transaction($this->pdo));
+        $ipp = '987654315';
+
+        $premier = $service->admettre(['nom' => self::NOM, 'prenom' => 'Alice', 'ipp' => $ipp, 'sexe' => 'F']);
+        // Un patient n'a qu'un séjour en cours à la fois : le premier est clos avant la réadmission.
+        $sejourService->cloturerSejour((int) $premier->getIdSejour());
+        [$patientsAvant, $sejoursAvant] = $this->compter();
+
+        // Identité volontairement différente : c'est l'IPP qui fait foi, pas les champs saisis.
+        $second = $service->admettre(['nom' => self::NOM, 'prenom' => 'Autre', 'ipp' => $ipp]);
+
+        [$patientsApres, $sejoursApres] = $this->compter();
+        self::assertSame($patientsAvant, $patientsApres, 'aucun doublon de Patient');
+        self::assertSame($sejoursAvant + 1, $sejoursApres, 'exactement un séjour de plus');
+        self::assertSame($premier->getIdPatient(), $second->getIdPatient(), 'même patient');
+        self::assertNotSame($premier->getNumSejour(), $second->getNumSejour());
+
+        $stmt = $this->pdo->prepare('SELECT COUNT(*) FROM Patient WHERE ipp = :ipp');
+        $stmt->execute(['ipp' => $ipp]);
+        self::assertSame(1, (int) $stmt->fetchColumn(), 'une seule ligne Patient pour cet IPP');
+        self::assertSame('Alice', (new PatientDao($this->pdo))->findByIpp($ipp)?->getPrenom(), 'identité inchangée');
+    }
+
+    /**
+     * Champs complémentaires : antécédents (patient), histoire de la maladie, scores, chirurgie (séjour)
+     * et allergies du référentiel sont relus identiques depuis la base après l'admission.
+     */
+    public function testLesChampsComplementairesEtLesAllergiesSontRelus(): void
+    {
+        $service = new AdmissionService(
+            null,
+            new PatientDao($this->pdo),
+            new SejourService(new SejourDao($this->pdo)),
+            new Transaction($this->pdo),
+            new AllergieDao($this->pdo)
+        );
+        $substances = (new \Aura\Dao\SubstanceDao($this->pdo))->findAll();
+        self::assertNotEmpty($substances, 'le référentiel des allergènes doit être chargé (test.sql)');
+        $idSubstance = $substances[0]->getIdSubstance();
+
+        $sejour = $service->admettre([
+            'nom' => self::NOM,
+            'prenom' => 'Alice',
+            'sexe' => 'F',
+            'medicalHistory' => "HTA\nDiabète de type 2",
+            'trustedPersonName' => 'Jeanne Zzconfiance',
+            'admissionReason' => 'Choc septique',
+            'diseaseHistory1' => 'Fièvre depuis 3 jours',
+            'asaScore' => 'III',
+            'girScore' => '4',
+            'surgeryDate' => '2026-10-12',
+            'completedBy' => 'Dr Zztest',
+            'allergies' => [$idSubstance],
+        ]);
+
+        $reluSejour = (new SejourDao($this->pdo))->findById((int) $sejour->getIdSejour());
+        self::assertNotNull($reluSejour);
+        self::assertSame('Choc septique', $reluSejour->getDetail('admissionReason'));
+        self::assertSame('Fièvre depuis 3 jours', $reluSejour->getDetail('diseaseHistory1'));
+        self::assertSame('III', $reluSejour->getDetail('asaScore'));
+        self::assertSame('4', $reluSejour->getDetail('girScore'));
+        self::assertSame('2026-10-12', $reluSejour->getDetail('surgeryDate'));
+        self::assertSame('Dr Zztest', $reluSejour->getDetail('completedBy'));
+        self::assertNull($reluSejour->getDetail('diseaseHistory2'), 'un champ non saisi reste NULL');
+
+        $reluPatient = (new PatientDao($this->pdo))->findById($sejour->getIdPatient());
+        self::assertNotNull($reluPatient);
+        self::assertSame("HTA\nDiabète de type 2", $reluPatient->getDetail('medicalHistory'));
+        self::assertSame('Jeanne Zzconfiance', $reluPatient->getDetail('trustedPersonName'));
+
+        $allergies = (new AllergieDao($this->pdo))->findByPatient($sejour->getIdPatient());
+        self::assertCount(1, $allergies);
+        self::assertSame($idSubstance, $allergies[0]->getIdAllergene());
+    }
+
+    /** Un patient connu par son IPP : les champs saisis complètent son dossier, les vides ne l'effacent pas. */
+    public function testLaReadmissionCompleteLeDossierSansEffacerLExistant(): void
+    {
+        $sejourService = new SejourService(new SejourDao($this->pdo));
+        $service = new AdmissionService(null, new PatientDao($this->pdo), $sejourService, new Transaction($this->pdo));
+        $ipp = '987654316';
+
+        $premier = $service->admettre([
+            'nom' => self::NOM, 'prenom' => 'Alice', 'ipp' => $ipp,
+            'medicalHistory' => 'HTA', 'lifestyle' => 'Non fumeur',
+        ]);
+        $sejourService->cloturerSejour((int) $premier->getIdSejour());
+
+        $service->admettre([
+            'nom' => self::NOM, 'prenom' => 'Alice', 'ipp' => $ipp,
+            'medicalHistory' => 'HTA, diabète', 'lifestyle' => '',
+        ]);
+
+        $relu = (new PatientDao($this->pdo))->findByIpp($ipp);
+        self::assertNotNull($relu);
+        self::assertSame('HTA, diabète', $relu->getDetail('medicalHistory'), 'champ saisi : mis à jour');
+        self::assertSame('Non fumeur', $relu->getDetail('lifestyle'), 'champ vide : conservé');
+    }
+
     /** @return array{int, int} */
     private function compter(): array
     {
@@ -163,6 +270,9 @@ final class AdmissionIntegrationTest extends TestCase
 
     private function nettoyer(): void
     {
+        $this->pdo->prepare(
+            'DELETE FROM AllergyIntolerance WHERE idPatient IN (SELECT idPatient FROM Patient WHERE lastName = :nom)'
+        )->execute(['nom' => self::NOM]);
         $this->pdo->prepare(
             'DELETE FROM EpisodeOfCare WHERE idPatient IN (SELECT idPatient FROM Patient WHERE lastName = :nom)'
         )->execute(['nom' => self::NOM]);

@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use Aura\Dao\ActivityDefinitionDao;
+
 require dirname(__DIR__) . '/vendor/autoload.php';
 
 use Aura\Controller\CarePlanController;
@@ -18,15 +20,18 @@ use Aura\Dao\PatientDao;
 use Aura\Dao\PlanDefinitionDao;
 use Aura\Dao\ReferenceDataDao;
 use Aura\Dao\SejourDao;
+use Aura\Dao\SubstanceDao;
 use Aura\Dao\AppointmentDao;
 use Aura\Dao\Transaction;
 
 use Aura\Service\AdmissionService;
+use Aura\Service\AllergyIntoleranceService;
 use Aura\Service\CarePlanService;
 use Aura\Service\DossierPatientService;
 use Aura\Service\ListePatientsService;
 use Aura\Service\ModificationPatientService;
 use Aura\Service\PlanDefinitionService;
+use Aura\Service\RechercheIppService;
 use Aura\Service\SejourService;
 use Aura\Service\AgendaService;
 
@@ -42,39 +47,72 @@ if (PHP_SAPI === 'cli-server' && is_file(__DIR__ . $path)) {
 // qui l'utilisent peuvent lever ConfigurationException, les autres fonctionnent
 // sans config/config.php.
 try {
-    //Page par défaut
+    // Listes de l'admission lues en base (service hospitalier, allergènes du référentiel).
+    // Sans config.php ni base, la page d'accueil reste affichable : listes vides, le reste du
+    // formulaire fonctionne (la saisie sera refusée à l'envoi, qui a besoin de la base).
+    $referentielsAdmission = static function (): array {
+        try {
+            $pdo = Database::get();
+
+            return [
+                'services' => (new ReferenceDataDao($pdo))->healthcareServices(),
+                'substances' => DossierPatientService::availableSubstances((new SubstanceDao($pdo))->findAll(), []),
+            ];
+        } catch (ConfigurationException | \PDOException) {
+            // Base absente, injoignable ou pas encore migrée : l'accueil reste affichable sans les listes.
+            return [];
+        }
+    };
+
+    //Page par défaut : formulaire d'admission
     if ($path === '/') {
-        View::page('patient/admission', [], 'AURA - Admission', ['/js/form.js']);
+        (new PatientController(referentiels: $referentielsAdmission()))->showAdmissionForm();
         exit;
     }
 
-    // AURA-10.4 : l'admission écrit en base (patient + séjour) ; connexion ouverte pour cette route.
-    $admettrePatient = static function (): void {
+    // AURA-10.4 : l'admission écrit en base (patient + séjour + allergies) ; connexion ouverte pour cette route.
+    $admettrePatient = static function () use ($referentielsAdmission): void {
         $pdo = Database::get();
-        $controller = new PatientController(new AdmissionService(
-            null,
-            new PatientDao($pdo),
-            new SejourService(new SejourDao($pdo)),
-            new Transaction($pdo)
-        ));
+        $controller = new PatientController(
+            new AdmissionService(
+                null,
+                new PatientDao($pdo),
+                new SejourService(new SejourDao($pdo)),
+                new Transaction($pdo),
+                new AllergieDao($pdo)
+            ),
+            referentiels: $referentielsAdmission()
+        );
         $controller->create();
     };
 
-    // AURA-14 : le dossier de séjour lit la base ; la connexion n'est ouverte que pour cette route.
+    // AURA-14 : le dossier de séjour lit la base ; la connexion n'est ouverte que pour ces routes.
     // Il affiche aussi les prescriptions validées du séjour (CarePlanService).
-    $afficherSejour = static function (): void {
+    // AURA-13.2 : le même contrôleur sert l'ajout et le retrait d'allergies (POST) depuis le dossier.
+    $controleurSejour = static function (): SejourController {
         $pdo = Database::get();
         $dossierPatientService = new DossierPatientService(
             new SejourDao($pdo),
             new PatientDao($pdo),
             new AllergieDao($pdo),
-            new DateTimeImmutable('today')
+            new SubstanceDao($pdo),
+            new DateTimeImmutable('today'),
+            new ReferenceDataDao($pdo)
         );
-        $controller = new SejourController(
-            $dossierPatientService,
-            new CarePlanService(new CarePlanDao($pdo), new ReferenceDataDao($pdo), $dossierPatientService)
+
+        return new SejourController(
+            dossierPatientService: $dossierPatientService,
+            carePlanService: new CarePlanService(
+                new CarePlanDao($pdo),
+                new ReferenceDataDao($pdo),
+                $dossierPatientService
+            ),
+            allergyIntoleranceService: new AllergyIntoleranceService(
+                new SejourDao($pdo),
+                new AllergieDao($pdo),
+                new SubstanceDao($pdo)
+            )
         );
-        $controller->show();
     };
 
     // AURA-12.1 : la liste des patients lit la base ; même principe que le dossier de séjour.
@@ -111,13 +149,30 @@ try {
             new AdmissionService()
         )
     );
-    // AURA-24 : récupérer l'agenda d'un patient
+    // AURA-15 : recherche d'un patient déjà connu par son IPP (JSON pour le formulaire d'admission).
+    $rechercherParIpp = static function (): void {
+        $pdo = Database::get();
+        $controller = new PatientController(
+            rechercheIppService: new RechercheIppService(new PatientDao($pdo), new AllergieDao($pdo))
+        );
+        $controller->rechercherParIpp();
+    };
+
+    // AURA-24 : agenda d'un séjour, bandeau identité + allergies en tête (RG2).
     $getAgenda = static function (): void {
         $pdo = Database::get();
         $controller = new SejourController(
+            dossierPatientService: new DossierPatientService(
+                new SejourDao($pdo),
+                new PatientDao($pdo),
+                new AllergieDao($pdo),
+                new SubstanceDao($pdo),
+                new DateTimeImmutable('today')
+            ),
             agendaService: new AgendaService(
                 new CarePlanDao($pdo),
                 new AppointmentDao($pdo),
+                new ActivityDefinitionDao($pdo)
             ),
             sejourService: new SejourService(
                 new SejourDao($pdo),
@@ -132,7 +187,10 @@ try {
     $router->post('/patients/create', $admettrePatient);
     $router->get('/patients/modifier', static fn () => $controleurModification()->edit());
     $router->post('/patients/modifier', static fn () => $controleurModification()->update());
-    $router->get('/sejour', $afficherSejour);
+    $router->get('/patients/recherche-ipp', $rechercherParIpp);
+    $router->get('/sejour', static fn () => $controleurSejour()->show());
+    $router->post('/sejour/allergies/ajouter', static fn () => $controleurSejour()->addAllergy());
+    $router->post('/sejour/allergies/retirer', static fn () => $controleurSejour()->removeAllergy());
     $router->get('/care-plans', static fn () => $carePlans()->list());
     $router->get('/care-plans/new', static fn () => $carePlans()->newForm());
     $router->post('/care-plans/create', static fn () => $carePlans()->create());

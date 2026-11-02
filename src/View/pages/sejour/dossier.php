@@ -3,38 +3,71 @@
 use Aura\Core\View;
 
 /**
+ * Dossier du séjour (AURA-14) et gestion des allergies connues du patient (AURA-13.2).
+ *
  * @var array<string, mixed> $bandeau
  * @var array<string, mixed> $sejour
  * @var int $idSejour
  * @var list<array<string, mixed>> $prescriptions lignes validées, vue-modèle de CarePlanService::presentLine()
  * @var array<string, string> $doctors médecins pouvant arrêter une ligne : idPractitioner => « nom (rôle) »
+ * @var list<array{idAllergy: ?int, label: string, criticality: ?string, recordedAt: ?string}> $allergies
+ * @var array<string, string> $substances allergènes du référentiel non encore enregistrés, id => libellé
+ * @var list<string> $criticalities
+ * @var ?string $allergyError message d'un ajout ou d'un retrait refusé, null sinon
+ * @var list<array<string, mixed>> $sections dossier complet, vue-modèle de DossierPatientService::presentSections()
  */
+$allergyError = $allergyError ?? null;
+$sections = $sections ?? [];
+// Contenu HTML (échappé) d'une ligne du dossier complet : valeur, ou état explicite si absente.
+$valeurLigne = static function (array $row): string {
+    if ($row['value'] !== null) {
+        $html = View::e($row['value']);
+    } else {
+        $html = '<span class="non-renseigne">' . ($row['computed'] ? 'Non calculable' : 'Non renseigné') . '</span>';
+    }
+    if ($row['computed'] && $row['help'] !== null) {
+        $html .= ' <small>' . View::e($row['help']) . '</small>';
+    }
+
+    return $html;
+};
 ?>
 <?= View::render('components/bandeau_patient', ['bandeau' => $bandeau]) ?>
 
 <section class="dossier">
-    <h1 class="form-title">Dossier du séjour n° <?= View::e($bandeau['numeroSejour']) ?></h1>
-    <?php if ($sejour['enCours']) : ?>
-        <?php /* AURA-20 : vers l'écran B3 « Nouvelles prescriptions » (séjour en cours seulement). */ ?>
-        <p class="episode-actions">
-            <a class="button" href="/care-plans/new?idEpisodeOfCare=<?= View::e($idSejour) ?>">Prescription</a>
+    <div class="page-header">
+        <h1 class="form-title">Dossier du séjour n° <?= View::e($bandeau['numeroSejour']) ?></h1>
+        <p class="page-actions">
+            <a class="button button--secondary"
+               href="/agenda-patient?id=<?= View::e($idSejour) ?>">Agenda du jour</a>
+            <a class="button button--secondary"
+               href="/care-plans?idEpisodeOfCare=<?= View::e($idSejour) ?>">Toutes les prescriptions</a>
+            <?php if ($sejour['enCours']) : ?>
+                <?php /* AURA-20 : vers l'écran B3 « Nouvelles prescriptions » (séjour en cours seulement). */ ?>
+                <a class="button" href="/care-plans/new?idEpisodeOfCare=<?= View::e($idSejour) ?>">Prescription</a>
+            <?php endif; ?>
         </p>
-    <?php endif; ?>
+    </div>
     <dl>
         <dt>Statut</dt>
-        <dd><?= $sejour['enCours'] ? 'En cours' : 'Clos le ' . View::e($sejour['dateSortie']) ?></dd>
+        <dd>
+            <?php if ($sejour['enCours']) : ?>
+                <?= View::render('components/status_badge', ['status' => 'planned', 'label' => 'En cours']) ?>
+            <?php else : ?>
+                <?= View::render('components/status_badge', ['status' => 'stopped', 'label' => 'Clos']) ?>
+                le <?= View::e($sejour['dateSortie']) ?>
+            <?php endif; ?>
+        </dd>
         <dt>Admission</dt>
         <dd><?= View::e($bandeau['dateAdmission'] ?? 'non renseignée') ?></dd>
         <dt>Service</dt>
         <dd><?= View::e($sejour['service'] ?? 'non renseigné') ?></dd>
+        <dt>Motif d'admission</dt>
+        <dd><?= isset($sejour['motifAdmission']) ? nl2br(View::e($sejour['motifAdmission'])) : 'non renseigné' ?></dd>
         <dt>Lit</dt>
         <dd><?= View::e($sejour['lit'] ?? 'non attribué') ?></dd>
         <dt>Box</dt>
         <dd><?= View::e($sejour['box'] ?? 'non attribué') ?></dd>
-        <dt>Poids à l'admission</dt>
-        <dd><?= View::e($sejour['poids'] ?? 'non renseigné') ?></dd>
-        <dt>Taille à l'admission</dt>
-        <dd><?= View::e($sejour['taille'] ?? 'non renseignée') ?></dd>
         <dt>Précautions</dt>
         <?php /* « non renseignées », pas « aucune » : rien de saisi ne veut pas dire aucun risque. */ ?>
         <dd><?= isset($sejour['precautions']) ? nl2br(View::e($sejour['precautions'])) : 'non renseignées' ?></dd>
@@ -44,11 +77,113 @@ use Aura\Core\View;
         <dd><?= View::e($sejour['email'] ?? 'non renseigné') ?></dd>
     </dl>
 
+<section class="allergies-dossier" aria-labelledby="titre-allergies">
+    <h2 id="titre-allergies">Allergies connues</h2>
+
+    <?php if ($allergyError !== null) : ?>
+        <p class="form-error" role="alert"><?= View::e($allergyError) ?></p>
+    <?php endif; ?>
+
+    <?php if ($allergies === []) : ?>
+        <p class="aucune-allergie">
+            <?= View::render('components/icon', ['name' => 'circle-check']) ?>
+            Aucune allergie connue
+        </p>
+    <?php else : ?>
+        <ul class="liste-allergies">
+            <?php foreach ($allergies as $allergy) : ?>
+                <li>
+                    <span class="libelle"><?= View::e($allergy['label']) ?></span>
+                    <?php
+                    $details = $allergy['criticality'] !== null
+                        ? 'criticité ' . $allergy['criticality']
+                        : 'criticité non évaluée';
+                    if ($allergy['recordedAt'] !== null) {
+                        $details .= ', enregistrée le ' . $allergy['recordedAt'];
+                    }
+                    ?>
+                    <span class="details"><?= View::e($details) ?></span>
+                    <?php /* Retrait en POST, jamais en lien GET : un GET peut être suivi par un robot,
+                             préchargé par le navigateur ou relancé depuis l'historique. */ ?>
+                    <form method="post" action="/sejour/allergies/retirer" class="retirer-allergie"
+                          data-confirm="<?= View::e(sprintf(
+                              'Retirer l\'allergie « %s » du dossier de ce patient ? Elle disparaîtra du bandeau.',
+                              $allergy['label']
+                          )) ?>">
+                        <input type="hidden" name="idSejour" value="<?= View::e($idSejour) ?>">
+                        <input type="hidden" name="idAllergy" value="<?= View::e($allergy['idAllergy']) ?>">
+                        <button type="submit" aria-label="Retirer l'allergie <?= View::e($allergy['label']) ?>">
+                            Retirer
+                        </button>
+                    </form>
+                </li>
+            <?php endforeach; ?>
+        </ul>
+    <?php endif; ?>
+
+    <?php if ($substances === []) : ?>
+        <p class="referentiel-epuise">Tous les allergènes du référentiel sont déjà enregistrés pour ce patient.</p>
+    <?php else : ?>
+        <form method="post" action="/sejour/allergies/ajouter" class="ajouter-allergie">
+            <input type="hidden" name="idSejour" value="<?= View::e($idSejour) ?>">
+            <div class="champ">
+                <label for="idSubstance">Allergène</label>
+                <select id="idSubstance" name="idSubstance" required>
+                    <option value="">Choisir dans la liste</option>
+                    <?php foreach ($substances as $id => $description) : ?>
+                        <option value="<?= View::e($id) ?>"><?= View::e($description) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="champ">
+                <label for="criticality">Criticité</label>
+                <select id="criticality" name="criticality">
+                    <option value="">Non évaluée</option>
+                    <?php foreach ($criticalities as $criticality) : ?>
+                        <option value="<?= View::e($criticality) ?>"><?= View::e($criticality) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <button type="submit">Ajouter</button>
+        </form>
+    <?php endif; ?>
+</section>
+
+    <?php /* Dossier complet : mêmes sections que le formulaire d'admission. Une section vide reste
+             visible (repliée) avec « Non renseigné » : l'information est absente, pas cachée. */ ?>
+    <h2 class="dossier-subtitle" id="titre-dossier-complet">Dossier complet</h2>
+    <div class="dossier-sections" aria-labelledby="titre-dossier-complet">
+    <?php foreach ($sections as $section) : ?>
+        <details class="dossier-section"
+                 id="dossier-<?= View::e($section['id']) ?>"<?= $section['filled'] > 0 ? ' open' : '' ?>>
+            <summary>
+                <span><?= View::e($section['title']) ?></span>
+                <span class="dossier-section__count">
+                    <?= View::e($section['filled']) ?> sur <?= View::e($section['total']) ?>
+                    renseigné<?= $section['filled'] > 1 ? 's' : '' ?>
+                </span>
+            </summary>
+            <dl>
+                <?php foreach ($section['rows'] as $row) : ?>
+                    <dt><?= View::e($row['label']) ?></dt>
+                    <?php /* Valeur collée à la balise : white-space: pre-line conserve les retours à la ligne. */ ?>
+                    <dd data-entity="<?= View::e($row['entity']) ?>"
+                        data-field="<?= View::e($row['field']) ?>"><?= $valeurLigne($row) ?></dd>
+                <?php endforeach; ?>
+            </dl>
+        </details>
+    <?php endforeach; ?>
+    </div>
+
     <?php /* RG5 : seules les prescriptions validées par un médecin, et pas celles qui sont arrêtées. */ ?>
     <h2 class="dossier-subtitle">Prescriptions en cours</h2>
     <?php if ($prescriptions === []) : ?>
-        <p class="liste-vide">Aucune prescription validée.</p>
+        <?= View::render('components/empty_state', [
+            'title' => 'Aucune prescription validée.',
+            'text' => 'Les ordonnances en attente de validation médicale sont sur l\'écran Prescription.',
+        ]) ?>
     <?php else : ?>
+        <div class="table-scroll">
         <table class="dossier-prescriptions">
             <thead>
                 <tr>
@@ -115,7 +250,6 @@ use Aura\Core\View;
                 <?php endforeach; ?>
             </tbody>
         </table>
+        </div>
     <?php endif; ?>
-    <p><a href="/care-plans?idEpisodeOfCare=<?= View::e($idSejour) ?>">Toutes les prescriptions du séjour</a></p>
-    <a href="/agenda-patient?numSejour=<?= urlencode((string)$bandeau['numeroSejour']) ?>">Vers l'agenda.</a>
 </section>
