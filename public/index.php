@@ -15,6 +15,7 @@ use Aura\Core\Router;
 use Aura\Core\View;
 
 use Aura\Dao\AllergieDao;
+use Aura\Dao\AuditEventDao;
 use Aura\Dao\CarePlanDao;
 use Aura\Dao\PatientDao;
 use Aura\Dao\ReferenceDataDao;
@@ -29,7 +30,9 @@ use Aura\Service\CarePlanService;
 use Aura\Service\DossierPatientService;
 use Aura\Service\ListePatientsService;
 use Aura\Service\ModificationPatientService;
+use Aura\Service\PatientSearchService;
 use Aura\Service\RechercheIppService;
+use Aura\Service\RecordEditService;
 use Aura\Service\SejourService;
 use Aura\Service\AgendaService;
 
@@ -77,11 +80,29 @@ try {
                 new PatientDao($pdo),
                 new SejourService(new SejourDao($pdo)),
                 new Transaction($pdo),
-                new AllergieDao($pdo)
+                new AllergieDao($pdo),
+                new AuditEventDao($pdo),
+                // Patient existant sélectionné : ses champs modifiés sont enregistrés et tracés un par un.
+                new RecordEditService(
+                    new PatientDao($pdo),
+                    new SejourDao($pdo),
+                    new AuditEventDao($pdo),
+                    new Transaction($pdo),
+                    new ReferenceDataDao($pdo)
+                )
             ),
             referentiels: $referentielsAdmission()
         );
         $controller->create();
+    };
+
+    // Recherche d'un patient existant à l'admission (IPP ou nom / prénom) et fiche après confirmation.
+    $recherchePatients = static function (): PatientController {
+        $pdo = Database::get();
+
+        return new PatientController(
+            patientSearchService: new PatientSearchService(new PatientDao($pdo), new AllergieDao($pdo))
+        );
     };
 
     // AURA-14 : le dossier de séjour lit la base ; la connexion n'est ouverte que pour ces routes.
@@ -184,6 +205,8 @@ try {
     $router->get('/patients/modifier', static fn () => $controleurModification()->edit());
     $router->post('/patients/modifier', static fn () => $controleurModification()->update());
     $router->get('/patients/recherche-ipp', $rechercherParIpp);
+    $router->get('/patients/recherche', static fn () => $recherchePatients()->search());
+    $router->get('/patients/fiche', static fn () => $recherchePatients()->record());
     $router->get('/sejour', static fn () => $controleurSejour()->show());
     $router->post('/sejour/allergies/ajouter', static fn () => $controleurSejour()->addAllergy());
     $router->post('/sejour/allergies/retirer', static fn () => $controleurSejour()->removeAllergy());
