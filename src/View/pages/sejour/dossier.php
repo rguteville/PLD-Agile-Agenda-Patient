@@ -39,6 +39,10 @@ $valeurLigne = static function (array $row): string {
 };
 ?>
 <?= View::render('components/bandeau_patient', ['bandeau' => $bandeau]) ?>
+<?= View::render('components/breadcrumb', ['items' => [
+    ['label' => 'Patients', 'href' => '/patients'],
+    ['label' => 'Dossier du séjour n° ' . $bandeau['numeroSejour']],
+]]) ?>
 
 <section class="dossier">
     <div class="page-header">

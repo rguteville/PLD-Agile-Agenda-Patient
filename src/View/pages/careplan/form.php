@@ -58,6 +58,11 @@ $medicationParams = [
 ];
 ?>
 <?= View::render('components/bandeau_patient', ['bandeau' => $banner]) ?>
+<?= View::render('components/breadcrumb', ['items' => [
+    ['label' => 'Patients', 'href' => '/patients'],
+    ['label' => 'Dossier du séjour n° ' . $banner['numeroSejour'], 'href' => '/sejour?id=' . $idEpisodeOfCare],
+    ['label' => 'Nouvelle prescription'],
+]]) ?>
 
 <section class="b3">
     <div class="page-header">
