@@ -135,6 +135,7 @@ try {
                     new SejourDao($pdo),
                     new PatientDao($pdo),
                     new AllergieDao($pdo),
+                    new SubstanceDao($pdo),
                     new DateTimeImmutable('today')
                 )
             ),
