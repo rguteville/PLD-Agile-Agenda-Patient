@@ -115,10 +115,11 @@ final class AdmissionServiceAdmettreTest extends TestCase
     public function testNomEtPrenomSeulsSuffisent(): void
     {
         $this->patients->expects($this->never())->method('findByIpp');
+        $this->patients->expects($this->once())->method('nextIpp')->willReturn(100000042);
         $this->patients->expects($this->once())
             ->method('insert')
             ->with($this->callback(function (Patient $p): bool {
-                $this->assertNull($p->getIpp());
+                $this->assertSame('100000042', $p->getIpp(), 'IPP attribué automatiquement');
                 $this->assertNull($p->getDateNaissance());
                 $this->assertNull($p->getSexe(), 'RG1 : le sexe n\'est pas obligatoire');
 

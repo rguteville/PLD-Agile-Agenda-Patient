@@ -137,6 +137,29 @@ class PatientDao
         return $results;
     }
 
+    /** Plus petit IPP attribuable (contrainte CHECK de la colonne Patient.ipp : 100000 à 999999999). */
+    public const IPP_MIN = 100000;
+    public const IPP_MAX = 999999999;
+
+    /**
+     * Prochain IPP libre (plus grand IPP + 1, au moins IPP_MIN), lu en verrouillant la table : à appeler
+     * dans la transaction qui insère le patient, comme le calcul de idPatient (deux admissions
+     * simultanées n'obtiennent pas le même IPP ; la contrainte UNIQUE reste la garantie finale).
+     *
+     * @throws LogicException si la plage des IPP est épuisée
+     */
+    public function nextIpp(): int
+    {
+        $next = (int) $this->pdo
+            ->query('SELECT COALESCE(MAX(ipp), ' . (self::IPP_MIN - 1) . ') + 1 FROM Patient FOR UPDATE')
+            ->fetchColumn();
+        if ($next > self::IPP_MAX) {
+            throw new LogicException('Plus aucun IPP disponible dans la plage autorisée.');
+        }
+
+        return max($next, self::IPP_MIN);
+    }
+
     /** Date d'admission la plus récente d'un patient (null s'il n'a aucun séjour). */
     public function lastAdmissionDate(int $idPatient): ?DateTimeImmutable
     {

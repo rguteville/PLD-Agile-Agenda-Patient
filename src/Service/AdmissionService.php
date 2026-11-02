@@ -78,6 +78,8 @@ class AdmissionService
      * Taille, poids et précautions sont des mesures du séjour (AURA-10.1) : elles sont
      * enregistrées sur le séjour ouvert, pas sur le patient.
      *
+     * Nouveau patient sans IPP saisi : un IPP est attribué automatiquement (PatientDao::nextIpp()).
+     *
      * Patient existant, deux cas :
      *  - sélectionné dans la recherche (clé idPatient, PR « admission-recherche-patient ») : le
      *    formulaire a été pré-rempli depuis sa fiche ; identité et champs complémentaires modifiés
@@ -166,6 +168,11 @@ class AdmissionService
                         );
                         $rattachement = 'rattachement par IPP saisi';
                     } else {
+                        // Nouveau patient sans IPP saisi : un IPP est attribué automatiquement (retours
+                        // du 2026-11-02), dans la même transaction que l'insertion.
+                        if ($patient->getIpp() === null) {
+                            $patient = self::avecIpp($patient, (string) $patientDao->nextIpp());
+                        }
                         $idPatient = $patientDao->insert($patient);
                     }
                 }
@@ -266,6 +273,22 @@ class AdmissionService
         }
 
         $this->completerPatient($existant, $details);
+    }
+
+    /** Copie du patient avec l'IPP attribué (l'entité est immuable). */
+    private static function avecIpp(Patient $p, string $ipp): Patient
+    {
+        return new Patient(
+            idPatient: $p->getIdPatient(),
+            ipp: $ipp,
+            nom: $p->getNom(),
+            prenom: $p->getPrenom(),
+            dateNaissance: $p->getDateNaissance(),
+            sexe: $p->getSexe(),
+            telephone: $p->getTelephone(),
+            email: $p->getEmail(),
+            details: $p->getDetails()
+        );
     }
 
     /** Colonnes SQL des champs d'identité, pour la trace (AuditEvent.field). */

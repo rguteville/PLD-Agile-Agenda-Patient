@@ -68,6 +68,8 @@ $recherche = [
     [
         'name' => 'ipp',
         'label' => 'IPP (identifiant permanent du patient)',
+        'help' => 'Saisissez l\'IPP pour retrouver un patient. Nouveau patient : laissez vide, '
+            . 'un IPP est attribué automatiquement à l\'admission.',
         'button' => ['id' => 'ipp-rechercher', 'label' => 'Rechercher'],
         'status' => 'ipp-statut',
         'attributes' => [

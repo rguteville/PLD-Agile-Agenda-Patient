@@ -392,6 +392,32 @@ final class AdmissionIntegrationTest extends TestCase
         );
     }
 
+    /** Retours du 2026-11-02 : un nouveau patient admis sans IPP reçoit un IPP unique, dans la plage autorisée. */
+    public function testUnNouveauPatientSansIppRecoitUnIppAutomatique(): void
+    {
+        $service = $this->serviceComplet();
+
+        $premier = $service->admettre(['nom' => self::NOM, 'prenom' => 'Alice']);
+        $second = $service->admettre(['nom' => self::NOM, 'prenom' => 'Bob']);
+
+        $dao = new PatientDao($this->pdo);
+        $ippA = $dao->findById($premier->getIdPatient())?->getIpp();
+        $ippB = $dao->findById($second->getIdPatient())?->getIpp();
+        self::assertNotNull($ippA);
+        self::assertNotNull($ippB);
+        self::assertMatchesRegularExpression('/^\d{6,9}$/', $ippA);
+        self::assertNotSame($ippA, $ippB, 'deux admissions, deux IPP');
+        self::assertGreaterThanOrEqual(PatientDao::IPP_MIN, (int) $ippA);
+    }
+
+    /** Un IPP saisi (patient connu de l'hôpital, nouveau dans le service) est conservé tel quel. */
+    public function testUnIppSaisiEstConserve(): void
+    {
+        $sejour = $this->serviceComplet()->admettre(['nom' => self::NOM, 'prenom' => 'Alice', 'ipp' => '987654318']);
+
+        self::assertSame('987654318', (new PatientDao($this->pdo))->findById($sejour->getIdPatient())?->getIpp());
+    }
+
     /** @return array{int, int} */
     private function compter(): array
     {
