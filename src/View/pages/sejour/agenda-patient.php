@@ -19,6 +19,11 @@ $dayUrl = static fn (string $date): string => '/agenda-patient?id=' . $idEpisode
 ?>
 
 <?= View::render('components/bandeau_patient', ['bandeau' => $bandeau]) ?>
+<?= View::render('components/breadcrumb', ['items' => [
+    ['label' => 'Patients', 'href' => '/patients'],
+    ['label' => 'Dossier du séjour n° ' . $bandeau['numeroSejour'], 'href' => '/sejour?id=' . $idEpisodeOfCare],
+    ['label' => 'Agenda'],
+]]) ?>
 
 <section class="agenda">
     <div class="page-header">

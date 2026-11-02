@@ -172,6 +172,39 @@ final class ComponentsRenderTest extends TestCase
         self::assertStringNotContainsString('<input', $titre);
     }
 
+    public function testBandeauAllergiesNonRenseigneesEstUnEtatDistinct(): void
+    {
+        $html = View::render('components/bandeau_patient', [
+            'bandeau' => self::bandeau() + ['allergiesStatus' => 'unknown'],
+        ]);
+
+        self::assertStringContainsString('allergies--unknown', $html);
+        self::assertStringContainsString('Allergies non renseignées', $html);
+        self::assertStringNotContainsString('Aucune allergie connue', $html);
+
+        $none = View::render('components/bandeau_patient', [
+            'bandeau' => self::bandeau() + ['allergiesStatus' => 'none'],
+        ]);
+        self::assertStringContainsString('allergies--none', $none);
+        self::assertStringContainsString('Aucune allergie connue', $none);
+    }
+
+    public function testFilDArianeMarqueLaPageCourante(): void
+    {
+        $html = View::render('components/breadcrumb', ['items' => [
+            ['label' => 'Patients', 'href' => '/patients'],
+            ['label' => 'Dossier du séjour n° 2026-000001', 'href' => '/sejour?id=1'],
+            ['label' => 'Agenda <x>'],
+        ]]);
+
+        self::assertStringContainsString('<nav class="breadcrumb" aria-label="Fil d\'Ariane">', $html);
+        self::assertStringContainsString('<a href="/patients">Patients</a>', $html);
+        self::assertStringContainsString('href="/sejour?id=1"', $html);
+        self::assertStringContainsString('<li aria-current="page">', $html);
+        self::assertStringContainsString('Agenda &lt;x&gt;', $html);
+        self::assertSame(2, substr_count($html, '<a '), 'la page courante n\'est pas un lien');
+    }
+
     public static function bandeau(array $allergies = []): array
     {
         return [
