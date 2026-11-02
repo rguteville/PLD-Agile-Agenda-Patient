@@ -8,6 +8,7 @@ require dirname(__DIR__) . '/vendor/autoload.php';
 
 use Aura\Controller\CarePlanController;
 use Aura\Controller\PatientController;
+use Aura\Controller\RecordController;
 use Aura\Controller\SejourController;
 use Aura\Core\ConfigurationException;
 use Aura\Core\Database;
@@ -108,7 +109,20 @@ try {
     // AURA-14 : le dossier de séjour lit la base ; la connexion n'est ouverte que pour ces routes.
     // Il affiche aussi les prescriptions validées du séjour (CarePlanService).
     // AURA-13.2 : le même contrôleur sert l'ajout et le retrait d'allergies (POST) depuis le dossier.
-    $controleurSejour = static function (): SejourController {
+    // Édition champ par champ du dossier (liste blanche, validation, concurrence optimiste, historique AuditEvent).
+    $recordEditService = static function (): RecordEditService {
+        $pdo = Database::get();
+
+        return new RecordEditService(
+            new PatientDao($pdo),
+            new SejourDao($pdo),
+            new AuditEventDao($pdo),
+            new Transaction($pdo),
+            new ReferenceDataDao($pdo)
+        );
+    };
+
+    $controleurSejour = static function () use ($recordEditService): SejourController {
         $pdo = Database::get();
         $dossierPatientService = new DossierPatientService(
             new SejourDao($pdo),
@@ -130,7 +144,8 @@ try {
                 new SejourDao($pdo),
                 new AllergieDao($pdo),
                 new SubstanceDao($pdo)
-            )
+            ),
+            recordEditService: $recordEditService()
         );
     };
 
@@ -210,6 +225,7 @@ try {
     $router->get('/sejour', static fn () => $controleurSejour()->show());
     $router->post('/sejour/allergies/ajouter', static fn () => $controleurSejour()->addAllergy());
     $router->post('/sejour/allergies/retirer', static fn () => $controleurSejour()->removeAllergy());
+    $router->post('/sejour/champ/modifier', static fn () => (new RecordController($recordEditService()))->update());
     $router->get('/care-plans', static fn () => $carePlans()->list());
     $router->get('/care-plans/new', static fn () => $carePlans()->newForm());
     $router->post('/care-plans/create', static fn () => $carePlans()->create());

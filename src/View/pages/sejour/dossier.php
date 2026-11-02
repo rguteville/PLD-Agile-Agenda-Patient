@@ -15,9 +15,15 @@ use Aura\Core\View;
  * @var list<string> $criticalities
  * @var ?string $allergyError message d'un ajout ou d'un retrait refusé, null sinon
  * @var list<array<string, mixed>> $sections dossier complet, vue-modèle de DossierPatientService::presentSections()
+ * @var bool $editable édition champ par champ active (inline-edit.js, endpoint /sejour/champ/modifier)
+ * @var ?string $csrfToken jeton de session envoyé par le script dans X-CSRF-Token
+ * @var list<array<string, mixed>> $history dernières modifications, vue-modèle de RecordEditService::history()
  */
 $allergyError = $allergyError ?? null;
 $sections = $sections ?? [];
+$editable = $editable ?? false;
+$csrfToken = $csrfToken ?? null;
+$history = $history ?? [];
 // Contenu HTML (échappé) d'une ligne du dossier complet : valeur, ou état explicite si absente.
 $valeurLigne = static function (array $row): string {
     if ($row['value'] !== null) {
@@ -152,7 +158,16 @@ $valeurLigne = static function (array $row): string {
     <?php /* Dossier complet : mêmes sections que le formulaire d'admission. Une section vide reste
              visible (repliée) avec « Non renseigné » : l'information est absente, pas cachée. */ ?>
     <h2 class="dossier-subtitle" id="titre-dossier-complet">Dossier complet</h2>
-    <div class="dossier-sections" aria-labelledby="titre-dossier-complet">
+    <?php if ($editable) : ?>
+        <p class="dossier-aide">Chaque valeur se modifie en place : cliquez dessus (ou Entrée au clavier),
+            puis confirmez l'enregistrement. Échap annule.</p>
+    <?php endif; ?>
+    <div class="dossier-sections" aria-labelledby="titre-dossier-complet"<?= $editable
+        ? ' data-inline-edit data-endpoint="/sejour/champ/modifier" data-csrf="' . View::e($csrfToken) . '"'
+            . ' data-id-sejour="' . View::e($idSejour) . '"'
+        : '' ?>>
+    <?php /* Messages d'enregistrement et d'erreur annoncés aux lecteurs d'écran (aria-live). */ ?>
+    <p class="inline-edit__status" id="inline-edit-status" aria-live="polite" hidden></p>
     <?php foreach ($sections as $section) : ?>
         <details class="dossier-section"
                  id="dossier-<?= View::e($section['id']) ?>"<?= $section['filled'] > 0 ? ' open' : '' ?>>
@@ -166,13 +181,80 @@ $valeurLigne = static function (array $row): string {
             <dl>
                 <?php foreach ($section['rows'] as $row) : ?>
                     <dt><?= View::e($row['label']) ?></dt>
-                    <?php /* Valeur collée à la balise : white-space: pre-line conserve les retours à la ligne. */ ?>
-                    <dd data-entity="<?= View::e($row['entity']) ?>"
-                        data-field="<?= View::e($row['field']) ?>"><?= $valeurLigne($row) ?></dd>
+                    <?php if ($editable && !$row['computed']) : ?>
+                        <?php /* Bouton focalisable : Entrée ou clic passe en saisie (inline-edit.js). */ ?>
+                        <dd class="inline-edit"
+                            data-entity="<?= View::e($row['entity']) ?>"
+                            data-id="<?= View::e($row['entity'] === 'patient' ? $sejour['idPatient'] : $idSejour) ?>"
+                            data-field="<?= View::e($row['field']) ?>"
+                            data-type="<?= View::e($row['type']) ?>"
+                            data-label="<?= View::e($row['label']) ?>"
+                            data-raw="<?= View::e($row['raw'] ?? '') ?>"<?= $row['options'] !== null
+                                ? ' data-options="'
+                                    . View::e(json_encode($row['options'], JSON_UNESCAPED_UNICODE)) . '"'
+                                : '' ?>>
+                            <button type="button" class="inline-edit__value"
+                                    aria-label="Modifier : <?= View::e($row['label']) ?>"
+                                    ><?= $valeurLigne($row) ?></button>
+                        </dd>
+                    <?php else : ?>
+                        <?php /* Valeur collée à la balise : pre-line conserve les retours à la ligne. */ ?>
+                        <dd data-entity="<?= View::e($row['entity']) ?>"
+                            data-field="<?= View::e($row['field']) ?>"><?= $valeurLigne($row) ?></dd>
+                    <?php endif; ?>
                 <?php endforeach; ?>
             </dl>
         </details>
     <?php endforeach; ?>
+
+    <?php if ($editable) : ?>
+        <?php /* Traçabilité : qui a modifié quoi, de quelle valeur à quelle valeur (table AuditEvent). */ ?>
+        <details class="dossier-section dossier-historique" id="dossier-historique">
+            <summary>
+                <span>Historique des modifications</span>
+                <span class="dossier-section__count">
+                    <?= count($history) ?> dernière<?= count($history) > 1 ? 's' : '' ?>
+                </span>
+            </summary>
+            <?php if ($history === []) : ?>
+                <p class="dossier-historique__vide">Aucune modification enregistrée depuis le dossier.</p>
+            <?php else : ?>
+                <div class="table-scroll">
+                <table class="dossier-historique__table" id="dossier-historique-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Date</th>
+                            <th scope="col">Auteur</th>
+                            <th scope="col">Champ</th>
+                            <th scope="col">Ancienne valeur</th>
+                            <th scope="col">Nouvelle valeur</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($history as $event) : ?>
+                            <tr>
+                                <td><?= View::e($event['recordedAt']) ?></td>
+                                <td><?= View::e($event['author']) ?></td>
+                                <td>
+                                    <?= View::e($event['label']) ?>
+                                    <?php if (($event['detail'] ?? null) !== null) : ?>
+                                        <br><small><?= View::e($event['detail']) ?></small>
+                                    <?php endif; ?>
+                                </td>
+                                <td><?= $event['oldValue'] !== null
+                                    ? View::e($event['oldValue'])
+                                    : '<span class="non-renseigne">vide</span>' ?></td>
+                                <td><?= $event['newValue'] !== null
+                                    ? View::e($event['newValue'])
+                                    : '<span class="non-renseigne">vide</span>' ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+                </div>
+            <?php endif; ?>
+        </details>
+    <?php endif; ?>
     </div>
 
     <?php /* RG5 : seules les prescriptions validées par un médecin, et pas celles qui sont arrêtées. */ ?>

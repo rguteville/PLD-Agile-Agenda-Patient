@@ -289,6 +289,25 @@ class PatientDao
         $stmt->execute(['idPatient' => (string) $idPatient] + $details);
     }
 
+    /**
+     * Met à jour UN champ seulement si sa valeur en base est encore celle attendue (contrôle de
+     * concurrence optimiste, atomique : la comparaison est faite par l'UPDATE lui-même, <=> traite
+     * NULL). Renvoie false si la ligne n'existe pas ou si la valeur a changé entre-temps.
+     * Le nom de colonne doit appartenir à la liste blanche, sinon LogicException.
+     */
+    public function updateDetailIfUnchanged(int $id, string $column, ?string $new, ?string $expected): bool
+    {
+        if (!isset((RecordFields::PATIENT)[$column])) {
+            throw new LogicException('Colonne non modifiable : ' . $column);
+        }
+        $stmt = $this->pdo->prepare(
+            'UPDATE Patient SET ' . $column . ' = :new WHERE idPatient = :id AND ' . $column . ' <=> :expected'
+        );
+        $stmt->execute(['new' => $new, 'id' => (string) $id, 'expected' => $expected]);
+
+        return $stmt->rowCount() === 1;
+    }
+
     /** « col1 = :col1, col2 = :col2 » pour des noms de colonnes issus du catalogue (jamais de la requête). */
     private static function assignments(array $columns): string
     {

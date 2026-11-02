@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Aura\Controller;
 
+use Aura\Core\Csrf;
 use Aura\Core\View;
 use Aura\Service\AgendaService;
 use Aura\Service\AllergyIntoleranceService;
 use Aura\Service\CarePlanService;
 use Aura\Service\DossierPatientService;
+use Aura\Service\RecordEditService;
 use Aura\Service\SejourService;
 use DateTimeImmutable;
 use InvalidArgumentException;
@@ -17,8 +19,11 @@ use LogicException;
 final class SejourController
 {
     private const RECORD_VIEW = 'sejour/dossier';
-    /** form.js : arrêt d'une ligne de prescription en AJAX ; confirm.js : confirmation du retrait d'une allergie. */
-    private const RECORD_SCRIPTS = ['/js/form.js', '/js/confirm.js'];
+    /**
+     * form.js : arrêt d'une ligne de prescription en AJAX ; confirm.js : confirmation du retrait d'une
+     * allergie ; inline-edit.js : édition champ par champ du dossier complet.
+     */
+    private const RECORD_SCRIPTS = ['/js/form.js', '/js/confirm.js', '/js/inline-edit.js'];
     /** agenda.js : impression de la journée et dialogue de validation. */
     private const AGENDA_SCRIPTS = ['/js/agenda.js'];
 
@@ -35,7 +40,8 @@ final class SejourController
         private ?CarePlanService $carePlanService = null,
         private ?AgendaService $agendaService = null,
         private ?SejourService $sejourService = null,
-        private ?AllergyIntoleranceService $allergyIntoleranceService = null
+        private ?AllergyIntoleranceService $allergyIntoleranceService = null,
+        private ?RecordEditService $recordEditService = null
     ) {
     }
 
@@ -176,7 +182,15 @@ final class SejourController
             $dossier['bandeau']['prenom'],
             $dossier['bandeau']['numeroSejour']
         );
-        View::page(self::RECORD_VIEW, $dossier + [
+        // Édition en ligne : jeton de session pour l'endpoint JSON et historique des 20 dernières modifications.
+        $idPatient = (int) ($dossier['sejour']['idPatient'] ?? 0);
+        $editing = $this->recordEditService !== null ? [
+            'editable' => true,
+            'csrfToken' => Csrf::token(),
+            'history' => $this->recordEditService->history($idPatient, $idSejour),
+        ] : ['editable' => false, 'csrfToken' => null, 'history' => []];
+
+        View::page(self::RECORD_VIEW, $dossier + $editing + [
             // idSejour : lien du bouton « Prescription » vers l'écran B3 (AURA-20) et formulaires d'allergie.
             'idSejour' => $idSejour,
             // Prescriptions validées par un médecin (RG5), sans les lignes arrêtées.
