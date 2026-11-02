@@ -41,7 +41,7 @@ composer test
   l'échappement (`&lt;`).
 - Les classes doublées par `createMock()` ne doivent pas être `final`.
 
-## Couverture (état au 2026-11-02, 351 tests)
+## Couverture (état au 2026-11-02, 355 tests)
 
 | Zone | Couvert | Non couvert |
 | --- | --- | --- |
