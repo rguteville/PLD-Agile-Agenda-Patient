@@ -180,4 +180,15 @@ final class AdmissionServiceAdmettreTest extends TestCase
     {
         return new Sejour(11, $idPatient, '2026-000011', new DateTimeImmutable('2026-10-14 10:00:00'));
     }
+    /** Plage des IPP épuisée : message clair à l'utilisateur, jamais une erreur technique. */
+    public function testPlageDIppEpuiseeDonneUnMessageEtNInsereRien(): void
+    {
+        $this->patients->method('nextIpp')->willThrowException(new \LogicException('Plus aucun IPP'));
+        $this->patients->expects($this->never())->method('insert');
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('saisissez l\'IPP du patient');
+
+        $this->service->admettre(['nom' => 'Martin', 'prenom' => 'Paul']);
+    }
 }

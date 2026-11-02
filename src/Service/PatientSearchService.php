@@ -176,7 +176,7 @@ class PatientSearchService
                 static fn (Allergie $a): array => [
                     'idSubstance' => $a->getIdAllergene(),
                     'libelle' => trim($a->getSubstance()),
-                    'criticite' => $a->getCriticite(),
+                    'criticite' => self::textOrNull($a->getCriticite()),
                 ],
                 $allergies
             )),

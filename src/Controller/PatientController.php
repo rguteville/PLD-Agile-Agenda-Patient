@@ -49,7 +49,7 @@ class PatientController
     private const CHAMP_ALLERGIES = 'allergies';
 
     /** Criticité choisie pour chaque allergène coché : allergyCriticality[idSubstance] = « Faible »… */
-    private const CHAMP_CRITICITES = 'allergyCriticality';
+    private const ALLERGY_CRITICALITY_FIELD = 'allergyCriticality';
 
     /** Le formulaire propose H/F, le domaine attend M/F (colonne Patient.sexe). */
     private const SEXE_FORMULAIRE_VERS_DOMAINE = ['H' => 'M', 'F' => 'F'];
@@ -159,7 +159,7 @@ class PatientController
             'allergies' => array_column($fiche['allergies'], 'idSubstance'),
             'allergiesLibelles' => array_column($fiche['allergies'], 'libelle'),
             // Criticité connue de chaque allergie, pour pré-régler la liste de l'admission.
-            'allergiesCriticites' => array_column($fiche['allergies'], 'criticite', 'idSubstance'),
+            'allergyCriticalities' => array_column($fiche['allergies'], 'criticite', 'idSubstance'),
         ]);
     }
 
@@ -401,11 +401,11 @@ class PatientController
             static fn ($v): bool => is_string($v) && trim($v) !== ''
         ));
         // Criticités : seules les paires (identifiant texte => valeur texte) sont gardées.
-        $criticites = $post[self::CHAMP_CRITICITES] ?? [];
-        $saisie[self::CHAMP_CRITICITES] = [];
+        $criticites = $post[self::ALLERGY_CRITICALITY_FIELD] ?? [];
+        $saisie[self::ALLERGY_CRITICALITY_FIELD] = [];
         foreach (is_array($criticites) ? $criticites : [] as $id => $valeur) {
             if (is_string($valeur)) {
-                $saisie[self::CHAMP_CRITICITES][(string) $id] = trim($valeur);
+                $saisie[self::ALLERGY_CRITICALITY_FIELD][(string) $id] = trim($valeur);
             }
         }
 
@@ -425,7 +425,7 @@ class PatientController
             }
         }
         $donnees[self::CHAMP_ALLERGIES] = $saisie[self::CHAMP_ALLERGIES] ?? [];
-        $donnees['allergyCriticalities'] = $saisie[self::CHAMP_CRITICITES] ?? [];
+        $donnees['allergyCriticalities'] = $saisie[self::ALLERGY_CRITICALITY_FIELD] ?? [];
         // Une valeur de sexe inconnue est transmise telle quelle : le service la refusera.
         $donnees['sexe'] = self::SEXE_FORMULAIRE_VERS_DOMAINE[$donnees['sexe']] ?? $donnees['sexe'];
 

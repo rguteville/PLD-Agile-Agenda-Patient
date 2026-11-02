@@ -350,6 +350,7 @@ final class AdmissionServiceTest extends TestCase
         // la base refusera de toute façon une clé étrangère inconnue.
         self::assertSame([], $this->service->valider(self::DONNEES_VALIDES + ['idService' => 'SRV99']));
     }
+
     public function testCriticiteDAllergieInconnueEstRefuseeSousLaListeDesAllergies(): void
     {
         $erreurs = $this->service->valider(self::DONNEES_VALIDES + [

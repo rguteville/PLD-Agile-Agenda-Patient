@@ -204,6 +204,7 @@ class RecordEditService
             'birthDate' => ['label' => 'Date de naissance', 'type' => 'date'],
             'sex' => ['label' => 'Sexe', 'type' => 'text'],
             'ipp' => ['label' => 'IPP', 'type' => 'text'],
+            'allergyCriticality' => ['label' => 'Criticité d\'une allergie', 'type' => 'text'],
         ];
         $rows = [];
         foreach ($this->auditEventDao->findForRecord($idPatient, $idEpisode, $limit) as $event) {

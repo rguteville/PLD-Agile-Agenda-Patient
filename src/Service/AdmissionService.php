@@ -16,6 +16,7 @@ use Aura\Domain\Sejour;
 use DateTimeImmutable;
 use InvalidArgumentException;
 use LogicException;
+use PDOException;
 
 /**
  * Règles métier de l'admission d'un patient (AURA-10).
@@ -115,7 +116,7 @@ class AdmissionService
         $idService = $this->texte($donnees['idService'] ?? null);
         $episodeDetails = $this->fields->normalize(RecordFields::EPISODE, $donnees);
         $allergies = $this->allergenes($donnees['allergies'] ?? null);
-        $criticites = $this->criticites($donnees['allergyCriticalities'] ?? null);
+        $criticites = $this->criticalities($donnees['allergyCriticalities'] ?? null);
         if ($allergies !== [] && $this->allergieDao === null) {
             throw new LogicException(
                 'AdmissionService::admettre() requiert AllergieDao pour enregistrer des allergies.'
@@ -128,6 +129,66 @@ class AdmissionService
         $sejourService = $this->sejourService;
         $allergieDao = $this->allergieDao;
 
+        // Deux admissions simultanées se disputent les mêmes verrous (MAX(...) FOR UPDATE sur Patient) :
+        // MariaDB interrompt l'une sur interblocage (1213) ou la contrainte UNIQUE la refuse (1062).
+        // Rien n'a été écrit (transaction annulée) : on rejoue l'admission, au plus ADMISSION_ATTEMPTS fois.
+        for ($attempt = 1;; $attempt++) {
+            try {
+                return $this->runAdmission(
+                    $patient,
+                    $patientDao,
+                    $sejourService,
+                    $allergieDao,
+                    $poids,
+                    $taille,
+                    $precautions,
+                    $idService,
+                    $patientDetails,
+                    $episodeDetails,
+                    $allergies,
+                    $criticites,
+                    $idSelectionne,
+                    $modeRecherche
+                );
+            } catch (PDOException $e) {
+                $code = (int) ($e->errorInfo[1] ?? 0);
+                $retryable = in_array($code, [self::ERROR_DEADLOCK, self::ERROR_DUPLICATE], true);
+                if (!$retryable || $attempt >= self::ADMISSION_ATTEMPTS) {
+                    throw $e;
+                }
+            }
+        }
+    }
+
+    /** Codes MariaDB rejouables : interblocage, doublon sur une clé unique. */
+    private const ERROR_DEADLOCK = 1213;
+    private const ERROR_DUPLICATE = 1062;
+    private const ADMISSION_ATTEMPTS = 3;
+
+    /**
+     * Écritures de l'admission dans une transaction (voir admettre()).
+     *
+     * @param array<string, ?string> $patientDetails
+     * @param array<string, ?string> $episodeDetails
+     * @param list<string> $allergies
+     * @param array<string, string> $criticites
+     */
+    private function runAdmission(
+        Patient $patient,
+        PatientDao $patientDao,
+        SejourService $sejourService,
+        ?AllergieDao $allergieDao,
+        ?float $poids,
+        ?float $taille,
+        ?string $precautions,
+        string $idService,
+        array $patientDetails,
+        array $episodeDetails,
+        array $allergies,
+        array $criticites,
+        ?int $idSelectionne,
+        string $modeRecherche
+    ): Sejour {
         return $this->transaction->run(
             function () use (
                 $patient,
@@ -170,10 +231,31 @@ class AdmissionService
                     } else {
                         // Nouveau patient sans IPP saisi : un IPP est attribué automatiquement (retours
                         // du 2026-11-02), dans la même transaction que l'insertion.
+                        $ippGenere = null;
                         if ($patient->getIpp() === null) {
-                            $patient = self::avecIpp($patient, (string) $patientDao->nextIpp());
+                            try {
+                                $ippGenere = (string) $patientDao->nextIpp();
+                            } catch (LogicException) {
+                                throw new InvalidArgumentException(
+                                    'Aucun IPP ne peut être attribué automatiquement : saisissez l\'IPP du patient.'
+                                );
+                            }
+                            $patient = self::withIpp($patient, $ippGenere);
                         }
                         $idPatient = $patientDao->insert($patient);
+                        if ($ippGenere !== null) {
+                            // Traçabilité : cet IPP vient d'AURA, pas du système d'identité de l'hôpital.
+                            $this->auditEventDao?->insert(new AuditEvent(
+                                null,
+                                AuditEvent::ENTITY_PATIENT,
+                                $idPatient,
+                                'ipp',
+                                null,
+                                $ippGenere,
+                                AuditEvent::AUTHOR_UNKNOWN,
+                                detail: 'IPP attribué automatiquement par AURA à l\'admission'
+                            ));
+                        }
                     }
                 }
 
@@ -200,18 +282,35 @@ class AdmissionService
                 }
 
                 if ($allergies !== [] && $allergieDao !== null) {
-                    $connues = array_map(
-                        static fn (Allergie $a): string => $a->getIdAllergene(),
-                        $allergieDao->findByPatient($idPatient)
-                    );
+                    $connues = [];
+                    foreach ($allergieDao->findByPatient($idPatient) as $connue) {
+                        $connues[$connue->getIdAllergene()] = $connue;
+                    }
                     foreach ($allergies as $idSubstance) {
-                        if (!in_array($idSubstance, $connues, true)) {
-                            $allergieDao->insert(new Allergie(
+                        $criticite = $criticites[$idSubstance] ?? null;
+                        if (!isset($connues[$idSubstance])) {
+                            $allergieDao->insert(new Allergie(null, $idPatient, $idSubstance, '', $criticite));
+                            continue;
+                        }
+                        // Allergie déjà connue : une criticité choisie différente de celle enregistrée est
+                        // appliquée et tracée (jamais ignorée en silence). Une criticité laissée vide ne
+                        // remplace pas une criticité connue.
+                        $connue = $connues[$idSubstance];
+                        $avant = $connue->getCriticite() !== null && trim($connue->getCriticite()) !== ''
+                            ? trim($connue->getCriticite())
+                            : null;
+                        if ($criticite !== null && $criticite !== $avant) {
+                            $allergieDao->updateCriticality((int) $connue->getIdAllergie(), $idPatient, $criticite);
+                            $libelle = trim($connue->getSubstance());
+                            $this->auditEventDao?->insert(new AuditEvent(
                                 null,
+                                AuditEvent::ENTITY_PATIENT,
                                 $idPatient,
-                                $idSubstance,
-                                '',
-                                $criticites[$idSubstance] ?? null
+                                'allergyCriticality',
+                                $libelle . ' : ' . ($avant ?? 'non évaluée'),
+                                $libelle . ' : ' . $criticite,
+                                AuditEvent::AUTHOR_UNKNOWN,
+                                detail: 'modifié à l\'admission'
                             ));
                         }
                     }
@@ -276,7 +375,7 @@ class AdmissionService
     }
 
     /** Copie du patient avec l'IPP attribué (l'entité est immuable). */
-    private static function avecIpp(Patient $p, string $ipp): Patient
+    private static function withIpp(Patient $p, string $ipp): Patient
     {
         return new Patient(
             idPatient: $p->getIdPatient(),
@@ -350,7 +449,7 @@ class AdmissionService
      *
      * @return array<string, string>
      */
-    private function criticites(mixed $valeur): array
+    private function criticalities(mixed $valeur): array
     {
         $criticites = [];
         foreach (is_array($valeur) ? $valeur : [] as $id => $criticite) {

@@ -250,7 +250,7 @@
             setFieldValue(name, fiche.patient[name]);
         });
         const allergies = fiche.allergies || [];
-        const criticalities = fiche.allergiesCriticites || {};
+        const criticalities = fiche.allergyCriticalities || {};
         form.querySelectorAll('input[type="checkbox"][name="allergies[]"]').forEach(box => {
             box.checked = allergies.includes(box.value);
             const select = form.querySelector(`select[name="allergyCriticality[${CSS.escape(box.value)}]"]`);

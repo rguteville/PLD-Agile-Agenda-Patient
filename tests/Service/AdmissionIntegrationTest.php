@@ -418,6 +418,56 @@ final class AdmissionIntegrationTest extends TestCase
         self::assertSame('987654318', (new PatientDao($this->pdo))->findById($sejour->getIdPatient())?->getIpp());
     }
 
+    /**
+     * Patient retrouvé : la criticité d'une allergie déjà connue, changée à l'admission, est appliquée et
+     * tracée ; laissée vide, elle ne remplace pas la criticité connue.
+     */
+    public function testLaCriticiteDUneAllergieConnueChangeeALAdmissionEstAppliqueeEtTracee(): void
+    {
+        $service = $this->serviceComplet();
+        $substances = (new \Aura\Dao\SubstanceDao($this->pdo))->findAll();
+        [$a, $b] = [$substances[0]->getIdSubstance(), $substances[1]->getIdSubstance()];
+
+        $premier = $service->admettre([
+            'nom' => self::NOM, 'prenom' => 'Alice', 'allergies' => [$a, $b],
+            'allergyCriticalities' => [$a => 'Faible', $b => 'Élevée'],
+        ]);
+        (new SejourService(new SejourDao($this->pdo)))->cloturerSejour((int) $premier->getIdSejour());
+        $idPatient = $premier->getIdPatient();
+
+        $service->admettre([
+            'idPatient' => (string) $idPatient, 'searchMode' => 'name', 'nom' => self::NOM, 'prenom' => 'Alice',
+            'allergies' => [$a, $b], 'allergyCriticalities' => [$a => 'Élevée', $b => ''],
+        ]);
+
+        $criticites = [];
+        foreach ((new AllergieDao($this->pdo))->findByPatient($idPatient) as $allergie) {
+            $criticites[$allergie->getIdAllergene()] = $allergie->getCriticite();
+        }
+        self::assertSame('Élevée', $criticites[$a], 'criticité changée appliquée');
+        self::assertSame('Élevée', $criticites[$b], 'criticité laissée vide : la valeur connue est gardée');
+
+        $traces = array_filter(
+            (new AuditEventDao($this->pdo))->findForRecord($idPatient, 0, 50),
+            static fn ($e): bool => $e->getField() === 'allergyCriticality'
+        );
+        self::assertCount(1, $traces);
+        self::assertStringEndsWith(': Élevée', (string) array_values($traces)[0]->getNewValue());
+    }
+
+    /** L'IPP attribué automatiquement est tracé comme venant d'AURA. */
+    public function testLIppAttribueAutomatiquementEstTrace(): void
+    {
+        $sejour = $this->serviceComplet()->admettre(['nom' => self::NOM, 'prenom' => 'Alice']);
+
+        $traces = array_values(array_filter(
+            (new AuditEventDao($this->pdo))->findForRecord($sejour->getIdPatient(), 0, 50),
+            static fn ($e): bool => $e->getField() === 'ipp'
+        ));
+        self::assertCount(1, $traces);
+        self::assertStringContainsString('attribué automatiquement', (string) $traces[0]->getDetail());
+    }
+
     /** @return array{int, int} */
     private function compter(): array
     {
