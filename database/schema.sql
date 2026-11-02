@@ -59,7 +59,12 @@ CREATE TABLE Patient( -- Patient
     lifestyle TEXT NULL,
     foreignTravel TEXT NULL,
     comorbidities TEXT NULL,
-    currentTreatment TEXT NULL
+    currentTreatment TEXT NULL,
+
+    -- Recherche d'un patient existant par nom / prénom à l'admission (PR « admission-recherche-patient »).
+    INDEX idx_patient_lastname (lastName),
+    INDEX idx_patient_firstname (firstName),
+    INDEX idx_patient_birthlastname (birthLastName)
 );
 
 CREATE TABLE HealthcareService( -- Service Hospitalier
