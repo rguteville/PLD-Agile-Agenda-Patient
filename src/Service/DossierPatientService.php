@@ -316,6 +316,7 @@ final class DossierPatientService
             'options' => $spec['options'] ?? null,
             'computed' => false,
             'help' => $spec['help'] ?? null,
+            'placeholder' => $spec['placeholder'] ?? null,
             'raw' => $raw,
             'value' => $value,
         ];

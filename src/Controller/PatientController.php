@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Aura\Controller;
 
+use Aura\Core\DateInput;
 use Aura\Core\View;
 use Aura\Domain\RecordFields;
 use Aura\Service\ModificationPatientService;
@@ -65,6 +66,7 @@ class PatientController
         '/js/admission-search.js',
         '/js/form-sections.js',
         '/js/allergy-picker.js',
+        '/js/date-input.js',
     ];
 
     /** Message renvoyé quand aucun patient ne porte l'IPP recherché (AURA-15). */
@@ -152,6 +154,8 @@ class PatientController
         foreach ($fiche['details'] as $champ => $valeur) {
             $patient[$champ] = $valeur ?? '';
         }
+        // Le formulaire saisit les dates en JJ/MM/AAAA.
+        $patient['birthDate'] = DateInput::fromIso($patient['birthDate'] ?? '');
 
         $this->repondreJson(200, [
             'ok' => true,
@@ -353,8 +357,27 @@ class PatientController
         View::page(
             self::VUE_MODIFICATION,
             ['idPatient' => $idPatient, 'valeurs' => $valeurs, 'erreurs' => $erreurs],
-            self::TITRE_MODIFICATION
+            self::TITRE_MODIFICATION,
+            ['/js/date-input.js']
         );
+    }
+
+    /**
+     * Champs de date du formulaire (saisis en JJ/MM/AAAA) : la date de naissance et les champs du
+     * catalogue de type date.
+     *
+     * @return list<string>
+     */
+    private static function dateFields(): array
+    {
+        $dates = ['birthDate'];
+        foreach (RecordFields::PATIENT + RecordFields::EPISODE as $champ => $spec) {
+            if ($spec['type'] === 'date') {
+                $dates[] = $champ;
+            }
+        }
+
+        return $dates;
     }
 
     /**
@@ -400,6 +423,12 @@ class PatientController
             is_array($allergies) ? $allergies : [$allergies],
             static fn ($v): bool => is_string($v) && trim($v) !== ''
         ));
+        // Dates saisies en JJ/MM/AAAA : converties au format des services (AAAA-MM-JJ).
+        foreach (self::dateFields() as $champ) {
+            if (isset($saisie[$champ]) && is_string($saisie[$champ])) {
+                $saisie[$champ] = DateInput::toIso($saisie[$champ]);
+            }
+        }
         // Criticités : seules les paires (identifiant texte => valeur texte) sont gardées.
         $criticites = $post[self::ALLERGY_CRITICALITY_FIELD] ?? [];
         $saisie[self::ALLERGY_CRITICALITY_FIELD] = [];

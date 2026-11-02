@@ -3674,3 +3674,12 @@ form.form--columns > .form-row {
     align-items: center;
     min-height: 32px;
 }
+
+/* Exemples grisés dans les champs (retours du 2026-11-02) : gris lisible (contraste ≥ 4,5:1 sur le fond
+   des champs), jamais confondu avec une valeur saisie grâce à l'italique. */
+input::placeholder,
+textarea::placeholder {
+    color: var(--fg-subtle);
+    font-style: italic;
+    opacity: 1;
+}

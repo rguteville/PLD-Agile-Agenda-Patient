@@ -28,6 +28,9 @@ $champCatalogue = static function (string $name, array $spec): array {
     if (isset($spec['help'])) {
         $champ['help'] = $spec['help'];
     }
+    if (isset($spec['placeholder'])) {
+        $champ['placeholder'] = $spec['placeholder'];
+    }
     if ($spec['type'] === 'select') {
         $champ['options'] = $spec['options'];
         $champ['empty'] = 'Non renseigné';
@@ -72,6 +75,7 @@ $recherche = [
             . 'un IPP est attribué automatiquement à l\'admission.',
         'button' => ['id' => 'ipp-rechercher', 'label' => 'Rechercher'],
         'status' => 'ipp-statut',
+        'placeholder' => 'Ex. : 100000123',
         'attributes' => [
             'inputmode' => 'numeric', 'autocomplete' => 'off',
             'role' => 'combobox', 'aria-autocomplete' => 'list', 'aria-expanded' => 'false',
@@ -84,6 +88,7 @@ $recherche = [
         'help' => 'Au moins 2 lettres ; casse, accents, tirets et ordre des mots indifférents.',
         'status' => 'patient-search-status',
         'listbox' => 'patient-suggestions',
+        'placeholder' => 'Ex. : dupont marie',
         'attributes' => [
             'autocomplete' => 'off', 'maxlength' => '100',
             'role' => 'combobox', 'aria-autocomplete' => 'list', 'aria-expanded' => 'false',
@@ -97,8 +102,8 @@ $recherche = [
 // Colonne de gauche : identité, admission et allergies ; à droite, les sections complémentaires.
 $essentiels = [
     ['name' => 'identite', 'label' => 'Identité', 'type' => 'heading'],
-    ['name' => 'lastname', 'label' => 'Nom', 'required' => true],
-    ['name' => 'firstname', 'label' => 'Prénom', 'required' => true],
+    ['name' => 'lastname', 'label' => 'Nom', 'required' => true, 'placeholder' => 'Ex. : DUPONT'],
+    ['name' => 'firstname', 'label' => 'Prénom', 'required' => true, 'placeholder' => 'Ex. : Marie'],
     ['name' => 'birthDate', 'label' => 'Date de naissance', 'type' => 'date'],
     [
         'name' => 'gender',
@@ -137,12 +142,14 @@ $mesures = [
         'name' => 'taille',
         'label' => 'Taille (cm)',
         'type' => 'number',
+        'placeholder' => 'Ex. : 172',
         'attributes' => ['min' => '0.01', 'max' => '999.99', 'step' => '0.01', 'inputmode' => 'decimal'],
     ],
     [
         'name' => 'poids',
         'label' => 'Poids à l\'admission (kg)',
         'type' => 'number',
+        'placeholder' => 'Ex. : 68,5',
         'attributes' => ['min' => '0.01', 'max' => '999.99', 'step' => '0.01', 'inputmode' => 'decimal'],
     ],
 ];

@@ -1,5 +1,6 @@
 <?php
 
+use Aura\Core\DateInput;
 use Aura\Core\View;
 
 $type     = $field['type'] ?? 'text';
@@ -17,8 +18,27 @@ $describedBy = array_filter([$help !== '' ? $helpId : null, $error !== '' ? $err
 $ariaError = ($error !== '' ? ' aria-invalid="true"' : '')
     . ($describedBy !== [] ? ' aria-describedby="' . View::e(implode(' ', $describedBy)) . '"' : '');
 // Attributs HTML supplémentaires (min, step, maxlength…), échappés : ['step' => '0.1']
+$extra = $field['attributes'] ?? [];
+// Exemple grisé (retours du 2026-11-02) : « placeholder » du champ, sauf s'il est déjà dans attributes.
+if (isset($field['placeholder']) && !isset($extra['placeholder'])) {
+    $extra['placeholder'] = $field['placeholder'];
+}
+// Date : champ texte JJ/MM/AAAA (le champ date natif n'accepte ni exemple ni format imposé) ; la valeur
+// au format AAAA-MM-JJ est affichée à la française, le serveur reconvertit (Aura\Core\DateInput).
+if ($type === 'date') {
+    $type = 'text';
+    $value = DateInput::fromIso(is_string($value) ? $value : '');
+    $extra += [
+        'placeholder' => DateInput::DISPLAY_FORMAT,
+        'inputmode' => 'numeric',
+        'maxlength' => '10',
+        'autocomplete' => 'off',
+        'pattern' => '\\d{2}/\\d{2}/\\d{4}',
+        'data-date-input' => '',
+    ];
+}
 $attributes = '';
-foreach ($field['attributes'] ?? [] as $attrName => $attrValue) {
+foreach ($extra as $attrName => $attrValue) {
     $attributes .= ' ' . View::e($attrName) . '="' . View::e($attrValue) . '"';
 }
 // Bouton d'action à côté d'un champ texte (AURA-15) : ['id' => 'ipp-rechercher', 'label' => 'Rechercher']

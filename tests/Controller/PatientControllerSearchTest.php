@@ -105,7 +105,7 @@ final class PatientControllerSearchTest extends TestCase
         self::assertSame('Durand', $corps['patient']['lastname']);
         self::assertSame('', $corps['patient']['ipp']);
         self::assertSame('F', $corps['patient']['gender']);
-        self::assertSame('1990-06-15', $corps['patient']['birthDate']);
+        self::assertSame('15/06/1990', $corps['patient']['birthDate'], 'date au format saisi : JJ/MM/AAAA');
         self::assertSame('HTA', $corps['patient']['medicalHistory']);
         self::assertSame('', $corps['patient']['lifestyle']);
         self::assertArrayNotHasKey('searchMode', $corps['patient']);

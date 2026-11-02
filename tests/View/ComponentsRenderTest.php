@@ -234,6 +234,28 @@ final class ComponentsRenderTest extends TestCase
         self::assertStringContainsString('(criticité non évaluée)', $html, 'jamais la couleur seule');
     }
 
+    public function testChampDateEnJjMmAaaaAvecExempleGrise(): void
+    {
+        $html = View::render('components/field', ['field' => [
+            'name' => 'birthDate', 'label' => 'Date de naissance', 'type' => 'date', 'value' => '1958-03-14',
+            'error' => '',
+        ]]);
+
+        self::assertStringContainsString('type="text"', $html, 'le champ date natif n\'accepte pas d\'exemple');
+        self::assertStringContainsString('value="14/03/1958"', $html);
+        self::assertStringContainsString('placeholder="JJ/MM/AAAA"', $html);
+        self::assertStringContainsString('data-date-input', $html);
+    }
+
+    public function testExempleGriseDuChamp(): void
+    {
+        $html = View::render('components/field', ['field' => [
+            'name' => 'lastname', 'label' => 'Nom', 'placeholder' => 'Ex. : <DUPONT>', 'value' => '', 'error' => '',
+        ]]);
+
+        self::assertStringContainsString('placeholder="Ex. : &lt;DUPONT&gt;"', $html);
+    }
+
     public static function bandeau(array $allergies = []): array
     {
         return [

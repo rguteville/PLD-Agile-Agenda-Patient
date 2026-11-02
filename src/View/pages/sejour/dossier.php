@@ -222,7 +222,8 @@ if ($editable) {
                             data-field="<?= View::e($row['field']) ?>"
                             data-type="<?= View::e($row['type']) ?>"
                             data-label="<?= View::e($row['label']) ?>"
-                            data-raw="<?= View::e($row['raw'] ?? '') ?>"<?= $row['options'] !== null
+                            data-raw="<?= View::e($row['raw'] ?? '') ?>"
+                            data-placeholder="<?= View::e($row['placeholder'] ?? '') ?>"<?= $row['options'] !== null
                                 ? ' data-options="'
                                     . View::e(json_encode($row['options'], JSON_UNESCAPED_UNICODE)) . '"'
                                 : '' ?>>

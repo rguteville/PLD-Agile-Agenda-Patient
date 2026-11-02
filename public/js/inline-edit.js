@@ -63,14 +63,21 @@
                 input.min = '0.01';
                 input.max = '999.99';
                 input.inputMode = 'decimal';
-            } else if (type === 'date' || type === 'email' || type === 'tel') {
+            } else if (type === 'email' || type === 'tel') {
                 input.type = type;
             } else {
+                // Les dates se saisissent en JJ/MM/AAAA dans un champ texte (date-input.js insère les « / »).
                 input.type = 'text';
+                if (type === 'date') {
+                    input.inputMode = 'numeric';
+                    input.maxLength = 10;
+                    input.dataset.dateInput = '';
+                }
             }
         }
         input.className = 'inline-edit__input';
-        input.value = cell.dataset.raw || '';
+        input.value = type === 'date' ? isoToFr(cell.dataset.raw || '') : (cell.dataset.raw || '');
+        input.placeholder = type === 'date' ? 'JJ/MM/AAAA' : (cell.dataset.placeholder || '');
         input.setAttribute('aria-label', cell.dataset.label || '');
         return input;
     }
@@ -156,13 +163,30 @@
         return (value || '').replace(/\r\n/g, '\n').trim();
     }
 
+    // 1958-03-14 ↔ 14/03/1958 : la base garde AAAA-MM-JJ, l'écran affiche et saisit JJ/MM/AAAA.
+    function isoToFr(value) {
+        const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+        return m ? `${m[3]}/${m[2]}/${m[1]}` : value;
+    }
+
+    function frToIso(value) {
+        const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value);
+        return m ? `${m[3]}-${m[2]}-${m[1]}` : value;
+    }
+
+    // Valeur saisie, au format attendu par le serveur.
+    function inputValue(cell, input) {
+        const value = normalize(input.value);
+        return cell.dataset.type === 'date' ? frToIso(value) : value;
+    }
+
     async function submitEdit(cell, input, button) {
         // Un seul envoi à la fois : Entrée répétée ou double clic ne renvoient pas la même modification.
         if (button.disabled) {
             return;
         }
         const oldRaw = normalize(cell.dataset.raw);
-        const newRaw = normalize(input.value);
+        const newRaw = inputValue(cell, input);
         if (newRaw === oldRaw) {
             leaveEditMode(cell, true);
             return;
@@ -267,7 +291,7 @@
         editor.addEventListener('focusout', () => {
             setTimeout(() => {
                 if (isEditing(cell) && !cell.contains(document.activeElement)
-                    && normalize(input.value) === normalize(cell.dataset.raw)) {
+                    && inputValue(cell, input) === normalize(cell.dataset.raw)) {
                     leaveEditMode(cell, false);
                 }
             }, 0);
@@ -279,7 +303,7 @@
     window.addEventListener('beforeunload', event => {
         const pending = [...root.querySelectorAll('.inline-edit--editing')].some(cell => {
             const input = cell.querySelector('.inline-edit__input');
-            return input && normalize(input.value) !== normalize(cell.dataset.raw);
+            return input && inputValue(cell, input) !== normalize(cell.dataset.raw);
         });
         if (pending) {
             event.preventDefault();

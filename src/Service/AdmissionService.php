@@ -679,7 +679,7 @@ class AdmissionService
         // Le contrôle aller-retour rejette les dates inexistantes (ex. 2026-13-45, 1990-02-30)
         // que createFromFormat accepterait en les décalant.
         if ($date === false || $avecAnomalies || $date->format(self::FORMAT_DATE) !== $valeur) {
-            return 'La date de naissance est invalide (format attendu : AAAA-MM-JJ).';
+            return 'La date de naissance est invalide (format attendu : JJ/MM/AAAA).';
         }
 
         $aujourdhui = ($this->aujourdhui ?? new DateTimeImmutable())->setTime(0, 0);
