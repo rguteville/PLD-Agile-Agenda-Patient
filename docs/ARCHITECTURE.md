@@ -42,6 +42,8 @@ modules, le trajet d'une requête, le modèle de données réel et les décision
 | `GET /sejour?id=` | Dossier du séjour : bandeau, allergies, dossier complet éditable, prescriptions validées, historique. |
 | `POST /sejour/allergies/ajouter`, `POST /sejour/allergies/retirer` | Allergies du patient depuis le dossier. |
 | `POST /sejour/champ/modifier` | Modification d'un champ du dossier (JSON, jeton CSRF, concurrence optimiste, trace AuditEvent). |
+| `POST /sejour/partie/modifier` | Modification d'une partie entière du dossier (identité, séjour, sections), validée par un médecin (authentification factice), tout ou rien, tracée. |
+| `POST /sejour/cloturer` | Fin du séjour (date et heure de sortie), validée par un médecin (authentification factice), tracée. |
 | `GET /care-plans?idEpisodeOfCare=` | Prescriptions du séjour (statut de validation RG5). |
 | `GET /care-plans/new?idEpisodeOfCare=`, `POST /care-plans/create` | Nouvelle prescription (écran B3). |
 | `POST /care-plans/validate`, `POST /care-plans/stop` | Validation par un médecin ; arrêt d'une ligne (AURA-22). |
@@ -308,8 +310,11 @@ modifications (sans clé étrangère). Régénérer le diagramme : parser les `C
 - **Suppression** : logique en principe (règle README n° 8) ; `AllergyIntolerance.removedAt` est commenté dans le
   schéma, le retrait d'une allergie est physique (dette tracée, décision du 2026-10-21). Les lignes de prescription
   s'arrêtent (`stoppedAt`), ne se suppriment pas.
-- **Pas d'authentification** (AURA-18) : prescripteur et validateur choisis dans une liste ; les traces portent
-  « non identifié ». Jeton CSRF limité à l'édition en ligne du dossier.
+- **Pas d'authentification** (AURA-18) : prescripteur et validateur choisis dans une liste ; l'édition en ligne
+  trace « non identifié ». La modification d'une partie et la fin de séjour passent par une fenêtre
+  d'**authentification factice** (médecin habilité + mot de passe non vérifié) ; la trace porte le nom du
+  médecin suivi de « authentification factice ». Jeton CSRF limité aux écritures du dossier.
+- **Heure** : l'application fixe son fuseau à Europe/Paris (`public/index.php`), quel que soit `date.timezone`.
 - **Formulaires** : validation côté serveur d'abord (`AdmissionService::valider()`, `FieldValidationService`),
   l'HTML (`required`, `min`…) n'est qu'un confort ; envoi AJAX par `form.js` avec repli sans JavaScript.
 - **Champs complémentaires** : catalogue déclaratif `RecordFields` (champ = colonne = clé de domaine), liste blanche

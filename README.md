@@ -365,7 +365,11 @@ Scénarios manuels avec les données de démo (`database/test.sql`), serveur lan
    connues ». À l'admission, filtrer la liste (« pén »), cocher, choisir la criticité.
 5. **IPP automatique** : admettre un nouveau patient sans IPP → le bandeau du séjour créé affiche un IPP attribué.
 6. **Menu du dossier** : sur `/sejour?id=1`, le menu de gauche reste visible au défilement ; « Scores et état
-   antérieur » ouvre la section et y descend ; « Agenda du jour » est en tête du menu.
+   antérieur » ouvre la section et y descend ; « Agenda du jour » est en tête du menu ; dans l'agenda,
+   « Dossier du séjour » est au même endroit. Les prescriptions en cours sont dans la colonne de droite.
+   **Modifier une partie** : crayon « Modifier » à côté de « Dossier » ou d'un titre de section → formulaire
+   de la partie → « Enregistrer » → choisir un médecin, saisir un mot de passe quelconque (authentification
+   factice) → « Valider ». « Mettre fin au séjour » passe par la même fenêtre.
 7. **Agenda et prescriptions** : `/agenda-patient?id=1&date=2026-10-14`, `/care-plans?idEpisodeOfCare=1`
    (colonne « Période »), nouvelle prescription (« Du / Au ») ; prescrire à nouveau le paracétamol déjà en cours
    affiche un avertissement sans bloquer ; catégorie « Protocoles » ; validation par un médecin réanimateur.

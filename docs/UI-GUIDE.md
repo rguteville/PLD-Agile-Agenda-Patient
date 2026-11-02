@@ -55,7 +55,7 @@ puis la zone allergies avec **trois états distincts** :
 
 | État | Clé `allergiesStatus` | Rendu |
 | --- | --- | --- |
-| Allergies connues | `known` | Fond rouge pâle, icône triangle, une étiquette par allergie colorée selon sa criticité : **Élevée** rouge plein, **Faible** orange, **non évaluée** contour rouge ; la criticité est toujours écrite entre parenthèses |
+| Allergies connues | `known` | Pas de fond coloré autour, icône triangle, une étiquette par allergie colorée selon sa criticité : **Élevée** rouge plein, **Faible** orange, **non évaluée** contour rouge ; la criticité est toujours écrite entre parenthèses |
 | Aucune allergie connue | `none` | Fond vert pâle, coche, texte « Aucune allergie connue » |
 | Allergies non renseignées | `unknown` | Fond orange pâle, icône alerte, texte « Allergies non renseignées » |
 
@@ -68,6 +68,9 @@ RG2 antérieure). Produire `unknown` demande une donnée d'évaluation des aller
 | Composant | Rôle | Règles |
 | --- | --- | --- |
 | `breadcrumb` | Fil d'Ariane sur les écrans de séjour (Patients › Dossier › Agenda / Prescriptions) | Dernier élément = page courante (`aria-current`), sans lien. |
+| `part_form` + `.part-edit` | Crayon « Modifier » à côté du titre d'une partie du dossier : la partie entière devient un formulaire | Valeurs d'origine en `data-old` (concurrence) ; « Enregistrer » ouvre la fenêtre de validation. |
+| `#auth-dialog` | Fenêtre de validation par un médecin (modification d'une partie, fin de séjour) | **Factice** : le mot de passe n'est pas vérifié, ce que la fenêtre affiche ; `<dialog>` modal, Échap ferme. |
+| `sejour_menu` | Menu figé des écrans de séjour : bouton principal en tête (« Agenda du jour » dans le dossier, « Dossier du séjour » dans l'agenda, au même endroit) | Même composant pour les deux écrans. |
 | `.dossier-menu` | Menu figé à gauche du dossier patient : « Agenda du jour » en tête, Dossier, Allergies, Dossier complet (sous-catégories), Prescriptions en cours | Collant sous le bandeau dès 1024 px, en tête de page en dessous ; partie visible signalée par `aria-current="location"` (`dossier-menu.js`), sous-catégorie = ouverture de sa section. |
 | `form` + `field` | Formulaires : une colonne, libellé au-dessus, aide (`help`) sous le libellé, erreur sous le champ | Types : text, date, number, email, tel, radio, select (`empty`), textarea, checkbox-group, hidden, heading ; `listbox` pour une combobox. |
 | `form` → `sections` | Sections repliables `<details>` des formulaires longs, compteur « n sur m renseignés » | Repliées par défaut, ouvertes si un champ est en erreur (`form-sections.js`). |
@@ -81,6 +84,8 @@ RG2 antérieure). Produire `unknown` demande une donnée d'évaluation des aller
 
 ## Formulaires
 
+- Chaque champ montre un exemple grisé en italique (`placeholder`) ; les dates se saisissent en JJ/MM/AAAA
+  dans un champ texte (`date-input.js`), converties par le serveur (`Aura\Core\DateInput`).
 - Libellé au-dessus, étoile rouge pour l'obligatoire, aide courte sous le libellé, erreur sous le champ avec
   bordure rouge à gauche (GOV.UK : message spécifique, à côté du champ, jamais effacer la saisie).
 - Admission : deux colonnes dès 1100 px (identité → note sur les allergies à gauche, sections complémentaires à
