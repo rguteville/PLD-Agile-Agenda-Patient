@@ -233,6 +233,75 @@ final class PagesRenderTest extends TestCase
         self::assertStringContainsString('name="lastname"', $html);
     }
 
+    /** Édition en ligne : chaque ligne modifiable est un bouton avec ses métadonnées, panneau d'historique. */
+    public function testDossierEditableRendLesBoutonsEtLHistorique(): void
+    {
+        $html = View::render('pages/sejour/dossier', [
+            'bandeau' => ComponentsRenderTest::bandeau(),
+            'sejour' => [
+                'idPatient' => 4, 'enCours' => true, 'dateSortie' => null, 'service' => null,
+                'motifAdmission' => null, 'lit' => null, 'box' => null, 'precautions' => null,
+                'telephone' => null, 'email' => null,
+            ],
+            'idSejour' => 1,
+            'prescriptions' => [],
+            'doctors' => [],
+            'allergies' => [],
+            'substances' => [],
+            'criticalities' => [],
+            'editable' => true,
+            'csrfToken' => 'jeton<x>',
+            'sections' => [
+                ['id' => 'scores', 'title' => 'Scores', 'filled' => 1, 'total' => 2, 'rows' => [
+                    ['entity' => 'episode', 'field' => 'asaScore', 'label' => 'Score ASA', 'type' => 'select',
+                        'options' => ['I' => 'ASA I', 'II' => 'ASA "II"'], 'computed' => false, 'help' => null,
+                        'raw' => 'II', 'value' => 'ASA "II"'],
+                    ['entity' => 'patient', 'field' => 'lifestyle', 'label' => 'Mode de vie', 'type' => 'textarea',
+                        'options' => null, 'computed' => false, 'help' => null, 'raw' => null, 'value' => null],
+                    ['entity' => 'episode', 'field' => 'bmi', 'label' => 'IMC', 'type' => 'computed',
+                        'options' => null, 'computed' => true, 'help' => null, 'raw' => null, 'value' => '22,9 kg/m²'],
+                ]],
+            ],
+            'history' => [
+                ['recordedAt' => '14/10/2026 08:05', 'author' => 'non identifié', 'entity' => 'Patient',
+                    'field' => 'lifestyle', 'label' => 'Mode de vie', 'oldValue' => null, 'newValue' => 'Non <fumeur>'],
+            ],
+        ]);
+
+        self::assertStringContainsString(
+            'data-inline-edit data-endpoint="/sejour/champ/modifier" data-csrf="jeton&lt;x&gt;"',
+            $html
+        );
+        self::assertStringContainsString('id="inline-edit-status" aria-live="polite"', $html);
+        self::assertMatchesRegularExpression('/data-entity="episode"\s+data-id="1"\s+data-field="asaScore"/', $html);
+        self::assertMatchesRegularExpression('/data-entity="patient"\s+data-id="4"\s+data-field="lifestyle"/', $html);
+        self::assertStringContainsString(
+            'data-options="{&quot;I&quot;:&quot;ASA I&quot;,&quot;II&quot;:&quot;ASA \&quot;II\&quot;&quot;}"',
+            $html
+        );
+        self::assertStringContainsString('aria-label="Modifier : Score ASA"', $html);
+        self::assertSame(2, substr_count($html, 'class="inline-edit__value"'), 'valeur calculée non éditable');
+        self::assertStringContainsString('id="dossier-historique"', $html);
+        self::assertStringContainsString('<td>Non &lt;fumeur&gt;</td>', $html);
+        self::assertStringContainsString('<span class="non-renseigne">vide</span>', $html);
+    }
+
+    public function testDossierNonEditableNAPasDeBoutonNiDHistorique(): void
+    {
+        $html = View::render('pages/sejour/dossier', [
+            'bandeau' => ComponentsRenderTest::bandeau(),
+            'sejour' => [
+                'enCours' => true, 'dateSortie' => null, 'service' => null, 'motifAdmission' => null, 'lit' => null,
+                'box' => null, 'precautions' => null, 'telephone' => null, 'email' => null,
+            ],
+            'idSejour' => 1, 'prescriptions' => [], 'doctors' => [], 'allergies' => [], 'substances' => [],
+            'criticalities' => [], 'sections' => [],
+        ]);
+
+        self::assertStringNotContainsString('data-inline-edit', $html);
+        self::assertStringNotContainsString('dossier-historique', $html);
+    }
+
     public function testListeDesPatientsVideEtAvecRecherche(): void
     {
         $vide = View::render('pages/patient/list', ['patients' => [], 'recherche' => 'zz<q>']);
