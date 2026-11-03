@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Aura\Dao\ActivityDefinitionDao;
+use Aura\Dao\MedicationDao;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
@@ -173,7 +174,8 @@ try {
             agendaService: new AgendaService(
                 new CarePlanDao($pdo),
                 new AppointmentDao($pdo),
-                new ActivityDefinitionDao($pdo)
+                new ActivityDefinitionDao($pdo),
+                new MedicationDao($pdo),
             ),
             sejourService: new SejourService(
                 new SejourDao($pdo),
