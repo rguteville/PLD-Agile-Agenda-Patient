@@ -9,6 +9,7 @@ require dirname(__DIR__) . '/vendor/autoload.php';
 use Aura\Controller\CarePlanController;
 use Aura\Controller\PatientController;
 use Aura\Controller\SejourController;
+use Aura\Controller\ServiceController;
 use Aura\Core\ConfigurationException;
 use Aura\Core\Database;
 use Aura\Core\Router;
@@ -173,11 +174,24 @@ try {
             agendaService: new AgendaService(
                 new CarePlanDao($pdo),
                 new AppointmentDao($pdo),
-                new ActivityDefinitionDao($pdo)
+                new ActivityDefinitionDao($pdo),
+                new SejourDao($pdo)
             ),
             sejourService: new SejourService(
                 new SejourDao($pdo),
             ),
+        );
+        $controller->getAgenda();
+    };
+
+    $getAgendaService = static function (): void {
+        $pdo = Database::get();
+        $controller = new ServiceController(
+            new AgendaService(
+                new CarePlanDao($pdo),
+                new AppointmentDao($pdo),
+                new ActivityDefinitionDao($pdo)
+            )
         );
         $controller->getAgenda();
     };
@@ -189,7 +203,7 @@ try {
     $router->get('/patients/modifier', static fn () => $controleurModification()->edit());
     $router->post('/patients/modifier', static fn () => $controleurModification()->update());
     $router->get('/patients/recherche-ipp', $rechercherParIpp);
-    $router->get('/sejour', static fn () => $controleurSejour()->show());
+    $router->get('/sejour', static fn() => $controleurSejour()->show());
     $router->post('/sejour/allergies/ajouter', static fn () => $controleurSejour()->addAllergy());
     $router->post('/sejour/allergies/retirer', static fn () => $controleurSejour()->removeAllergy());
     $router->get('/care-plans', static fn () => $carePlans()->list());
@@ -199,6 +213,8 @@ try {
     $router->post('/care-plans/stop', static fn () => $carePlans()->stop());
     $router->get('/care-plans/protocol-lines', static fn () => $carePlans()->protocolLines());
     $router->get('/agenda-patient', $getAgenda);
+    $router->get('/agenda-service', $getAgendaService);
+
 
     $router->notFound(static fn() => View::erreur(404, 'Page introuvable.'));
 

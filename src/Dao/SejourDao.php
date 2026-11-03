@@ -95,6 +95,19 @@ class SejourDao
         return array_map(fn(array $r) => $this->mapToEntity($r), $rows);
     }
 
+    public function findByHealthcareService(string $idService): array
+    {
+         $stmt = $this->pdo->prepare(
+            'SELECT ' . self::columns() . ' FROM EpisodeOfCare
+             WHERE idHealthcareService = :idHealthcareService
+             AND dischargeDate IS NULL
+             ORDER BY admissionDate DESC, CAST(idEpisodeOfCare AS UNSIGNED) DESC'
+        );
+        $stmt->execute(['idHealthcareService' => $idService]);
+
+        return array_map(fn(array $r) => $this->mapToEntity($r), $stmt->fetchAll(PDO::FETCH_ASSOC));
+    }
+
     public function updateSortie(int $idSejour, DateTimeInterface $dateSortie): void
     {
         $stmt = $this->pdo->prepare(

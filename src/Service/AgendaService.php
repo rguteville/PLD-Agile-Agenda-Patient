@@ -7,6 +7,7 @@ namespace Aura\Service;
 use Aura\Dao\ActivityDefinitionDao;
 use Aura\Dao\AppointmentDao;
 use Aura\Dao\CarePlanDao;
+use Aura\Dao\SejourDao;
 use Aura\Domain\CarePlan;
 use Aura\Domain\MedicationRequest;
 use Aura\Domain\ServiceRequest;
@@ -45,7 +46,14 @@ final class AgendaService
         private CarePlanDao $carePlanDao,
         private AppointmentDao $appointmentDao,
         private ActivityDefinitionDao $activityDefinitionDao,
+        private SejourDao $sejourDao,
     ) {
+    }
+
+    public function getAgendaService(string $idHealthServiceId): void
+    {
+        $episodesOfCare = $this->sejourDao->findByHealthcareService($idHealthServiceId);
+
     }
 
     public function getAgenda(int $idEpisodeOfCare): array
