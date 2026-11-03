@@ -5,8 +5,9 @@
 /config/config.php
 .env
 
-# Caches de tests
+# Caches et rapports de tests
 /.phpunit.cache/
+/build/
 
 # Sujet du projet : captures du SI hospitalier et identifiants des VM
 /sujet/

@@ -7,8 +7,14 @@
          failOnRisky="true"
          failOnWarning="true">
     <testsuites>
+        <!-- Règles métier, rendus, contrôleurs, et DAO / intégration sur la base du CI (sautés sans DB_*). -->
         <testsuite name="aura">
             <directory>tests</directory>
+            <exclude>tests/Http</exclude>
+        </testsuite>
+        <!-- Bout en bout : un serveur php -S sert l'application sur la base du CI (sautés sans DB_*). -->
+        <testsuite name="http">
+            <directory>tests/Http</directory>
         </testsuite>
     </testsuites>
     <source>

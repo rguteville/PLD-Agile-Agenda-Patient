@@ -24,6 +24,9 @@
   },
   "scripts": {
     "test": "phpunit",
+    "test:fast": "phpunit --testsuite aura",
+    "test:http": "phpunit --testsuite http",
+    "test:coverage": "phpunit --coverage-text --coverage-html build/coverage",
     "cs": "phpcs",
     "cs:fix": "phpcbf"
   },
