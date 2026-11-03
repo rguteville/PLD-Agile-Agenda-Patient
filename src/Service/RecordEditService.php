@@ -112,6 +112,14 @@ class RecordEditService
             return self::result(self::STATUS_FORBIDDEN_FIELD, 'Ce champ ne peut pas être modifié depuis le dossier.');
         }
         $spec = $specs[$field];
+        // Champ réservé à un médecin identifié (décès du patient) : jamais modifié par l'édition en ligne ni
+        // par une admission (auteur non identifié), seulement par la modification d'une partie validée.
+        if (($spec['validatedByDoctor'] ?? false) && $author === AuditEvent::AUTHOR_UNKNOWN) {
+            return self::result(
+                self::STATUS_FORBIDDEN_FIELD,
+                'Ce champ se modifie avec « Modifier » sur sa partie, validé par un médecin.'
+            );
+        }
 
         // Depuis le dossier d'un séjour, un patient n'est modifiable que s'il est celui de ce séjour :
         // l'identifiant envoyé par le client ne suffit pas.

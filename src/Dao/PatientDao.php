@@ -28,6 +28,12 @@ class PatientDao
     private const IDENTITY_COLUMNS = 'idPatient, ipp, lastName, firstName, birthDate, sex, phoneNumber, email';
 
     /**
+     * Colonnes de la liste des patients (findAll(), search()) : l'identité et le décès, affiché dans la
+     * liste (retours des médecins du 2026-11-03) ; deceased arrive dans les champs complémentaires.
+     */
+    private const LIST_COLUMNS = self::IDENTITY_COLUMNS . ', deceased';
+
+    /**
      * Colonnes d'identité + champs complémentaires (RecordFields::PATIENT, dont les clés SONT
      * les noms de colonnes). Construite une fois : la liste blanche du catalogue borne ce que
      * le DAO lit et écrit.
@@ -46,9 +52,9 @@ class PatientDao
     /** @return Patient[] */
     public function findAll(): array
     {
-        // Liste : l'identité suffit, les champs complémentaires (TEXT) ne sont pas chargés.
+        // Liste : l'identité et le décès suffisent, les autres champs complémentaires (TEXT) ne sont pas chargés.
         $rows = $this->pdo->query(
-            'SELECT ' . self::IDENTITY_COLUMNS . ' FROM Patient WHERE ' . self::ACTIVE . ' ORDER BY lastName, firstName'
+            'SELECT ' . self::LIST_COLUMNS . ' FROM Patient WHERE ' . self::ACTIVE . ' ORDER BY lastName, firstName'
         )->fetchAll(PDO::FETCH_ASSOC);
 
         return array_map(fn(array $r) => $this->mapToEntity($r), $rows);
@@ -68,7 +74,7 @@ class PatientDao
 
         // Sans émulation des requêtes préparées, un paramètre nommé ne peut servir qu'une fois.
         $stmt = $this->pdo->prepare(
-            'SELECT ' . self::IDENTITY_COLUMNS . ' FROM Patient
+            'SELECT ' . self::LIST_COLUMNS . ' FROM Patient
              WHERE ' . self::ACTIVE . '
                AND (lastName LIKE :lastName ESCAPE \'\\\\\'
                 OR firstName LIKE :firstName ESCAPE \'\\\\\'

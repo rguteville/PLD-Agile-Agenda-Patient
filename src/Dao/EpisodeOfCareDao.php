@@ -95,6 +95,31 @@ class EpisodeOfCareDao
     }
 
     /**
+     * Séjours de plusieurs patients en une requête (liste des patients : séjour en cours, dernier séjour et
+     * historique de chacun), du plus récent au plus ancien comme findByPatient(). [] si aucun patient.
+     *
+     * @param list<int> $idPatients
+     * @return EpisodeOfCare[]
+     */
+    public function findByPatients(array $idPatients): array
+    {
+        $ids = array_values(array_unique(array_map(static fn ($id): string => (string) (int) $id, $idPatients)));
+        if ($ids === []) {
+            return [];
+        }
+
+        // Un marqueur positionnel par identifiant : les valeurs restent des paramètres préparés.
+        $stmt = $this->pdo->prepare(
+            'SELECT ' . self::columns() . ' FROM ' . self::FROM . '
+             WHERE idPatient IN (' . implode(', ', array_fill(0, count($ids), '?')) . ')
+             ORDER BY admissionDate DESC, CAST(idEpisodeOfCare AS UNSIGNED) DESC'
+        );
+        $stmt->execute($ids);
+
+        return array_map(fn(array $r) => $this->mapToEntity($r), $stmt->fetchAll(PDO::FETCH_ASSOC));
+    }
+
+    /**
      * Séjours en cours (patients présents dans le service), du plus ancien au plus récent.
      *
      * @return Sejour[]

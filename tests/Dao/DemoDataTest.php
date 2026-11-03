@@ -10,6 +10,7 @@ use Aura\Core\Database;
 use Aura\Dao\AllergyIntoleranceDao;
 use Aura\Dao\PatientDao;
 use Aura\Dao\EpisodeOfCareDao;
+use Aura\Dao\ReferenceDataDao;
 use Aura\Dao\SubstanceDao;
 use Aura\Domain\Patient;
 use Aura\Service\PatientRecordService;
@@ -199,6 +200,46 @@ final class DemoDataTest extends TestCase
             trim($record->evaluate("string($banner//dt[normalize-space()='IPP']/following-sibling::dd[1])")),
             'IPP du bandeau'
         );
+    }
+
+    /**
+     * Retours des médecins du 2026-11-03 sur les données de démo : Jessica Fletcher (patient 5, séjour clos)
+     * est décédée et son dossier reste accessible depuis la liste ; Marge Simpson (patient 1) a deux séjours.
+     */
+    public function testDemoListShowsDeceasedLastRecordAndHistory(): void
+    {
+        $patientDao = new PatientDao($this->pdo);
+        $episodeOfCareDao = new EpisodeOfCareDao($this->pdo);
+        $html = self::capture([], static function () use ($patientDao, $episodeOfCareDao): void {
+            (new PatientController(
+                patientListService: new PatientListService($patientDao, $episodeOfCareDao, new ReferenceDataDao(
+                    Database::get()
+                ))
+            ))->list();
+        });
+        $items = self::xpath($html);
+        $row = static fn (string $lastName): string =>
+            "//table[contains(@class, 'patient-list')]/tbody/tr[td[1][starts-with(normalize-space(), '$lastName')]]";
+
+        self::assertSame(
+            'Décédée',
+            trim($items->evaluate('string(' . $row('Fletcher') . '//span[@class="deceased-tag"])')),
+            'Jessica Fletcher est décédée (Patient.deceased)'
+        );
+        self::assertSame(
+            '/sejour?id=5',
+            $items->evaluate('string(' . $row('Fletcher') . '/td[6]/a/@href)'),
+            'dossier du dernier séjour (clos) toujours accessible'
+        );
+        self::assertSame(
+            ['/sejour?id=1', '/sejour?id=7'],
+            array_map(
+                static fn ($a): string => $a->nodeValue,
+                iterator_to_array($items->query($row('Simpson') . '//ol[@class="episode-history"]/li//a/@href'))
+            ),
+            'historique de Marge Simpson, du plus récent au plus ancien'
+        );
+        self::assertSame(0, $items->query($row('Simpson') . '//span[@class="deceased-tag"]')->length);
     }
 
     /** Exécute une action de contrôleur avec ce $_GET et renvoie le HTML produit. */

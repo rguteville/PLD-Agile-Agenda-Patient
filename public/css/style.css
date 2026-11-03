@@ -4498,3 +4498,180 @@ form.form--columns .form-lead > .form-row {
     border: 1px solid var(--line-strong);
     border-radius: var(--radius);
 }
+
+/* ===== AURA-PATIENTS : retours des médecins du 2026-11-03 (dossier toujours accessible, historique des séjours, séjour courant, décès) ===== */
+/* Décès : icône + texte + cadre plein, lisible sans la couleur (bandeau, dossier, liste). */
+.deceased-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-1);
+    margin-left: var(--sp-2);
+    padding: 0 var(--sp-2);
+    font-size: var(--fs-2);
+    font-weight: 700;
+    line-height: 1.6;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--fg);
+    background: var(--bg-muted);
+    border: 2px solid var(--fg);
+    border-radius: var(--radius);
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+.deceased-tag svg {
+    flex: none;
+    width: 1em;
+    height: 1em;
+}
+
+.patient-banner .identity .deceased-tag {
+    align-self: center;
+}
+
+/* Liste des patients : séjour en cours mis en avant (badge, numéro en gras, lit, service, date). */
+.patient-list__row--current > td:first-child {
+    box-shadow: inset 4px 0 0 var(--accent);
+}
+
+.current-episode {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    min-width: 12rem;
+}
+
+.current-episode__number {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.patient-list__closed {
+    display: block;
+    color: var(--fg-subtle);
+}
+
+/* Historique des séjours dépliable dans la liste (bloc natif <details>, utilisable au clavier). */
+.episode-history-toggle > summary {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-1);
+    min-height: var(--tap, 44px);
+    cursor: pointer;
+    color: var(--accent);
+    white-space: nowrap;
+}
+
+.episode-history-toggle > summary svg {
+    width: 1em;
+    height: 1em;
+}
+
+.episode-history-toggle[open] > summary {
+    font-weight: 600;
+}
+
+.episode-history-toggle .episode-history {
+    min-width: 18rem;
+    max-width: 28rem;
+}
+
+/* Liste des séjours (liste des patients et dossier) : du plus récent au plus ancien. */
+.episode-history {
+    display: grid;
+    gap: var(--sp-2);
+    margin: var(--sp-2) 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.episode-history__item {
+    padding: var(--sp-2) var(--sp-3);
+    background: var(--bg-raised);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+}
+
+.episode-history__item--displayed {
+    border: 2px solid var(--accent);
+    background: var(--accent-soft);
+}
+
+.episode-history__item p {
+    margin: 0;
+}
+
+.episode-history__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-1) var(--sp-2);
+}
+
+.episode-history__head a {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.episode-history__displayed {
+    font-size: var(--fs-1);
+    font-weight: 700;
+    color: var(--accent);
+}
+
+.episode-history__dates,
+.episode-history__meta {
+    font-size: var(--fs-2);
+    color: var(--fg-muted);
+    overflow-wrap: anywhere;
+}
+
+.record-episodes {
+    margin-top: var(--sp-5);
+}
+
+/* Dossier d'un séjour antérieur alors qu'un séjour est en cours : encart en tête qui mène au séjour en cours. */
+.current-episode-notice {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-2) var(--sp-4);
+    margin: 0 0 var(--sp-4);
+    padding: var(--sp-3) var(--sp-4);
+    color: var(--fg);
+    background: var(--accent-soft);
+    border: 1px solid var(--accent);
+    border-left-width: 4px;
+    border-radius: var(--radius);
+}
+
+.current-episode-notice > svg {
+    flex: none;
+    color: var(--accent);
+}
+
+.current-episode-notice > div {
+    flex: 1 1 18rem;
+    min-width: 0;
+}
+
+.current-episode-notice p {
+    margin: 0;
+}
+
+.current-episode-notice__title {
+    font-weight: 700;
+}
+
+.patient-list td .deceased-tag {
+    display: flex;
+    width: max-content;
+    margin: var(--sp-1) 0 0;
+}
+
+.patient-list td a[href^="/sejour"],
+.patient-list__closed {
+    white-space: nowrap;
+}

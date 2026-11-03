@@ -274,6 +274,38 @@ final class RecordSectionServiceTest extends TestCase
         self::assertSame('', $values['phone']);
     }
 
+    /**
+     * Retours des médecins du 2026-11-03 : le décès se déclare dans la partie « Administratif », validé par
+     * un médecin, écrit dans Patient.deceased (BOOLEAN) et tracé ; l'édition en ligne le refuse.
+     */
+    public function testDeceasedDeclaredThroughAdminPartTracedAndRefusedInline(): void
+    {
+        self::assertArrayHasKey('deceased', RecordSectionService::partFields('admin'));
+        $inline = (new RecordEditService(
+            new PatientDao($this->pdo),
+            new EpisodeOfCareDao($this->pdo),
+            new AuditEventDao($this->pdo),
+            new Transaction($this->pdo)
+        ))->update('patient', $this->idPatient, 'deceased', '1', null, idEpisodeOfCare: $this->idEpisodeOfCare);
+        self::assertSame(RecordEditService::STATUS_FORBIDDEN_FIELD, $inline['status'], 'jamais en ligne');
+
+        $result = $this->service->updatePart(
+            $this->idEpisodeOfCare,
+            'admin',
+            ['deceased' => '1'],
+            ['deceased' => ''],
+            $this->idDoctor,
+            'fake'
+        );
+
+        self::assertSame(RecordSectionService::STATUS_SAVED, $result['status']);
+        self::assertSame('1', (new PatientDao($this->pdo))->findById($this->idPatient)?->getDetail('deceased'));
+        $traces = $this->traces();
+        self::assertSame(['deceased'], $this->fields($traces));
+        self::assertSame('1', $traces[0]->getNewValue());
+        self::assertStringContainsString('authentification factice', $traces[0]->getAuthor());
+    }
+
     /** @return list<AuditEvent> */
     private function traces(): array
     {

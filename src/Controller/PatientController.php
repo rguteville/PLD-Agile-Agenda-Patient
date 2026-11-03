@@ -480,7 +480,10 @@ class PatientController
      */
     private static function fields(): array
     {
-        $catalogue = array_merge(RecordFields::patientColumns(), RecordFields::episodeColumns());
+        $catalogue = array_merge(
+            array_keys(RecordFields::admissionPatientFields()),
+            RecordFields::episodeColumns()
+        );
 
         return self::FORM_FIELDS + array_combine($catalogue, $catalogue);
     }
@@ -502,7 +505,9 @@ class PatientController
         }
         // Champs du catalogue : seulement ceux présents dans la requête. Un champ absent n'est pas
         // « vidé » : pour un patient existant, il reste tel quel (un formulaire tronqué n'efface rien).
-        foreach (array_merge(RecordFields::patientColumns(), RecordFields::episodeColumns()) as $field) {
+        // Le décès n'est pas un champ d'admission (RecordFields::admissionPatientFields()) : ignoré s'il est envoyé.
+        $catalogue = array_merge(array_keys(RecordFields::admissionPatientFields()), RecordFields::episodeColumns());
+        foreach ($catalogue as $field) {
             if (array_key_exists($field, $post)) {
                 $value = $post[$field];
                 $input[$field] = is_string($value) ? trim($value) : '';

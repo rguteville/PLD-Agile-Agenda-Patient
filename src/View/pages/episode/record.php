@@ -20,6 +20,9 @@ use Aura\Service\RecordSectionService;
  * @var ?string $csrfToken jeton de session envoyé par le script dans X-CSRF-Token
  * @var list<array<string, mixed>> $history dernières modifications, vue-modèle de RecordEditService::history()
  * @var array<string, string> $referringDoctors médecins pouvant être référents : idPractitioner => « Dr Prénom Nom »
+ * @var list<array<string, mixed>> $episodeHistory séjours du patient, vue-modèle de EpisodeHistoryService::present()
+ * @var ?array<string, mixed> $currentEpisode séjour en cours du patient quand le séjour affiché est un autre
+ *      (EpisodeHistoryService::presentCurrent()), null sinon
  */
 $allergyError = $allergyError ?? null;
 $sections = $sections ?? [];
@@ -29,6 +32,8 @@ $history = $history ?? [];
 $partValues = $partValues ?? [];
 $services = $services ?? [];
 $referringDoctors = $referringDoctors ?? [];
+$episodeHistory = $episodeHistory ?? [];
+$currentEpisode = $currentEpisode ?? null;
 // Crayon « Modifier » d'une partie entière (retours du 2026-11-02), à côté du titre de la partie.
 $partEditButton = static fn (string $part, string $title): string =>
     '<button type="button" class="part-edit" data-part-edit="' . View::e($part) . '" aria-label="Modifier la partie : '
@@ -54,6 +59,27 @@ $lineValue = static function (array $row): string {
     ['label' => 'Patients', 'href' => '/patients'],
     ['label' => 'Dossier du séjour n° ' . $banner['episodeNumber']],
 ]]) ?>
+<?php /* Retours des médecins du 2026-11-03 : dossier d'un séjour antérieur alors que le patient est
+         hospitalisé, le séjour en cours est signalé et lié en tête de page. */ ?>
+<?php if ($currentEpisode !== null) : ?>
+    <aside class="current-episode-notice" aria-labelledby="current-episode-title">
+        <?= View::render('components/icon', ['name' => 'info']) ?>
+        <div>
+            <p class="current-episode-notice__title" id="current-episode-title">
+                Vous consultez un séjour antérieur : ce patient a un séjour en cours.
+            </p>
+            <p>
+                Séjour n° <?= View::e($currentEpisode['episodeNumber']) ?>,
+                lit <?= View::e($currentEpisode['bed'] ?? 'non attribué') ?>,
+                <?= View::e($currentEpisode['service'] ?? 'service non renseigné') ?>,
+                depuis le <?= View::e($currentEpisode['since']) ?>.
+            </p>
+        </div>
+        <a class="button" href="/sejour?id=<?= View::e($currentEpisode['idEpisodeOfCare']) ?>">
+            Ouvrir le séjour en cours
+        </a>
+    </aside>
+<?php endif; ?>
 
 <div class="record-layout">
 <?php /* Menu figé à gauche (retours du 2026-11-02) : agenda en tête, puis les parties du dossier ; les
@@ -85,6 +111,7 @@ if ($editable) {
         ['href' => '#dossier-resume', 'label' => 'Dossier'],
         ['href' => '#titre-allergies', 'label' => 'Allergies'],
         ['href' => '#titre-dossier-complet', 'label' => 'Dossier complet', 'children' => $subParts],
+        ['href' => '#titre-sejours', 'label' => 'Séjours du patient'],
         ['href' => '#titre-prescriptions', 'label' => 'Prescriptions en cours'],
     ],
 ]) ?>
@@ -110,6 +137,9 @@ if ($editable) {
             <?= View::e(mb_strtoupper($banner['lastName']) . ' ' . $banner['firstName']) ?>
             <?php if ($banner['sex'] !== null) : ?>
                 (<?= View::e($banner['sex']) ?>)
+            <?php endif; ?>
+            <?php if (!empty($banner['deceased'])) : ?>
+                <?= View::render('components/deceased_tag', ['label' => $banner['deceasedLabel'] ?? null]) ?>
             <?php endif; ?>
         </dd>
         <dt>Né(e) le</dt>
@@ -272,7 +302,8 @@ if ($editable) {
             <dl data-part-view="<?= View::e($section['id']) ?>">
                 <?php foreach ($section['rows'] as $row) : ?>
                     <dt><?= View::e($row['label']) ?></dt>
-                    <?php if ($editable && !$row['computed']) : ?>
+                    <?php /* Décès : modifiable par « Modifier » sur la partie seulement (validé par un médecin). */ ?>
+                    <?php if ($editable && !$row['computed'] && empty($row['validatedByDoctor'])) : ?>
                         <?php /* Bouton focalisable : Entrée ou clic passe en saisie (inline-edit.js). */ ?>
                         <dd class="inline-edit"
                             data-entity="<?= View::e($row['entity']) ?>"
@@ -363,6 +394,19 @@ if ($editable) {
         </details>
     <?php endif; ?>
     </div>
+
+    <?php /* Historique des séjours (retours des médecins du 2026-11-03) : chacun mène à son dossier. */ ?>
+    <section class="record-episodes" aria-labelledby="titre-sejours">
+        <h2 class="record-subtitle" id="titre-sejours">Séjours du patient</h2>
+        <?php if ($episodeHistory === []) : ?>
+            <p class="not-recorded">Aucun séjour enregistré.</p>
+        <?php else : ?>
+            <?= View::render('components/episode_history', [
+                'episodes' => $episodeHistory,
+                'label' => 'Séjours du patient, du plus récent au plus ancien',
+            ]) ?>
+        <?php endif; ?>
+    </section>
 
 </section>
 

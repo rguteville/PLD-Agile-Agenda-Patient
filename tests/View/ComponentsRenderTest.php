@@ -101,6 +101,38 @@ final class ComponentsRenderTest extends TestCase
         self::assertMatchesRegularExpression('/<\/svg>\s*à désigner/', $missing);
     }
 
+    /** Retours des médecins du 2026-11-03 : décès dans le bandeau, icône + texte (pas la couleur seule). */
+    public function testBannerShowsDeceasedWithIconAndText(): void
+    {
+        $html = View::render('components/patient_banner', [
+            'banner' => ['deceased' => true, 'deceasedLabel' => 'Décédée'] + self::banner(),
+        ]);
+        $alive = View::render('components/patient_banner', ['banner' => self::banner()]);
+
+        self::assertMatchesRegularExpression(
+            '/<div class="identity">.*<span class="deceased-tag">\s*<svg class="icon icon-heart-off".*'
+            . '<span>Décédée<\/span>/s',
+            $html
+        );
+        self::assertStringNotContainsString('deceased-tag', $alive, 'clé absente (autres écrans) : rien');
+    }
+
+    public function testEpisodeHistoryMarksDisplayedEpisodeWithTextNotColorOnly(): void
+    {
+        $html = View::render('components/episode_history', ['episodes' => [[
+            'idEpisodeOfCare' => 7, 'episodeNumber' => '2026-<7>', 'admissionDate' => '02/06/2026',
+            'dischargeDate' => '05/06/2026', 'ongoing' => false, 'service' => null, 'admissionReason' => null,
+            'displayed' => true,
+        ]], 'label' => 'Séjours <X>']);
+
+        self::assertStringContainsString('aria-label="Séjours &lt;X&gt;"', $html);
+        self::assertStringContainsString('aria-current="page">Séjour n° 2026-&lt;7&gt;</a>', $html);
+        self::assertStringContainsString('Séjour affiché', $html);
+        self::assertStringContainsString('badge--stopped', $html);
+        self::assertStringContainsString('Service : non renseigné', $html);
+        self::assertStringContainsString('Motif : non renseigné', $html);
+    }
+
     public function testBannerWithAllergiesListsThemWithAlert(): void
     {
         $html = View::render('components/patient_banner', ['banner' => self::banner([

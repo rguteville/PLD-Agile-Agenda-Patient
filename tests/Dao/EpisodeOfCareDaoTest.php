@@ -105,6 +105,28 @@ final class EpisodeOfCareDaoTest extends TestCase
         $this->assertFalse($history[1]->isOngoing());
     }
 
+    /** Liste des patients : séjours de plusieurs patients en une requête, du plus récent au plus ancien. */
+    public function testEpisodesOfSeveralPatientsReadInOneQuery(): void
+    {
+        $former = $this->dao->insert($this->newEpisodeOfCare(null, new DateTimeImmutable('-3 days')));
+        $this->dao->updateDischarge((int) $former->getIdEpisodeOfCare(), new DateTimeImmutable('-1 day'));
+        $current = $this->dao->insert($this->newEpisodeOfCare('ZZL4'));
+        $otherPatient = (new PatientDao($this->pdo))->insert(
+            new Patient(null, null, 'Zzautresejour', 'Bob', new DateTimeImmutable('1970-01-01'), 'M')
+        );
+        $other = $this->dao->insert(new EpisodeOfCare(null, $otherPatient, '', new DateTimeImmutable('-2 days')));
+
+        $episodes = $this->dao->findByPatients([$this->idPatient, $otherPatient, $this->idPatient]);
+
+        $this->assertSame(
+            [$current->getIdEpisodeOfCare(), $other->getIdEpisodeOfCare(), $former->getIdEpisodeOfCare()],
+            array_map(static fn (EpisodeOfCare $e): ?int => $e->getIdEpisodeOfCare(), $episodes),
+            'les deux patients, du plus récent au plus ancien, sans doublon'
+        );
+        $this->assertSame([], $this->dao->findByPatients([]), 'aucun patient : aucune requête utile');
+        $this->assertSame([], $this->dao->findByPatients([999999999]));
+    }
+
     public function testCounterRestartsAtOneForYearWithoutEpisode(): void
     {
         // test.sql ne contient aucun séjour en 1999.
