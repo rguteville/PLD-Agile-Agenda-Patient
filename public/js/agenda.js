@@ -131,7 +131,10 @@ if (dialog && careForm && typeof dialog.showModal === 'function') {
         const data = Object.fromEntries(new FormData(careForm).entries());
         submit.disabled = true;
         try {
-            const response = await fetch(careForm.action, {
+            // getAttribute et non careForm.action : le formulaire a des champs nommés « action » (Réalisé /
+            // Non effectué), et careForm.action renvoie alors ces champs au lieu de l'URL (la requête partait
+            // vers « /agenda-patient/[object RadioNodeList] » : 404, « Enregistrement impossible »).
+            const response = await fetch(careForm.getAttribute('action'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
