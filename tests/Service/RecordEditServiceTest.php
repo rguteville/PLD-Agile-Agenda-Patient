@@ -282,8 +282,8 @@ final class RecordEditServiceTest extends TestCase
         $rows = $this->service->history(9, 3);
 
         self::assertSame('Score ASA', $rows[0]['label']);
-        self::assertSame('ASA II – maladie systémique légère', $rows[0]['oldValue']);
-        self::assertSame('ASA III – maladie systémique sévère', $rows[0]['newValue']);
+        self::assertSame('ASA II : maladie systémique légère', $rows[0]['oldValue']);
+        self::assertSame('ASA III : maladie systémique sévère', $rows[0]['newValue']);
         self::assertSame('14/10/2026 08:05', $rows[0]['recordedAt']);
         self::assertSame('unknown', $rows[1]['label'], 'un champ hors catalogue garde son nom brut');
         self::assertNull($rows[1]['oldValue']);

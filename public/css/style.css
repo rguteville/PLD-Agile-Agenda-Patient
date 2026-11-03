@@ -5402,3 +5402,62 @@ form.form--columns .form-lead > .form-row {
 .care-line__patient a {
     font-weight: 600;
 }
+
+/* ===== Retours du 2026-11-04 (2) : « + » à droite du titre, filtres à droite du bouton, cœur barré ===== */
+.care-title {
+    display: block;
+}
+
+.care-title .item-label {
+    font-weight: 600;
+}
+
+/* Le « + » suit le titre sur la même ligne ; la carte de la prescription s'ouvre en dessous. */
+.care-title .prescription-details {
+    display: inline;
+    margin: 0 0 0 var(--sp-2);
+}
+
+.care-title .prescription-details summary {
+    min-width: 24px;
+    min-height: 24px;
+    vertical-align: middle;
+}
+
+.care-title .prescription-details__card {
+    font-weight: 400;
+}
+
+.care-title + .item-details {
+    display: block;
+}
+
+/* Filtres : ouverts, ils s'affichent à droite du bouton « Filtres ». */
+.filter-menu[open] {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-2) var(--sp-3);
+}
+
+.filter-menu[open] > .agenda-filters {
+    margin-top: 0;
+    padding: var(--sp-1) var(--sp-2);
+}
+
+/* Liste des patients : décès signalé par le seul cœur barré à côté du nom (libellé en infobulle). */
+.patient-list td .deceased-tag--icon {
+    display: inline-flex;
+    margin: 0 0 0 var(--sp-1);
+    vertical-align: middle;
+}
+
+.patient-list td .deceased-tag--icon {
+    padding: 0;
+    border: 0;
+    background: none;
+}
+
+.patient-list td:first-child {
+    white-space: nowrap;
+}

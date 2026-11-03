@@ -26,7 +26,7 @@ final class AgendaServicePresentBoardTest extends TestCase
             ['late' => $board['rows'][0]['late'], 'todo' => $board['rows'][0]['todo']]
         );
         self::assertSame(['patients' => 3, 'late' => 2, 'todo' => 3], $board['totals']);
-        self::assertSame('6 h – 14 h', $board['rotation']['label']);
+        self::assertSame('6 h à 14 h', $board['rotation']['label']);
     }
 
     public function testToDoCountsOnlyTheCurrentShiftAndNextIsTheFirstPlannedCare(): void
@@ -113,13 +113,13 @@ final class AgendaServicePresentBoardTest extends TestCase
         ]];
 
         $evening = AgendaService::presentBoard($service, new DateTimeImmutable('2026-10-14 23:00:00'));
-        self::assertSame('22 h – 24 h', $evening['rotation']['label']);
-        self::assertSame('24:00', $evening['rotation']['until']);
+        self::assertSame('22 h à 0 h', $evening['rotation']['label']);
+        self::assertSame('00:00', $evening['rotation']['until']);
         self::assertSame(['23:30'], array_column($evening['worklist']['now'], 'time'));
 
         $service['date'] = '2026-10-15';
         $night = AgendaService::presentBoard($service, new DateTimeImmutable('2026-10-15 02:00:00'));
-        self::assertSame('0 h – 6 h', $night['rotation']['label']);
+        self::assertSame('0 h à 6 h', $night['rotation']['label']);
     }
 
     /** Chaque soin de la liste de travail porte les allergies (RG2) et le décès de son patient. */

@@ -27,7 +27,7 @@ $url = static fn (string $date, string $shift): string => '/mon-planning?idPract
 <section class="planning-view">
     <div class="page-header">
         <h1 class="form-title">
-            Mon planning<?= $idPractitioner !== null ? ' · ' . View::e($practitioners[$idPractitioner]) : '' ?>
+            Mon planning<?= $idPractitioner !== null ? ' : ' . View::e($practitioners[$idPractitioner]) : '' ?>
         </h1>
         <p class="page-actions">
             <a class="button button--secondary" href="/agenda-service">Agenda du service</a>
@@ -39,7 +39,7 @@ $url = static fn (string $date, string $shift): string => '/mon-planning?idPract
           method="get" action="/mon-planning" aria-label="Choisir le soignant et la vacation">
         <label for="planning-practitioner">Soignant</label>
         <select id="planning-practitioner" name="idPractitioner">
-            <option value="">— choisir —</option>
+            <option value="">Choisir</option>
             <?php foreach ($practitioners as $id => $label) : ?>
                 <option value="<?= View::e($id) ?>"<?= (string) $id === $idPractitioner ? ' selected' : '' ?>>
                     <?= View::e($label) ?>
@@ -118,7 +118,7 @@ $url = static fn (string $date, string $shift): string => '/mon-planning?idPract
                                 . '&date=' . $shiftView['date']; ?>
                             <a href="<?= View::e($agendaUrl) ?>">
                                 <strong>
-                                    <?= $patient['bed'] !== null ? 'Lit ' . View::e($patient['bed']) . ' · ' : '' ?>
+                                    <?= $patient['bed'] !== null ? 'Lit ' . View::e($patient['bed']) . ', ' : '' ?>
                                     <?= View::e($patient['name']) ?>
                                 </strong>
                             </a>
@@ -140,8 +140,8 @@ $url = static fn (string $date, string $shift): string => '/mon-planning?idPract
                                 </span>
                             <?php endif; ?>
                             <span class="patient-bed">
-                                <?= View::e($patient['late']) ?> en retard · <?= View::e($patient['planned']) ?> à faire
-                                · <?= View::e($patient['done']) ?> réalisé<?= $patient['done'] > 1 ? 's' : '' ?>
+                                <?= View::e($patient['late']) ?> en retard, <?= View::e($patient['planned']) ?> à faire,
+                                <?= View::e($patient['done']) ?> réalisé<?= $patient['done'] > 1 ? 's' : '' ?>
                             </span>
                         </li>
                     <?php endforeach; ?>
@@ -207,11 +207,16 @@ $url = static fn (string $date, string $shift): string => '/mon-planning?idPract
                                             <?= View::e($item['patient']) ?>
                                         </td>
                                         <td>
-                                            <span class="item-label"><?= View::e($item['label']) ?></span>
+                                            <?php /* Le « + » de la prescription à droite du titre (2026-11-04). */ ?>
+                                            <span class="care-title">
+                                                <span class="item-label"><?= View::e($item['label']) ?></span>
+                                                <?= View::render('components/prescription_details', [
+                                                    'item' => $item,
+                                                ]) ?>
+                                            </span>
                                             <?php if ($item['details'] !== null) : ?>
                                                 <span class="item-details"><?= View::e($item['details']) ?></span>
                                             <?php endif; ?>
-                                            <?= View::render('components/prescription_details', ['item' => $item]) ?>
                                         </td>
                                         <td class="col-status">
                                             <?= View::render('components/status_badge', [

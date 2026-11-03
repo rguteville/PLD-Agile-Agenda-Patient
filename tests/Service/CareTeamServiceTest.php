@@ -18,7 +18,7 @@ use PHPUnit\Framework\TestCase;
 final class CareTeamServiceTest extends TestCase
 {
     private const PRACTITIONERS = ['PRA04' => 'Thomas Girard (IDE)', 'PRA06' => 'Julien Perrin (AS)'];
-    private const EPISODES = [1 => 'Lit L01 · SIMPSON Marge', 2 => 'Lit L02 · SKYWALKER Luke'];
+    private const EPISODES = [1 => 'Lit L01, SIMPSON Marge', 2 => 'Lit L02, SKYWALKER Luke'];
 
     /** @return iterable<string, array{string, string, string}> */
     public static function moments(): iterable

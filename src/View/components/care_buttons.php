@@ -16,7 +16,7 @@ use Aura\Core\View;
  */
 $context = $context ?? '';
 $withNote = $withNote ?? true;
-$summary = ($context !== '' ? $context . ' · ' : '') . $item['time'] . ' · ' . $item['label'];
+$summary = ($context !== '' ? $context . ' : ' : '') . $item['label'] . ' à ' . $item['time'];
 $attributes = ' data-appointment="' . View::e($item['id']) . '"'
     . ' data-episode="' . View::e($idEpisodeOfCare) . '"'
     . ' data-label="' . View::e($summary) . '"';

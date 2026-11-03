@@ -223,8 +223,8 @@ final class DemoDataTest extends TestCase
 
         self::assertSame(
             'Décédée',
-            trim($items->evaluate('string(' . $row('Fletcher') . '//span[@class="deceased-tag"])')),
-            'Jessica Fletcher est décédée (Patient.deceased)'
+            $items->evaluate('string(' . $row('Fletcher') . '//span[contains(@class, "deceased-tag--icon")]/@title)'),
+            'Jessica Fletcher est décédée (Patient.deceased) : cœur barré, libellé en infobulle'
         );
         self::assertSame(
             '/sejour?id=5',

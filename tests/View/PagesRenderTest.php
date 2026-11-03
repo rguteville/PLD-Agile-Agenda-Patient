@@ -323,7 +323,7 @@ final class PagesRenderTest extends TestCase
         self::assertStringNotContainsString('data-form-section open', $html, 'sections repliées par défaut');
         self::assertStringContainsString('0 sur 12', $html, 'compteur des antécédents');
         self::assertStringContainsString('name="asaScore"', $html);
-        self::assertStringContainsString('ASA III – maladie systémique sévère', $html);
+        self::assertStringContainsString('ASA III : maladie systémique sévère', $html);
         self::assertStringContainsString('À remplir par le médecin en charge uniquement en cas de plan blanc.', $html);
     }
 
@@ -509,8 +509,8 @@ final class PagesRenderTest extends TestCase
 
         // Séjour en cours (audit IHM du 2026-11-04) : lit et service, puis numéro et date d'entrée.
         self::assertStringContainsString('patient-list__row--current', $html);
-        self::assertStringContainsString('n° 2026-000001 · depuis le', $html);
-        self::assertMatchesRegularExpression('/Lit L01 ·/', $html);
+        self::assertStringContainsString('n° 2026-000001, depuis le', $html);
+        self::assertMatchesRegularExpression('/Lit L01,/', $html);
         self::assertStringContainsString('Réa &lt;médicale&gt;', $html);
         self::assertStringContainsString('depuis le 10/10/2026', $html);
         // Dernier séjour clos : lien explicite ; aucun séjour : texte, pas de lien.
@@ -530,13 +530,14 @@ final class PagesRenderTest extends TestCase
         );
         self::assertStringContainsString('Motif : Motif &lt;grave&gt;', $html);
         self::assertStringContainsString('sortie le 05/06/2026', $html);
-        // Décès : icône + texte.
+        // Décès (2026-11-04) : cœur barré seul à côté du nom, libellé en infobulle et en texte alternatif.
         self::assertMatchesRegularExpression(
-            '/<span class="deceased-tag">\s*<svg class="icon icon-heart-off"[^>]*aria-hidden="true"[^>]*>.*?<\/svg>'
-            . '\s*<span>Décédée<\/span>/s',
+            '/<span class="deceased-tag deceased-tag--icon" title="Décédée">\s*'
+            . '<svg class="icon icon-heart-off"[^>]*role="img" aria-label="Décédée"/s',
             $html
         );
-        self::assertSame(1, substr_count($html, 'class="deceased-tag"'), 'seul le patient décédé est marqué');
+        self::assertStringNotContainsString('<span>Décédée</span>', $html, 'plus d\'étiquette sous le nom');
+        self::assertSame(1, substr_count($html, 'deceased-tag--icon'), 'seul le patient décédé est marqué');
     }
 
     /** Dossier d'un séjour clos d'un patient hospitalisé : encart vers le séjour en cours, historique signalé. */
@@ -643,7 +644,7 @@ final class PagesRenderTest extends TestCase
         self::assertStringContainsString('id="detail-lit"', $html);
         self::assertStringContainsString('allergy-tag--high', $html, 'RG2 : allergies dans le panneau');
         self::assertStringContainsString('Latex &lt;x&gt;', $html);
-        self::assertStringContainsString('Réf. Dr &lt;Ref&gt;', $html);
+        self::assertStringContainsString('réf. Dr &lt;Ref&gt;', $html);
         self::assertStringContainsString('Soin &lt;A&gt;', $html);
         self::assertStringNotContainsString('Soin <A>', $html);
         self::assertStringContainsString('par Soignant &lt;Test&gt;', $html);
@@ -660,7 +661,7 @@ final class PagesRenderTest extends TestCase
         self::assertStringContainsString('aria-current="page">Liste de travail</a>', $html);
         self::assertStringContainsString('class="worklist worklist--late" open', $html);
         self::assertStringContainsString('class="worklist worklist--done">', $html, 'réalisés repliés');
-        self::assertStringContainsString('Lit L01 · DUPONT Test', $html);
+        self::assertStringContainsString('Lit L01, DUPONT Test', $html);
         self::assertStringContainsString(
             '<input type="hidden" name="vue" value="liste">',
             $html,
@@ -670,8 +671,8 @@ final class PagesRenderTest extends TestCase
             . 'date=2026-10-14&amp;vue=liste&amp;sejour=1"', $html);
     }
 
-    /** Relecture du 2026-11-04 : RG2 sur chaque soin de la liste, retards montrés sur un jour passé. */
-    public function testServiceWorklistShowsAllergiesAndLateCaresOfAPastDay(): void
+    /** Relecture du 2026-11-04 : retards montrés sur un jour passé ; allergies seulement dans le panneau du lit. */
+    public function testServiceWorklistShowsLateCaresOfAPastDayWithoutAllergies(): void
     {
         $model = self::serviceAgendaModel('liste');
         $model['service']['isToday'] = false;
@@ -681,8 +682,8 @@ final class PagesRenderTest extends TestCase
 
         self::assertStringContainsString('class="worklist worklist--late" open', $html);
         self::assertStringContainsString('Soin &lt;A&gt;', $html, 'le retard d\'un jour passé reste visible');
-        self::assertMatchesRegularExpression('/care-line__patient.*?allergy-tag--high/s', $html, 'RG2 sur le soin');
-        self::assertStringContainsString('Latex &lt;x&gt;', $html);
+        // Choix du 2026-11-04 : la liste de travail ne répète pas les allergies (panneau du lit seulement).
+        self::assertStringNotContainsString('allergy-tag', $html);
     }
 
     public function testConsolidatedViewWithoutPatient(): void

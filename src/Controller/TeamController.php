@@ -210,7 +210,7 @@ final class TeamController
     {
         $labels = [];
         foreach ($episodes as $e) {
-            $labels[(int) $e['idEpisodeOfCare']] = ($e['bed'] !== null ? 'Lit ' . $e['bed'] . ' · ' : '')
+            $labels[(int) $e['idEpisodeOfCare']] = ($e['bed'] !== null ? 'Lit ' . $e['bed'] . ', ' : '')
                 . mb_strtoupper((string) $e['lastName']) . ' ' . $e['firstName'];
         }
 

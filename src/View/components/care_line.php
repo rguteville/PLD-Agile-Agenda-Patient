@@ -16,7 +16,7 @@ use Aura\Core\View;
 $showPatient = $showPatient ?? false;
 $showStatus = $showStatus ?? true;
 $validationEnabled = $validationEnabled ?? false;
-$who = ($item['bed'] !== null ? 'Lit ' . $item['bed'] . ' · ' : '') . $item['patient'];
+$who = ($item['bed'] !== null ? 'Lit ' . $item['bed'] . ', ' : '') . $item['patient'];
 ?>
 <li class="care-line is-<?= View::e($item['status']) ?>" data-appointment-row
     data-status="<?= View::e($item['status']) ?>" data-care-label="<?= View::e($item['label']) ?>">
@@ -27,15 +27,14 @@ $who = ($item['bed'] !== null ? 'Lit ' . $item['bed'] . ' · ' : '') . $item['pa
             <?php if (($item['deceased'] ?? null) !== null) : ?>
                 <?= View::render('components/deceased_tag', ['label' => $item['deceased']]) ?>
             <?php endif; ?>
-            <?php /* RG2 : les allergies du patient sous son nom, sur chaque soin de la liste de travail. */ ?>
-            <?= View::render('components/allergy_tags', [
-                'allergies' => $item['allergies'] ?? null,
-                'compact' => true,
-            ]) ?>
         </span>
     <?php endif; ?>
     <span class="care-line__care">
-        <span class="item-label"><?= View::e($item['label']) ?></span>
+        <?php /* Le « + » de la prescription à droite du titre (2026-11-04). */ ?>
+        <span class="care-title">
+            <span class="item-label"><?= View::e($item['label']) ?></span>
+            <?= View::render('components/prescription_details', ['item' => $item]) ?>
+        </span>
         <?php if ($item['details'] !== null) : ?>
             <span class="item-details"><?= View::e($item['details']) ?></span>
         <?php endif; ?>
@@ -59,7 +58,6 @@ $who = ($item['bed'] !== null ? 'Lit ' . $item['bed'] . ' · ' : '') . $item['pa
         <?php endif; ?>
     </span>
     <span class="care-line__actions">
-        <?= View::render('components/prescription_details', ['item' => $item]) ?>
         <?php if ($validationEnabled) : ?>
             <?= View::render('components/care_buttons', [
                 'item' => $item,

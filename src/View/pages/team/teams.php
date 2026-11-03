@@ -24,7 +24,7 @@ $url = static fn (string $date, string $shift): string => '/equipes?idHealthcare
     . rawurlencode($idHealthcareService) . '&date=' . $date . '&vacation=' . strtolower($shift);
 $episodeLabel = [];
 foreach ($episodes as $e) {
-    $episodeLabel[(int) $e['idEpisodeOfCare']] = ($e['bed'] !== null ? 'Lit ' . $e['bed'] . ' · ' : '')
+    $episodeLabel[(int) $e['idEpisodeOfCare']] = ($e['bed'] !== null ? 'Lit ' . $e['bed'] . ', ' : '')
         . mb_strtoupper((string) $e['lastName']) . ' ' . $e['firstName'];
 }
 $assigned = [];
@@ -44,7 +44,7 @@ $contextFields = '<input type="hidden" name="csrf" value="' . View::e($csrfToken
 ?>
 <section class="team-view">
     <div class="page-header">
-        <h1 class="form-title">Équipes · <?= View::e($services[$idHealthcareService] ?? '') ?></h1>
+        <h1 class="form-title">Équipes : <?= View::e($services[$idHealthcareService] ?? '') ?></h1>
     </div>
 
     <form class="agenda-nav" data-auto-submit-form

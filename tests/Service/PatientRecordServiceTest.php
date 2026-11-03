@@ -449,7 +449,7 @@ final class PatientRecordServiceTest extends TestCase
         self::assertSame(5, $byId['disease']['total']);
 
         $scores = array_column($byId['scores']['rows'], 'value', 'field');
-        self::assertSame('ASA III – maladie systémique sévère', $scores['asaScore'], 'clé traduite en libellé');
+        self::assertSame('ASA III : maladie systémique sévère', $scores['asaScore'], 'clé traduite en libellé');
         self::assertNull($scores['nyhaClass']);
 
         $measures = array_column($byId['measures']['rows'], 'value', 'field');

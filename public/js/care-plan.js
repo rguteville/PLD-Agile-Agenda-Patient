@@ -39,7 +39,7 @@ if (carePlanForm) {
 
     function fill(select, options) {
         const empty = Object.keys(options).length === 0;
-        select.replaceChildren(new Option(empty ? '' : '— choisir —', ''));
+        select.replaceChildren(new Option(empty ? '' : 'Choisir', ''));
         Object.entries(options).forEach(([value, label]) => select.add(new Option(label, value)));
         select.disabled = Object.keys(options).length === 0;
     }

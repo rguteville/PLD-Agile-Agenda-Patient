@@ -28,10 +28,10 @@ final class AgendaService
      * tranches. Bornes 6 h / 14 h / 22 h = HYPOTHÈSE à confirmer avec le service (docs/ui.md).
      */
     public const SHIFTS = [
-        ['key' => 'night-end', 'label' => 'Nuit (fin)', 'hours' => '0 h – 6 h', 'from' => 0, 'to' => 6],
-        ['key' => 'morning', 'label' => 'Matin', 'hours' => '6 h – 14 h', 'from' => 6, 'to' => 14],
-        ['key' => 'afternoon', 'label' => 'Après-midi', 'hours' => '14 h – 22 h', 'from' => 14, 'to' => 22],
-        ['key' => 'night-start', 'label' => 'Nuit (début)', 'hours' => '22 h – 24 h', 'from' => 22, 'to' => 24],
+        ['key' => 'night-end', 'label' => 'Nuit (fin)', 'hours' => '0 h à 6 h', 'from' => 0, 'to' => 6],
+        ['key' => 'morning', 'label' => 'Matin', 'hours' => '6 h à 14 h', 'from' => 6, 'to' => 14],
+        ['key' => 'afternoon', 'label' => 'Après-midi', 'hours' => '14 h à 22 h', 'from' => 14, 'to' => 22],
+        ['key' => 'night-start', 'label' => 'Nuit (début)', 'hours' => '22 h à 0 h', 'from' => 22, 'to' => 24],
     ];
 
     /**
@@ -259,7 +259,6 @@ final class AgendaService
         $inShift = static fn (array $item): bool => !$isToday
             || ($item['datetime'] >= $startKey && $item['datetime'] < $endKey);
         $byTime = static fn (array $a, array $b): int => $a['datetime'] <=> $b['datetime'];
-        $hourLabel = static fn (DateTimeImmutable $d): int => $d == $dayEnd ? 24 : (int) $d->format('G');
 
         $rows = [];
         $worklist = ['late' => [], 'stopped' => [], 'now' => [], 'later' => [], 'done' => []];
@@ -343,8 +342,8 @@ final class AgendaService
         return [
             'isToday' => $isToday,
             'rotation' => $isToday ? [
-                'label' => sprintf('%d h – %d h', $hourLabel($start), $hourLabel($end)),
-                'until' => $soon == $dayEnd ? '24:00' : $soon->format('H:i'),
+                'label' => sprintf('%d h à %d h', (int) $start->format('G'), (int) $end->format('G')),
+                'until' => $soon->format('H:i'),
             ] : null,
             'totals' => [
                 'patients' => count($rows),
@@ -882,7 +881,7 @@ final class AgendaService
             'kind' => $isMedication ? 'MEDICATION' : 'CARE',
             'kindLabel' => $isMedication ? 'Médicament' : 'Soin',
             'label' => $label !== '' ? $label : ($isMedication ? 'Médicament' : 'Soin'),
-            'details' => $details === [] ? null : implode(' · ', $details),
+            'details' => $details === [] ? null : implode(', ', $details),
             // Catégorie de personnel : non stockée en base ; l'administration d'un médicament est un
             // acte IDE, un soin peut revenir à l'IDE ou à l'aide-soignant(e). Hypothèse documentée.
             'responsible' => $isMedication ? 'IDE' : 'IDE / AS',

@@ -19,8 +19,8 @@ use LogicException;
 final class CareTeamService
 {
     public const SHIFTS = [
-        CareTeam::SHIFT_DAY => ['label' => 'Jour', 'hours' => '8 h – 20 h', 'from' => 8],
-        CareTeam::SHIFT_NIGHT => ['label' => 'Nuit', 'hours' => '20 h – 8 h', 'from' => 20],
+        CareTeam::SHIFT_DAY => ['label' => 'Jour', 'hours' => '8 h à 20 h', 'from' => 8],
+        CareTeam::SHIFT_NIGHT => ['label' => 'Nuit', 'hours' => '20 h à 8 h', 'from' => 20],
     ];
     private const SHIFT_HOURS = 12;
 

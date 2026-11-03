@@ -66,7 +66,10 @@ $deleted = $deleted ?? false;
                 <?php $name = $p['lastName'] . ' ' . $p['firstName']; ?>
                 <tr<?= $p['current'] !== null ? ' class="patient-list__row--current"' : '' ?>>
                     <td><?= View::e($p['lastName']) ?><?= $p['deceased']
-                        ? View::render('components/deceased_tag', ['label' => $p['deceasedLabel']])
+                        ? ' ' . View::render('components/deceased_tag', [
+                            'label' => $p['deceasedLabel'],
+                            'iconOnly' => true,
+                        ])
                         : '' ?></td>
                     <td><?= View::e($p['firstName']) ?></td>
                     <td><?= View::e($p['ipp'] ?? 'sans IPP') ?></td>
@@ -77,9 +80,9 @@ $deleted = $deleted ?? false;
                             <?php /* Audit IHM du 2026-11-04 : deux lignes au lieu de quatre ; la colonne dit déjà
                                      « en cours ». */ ?>
                             <div class="current-episode">
-                                <span>Lit <?= View::e($current['bed'] ?? 'non attribué') ?> ·
+                                <span>Lit <?= View::e($current['bed'] ?? 'non attribué') ?>,
                                     <?= View::e($current['service'] ?? 'service non renseigné') ?></span>
-                                <?php $since = 'n° ' . $current['episodeNumber'] . ' · depuis le ' . $current['since'];
+                                <?php $since = 'n° ' . $current['episodeNumber'] . ', depuis le ' . $current['since'];
                                 ?>
                                 <small class="current-episode__number"><?= View::e($since) ?></small>
                             </div>

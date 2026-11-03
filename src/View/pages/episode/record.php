@@ -458,7 +458,7 @@ if ($editable) {
                 <li class="prescription-card">
                     <p class="prescription-card__label"><?= View::e($line['label']) ?></p>
                     <p class="prescription-card__summary">
-                        <?= View::e($line['frequency']) ?> · <?= View::e($line['period']) ?>
+                        <?= View::e($line['frequency']) ?>, <?= View::e($line['period']) ?>
                     </p>
                     <?php /* Sécurité du patient (relecture du 2026-11-04) : allergène, consignes, dose maximale,
                              contrainte horaire et note de l'ordonnance restent visibles ; seuls les champs
@@ -498,7 +498,7 @@ if ($editable) {
                                 <input type="hidden" name="csrf" value="<?= View::e($csrfToken ?? '') ?>">
                                 <select name="idStoppedBy"
                                         aria-label="Médecin qui arrête : <?= View::e($line['label']) ?>">
-                                    <option value="">— médecin —</option>
+                                    <option value="">Choisir un médecin</option>
                                     <?php foreach ($doctors as $value => $label) : ?>
                                         <option value="<?= View::e($value) ?>"><?= View::e($label) ?></option>
                                     <?php endforeach; ?>

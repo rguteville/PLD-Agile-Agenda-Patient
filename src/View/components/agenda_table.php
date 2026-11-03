@@ -39,11 +39,14 @@ $idEpisodeOfCare = $idEpisodeOfCare ?? null;
                     </td>
                     <td class="col-kind"><?= View::e($item['kindLabel']) ?></td>
                     <td>
-                        <span class="item-label"><?= View::e($item['label']) ?></span>
+                        <?php /* Le « + » de la prescription à droite du titre (2026-11-04). */ ?>
+                        <span class="care-title">
+                            <span class="item-label"><?= View::e($item['label']) ?></span>
+                            <?= View::render('components/prescription_details', ['item' => $item]) ?>
+                        </span>
                         <?php if ($item['details'] !== null) : ?>
                             <span class="item-details"><?= View::e($item['details']) ?></span>
                         <?php endif; ?>
-                        <?= View::render('components/prescription_details', ['item' => $item]) ?>
                     </td>
                     <td><?= View::e($item['responsible']) ?></td>
                     <td class="col-status">
@@ -66,7 +69,7 @@ $idEpisodeOfCare = $idEpisodeOfCare ?? null;
                         <?php if ($item['comment'] !== null) : ?>
                             <span class="note"><?= View::e($item['comment']) ?></span>
                             <?php if (($item['noteBy'] ?? null) !== null) : ?>
-                                <span class="trace">— <?= View::e($item['noteBy']) ?></span>
+                                <span class="trace">par <?= View::e($item['noteBy']) ?></span>
                             <?php endif; ?>
                         <?php else : ?>
                             <span class="sr-only">Aucune note</span>

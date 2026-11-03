@@ -143,7 +143,7 @@ final class AgendaServicePresentDayTest extends TestCase
 
         self::assertSame('MEDICATION', $item['kind']);
         self::assertSame('Médicament B', $item['label']);
-        self::assertSame('1 unité · IV', $item['details']);
+        self::assertSame('1 unité, IV', $item['details']);
         self::assertSame('IDE', $item['responsible']);
     }
 

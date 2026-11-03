@@ -141,7 +141,7 @@ $recordUrl = '/sejour?id=' . $idEpisodeOfCare;
                                     <span class="item-label"><?= View::e($row['label']) ?></span>
                                     <span class="item-details">
                                         <?= View::e($row['kindLabel']) ?><?= $row['details'] !== null
-                                            ? ' · ' . View::e($row['details']) : '' ?>
+                                            ? ', ' . View::e($row['details']) : '' ?>
                                     </span>
                                 </th>
                                 <?php foreach ($week['days'] as $day) : ?>
@@ -208,7 +208,9 @@ $recordUrl = '/sejour?id=' . $idEpisodeOfCare;
                      aria-labelledby="agenda-<?= View::e($shift['key']) ?>-title">
                 <h2 id="agenda-<?= View::e($shift['key']) ?>-title">
                     <?= View::e($shift['label']) ?>
-                    <span class="count"><?= View::e($shift['hours']) ?> · <?= View::e(count($shift['items'])) ?></span>
+                    <?php $n = count($shift['items']); ?>
+                    <?php $count = 'de ' . $shift['hours'] . ', ' . $n . ' soin' . ($n > 1 ? 's' : ''); ?>
+                    <span class="count"><?= View::e($count) ?></span>
                     <?php if ($shift['items'] === []) : ?>
                         <span class="agenda-empty">rien de prévu</span>
                     <?php endif; ?>

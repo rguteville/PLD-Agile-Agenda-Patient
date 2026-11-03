@@ -34,12 +34,12 @@
     const IPP_PATTERN = /^\d{6,9}$/;
     const MESSAGES = {
         searching: 'Recherche en cours…',
-        none: 'Aucun patient trouvé — poursuivez la saisie pour créer un nouveau dossier.',
+        none: 'Aucun patient trouvé : poursuivez la saisie pour créer un nouveau dossier.',
         ippUnknown: 'IPP inconnu, saisie manuelle.',
         tooShort: 'Saisissez au moins 2 caractères.',
         failure: 'La recherche a échoué. Veuillez réessayer.',
         refine: 'Plus de 20 résultats : affinez votre recherche.',
-        homonyms: 'Plusieurs patients portent ce nom — vérifiez la date de naissance et l\'IPP avant de sélectionner.',
+        homonyms: 'Plusieurs patients portent ce nom : vérifiez la date de naissance et l\'IPP avant de sélectionner.',
         results: n => `${n} résultat${n > 1 ? 's' : ''}`,
         cardTitle: 'Patient existant',
         detach: 'Ce n\'est pas ce patient',
@@ -125,7 +125,7 @@
             const name = document.createElement('strong');
             name.textContent = `${p.lastName} ${p.firstName}`;
             const details = document.createElement('span');
-            details.textContent = ' — ' + describe(p);
+            details.textContent = ', ' + describe(p);
             li.appendChild(name);
             li.appendChild(details);
             // mousedown plutôt que click : le blur du champ ne doit pas fermer la liste avant la sélection.
@@ -280,13 +280,13 @@
         name.appendChild(strong);
         name.append(p.sex ? ` (${p.sex})` : '');
         const birth = p.birthDate
-            ? ` · né(e) le ${p.birthDate}${p.age !== null ? ` (${p.age} ans)` : ''}`
-            : ' · date de naissance inconnue';
+            ? `, né(e) le ${p.birthDate}${p.age !== null ? ` (${p.age} ans)` : ''}`
+            : ', date de naissance inconnue';
         name.append(birth);
         // Groupe sanguin du patient connu (retours du 2026-11-03), comme dans le bandeau.
         const bloodType = (patientRecord.patient || {}).bloodType;
         if (bloodType) {
-            name.append(` · groupe ${bloodType}`);
+            name.append(`, groupe ${bloodType}`);
         }
         // Identitovigilance : un patient déclaré décédé ne devrait pas être réadmis ; on le signale sans
         // bloquer (erreur d'identité possible), le serveur et le dossier gardent la trace du décès.
@@ -294,7 +294,7 @@
 
         const ids = document.createElement('p');
         ids.className = 'patient-card__ids';
-        ids.textContent = `IPP ${p.ipp || 'sans IPP'} · `
+        ids.textContent = `IPP ${p.ipp || 'sans IPP'}, `
             + (p.lastEpisodeOfCare ? `dernier séjour le ${p.lastEpisodeOfCare}` : 'aucun séjour');
 
         const allergies = document.createElement('div');

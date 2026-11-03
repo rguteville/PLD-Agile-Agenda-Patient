@@ -39,7 +39,7 @@ $back = $back ?? '';
             <div class="dialog-field">
                 <label for="validation-performer">Soignant</label>
                 <select id="validation-performer" name="idPerformer" required aria-describedby="validation-auth-error">
-                    <option value="">— soignant —</option>
+                    <option value="">Choisir un soignant</option>
                     <?php foreach ($validators as $value => $label) : ?>
                         <option value="<?= View::e($value) ?>"><?= View::e($label) ?></option>
                     <?php endforeach; ?>

@@ -115,7 +115,7 @@ $medicationParams = [
             <div class="b3-row">
                 <label for="idPrescriber">Prescripteur</label>
                 <select id="idPrescriber" name="idPrescriber">
-                    <option value="">— prescripteur —</option>
+                    <option value="">Choisir un prescripteur</option>
                     <?php foreach ($prescribers as $value => $label) : ?>
                         <option value="<?= View::e($value) ?>"
                                 data-doctor="<?= isset($validators[$value]) ? '1' : '0' ?>">
@@ -136,7 +136,7 @@ $medicationParams = [
             <div class="b3-row">
                 <label for="category">Catégorie</label>
                 <select id="category">
-                    <option value="">— choisir —</option>
+                    <option value="">Choisir</option>
                     <?php foreach ($categories as $id => $category) : ?>
                         <option value="<?= View::e($id) ?>" data-kind="<?= View::e($category['kind']) ?>">
                             <?= View::e($category['label']) ?>
@@ -346,8 +346,8 @@ $medicationParams = [
                     <p class="b3-pending-header">
                         <?= View::render('components/status_badge', ['status' => 'to_validate']) ?>
                         Ordonnance n° <?= View::e($carePlan['idCarePlan']) ?>
-                        du <?= View::e($carePlan['recordedAt']) ?>
-                        · <?= View::e($carePlan['mode']) ?> · par <?= View::e($carePlan['prescriber']) ?>
+                        du <?= View::e($carePlan['recordedAt']) ?>, <?= View::e($carePlan['mode'])
+                        ?>, par <?= View::e($carePlan['prescriber']) ?>
                     </p>
                     <ul>
                         <?php foreach ($carePlan['lines'] as $line) : ?>
@@ -369,7 +369,7 @@ $medicationParams = [
                         <input type="hidden" name="idCarePlan" value="<?= View::e($carePlan['idCarePlan']) ?>">
                         <label for="<?= View::e($formId) ?>-validator">Médecin qui valide</label>
                         <select id="<?= View::e($formId) ?>-validator" name="idValidator" required>
-                            <option value="">— médecin —</option>
+                            <option value="">Choisir un médecin</option>
                             <?php foreach ($validators as $value => $label) : ?>
                                 <option value="<?= View::e($value) ?>"><?= View::e($label) ?></option>
                             <?php endforeach; ?>

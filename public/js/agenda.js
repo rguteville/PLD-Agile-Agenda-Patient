@@ -28,7 +28,7 @@ if (filters) {
             if (type !== '') {
                 parts.push(type);
             }
-            state.textContent = parts.length ? ` : ${parts.join(' · ')}` : '';
+            state.textContent = parts.length ? ` : ${parts.join(', ')}` : '';
         }
         rows.forEach(row => {
             row.hidden = (status !== 'all' && row.dataset.status !== status)
