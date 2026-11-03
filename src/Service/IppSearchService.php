@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Aura\Service;
 
-use Aura\Dao\AllergieDao;
+use Aura\Dao\AllergyIntoleranceDao;
 use Aura\Dao\PatientDao;
-use Aura\Domain\Allergie;
+use Aura\Domain\AllergyIntolerance;
 use Aura\Domain\Patient;
 
 /**
@@ -16,11 +16,11 @@ use Aura\Domain\Patient;
  * retrouve son identité et ses allergies connues au lieu de les ressaisir. La recherche
  * se fait dans la base d'AURA uniquement ; l'appel à OpenEMR (AURA-38) est hors périmètre.
  */
-class RechercheIppService
+class IppSearchService
 {
     public function __construct(
         private PatientDao $patientDao,
-        private AllergieDao $allergieDao
+        private AllergyIntoleranceDao $allergyIntoleranceDao
     ) {
     }
 
@@ -30,16 +30,16 @@ class RechercheIppService
      *
      * @return array<string, mixed>|null vue-modèle de presenter()
      */
-    public function rechercher(string $ipp): ?array
+    public function search(string $ipp): ?array
     {
         $patient = $this->patientDao->findByIpp($ipp);
         if ($patient === null) {
             return null;
         }
 
-        $allergies = $this->allergieDao->findByPatient((int) $patient->getIdPatient());
+        $allergies = $this->allergyIntoleranceDao->findByPatient((int) $patient->getIdPatient());
 
-        return self::presenter($patient, $allergies);
+        return self::present($patient, $allergies);
     }
 
     /**
@@ -58,32 +58,32 @@ class RechercheIppService
      *     allergies: list<array{libelle: string, criticite: ?string}>
      * }
      */
-    public static function presenter(Patient $patient, array $allergies): array
+    public static function present(Patient $patient, array $allergies): array
     {
         return [
             'idPatient' => (int) $patient->getIdPatient(),
             'ipp' => $patient->getIpp(),
-            'nom' => trim($patient->getNom()),
-            'prenom' => trim($patient->getPrenom()),
-            'dateNaissance' => $patient->getDateNaissance()?->format(AdmissionService::FORMAT_DATE),
-            'sexe' => self::texteOuNull($patient->getSexe()),
+            'lastName' => trim($patient->getLastName()),
+            'firstName' => trim($patient->getFirstName()),
+            'birthDate' => $patient->getBirthDate()?->format(AdmissionService::FORMAT_DATE),
+            'sex' => self::textOrNull($patient->getSex()),
             'allergies' => array_values(array_map(
-                static fn (Allergie $a): array => [
-                    'libelle' => trim($a->getSubstance()),
-                    'criticite' => self::texteOuNull($a->getCriticite()),
+                static fn (AllergyIntolerance $a): array => [
+                    'label' => trim($a->getSubstance()),
+                    'criticality' => self::textOrNull($a->getCriticality()),
                 ],
                 $allergies
             )),
         ];
     }
 
-    private static function texteOuNull(?string $valeur): ?string
+    private static function textOrNull(?string $value): ?string
     {
-        if ($valeur === null) {
+        if ($value === null) {
             return null;
         }
-        $texte = trim($valeur);
+        $text = trim($value);
 
-        return $texte === '' ? null : $texte;
+        return $text === '' ? null : $text;
     }
 }

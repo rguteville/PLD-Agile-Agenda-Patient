@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Aura\Service;
 
-use Aura\Dao\AllergieDao;
+use Aura\Dao\AllergyIntoleranceDao;
 use Aura\Dao\PatientDao;
-use Aura\Domain\Allergie;
+use Aura\Domain\AllergyIntolerance;
 use Aura\Domain\Patient;
 use Aura\Domain\RecordFields;
 use DateTimeImmutable;
@@ -33,7 +33,7 @@ class PatientSearchService
 
     public function __construct(
         private PatientDao $patientDao,
-        private ?AllergieDao $allergieDao = null,
+        private ?AllergyIntoleranceDao $allergyIntoleranceDao = null,
         private ?DateTimeImmutable $today = null
     ) {
     }
@@ -54,7 +54,7 @@ class PatientSearchService
     /** Une saisie composée uniquement de 6 à 9 chiffres est traitée comme un IPP. */
     public static function isIpp(string $query): bool
     {
-        return preg_match(AdmissionService::MOTIF_IPP, trim($query)) === 1;
+        return preg_match(AdmissionService::IPP_REASON, trim($query)) === 1;
     }
 
     /**
@@ -107,18 +107,18 @@ class PatientSearchService
         ?DateTimeImmutable $lastAdmission,
         DateTimeImmutable $today
     ): array {
-        $birth = $patient->getDateNaissance();
+        $birth = $patient->getBirthDate();
 
         return [
             'idPatient' => (int) $patient->getIdPatient(),
-            'nom' => trim($patient->getNom()),
-            'prenom' => trim($patient->getPrenom()),
-            'nomNaissance' => self::textOrNull($patient->getDetail('birthLastName')),
-            'dateNaissance' => $birth?->format('d/m/Y'),
-            'age' => $birth === null ? null : DossierPatientService::age($birth, $today),
-            'sexe' => self::textOrNull($patient->getSexe()),
+            'lastName' => trim($patient->getLastName()),
+            'firstName' => trim($patient->getFirstName()),
+            'birthLastName' => self::textOrNull($patient->getDetail('birthLastName')),
+            'birthDate' => $birth?->format('d/m/Y'),
+            'age' => $birth === null ? null : PatientRecordService::age($birth, $today),
+            'sex' => self::textOrNull($patient->getSex()),
             'ipp' => self::textOrNull($patient->getIpp()),
-            'dernierSejour' => $lastAdmission?->format('d/m/Y'),
+            'lastEpisodeOfCare' => $lastAdmission?->format('d/m/Y'),
         ];
     }
 
@@ -132,7 +132,7 @@ class PatientSearchService
     {
         $seen = [];
         foreach ($results as $r) {
-            $key = mb_strtolower($r['nom'] . '|' . $r['prenom']);
+            $key = mb_strtolower($r['lastName'] . '|' . $r['firstName']);
             if (isset($seen[$key])) {
                 return true;
             }
@@ -156,16 +156,16 @@ class PatientSearchService
         if ($patient === null) {
             return null;
         }
-        $allergies = $this->allergieDao?->findByPatient($idPatient) ?? [];
+        $allergies = $this->allergyIntoleranceDao?->findByPatient($idPatient) ?? [];
 
         return [
-            'identite' => [
+            'identity' => [
                 'idPatient' => (string) $patient->getIdPatient(),
-                'nom' => trim($patient->getNom()),
-                'prenom' => trim($patient->getPrenom()),
+                'lastName' => trim($patient->getLastName()),
+                'firstName' => trim($patient->getFirstName()),
                 'ipp' => self::textOrNull($patient->getIpp()),
-                'dateNaissance' => $patient->getDateNaissance()?->format(AdmissionService::FORMAT_DATE),
-                'sexe' => self::textOrNull($patient->getSexe()),
+                'birthDate' => $patient->getBirthDate()?->format(AdmissionService::FORMAT_DATE),
+                'sex' => self::textOrNull($patient->getSex()),
             ],
             'details' => array_map(
                 static fn (?string $v): ?string => self::textOrNull($v),
@@ -173,10 +173,10 @@ class PatientSearchService
                 + array_fill_keys(array_keys(RecordFields::PATIENT), null)
             ),
             'allergies' => array_values(array_map(
-                static fn (Allergie $a): array => [
-                    'idSubstance' => $a->getIdAllergene(),
-                    'libelle' => trim($a->getSubstance()),
-                    'criticite' => self::textOrNull($a->getCriticite()),
+                static fn (AllergyIntolerance $a): array => [
+                    'idSubstance' => $a->getIdSubstance(),
+                    'label' => trim($a->getSubstance()),
+                    'criticality' => self::textOrNull($a->getCriticality()),
                 ],
                 $allergies
             )),

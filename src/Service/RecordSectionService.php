@@ -8,12 +8,12 @@ use Aura\Core\DateInput;
 use Aura\Dao\AuditEventDao;
 use Aura\Dao\PatientDao;
 use Aura\Dao\ReferenceDataDao;
-use Aura\Dao\SejourDao;
+use Aura\Dao\EpisodeOfCareDao;
 use Aura\Dao\Transaction;
 use Aura\Domain\AuditEvent;
 use Aura\Domain\Patient;
 use Aura\Domain\RecordFields;
-use Aura\Domain\Sejour;
+use Aura\Domain\EpisodeOfCare;
 use DateTimeImmutable;
 use InvalidArgumentException;
 
@@ -46,12 +46,12 @@ class RecordSectionService
 
     /** Identité et coordonnées du patient (partie « Dossier »), clé de formulaire => colonne tracée. */
     private const IDENTITY_FIELDS = [
-        'nom' => 'lastName',
-        'prenom' => 'firstName',
-        'dateNaissance' => 'birthDate',
-        'sexe' => 'sex',
+        'lastName' => 'lastName',
+        'firstName' => 'firstName',
+        'birthDate' => 'birthDate',
+        'sex' => 'sex',
         'ipp' => 'ipp',
-        'telephone' => 'phoneNumber',
+        'phone' => 'phoneNumber',
         'email' => 'email',
     ];
 
@@ -61,8 +61,8 @@ class RecordSectionService
 
     public function __construct(
         private PatientDao $patientDao,
-        private SejourDao $sejourDao,
-        private SejourService $sejourService,
+        private EpisodeOfCareDao $episodeOfCareDao,
+        private EpisodeOfCareService $episodeOfCareService,
         private RecordEditService $recordEditService,
         private AuditEventDao $auditEventDao,
         private Transaction $transaction,
@@ -81,23 +81,23 @@ class RecordSectionService
     {
         if ($part === self::PART_SUMMARY) {
             return [
-                'nom' => [
+                'lastName' => [
                     'entity' => 'identity', 'label' => 'Nom', 'type' => 'text', 'max' => 50, 'required' => true,
                     'placeholder' => 'DUPONT',
                 ],
-                'prenom' => [
+                'firstName' => [
                     'entity' => 'identity', 'label' => 'Prénom', 'type' => 'text', 'max' => 50, 'required' => true,
                     'placeholder' => 'Marie',
                 ],
-                'dateNaissance' => ['entity' => 'identity', 'label' => 'Date de naissance', 'type' => 'date'],
-                'sexe' => [
+                'birthDate' => ['entity' => 'identity', 'label' => 'Date de naissance', 'type' => 'date'],
+                'sex' => [
                     'entity' => 'identity', 'label' => 'Sexe', 'type' => 'radio', 'options' => ['M' => 'M', 'F' => 'F'],
                 ],
                 'ipp' => ['entity' => 'identity',
                 'label' => 'IPP',
                 'type' => 'text',
                 'placeholder' => '100000123'],
-                'telephone' => [
+                'phone' => [
                     'entity' => 'identity',
                     'label' => 'Téléphone',
                     'type' => 'tel',
@@ -127,7 +127,7 @@ class RecordSectionService
                 ],
                 'precautions' => [
                     'entity' => 'episode', 'label' => 'Précautions', 'type' => 'textarea',
-                    'max' => AdmissionService::PRECAUTIONS_LONGUEUR_MAX, 'placeholder' => 'Isolement, risque de chute…',
+                    'max' => AdmissionService::PRECAUTIONS_MAX_LENGTH, 'placeholder' => 'Isolement, risque de chute…',
                 ],
             ];
         }
@@ -164,7 +164,7 @@ class RecordSectionService
         if ($part === 'admin') {
             $fields['precautions'] = [
                 'entity' => 'episode', 'label' => 'Précautions', 'type' => 'textarea',
-                'max' => AdmissionService::PRECAUTIONS_LONGUEUR_MAX, 'placeholder' => 'Isolement, risque de chute…',
+                'max' => AdmissionService::PRECAUTIONS_MAX_LENGTH, 'placeholder' => 'Isolement, risque de chute…',
             ];
         }
 
@@ -176,11 +176,11 @@ class RecordSectionService
      *
      * @return array<string, string>
      */
-    public static function currentValues(string $part, Patient $patient, Sejour $sejour): array
+    public static function currentValues(string $part, Patient $patient, EpisodeOfCare $episodeOfCare): array
     {
         $values = [];
         foreach (array_keys(self::partFields($part)) as $field) {
-            $values[$field] = DateInput::fromIso(self::read($field, $patient, $sejour));
+            $values[$field] = DateInput::fromIso(self::read($field, $patient, $episodeOfCare));
         }
 
         return $values;
@@ -211,7 +211,7 @@ class RecordSectionService
      * @return array{status: string, errors: array<string, string>, message: ?string}
      */
     public function updatePart(
-        int $idSejour,
+        int $idEpisodeOfCare,
         string $part,
         array $values,
         array $oldValues,
@@ -222,9 +222,9 @@ class RecordSectionService
         if ($author === null) {
             return self::result(self::STATUS_AUTH, ['auth' => self::AUTH_ERROR]);
         }
-        $sejour = $this->sejourDao->findById($idSejour);
-        $patient = $sejour === null ? null : $this->patientDao->findById($sejour->getIdPatient());
-        if ($sejour === null || $patient === null) {
+        $episodeOfCare = $this->episodeOfCareDao->findById($idEpisodeOfCare);
+        $patient = $episodeOfCare === null ? null : $this->patientDao->findById($episodeOfCare->getIdPatient());
+        if ($episodeOfCare === null || $patient === null) {
             return self::result(self::STATUS_NOT_FOUND, [], 'Dossier introuvable.');
         }
         $fields = self::partFields($part, $this->referenceDataDao->healthcareServices());
@@ -249,11 +249,11 @@ class RecordSectionService
         }
 
         try {
-            $this->transaction->run(function () use ($changes, $patient, $sejour, $author): void {
+            $this->transaction->run(function () use ($changes, $patient, $episodeOfCare, $author): void {
                 $errors = [];
                 $conflict = false;
                 $this->applyIdentity($changes, $patient, $author, $errors, $conflict);
-                $this->applyLocation($changes, $sejour, $author, $errors, $conflict);
+                $this->applyLocation($changes, $episodeOfCare, $author, $errors, $conflict);
                 foreach ($changes as $field => $change) {
                     $entity = $change['spec']['entity'];
                     if ($entity !== 'patient' && $entity !== 'episode') {
@@ -261,12 +261,14 @@ class RecordSectionService
                     }
                     $result = $this->recordEditService->update(
                         $entity === 'patient' ? RecordEditService::ENTITY_PATIENT : RecordEditService::ENTITY_EPISODE,
-                        $entity === 'patient' ? (int) $patient->getIdPatient() : (int) $sejour->getIdSejour(),
+                        $entity === 'patient'
+                            ? (int) $patient->getIdPatient()
+                            : (int) $episodeOfCare->getIdEpisodeOfCare(),
                         $field,
                         $change['new'],
                         $change['old'],
                         $author,
-                        (int) $sejour->getIdSejour()
+                        (int) $episodeOfCare->getIdEpisodeOfCare()
                     );
                     if ($result['status'] === RecordEditService::STATUS_CONFLICT) {
                         $conflict = true;
@@ -302,13 +304,18 @@ class RecordSectionService
      *
      * @return array{status: string, errors: array<string, string>, message: ?string}
      */
-    public function endStay(int $idSejour, string $date, string $time, string $idValidator, string $password): array
-    {
+    public function endStay(
+        int $idEpisodeOfCare,
+        string $date,
+        string $time,
+        string $idValidator,
+        string $password
+    ): array {
         $author = $this->authenticate($idValidator, $password);
         if ($author === null) {
             return self::result(self::STATUS_AUTH, ['auth' => self::AUTH_ERROR]);
         }
-        if ($this->sejourDao->findById($idSejour) === null) {
+        if ($this->episodeOfCareDao->findById($idEpisodeOfCare) === null) {
             return self::result(self::STATUS_NOT_FOUND, [], 'Séjour introuvable.');
         }
 
@@ -329,15 +336,15 @@ class RecordSectionService
         }
 
         try {
-            $this->transaction->run(function () use ($idSejour, $dischargeDate, $author): void {
-                $closed = $this->sejourService->cloturerSejour($idSejour, $dischargeDate);
+            $this->transaction->run(function () use ($idEpisodeOfCare, $dischargeDate, $author): void {
+                $closed = $this->episodeOfCareService->closeEpisodeOfCare($idEpisodeOfCare, $dischargeDate);
                 $this->auditEventDao->insert(new AuditEvent(
                     null,
                     AuditEvent::ENTITY_EPISODE,
-                    $idSejour,
+                    $idEpisodeOfCare,
                     'dischargeDate',
                     null,
-                    $closed->getDateSortie()?->format('d/m/Y H:i'),
+                    $closed->getDischargeDate()?->format('d/m/Y H:i'),
                     $author,
                     detail: 'fin du séjour'
                 ));
@@ -398,19 +405,19 @@ class RecordSectionService
         foreach ($identity as $field => $change) {
             $next[$field] = $change['new'];
         }
-        $identityErrors = $this->admissionService->validerPatientIdentite([
-            'nom' => $next['nom'] ?? '',
-            'prenom' => $next['prenom'] ?? '',
+        $identityErrors = $this->admissionService->validatePatientIdentity([
+            'lastName' => $next['lastName'] ?? '',
+            'firstName' => $next['firstName'] ?? '',
             'ipp' => $next['ipp'] ?? '',
-            'dateNaissance' => $next['dateNaissance'] ?? '',
-            'sexe' => $next['sexe'] ?? '',
+            'birthDate' => $next['birthDate'] ?? '',
+            'sex' => $next['sex'] ?? '',
         ]);
         foreach ($identityErrors as $field => $message) {
             $errors[$field] = $message;
         }
-        $phone = $next['telephone'] === null ? null : str_replace(' ', '', $next['telephone']);
+        $phone = $next['phone'] === null ? null : str_replace(' ', '', $next['phone']);
         if ($phone !== null && preg_match(self::PHONE_PATTERN, $phone) !== 1) {
-            $errors['telephone'] = 'Le téléphone doit contenir 10 chiffres.';
+            $errors['phone'] = 'Le téléphone doit contenir 10 chiffres.';
         }
         $email = $next['email'];
         $emailInvalid = $email !== null
@@ -431,19 +438,19 @@ class RecordSectionService
         $this->patientDao->update(new Patient(
             idPatient: $patient->getIdPatient(),
             ipp: $next['ipp'],
-            nom: (string) $next['nom'],
-            prenom: (string) $next['prenom'],
-            dateNaissance: $next['dateNaissance'] === null
+            lastName: (string) $next['lastName'],
+            firstName: (string) $next['firstName'],
+            birthDate: $next['birthDate'] === null
                 ? null
-                : (DateTimeImmutable::createFromFormat('!Y-m-d', $next['dateNaissance']) ?: null),
-            sexe: $next['sexe'],
-            telephone: $phone,
+                : (DateTimeImmutable::createFromFormat('!Y-m-d', $next['birthDate']) ?: null),
+            sex: $next['sex'],
+            phone: $phone,
             email: $email,
             details: $patient->getDetails()
         ));
         // La trace enregistre la valeur réellement écrite (téléphone sans espaces).
-        if (isset($identity['telephone'])) {
-            $identity['telephone']['new'] = $phone;
+        if (isset($identity['phone'])) {
+            $identity['phone']['new'] = $phone;
         }
         foreach ($identity as $field => $change) {
             $this->trace(
@@ -464,7 +471,7 @@ class RecordSectionService
      */
     private function applyLocation(
         array $changes,
-        Sejour $sejour,
+        EpisodeOfCare $episodeOfCare,
         string $author,
         array &$errors,
         bool &$conflict
@@ -473,7 +480,7 @@ class RecordSectionService
         if ($location === []) {
             return;
         }
-        $current = ['bedNumber' => $sejour->getNumLit(), 'boxNumber' => $sejour->getNumBox()];
+        $current = ['bedNumber' => $episodeOfCare->getBedNumber(), 'boxNumber' => $episodeOfCare->getBoxNumber()];
         foreach ($location as $field => $change) {
             if ($change['old'] !== self::blankToNull($current[$field])) {
                 $conflict = true;
@@ -486,13 +493,19 @@ class RecordSectionService
         $bed = array_key_exists('bedNumber', $location) ? $location['bedNumber']['new'] : $current['bedNumber'];
         $box = array_key_exists('boxNumber', $location) ? $location['boxNumber']['new'] : $current['boxNumber'];
         try {
-            $this->sejourService->changerEmplacement((int) $sejour->getIdSejour(), $bed, $box);
+            $this->episodeOfCareService->changeLocation((int) $episodeOfCare->getIdEpisodeOfCare(), $bed, $box);
         } catch (InvalidArgumentException $e) {
             $errors[isset($location['bedNumber']) ? 'bedNumber' : 'boxNumber'] = $e->getMessage();
             return;
         }
         foreach ($location as $field => $change) {
-            $this->trace(AuditEvent::ENTITY_EPISODE, (int) $sejour->getIdSejour(), $field, $change, $author);
+            $this->trace(
+                AuditEvent::ENTITY_EPISODE,
+                (int) $episodeOfCare->getIdEpisodeOfCare(),
+                $field,
+                $change,
+                $author
+            );
         }
     }
 
@@ -515,33 +528,33 @@ class RecordSectionService
     private static function identityValues(Patient $patient): array
     {
         return [
-            'nom' => self::blankToNull($patient->getNom()),
-            'prenom' => self::blankToNull($patient->getPrenom()),
-            'dateNaissance' => $patient->getDateNaissance()?->format('Y-m-d'),
-            'sexe' => self::blankToNull($patient->getSexe()),
+            'lastName' => self::blankToNull($patient->getLastName()),
+            'firstName' => self::blankToNull($patient->getFirstName()),
+            'birthDate' => $patient->getBirthDate()?->format('Y-m-d'),
+            'sex' => self::blankToNull($patient->getSex()),
             'ipp' => self::blankToNull($patient->getIpp()),
-            'telephone' => self::blankToNull($patient->getTelephone()),
+            'phone' => self::blankToNull($patient->getPhone()),
             'email' => self::blankToNull($patient->getEmail()),
         ];
     }
 
     /** Valeur actuelle d'un champ d'une partie, au format des services (dates ISO). */
-    private static function read(string $field, Patient $patient, Sejour $sejour): ?string
+    private static function read(string $field, Patient $patient, EpisodeOfCare $episodeOfCare): ?string
     {
         if (isset(self::IDENTITY_FIELDS[$field])) {
             return self::identityValues($patient)[$field];
         }
 
         return match ($field) {
-            'bedNumber' => self::blankToNull($sejour->getNumLit()),
-            'boxNumber' => self::blankToNull($sejour->getNumBox()),
-            'idHealthcareService' => self::blankToNull($sejour->getIdService()),
-            'precautions' => self::blankToNull($sejour->getPrecautions()),
-            'weight' => $sejour->getPoids() === null ? null : self::number($sejour->getPoids()),
-            'height' => $sejour->getTaille() === null ? null : self::number($sejour->getTaille()),
+            'bedNumber' => self::blankToNull($episodeOfCare->getBedNumber()),
+            'boxNumber' => self::blankToNull($episodeOfCare->getBoxNumber()),
+            'idHealthcareService' => self::blankToNull($episodeOfCare->getIdService()),
+            'precautions' => self::blankToNull($episodeOfCare->getPrecautions()),
+            'weight' => $episodeOfCare->getWeight() === null ? null : self::number($episodeOfCare->getWeight()),
+            'height' => $episodeOfCare->getHeight() === null ? null : self::number($episodeOfCare->getHeight()),
             default => isset(RecordFields::PATIENT[$field])
                 ? self::blankToNull($patient->getDetail($field))
-                : self::blankToNull($sejour->getDetail($field)),
+                : self::blankToNull($episodeOfCare->getDetail($field)),
         };
     }
 

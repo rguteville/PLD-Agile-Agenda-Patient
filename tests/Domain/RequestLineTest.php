@@ -16,14 +16,14 @@ use PHPUnit\Framework\TestCase;
  */
 final class RequestLineTest extends TestCase
 {
-    public function testUneFoisDonneUnSeulSoinAuDebut(): void
+    public function testOnceGivesSingleCareAtStart(): void
     {
         $line = new ServiceRequest(null, 'TYP03', new DateTimeImmutable('2026-10-11 06:00'));
 
         self::assertEquals([new DateTimeImmutable('2026-10-11 06:00')], $line->plannedTimes());
     }
 
-    public function testToutesLesNHeuresJusquaLaDateDArretIncluse(): void
+    public function testEveryNHoursUntilStopDateIncluded(): void
     {
         $line = new MedicationRequest(
             null,
@@ -44,7 +44,7 @@ final class RequestLineTest extends TestCase
         );
     }
 
-    public function testDateDArretAvantLaProchaineOccurrence(): void
+    public function testStopDateBeforeNextOccurrence(): void
     {
         $line = new ServiceRequest(
             null,
@@ -57,7 +57,7 @@ final class RequestLineTest extends TestCase
         self::assertCount(1, $line->plannedTimes(), 'la 2e occurrence (13/10) dépasse la date d\'arrêt');
     }
 
-    public function testSansDateDArretJusquaLHorizon(): void
+    public function testWithoutStopDateUntilHorizon(): void
     {
         $line = new ServiceRequest(null, 'TYP02', new DateTimeImmutable('2026-10-12 08:00'), frequencyHours: 24);
 

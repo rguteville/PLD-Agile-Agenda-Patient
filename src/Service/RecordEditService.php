@@ -7,12 +7,12 @@ namespace Aura\Service;
 use Aura\Dao\AuditEventDao;
 use Aura\Dao\PatientDao;
 use Aura\Dao\ReferenceDataDao;
-use Aura\Dao\SejourDao;
+use Aura\Dao\EpisodeOfCareDao;
 use Aura\Dao\Transaction;
 use Aura\Domain\AuditEvent;
 use Aura\Domain\Patient;
 use Aura\Domain\RecordFields;
-use Aura\Domain\Sejour;
+use Aura\Domain\EpisodeOfCare;
 use DateTimeImmutable;
 
 /**
@@ -42,7 +42,7 @@ class RecordEditService
 
     public function __construct(
         private PatientDao $patientDao,
-        private SejourDao $sejourDao,
+        private EpisodeOfCareDao $episodeOfCareDao,
         private AuditEventDao $auditEventDao,
         private Transaction $transaction,
         private ?ReferenceDataDao $referenceDataDao = null,
@@ -66,15 +66,15 @@ class RecordEditService
             return RecordFields::EPISODE + [
                 'weight' => [
                     'label' => 'Poids à l\'admission (kg)', 'type' => 'number',
-                    'min' => 0.01, 'maxValue' => AdmissionService::MESURE_MAX,
+                    'min' => 0.01, 'maxValue' => AdmissionService::MEASURE_MAX,
                 ],
                 'height' => [
                     'label' => 'Taille (cm)', 'type' => 'number',
-                    'min' => 0.01, 'maxValue' => AdmissionService::MESURE_MAX,
+                    'min' => 0.01, 'maxValue' => AdmissionService::MEASURE_MAX,
                 ],
                 'precautions' => [
                     'label' => 'Précautions', 'type' => 'textarea',
-                    'max' => AdmissionService::PRECAUTIONS_LONGUEUR_MAX,
+                    'max' => AdmissionService::PRECAUTIONS_MAX_LENGTH,
                 ],
                 'idHealthcareService' => [
                     'label' => 'Service hospitalier', 'type' => 'select',
@@ -99,7 +99,7 @@ class RecordEditService
         mixed $newValue,
         mixed $oldValue,
         string $author = AuditEvent::AUTHOR_UNKNOWN,
-        ?int $idSejour = null
+        ?int $idEpisodeOfCare = null
     ): array {
         $specs = $this->editableFields($entity);
         if (!isset($specs[$field])) {
@@ -109,16 +109,16 @@ class RecordEditService
 
         // Depuis le dossier d'un séjour, un patient n'est modifiable que s'il est celui de ce séjour :
         // l'identifiant envoyé par le client ne suffit pas.
-        if ($entity === self::ENTITY_PATIENT && $idSejour !== null) {
-            $sejour = $this->sejourDao->findById($idSejour);
-            if ($sejour === null || $sejour->getIdPatient() !== $id) {
+        if ($entity === self::ENTITY_PATIENT && $idEpisodeOfCare !== null) {
+            $episodeOfCare = $this->episodeOfCareDao->findById($idEpisodeOfCare);
+            if ($episodeOfCare === null || $episodeOfCare->getIdPatient() !== $id) {
                 return self::result(self::STATUS_NOT_FOUND, 'Dossier introuvable.');
             }
         }
 
         $record = $entity === self::ENTITY_PATIENT
             ? $this->patientDao->findById($id)
-            : $this->sejourDao->findById($id);
+            : $this->episodeOfCareDao->findById($id);
         if ($record === null) {
             return self::result(self::STATUS_NOT_FOUND, 'Dossier introuvable.');
         }
@@ -157,7 +157,7 @@ class RecordEditService
             function () use ($entity, $id, $field, $new, $current, $expected, $author, $entityName): bool {
                 $ok = $entity === self::ENTITY_PATIENT
                     ? $this->patientDao->updateDetailIfUnchanged($id, $field, $new, $expected)
-                    : $this->sejourDao->updateDetailIfUnchanged($id, $field, $new, $expected);
+                    : $this->episodeOfCareDao->updateDetailIfUnchanged($id, $field, $new, $expected);
                 if ($ok) {
                     $this->auditEventDao->insert(
                         new AuditEvent(null, $entityName, $id, $field, $current, $new, $author)
@@ -170,7 +170,7 @@ class RecordEditService
         if (!$written) {
             $record = $entity === self::ENTITY_PATIENT
                 ? $this->patientDao->findById($id)
-                : $this->sejourDao->findById($id);
+                : $this->episodeOfCareDao->findById($id);
             $latest = $record === null ? null : $this->currentValue($record, $field);
 
             return self::result(
@@ -250,14 +250,14 @@ class RecordEditService
     }
 
     /** Valeur actuelle du champ dans l'entité relue, sous forme normalisée (null = non renseigné). */
-    private function currentValue(Patient|Sejour $record, string $field): ?string
+    private function currentValue(Patient|EpisodeOfCare $record, string $field): ?string
     {
-        if ($record instanceof Sejour) {
+        if ($record instanceof EpisodeOfCare) {
             switch ($field) {
                 case 'weight':
-                    return $record->getPoids() === null ? null : self::formatNumber($record->getPoids());
+                    return $record->getWeight() === null ? null : self::formatNumber($record->getWeight());
                 case 'height':
-                    return $record->getTaille() === null ? null : self::formatNumber($record->getTaille());
+                    return $record->getHeight() === null ? null : self::formatNumber($record->getHeight());
                 case 'precautions':
                     return self::blankToNull($record->getPrecautions());
                 case 'idHealthcareService':

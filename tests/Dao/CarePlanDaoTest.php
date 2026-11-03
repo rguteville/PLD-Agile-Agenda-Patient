@@ -46,7 +46,7 @@ final class CarePlanDaoTest extends TestCase
         }
     }
 
-    public function testEnregistrerUnePrescriptionCreeSesSoinsPlanifies(): void
+    public function testSavingPrescriptionCreatesItsScheduledCare(): void
     {
         $care = new ServiceRequest(null, 'TYP03', new DateTimeImmutable('2026-11-02 06:00'));
         $medication = new MedicationRequest(

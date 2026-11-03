@@ -1,7 +1,7 @@
 <?php
 
 use Aura\Core\View;
-use Aura\Domain\Allergie;
+use Aura\Domain\AllergyIntolerance;
 use Aura\Domain\RecordFields;
 use Aura\Service\AdmissionService;
 
@@ -15,48 +15,48 @@ use Aura\Service\AdmissionService;
  * @var string $erreurFormulaire message hors champ (admission refusée)
  * @var array<string, array<string, string>> $referentiels 'services' et 'substances' (vides sans base)
  */
-$valeurs = $valeurs ?? [];
-$erreurs = $erreurs ?? [];
-$erreurFormulaire = $erreurFormulaire ?? '';
-$referentiels = $referentiels ?? [];
-$services = $referentiels['services'] ?? [];
-$substances = $referentiels['substances'] ?? [];
+$values = $values ?? [];
+$errors = $errors ?? [];
+$formError = $formError ?? '';
+$referenceDataSets = $referenceDataSets ?? [];
+$services = $referenceDataSets['services'] ?? [];
+$substances = $referenceDataSets['substances'] ?? [];
 
 // Champ du catalogue → champ du composant field (même nom des deux côtés).
-$champCatalogue = static function (string $name, array $spec): array {
-    $champ = ['name' => $name, 'label' => $spec['label'], 'type' => $spec['type']];
+$catalogField = static function (string $name, array $spec): array {
+    $formField = ['name' => $name, 'label' => $spec['label'], 'type' => $spec['type']];
     if (isset($spec['help'])) {
-        $champ['help'] = $spec['help'];
+        $formField['help'] = $spec['help'];
     }
     if (isset($spec['placeholder'])) {
-        $champ['placeholder'] = $spec['placeholder'];
+        $formField['placeholder'] = $spec['placeholder'];
     }
     if ($spec['type'] === 'select') {
-        $champ['options'] = $spec['options'];
-        $champ['empty'] = 'Non renseigné';
+        $formField['options'] = $spec['options'];
+        $formField['empty'] = 'Non renseigné';
     } elseif ($spec['type'] === 'textarea') {
-        $champ['attributes'] = ['rows' => '3', 'maxlength' => (string) $spec['max']];
+        $formField['attributes'] = ['rows' => '3', 'maxlength' => (string) $spec['max']];
     } elseif (isset($spec['max'])) {
-        $champ['attributes'] = ['maxlength' => (string) $spec['max']];
+        $formField['attributes'] = ['maxlength' => (string) $spec['max']];
     }
 
-    return $champ;
+    return $formField;
 };
 // Champs du catalogue appartenant à une section, patient puis séjour.
-$champsSection = static function (string $section) use ($champCatalogue): array {
-    $champs = [];
+$sectionFields = static function (string $section) use ($catalogField): array {
+    $formFields = [];
     foreach ([RecordFields::PATIENT, RecordFields::EPISODE] as $catalogue) {
         foreach ($catalogue as $name => $spec) {
             if ($spec['section'] === $section) {
-                $champs[] = $champCatalogue($name, $spec);
+                $formFields[] = $catalogField($name, $spec);
             }
         }
     }
 
-    return $champs;
+    return $formFields;
 };
 
-$recherche = [
+$search = [
     // Recherche d'un patient déjà venu (identitovigilance) : un seul champ en tête, qui reconnaît un IPP
     // (6 à 9 chiffres) ou des mots du nom et du prénom (ordre libre). Recherche automatique à l'arrêt de
     // la frappe ; la sélection demande une confirmation, puis l'identité s'affiche en carte en lecture
@@ -78,8 +78,8 @@ $recherche = [
 ];
 
 // Colonne de gauche : identité, admission et allergies ; à droite, les sections complémentaires.
-$essentiels = [
-    ['name' => 'identite', 'label' => 'Identité', 'type' => 'heading'],
+$essentials = [
+    ['name' => 'identity', 'label' => 'Identité', 'type' => 'heading'],
     ['name' => 'lastname', 'label' => 'Nom', 'required' => true, 'placeholder' => 'DUPONT'],
     ['name' => 'firstname', 'label' => 'Prénom', 'required' => true, 'placeholder' => 'Marie'],
     ['name' => 'birthDate', 'label' => 'Date de naissance', 'type' => 'date'],
@@ -96,8 +96,8 @@ $essentiels = [
         'type' => 'radio',
         'options' => ['M' => 'M', 'F' => 'F']
     ],
-    $champCatalogue('bloodType', RecordFields::PATIENT['bloodType']),
-    $champCatalogue('admissionReason', RecordFields::EPISODE['admissionReason']),
+    $catalogField('bloodType', RecordFields::PATIENT['bloodType']),
+    $catalogField('admissionReason', RecordFields::EPISODE['admissionReason']),
     [
         'name' => 'idHealthcareService',
         'label' => 'Service hospitalier',
@@ -110,28 +110,28 @@ $essentiels = [
         'label' => 'Allergies connues (référentiel)',
         'type' => 'allergy-picker',
         'options' => $substances,
-        'criticalities' => is_array($valeurs['allergyCriticality'] ?? null) ? $valeurs['allergyCriticality'] : [],
-        'criticalityOptions' => Allergie::CRITICALITIES,
+        'criticalities' => is_array($values['allergyCriticality'] ?? null) ? $values['allergyCriticality'] : [],
+        'criticalityOptions' => AllergyIntolerance::CRITICALITIES,
         'emptyMessage' => 'Référentiel des allergènes indisponible : les allergies pourront être saisies '
             . 'depuis le dossier du séjour.',
         'help' => 'Cochez chaque allergène connu et indiquez sa criticité. Un patient déjà connu conserve '
             . 'ses allergies enregistrées.',
     ],
-    $champCatalogue('allergyNote', RecordFields::PATIENT['allergyNote']),
+    $catalogField('allergyNote', RecordFields::PATIENT['allergyNote']),
 ];
 
 // Mesures à l'admission (AURA-10.1), enregistrées sur le séjour. Bornes = colonnes DECIMAL(5,2) ;
 // le contrôle serveur (AdmissionService::valider()) reste la garantie.
-$mesures = [
+$measures = [
     [
-        'name' => 'taille',
+        'name' => 'height',
         'label' => 'Taille (cm)',
         'type' => 'number',
         'placeholder' => '172',
         'attributes' => ['min' => '0.01', 'max' => '999.99', 'step' => '0.01', 'inputmode' => 'decimal'],
     ],
     [
-        'name' => 'poids',
+        'name' => 'weight',
         'label' => 'Poids à l\'admission (kg)',
         'type' => 'number',
         'placeholder' => '68,5',
@@ -144,42 +144,42 @@ $precautions = [
     'type' => 'textarea',
     'attributes' => [
         'rows' => '3',
-        'maxlength' => (string) AdmissionService::PRECAUTIONS_LONGUEUR_MAX,
+        'maxlength' => (string) AdmissionService::PRECAUTIONS_MAX_LENGTH,
         'placeholder' => 'Isolement, risque de chute…',
     ],
 ];
 
 $sections = [
-    ['id' => 'history', 'title' => RecordFields::SECTIONS['history'], 'fields' => $champsSection('history')],
-    ['id' => 'disease', 'title' => RecordFields::SECTIONS['disease'], 'fields' => $champsSection('disease')],
-    ['id' => 'scores', 'title' => RecordFields::SECTIONS['scores'], 'fields' => $champsSection('scores')],
+    ['id' => 'history', 'title' => RecordFields::SECTIONS['history'], 'fields' => $sectionFields('history')],
+    ['id' => 'disease', 'title' => RecordFields::SECTIONS['disease'], 'fields' => $sectionFields('disease')],
+    ['id' => 'scores', 'title' => RecordFields::SECTIONS['scores'], 'fields' => $sectionFields('scores')],
     [
         'id' => 'measures',
         'title' => RecordFields::SECTIONS['measures'],
-        'fields' => [...$mesures, ...$champsSection('measures')],
+        'fields' => [...$measures, ...$sectionFields('measures')],
     ],
     [
         'id' => 'admin',
         'title' => RecordFields::SECTIONS['admin'],
-        'fields' => [...$champsSection('admin'), $precautions],
+        'fields' => [...$sectionFields('admin'), $precautions],
     ],
 ];
 
 // Valeurs ressaisies, erreurs par champ et compteur « n sur m renseignés » de chaque section.
-$remplir = static function (array $champs) use ($valeurs, $erreurs): array {
-    foreach ($champs as &$champ) {
-        $champ['value'] = $valeurs[$champ['name']]
-            ?? (in_array($champ['type'] ?? 'text', ['checkbox-group', 'allergy-picker'], true) ? [] : '');
-        $champ['error'] = $erreurs[$champ['name']] ?? '';
+$fill = static function (array $formFields) use ($values, $errors): array {
+    foreach ($formFields as &$formField) {
+        $formField['value'] = $values[$formField['name']]
+            ?? (in_array($formField['type'] ?? 'text', ['checkbox-group', 'allergy-picker'], true) ? [] : '');
+        $formField['error'] = $errors[$formField['name']] ?? '';
     }
-    unset($champ);
+    unset($formField);
 
-    return $champs;
+    return $formFields;
 };
-$recherche = $remplir($recherche);
-$essentiels = $remplir($essentiels);
+$search = $fill($search);
+$essentials = $fill($essentials);
 foreach ($sections as &$section) {
-    $section['fields'] = $remplir($section['fields']);
+    $section['fields'] = $fill($section['fields']);
     $section['total'] = count($section['fields']);
     $section['filled'] = count(array_filter(
         $section['fields'],
@@ -195,8 +195,8 @@ unset($section);
     'title' => "Formulaire d'admission",
     'action' => '/patients/create',
     'submit' => 'Admettre',
-    'lead' => $recherche,
-    'fields' => $essentiels,
+    'lead' => $search,
+    'fields' => $essentials,
     'sections' => $sections,
-    'error' => $erreurFormulaire,
+    'error' => $formError,
 ]);

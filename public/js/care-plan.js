@@ -369,7 +369,7 @@ if (carePlanForm) {
             return;
         }
         if (!body.ok) {
-            showMessage(Object.values(body.erreurs ?? {}).join(' ') || 'Ce protocole ne peut pas être appliqué.');
+            showMessage(Object.values(body.errors ?? {}).join(' ') || 'Ce protocole ne peut pas être appliqué.');
             return;
         }
 

@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Aura\Tests\Service;
 
 use Aura\Core\Database;
-use Aura\Dao\AllergieDao;
+use Aura\Dao\AllergyIntoleranceDao;
 use Aura\Dao\PatientDao;
 use Aura\Domain\Patient;
-use Aura\Service\RechercheIppService;
+use Aura\Service\IppSearchService;
 use DateTimeImmutable;
 use PDO;
 use PHPUnit\Framework\TestCase;
@@ -18,10 +18,10 @@ use PHPUnit\Framework\TestCase;
  * absent ne renvoie rien. Test d'intégration sur la base MariaDB du CI (variables DB_*),
  * ignoré hors CI. Tout est exécuté dans une transaction annulée à la fin.
  */
-final class RechercheIppIntegrationTest extends TestCase
+final class IppSearchIntegrationTest extends TestCase
 {
     private PDO $pdo;
-    private RechercheIppService $service;
+    private IppSearchService $service;
 
     protected function setUp(): void
     {
@@ -33,7 +33,7 @@ final class RechercheIppIntegrationTest extends TestCase
 
         $this->pdo = Database::get();
         $this->pdo->beginTransaction();
-        $this->service = new RechercheIppService(new PatientDao($this->pdo), new AllergieDao($this->pdo));
+        $this->service = new IppSearchService(new PatientDao($this->pdo), new AllergyIntoleranceDao($this->pdo));
     }
 
     protected function tearDown(): void
@@ -43,7 +43,7 @@ final class RechercheIppIntegrationTest extends TestCase
         }
     }
 
-    public function testIppPresentEnBaseRenvoieIdentiteEtAllergies(): void
+    public function testIppInDatabaseReturnsIdentityAndAllergies(): void
     {
         $idPatient = (new PatientDao($this->pdo))->insert(
             new Patient(null, '987654320', 'Zzrechercheipp', 'Alice', new DateTimeImmutable('1990-06-15'), 'F')
@@ -53,19 +53,19 @@ final class RechercheIppIntegrationTest extends TestCase
             'INSERT INTO AllergyIntolerance (idAllergy, idPatient, idSubstance, criticality) VALUES (?, ?, ?, ?)'
         )->execute(['9015', (string) $idPatient, 'T_IP', 'Élevée']);
 
-        $vue = $this->service->rechercher('987654320');
+        $view = $this->service->search('987654320');
 
-        self::assertNotNull($vue);
-        self::assertSame($idPatient, $vue['idPatient']);
-        self::assertSame('Zzrechercheipp', $vue['nom']);
-        self::assertSame('Alice', $vue['prenom']);
-        self::assertSame('1990-06-15', $vue['dateNaissance']);
-        self::assertSame('F', $vue['sexe']);
-        self::assertSame([['libelle' => 'Iode test', 'criticite' => 'Élevée']], $vue['allergies']);
+        self::assertNotNull($view);
+        self::assertSame($idPatient, $view['idPatient']);
+        self::assertSame('Zzrechercheipp', $view['lastName']);
+        self::assertSame('Alice', $view['firstName']);
+        self::assertSame('1990-06-15', $view['birthDate']);
+        self::assertSame('F', $view['sex']);
+        self::assertSame([['label' => 'Iode test', 'criticality' => 'Élevée']], $view['allergies']);
     }
 
-    public function testIppAbsentNeRenvoieRien(): void
+    public function testMissingIppReturnsNothing(): void
     {
-        self::assertNull($this->service->rechercher('987654329'));
+        self::assertNull($this->service->search('987654329'));
     }
 }

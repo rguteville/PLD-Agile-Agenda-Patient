@@ -1,4 +1,4 @@
-// Menu figé du dossier patient (src/View/pages/sejour/dossier.php) : un lien vers une sous-catégorie
+// Menu figé du dossier patient (src/View/pages/episode/record.php) : un lien vers une sous-catégorie
 // du dossier complet ouvre sa section repliée avant d'y défiler ; la partie visible à l'écran est
 // signalée dans le menu (aria-current="location"). Sans JavaScript, les ancres fonctionnent seules.
 

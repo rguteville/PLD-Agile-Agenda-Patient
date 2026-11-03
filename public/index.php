@@ -15,20 +15,20 @@ date_default_timezone_set('Europe/Paris');
 use Aura\Controller\CarePlanController;
 use Aura\Controller\PatientController;
 use Aura\Controller\RecordController;
-use Aura\Controller\SejourController;
+use Aura\Controller\EpisodeOfCareController;
 use Aura\Controller\ServiceController;
 use Aura\Core\ConfigurationException;
 use Aura\Core\Database;
 use Aura\Core\Router;
 use Aura\Core\View;
 
-use Aura\Dao\AllergieDao;
+use Aura\Dao\AllergyIntoleranceDao;
 use Aura\Dao\AuditEventDao;
 use Aura\Dao\CarePlanDao;
 use Aura\Dao\PatientDao;
 use Aura\Dao\PlanDefinitionDao;
 use Aura\Dao\ReferenceDataDao;
-use Aura\Dao\SejourDao;
+use Aura\Dao\EpisodeOfCareDao;
 use Aura\Dao\SubstanceDao;
 use Aura\Dao\AppointmentDao;
 use Aura\Dao\Transaction;
@@ -36,15 +36,15 @@ use Aura\Dao\Transaction;
 use Aura\Service\AdmissionService;
 use Aura\Service\AllergyIntoleranceService;
 use Aura\Service\CarePlanService;
-use Aura\Service\DossierPatientService;
-use Aura\Service\ListePatientsService;
-use Aura\Service\ModificationPatientService;
+use Aura\Service\PatientRecordService;
+use Aura\Service\PatientListService;
+use Aura\Service\PatientUpdateService;
 use Aura\Service\PatientSearchService;
 use Aura\Service\PlanDefinitionService;
-use Aura\Service\RechercheIppService;
+use Aura\Service\IppSearchService;
 use Aura\Service\RecordEditService;
 use Aura\Service\RecordSectionService;
-use Aura\Service\SejourService;
+use Aura\Service\EpisodeOfCareService;
 use Aura\Service\AgendaService;
 
 // Récupération de l'url
@@ -62,13 +62,13 @@ try {
     // Listes de l'admission lues en base (service hospitalier, allergènes du référentiel).
     // Sans config.php ni base, la page d'accueil reste affichable : listes vides, le reste du
     // formulaire fonctionne (la saisie sera refusée à l'envoi, qui a besoin de la base).
-    $referentielsAdmission = static function (): array {
+    $admissionReferenceData = static function (): array {
         try {
             $pdo = Database::get();
 
             return [
                 'services' => (new ReferenceDataDao($pdo))->healthcareServices(),
-                'substances' => DossierPatientService::availableSubstances((new SubstanceDao($pdo))->findAll(), []),
+                'substances' => PatientRecordService::availableSubstances((new SubstanceDao($pdo))->findAll(), []),
             ];
         } catch (ConfigurationException | \PDOException) {
             // Base absente, injoignable ou pas encore migrée : l'accueil reste affichable sans les listes.
@@ -78,41 +78,41 @@ try {
 
     //Page par défaut : formulaire d'admission
     if ($path === '/') {
-        (new PatientController(referentiels: $referentielsAdmission()))->showAdmissionForm();
+        (new PatientController(referenceDataSets: $admissionReferenceData()))->showAdmissionForm();
         exit;
     }
 
     // AURA-10.4 : l'admission écrit en base (patient + séjour + allergies) ; connexion ouverte pour cette route.
-    $admettrePatient = static function () use ($referentielsAdmission): void {
+    $admitPatient = static function () use ($admissionReferenceData): void {
         $pdo = Database::get();
         $controller = new PatientController(
             new AdmissionService(
                 null,
                 new PatientDao($pdo),
-                new SejourService(new SejourDao($pdo)),
+                new EpisodeOfCareService(new EpisodeOfCareDao($pdo)),
                 new Transaction($pdo),
-                new AllergieDao($pdo),
+                new AllergyIntoleranceDao($pdo),
                 new AuditEventDao($pdo),
                 // Patient existant sélectionné : ses champs modifiés sont enregistrés et tracés un par un.
                 new RecordEditService(
                     new PatientDao($pdo),
-                    new SejourDao($pdo),
+                    new EpisodeOfCareDao($pdo),
                     new AuditEventDao($pdo),
                     new Transaction($pdo),
                     new ReferenceDataDao($pdo)
                 )
             ),
-            referentiels: $referentielsAdmission()
+            referenceDataSets: $admissionReferenceData()
         );
         $controller->create();
     };
 
     // Recherche d'un patient existant à l'admission (IPP ou nom / prénom) et fiche à la sélection.
-    $recherchePatients = static function (): PatientController {
+    $patientSearchController = static function (): PatientController {
         $pdo = Database::get();
 
         return new PatientController(
-            patientSearchService: new PatientSearchService(new PatientDao($pdo), new AllergieDao($pdo))
+            patientSearchService: new PatientSearchService(new PatientDao($pdo), new AllergyIntoleranceDao($pdo))
         );
     };
 
@@ -125,34 +125,34 @@ try {
 
         return new RecordEditService(
             new PatientDao($pdo),
-            new SejourDao($pdo),
+            new EpisodeOfCareDao($pdo),
             new AuditEventDao($pdo),
             new Transaction($pdo),
             new ReferenceDataDao($pdo)
         );
     };
 
-    $controleurSejour = static function () use ($recordEditService): SejourController {
+    $episodeOfCareController = static function () use ($recordEditService): EpisodeOfCareController {
         $pdo = Database::get();
-        $dossierPatientService = new DossierPatientService(
-            new SejourDao($pdo),
+        $patientRecordService = new PatientRecordService(
+            new EpisodeOfCareDao($pdo),
             new PatientDao($pdo),
-            new AllergieDao($pdo),
+            new AllergyIntoleranceDao($pdo),
             new SubstanceDao($pdo),
             new DateTimeImmutable('today'),
             new ReferenceDataDao($pdo)
         );
 
-        return new SejourController(
-            dossierPatientService: $dossierPatientService,
+        return new EpisodeOfCareController(
+            patientRecordService: $patientRecordService,
             carePlanService: new CarePlanService(
                 new CarePlanDao($pdo),
                 new ReferenceDataDao($pdo),
-                $dossierPatientService
+                $patientRecordService
             ),
             allergyIntoleranceService: new AllergyIntoleranceService(
-                new SejourDao($pdo),
-                new AllergieDao($pdo),
+                new EpisodeOfCareDao($pdo),
+                new AllergyIntoleranceDao($pdo),
                 new SubstanceDao($pdo)
             ),
             recordEditService: $recordEditService()
@@ -160,10 +160,10 @@ try {
     };
 
     // AURA-12.1 : la liste des patients lit la base ; même principe que le dossier de séjour.
-    $listerPatients = static function (): void {
+    $listPatients = static function (): void {
         $pdo = Database::get();
         $controller = new PatientController(
-            listePatientsService: new ListePatientsService(new PatientDao($pdo), new SejourDao($pdo))
+            patientListService: new PatientListService(new PatientDao($pdo), new EpisodeOfCareDao($pdo))
         );
         $controller->list();
     };
@@ -175,10 +175,10 @@ try {
             new CarePlanService(
                 new CarePlanDao($pdo),
                 new ReferenceDataDao($pdo),
-                new DossierPatientService(
-                    new SejourDao($pdo),
+                new PatientRecordService(
+                    new EpisodeOfCareDao($pdo),
                     new PatientDao($pdo),
-                    new AllergieDao($pdo),
+                    new AllergyIntoleranceDao($pdo),
                     new SubstanceDao($pdo),
                     new DateTimeImmutable('today'),
                     new ReferenceDataDao($pdo)
@@ -189,29 +189,29 @@ try {
     };
 
     // AURA-12.2 : modification d'un patient ; le même contrôleur sert le formulaire (GET) et la soumission (POST).
-    $controleurModification = static fn (): PatientController => new PatientController(
-        modificationPatientService: new ModificationPatientService(
+    $patientUpdateController = static fn (): PatientController => new PatientController(
+        patientUpdateService: new PatientUpdateService(
             new PatientDao(Database::get()),
             new AdmissionService()
         )
     );
     // AURA-15 : recherche d'un patient déjà connu par son IPP (JSON pour le formulaire d'admission).
-    $rechercherParIpp = static function (): void {
+    $searchByIpp = static function (): void {
         $pdo = Database::get();
         $controller = new PatientController(
-            rechercheIppService: new RechercheIppService(new PatientDao($pdo), new AllergieDao($pdo))
+            ippSearchService: new IppSearchService(new PatientDao($pdo), new AllergyIntoleranceDao($pdo))
         );
-        $controller->rechercherParIpp();
+        $controller->searchByIpp();
     };
 
     // AURA-24 : agenda d'un séjour, bandeau identité + allergies en tête (RG2).
     $getAgenda = static function (): void {
         $pdo = Database::get();
-        $controller = new SejourController(
-            dossierPatientService: new DossierPatientService(
-                new SejourDao($pdo),
+        $controller = new EpisodeOfCareController(
+            patientRecordService: new PatientRecordService(
+                new EpisodeOfCareDao($pdo),
                 new PatientDao($pdo),
-                new AllergieDao($pdo),
+                new AllergyIntoleranceDao($pdo),
                 new SubstanceDao($pdo),
                 new DateTimeImmutable('today')
             ),
@@ -219,11 +219,11 @@ try {
                 new CarePlanDao($pdo),
                 new AppointmentDao($pdo),
                 new ActivityDefinitionDao($pdo),
-                new SejourDao($pdo),
+                new EpisodeOfCareDao($pdo),
                 new MedicationDao($pdo)
             ),
-            sejourService: new SejourService(
-                new SejourDao($pdo),
+            episodeOfCareService: new EpisodeOfCareService(
+                new EpisodeOfCareDao($pdo),
             ),
         );
         $controller->getAgenda();
@@ -236,7 +236,7 @@ try {
                 new CarePlanDao($pdo),
                 new AppointmentDao($pdo),
                 new ActivityDefinitionDao($pdo),
-                new SejourDao($pdo),
+                new EpisodeOfCareDao($pdo),
                 new MedicationDao($pdo)
             )
         );
@@ -245,16 +245,16 @@ try {
 
     // Le Router traite les requetes HTTP
     $router = new Router();
-    $router->get('/patients', $listerPatients);
-    $router->post('/patients/create', $admettrePatient);
-    $router->get('/patients/modifier', static fn () => $controleurModification()->edit());
-    $router->post('/patients/modifier', static fn () => $controleurModification()->update());
-    $router->get('/patients/recherche-ipp', $rechercherParIpp);
-    $router->get('/patients/recherche', static fn () => $recherchePatients()->search());
-    $router->get('/patients/fiche', static fn () => $recherchePatients()->record());
-    $router->get('/sejour', static fn () => $controleurSejour()->show());
-    $router->post('/sejour/allergies/ajouter', static fn () => $controleurSejour()->addAllergy());
-    $router->post('/sejour/allergies/retirer', static fn () => $controleurSejour()->removeAllergy());
+    $router->get('/patients', $listPatients);
+    $router->post('/patients/create', $admitPatient);
+    $router->get('/patients/modifier', static fn () => $patientUpdateController()->edit());
+    $router->post('/patients/modifier', static fn () => $patientUpdateController()->update());
+    $router->get('/patients/recherche-ipp', $searchByIpp);
+    $router->get('/patients/recherche', static fn () => $patientSearchController()->search());
+    $router->get('/patients/fiche', static fn () => $patientSearchController()->record());
+    $router->get('/sejour', static fn () => $episodeOfCareController()->show());
+    $router->post('/sejour/allergies/ajouter', static fn () => $episodeOfCareController()->addAllergy());
+    $router->post('/sejour/allergies/retirer', static fn () => $episodeOfCareController()->removeAllergy());
     $router->post('/sejour/champ/modifier', static fn () => (new RecordController($recordEditService()))->update());
     // Retours du 2026-11-02 : modification d'une partie entière du dossier et fin de séjour, validées par
     // un médecin (authentification factice en attendant AURA-18).
@@ -265,8 +265,8 @@ try {
             $recordEditService(),
             new RecordSectionService(
                 new PatientDao($pdo),
-                new SejourDao($pdo),
-                new SejourService(new SejourDao($pdo)),
+                new EpisodeOfCareDao($pdo),
+                new EpisodeOfCareService(new EpisodeOfCareDao($pdo)),
                 $recordEditService(),
                 new AuditEventDao($pdo),
                 new Transaction($pdo),
@@ -286,7 +286,7 @@ try {
     $router->get('/agenda-service', $getAgendaService);
 
 
-    $router->notFound(static fn() => View::erreur(404, 'Page introuvable.'));
+    $router->notFound(static fn() => View::error(404, 'Page introuvable.'));
 
     $router->dispatch($_SERVER['REQUEST_METHOD'], $_SERVER['REQUEST_URI']);
 } catch (ConfigurationException $e) {

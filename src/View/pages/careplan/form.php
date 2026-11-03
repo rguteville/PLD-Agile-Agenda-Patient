@@ -62,10 +62,10 @@ $medicationParams = [
     ['med-offGhsReason', 'Motif (si hors GHS)', false, 'text'],
 ];
 ?>
-<?= View::render('components/bandeau_patient', ['bandeau' => $banner]) ?>
+<?= View::render('components/patient_banner', ['banner' => $banner]) ?>
 <?= View::render('components/breadcrumb', ['items' => [
     ['label' => 'Patients', 'href' => '/patients'],
-    ['label' => 'Dossier du séjour n° ' . $banner['numeroSejour'], 'href' => '/sejour?id=' . $idEpisodeOfCare],
+    ['label' => 'Dossier du séjour n° ' . $banner['episodeNumber'], 'href' => '/sejour?id=' . $idEpisodeOfCare],
     ['label' => 'Nouvelle prescription'],
 ]]) ?>
 

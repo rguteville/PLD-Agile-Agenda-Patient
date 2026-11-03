@@ -2,9 +2,9 @@
 // renvoyées par le serveur (AURA-10.2) à côté de chaque champ.
 // Le contrôle côté serveur reste la garantie : ce script ne valide rien lui-même.
 
-const MESSAGE_ERREUR_GENERIQUE = "L'enregistrement a échoué. Veuillez réessayer.";
+const GENERIC_ERROR_MESSAGE = "L'enregistrement a échoué. Veuillez réessayer.";
 
-function effacerErreurs(form) {
+function clearFormErrors(form) {
     form.querySelectorAll('.field-error, .form-error').forEach(el => el.remove());
     form.querySelectorAll('.has-error').forEach(row => row.classList.remove('has-error'));
     form.querySelectorAll('[aria-invalid]').forEach(input => {
@@ -13,30 +13,30 @@ function effacerErreurs(form) {
     });
 }
 
-function afficherErreurChamp(form, nom, message) {
-    const input = form.querySelector(`[name="${CSS.escape(nom)}"]`);
+function showFieldError(form, lastName, message) {
+    const input = form.querySelector(`[name="${CSS.escape(lastName)}"]`);
     const row = input ? input.closest('.form-row') : null;
     if (!row) {
-        afficherErreurFormulaire(form, message);
+        showFormError(form, message);
         return;
     }
 
-    const erreurId = `${nom}-error`;
+    const errorId = `${lastName}-error`;
     const p = document.createElement('p');
     p.className = 'field-error';
-    p.id = erreurId;
+    p.id = errorId;
     p.setAttribute('role', 'alert');
     p.textContent = message;
 
     row.classList.add('has-error');
     row.appendChild(p);
-    row.querySelectorAll(`[name="${CSS.escape(nom)}"]`).forEach(champ => {
-        champ.setAttribute('aria-invalid', 'true');
-        champ.setAttribute('aria-describedby', erreurId);
+    row.querySelectorAll(`[name="${CSS.escape(lastName)}"]`).forEach(field => {
+        field.setAttribute('aria-invalid', 'true');
+        field.setAttribute('aria-describedby', errorId);
     });
 }
 
-function afficherErreurFormulaire(form, message) {
+function showFormError(form, message) {
     const p = document.createElement('p');
     p.className = 'form-error';
     p.setAttribute('role', 'alert');
@@ -47,7 +47,7 @@ function afficherErreurFormulaire(form, message) {
 document.querySelectorAll('form[data-ajax]').forEach(form => {
     form.addEventListener('submit', async event => {
         event.preventDefault();
-        effacerErreurs(form);
+        clearFormErrors(form);
 
         let data;
         try {
@@ -61,15 +61,15 @@ document.querySelectorAll('form[data-ajax]').forEach(form => {
             });
             data = await response.json();
         } catch (e) {
-            afficherErreurFormulaire(form, MESSAGE_ERREUR_GENERIQUE);
+            showFormError(form, GENERIC_ERROR_MESSAGE);
             return;
         }
 
         if (!data.ok) {
-            const erreurs = data.erreurs || {};
-            Object.keys(erreurs).forEach(nom => afficherErreurChamp(form, nom, erreurs[nom]));
-            if (Object.keys(erreurs).length === 0) {
-                afficherErreurFormulaire(form, MESSAGE_ERREUR_GENERIQUE);
+            const errors = data.errors || {};
+            Object.keys(errors).forEach(lastName => showFieldError(form, lastName, errors[lastName]));
+            if (Object.keys(errors).length === 0) {
+                showFormError(form, GENERIC_ERROR_MESSAGE);
             }
             // Les sections repliées (form-sections.js) s'ouvrent sur le champ en erreur.
             form.dispatchEvent(new CustomEvent('aura:form-errors'));

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Aura\Dao;
 
-use Aura\Domain\Allergie;
+use Aura\Domain\AllergyIntolerance;
 use DateTimeImmutable;
 use PDO;
 
@@ -12,7 +12,7 @@ use PDO;
  * Accès aux allergies : tables AllergyIntolerance / Substance (noms HL7 depuis AURA-16,
  * cf. database/schema.sql) ; entités en français (cf. README « Convention de nommage »).
  */
-class AllergieDao
+class AllergyIntoleranceDao
 {
     public function __construct(private PDO $pdo)
     {
@@ -28,7 +28,7 @@ class AllergieDao
     public function findByPatient(int $idPatient): array
     {
         $stmt = $this->pdo->prepare(
-            'SELECT a.idAllergy AS idAllergie, a.idPatient, a.idSubstance AS idAllergene,
+            'SELECT a.idAllergy AS idAllergyIntolerance, a.idPatient, a.idSubstance,
                     g.description AS substance, a.criticality, a.recordedAt
              FROM AllergyIntolerance a
              JOIN Substance g ON g.idSubstance = a.idSubstance
@@ -49,7 +49,7 @@ class AllergieDao
      * si le couple existe déjà : c'est la garantie finale contre les doublons, que le
      * service traduit en message métier.
      */
-    public function insert(Allergie $a): int
+    public function insert(AllergyIntolerance $a): int
     {
         return (new Transaction($this->pdo))->run(function () use ($a): int {
             $id = (int) $this->pdo
@@ -63,8 +63,8 @@ class AllergieDao
             $stmt->execute([
                 'idAllergy' => (string) $id,
                 'idPatient' => (string) $a->getIdPatient(),
-                'idSubstance' => $a->getIdAllergene(),
-                'criticality' => $a->getCriticite(),
+                'idSubstance' => $a->getIdSubstance(),
+                'criticality' => $a->getCriticality(),
             ]);
 
             return $id;
@@ -113,17 +113,17 @@ class AllergieDao
         return $stmt->rowCount() === 1;
     }
 
-    private function mapToEntity(array $r): Allergie
+    private function mapToEntity(array $r): AllergyIntolerance
     {
-        return new Allergie(
-            idAllergie: (int) $r['idAllergie'],
+        return new AllergyIntolerance(
+            idAllergyIntolerance: (int) $r['idAllergyIntolerance'],
             idPatient: (int) $r['idPatient'],
-            idAllergene: (string) $r['idAllergene'],
+            idSubstance: (string) $r['idSubstance'],
             substance: (string) $r['substance'],
-            criticite: $r['criticality'] !== null && trim((string) $r['criticality']) !== ''
+            criticality: $r['criticality'] !== null && trim((string) $r['criticality']) !== ''
                 ? trim((string) $r['criticality'])
                 : null,
-            dateSaisie: new DateTimeImmutable($r['recordedAt'])
+            recordedAt: new DateTimeImmutable($r['recordedAt'])
         );
     }
 }

@@ -5,15 +5,15 @@ declare(strict_types=1);
 namespace Aura\Tests\Dao;
 
 use Aura\Controller\PatientController;
-use Aura\Controller\SejourController;
+use Aura\Controller\EpisodeOfCareController;
 use Aura\Core\Database;
-use Aura\Dao\AllergieDao;
+use Aura\Dao\AllergyIntoleranceDao;
 use Aura\Dao\PatientDao;
-use Aura\Dao\SejourDao;
+use Aura\Dao\EpisodeOfCareDao;
 use Aura\Dao\SubstanceDao;
 use Aura\Domain\Patient;
-use Aura\Service\DossierPatientService;
-use Aura\Service\ListePatientsService;
+use Aura\Service\PatientRecordService;
+use Aura\Service\PatientListService;
 use DateTimeImmutable;
 use DOMDocument;
 use DOMXPath;
@@ -30,7 +30,7 @@ use PHPUnit\Framework\TestCase;
  * patient (/sejour?id=…) et la liste des patients. Ce test tourne sur la base du CI,
  * où test.sql est chargé après schema.sql ; il est ignoré hors CI ou si la base est vide.
  */
-final class DonneesDemoTest extends TestCase
+final class DemoDataTest extends TestCase
 {
     private PDO $pdo;
 
@@ -54,7 +54,7 @@ final class DonneesDemoTest extends TestCase
         $_GET = [];
     }
 
-    public function testLesPatientsDeDemoOntUnIdentifiantNumerique(): void
+    public function testDemoPatientsHaveNumericId(): void
     {
         $patients = (new PatientDao($this->pdo))->findAll();
 
@@ -65,46 +65,46 @@ final class DonneesDemoTest extends TestCase
                 $patient->getIdPatient(),
                 sprintf(
                     'idPatient de %s %s doit être numérique dans test.sql',
-                    $patient->getPrenom(),
-                    $patient->getNom()
+                    $patient->getFirstName(),
+                    $patient->getLastName()
                 )
             );
         }
     }
 
-    public function testAuMoinsUnPatientDeDemoADesAllergies(): void
+    public function testAtLeastOneDemoPatientHasAllergies(): void
     {
-        $allergieDao = new AllergieDao($this->pdo);
+        $allergyIntoleranceDao = new AllergyIntoleranceDao($this->pdo);
 
-        $avecAllergies = array_filter(
+        $withAllergies = array_filter(
             (new PatientDao($this->pdo))->findAll(),
-            fn (Patient $p) => $allergieDao->findByPatient((int) $p->getIdPatient()) !== []
+            fn (Patient $p) => $allergyIntoleranceDao->findByPatient((int) $p->getIdPatient()) !== []
         );
 
-        self::assertNotEmpty($avecAllergies, 'AURA-05 : au moins un patient de démo avec des allergies');
+        self::assertNotEmpty($withAllergies, 'AURA-05 : au moins un patient de démo avec des allergies');
     }
 
-    public function testChaqueSejourEnCoursDeDemoMeneAUnDossierLisible(): void
+    public function testEachOngoingDemoEpisodeLeadsToReadableRecord(): void
     {
-        $sejourDao = new SejourDao($this->pdo);
+        $episodeOfCareDao = new EpisodeOfCareDao($this->pdo);
         $patientDao = new PatientDao($this->pdo);
-        $allergieDao = new AllergieDao($this->pdo);
+        $allergyIntoleranceDao = new AllergyIntoleranceDao($this->pdo);
 
-        $enCours = $sejourDao->findEnCours();
-        self::assertNotEmpty($enCours, 'AURA-05 : au moins un patient encore hospitalisé');
+        $ongoing = $episodeOfCareDao->findOngoing();
+        self::assertNotEmpty($ongoing, 'AURA-05 : au moins un patient encore hospitalisé');
 
-        foreach ($enCours as $sejour) {
-            $id = $sejour->getIdSejour();
+        foreach ($ongoing as $episodeOfCare) {
+            $id = $episodeOfCare->getIdEpisodeOfCare();
             self::assertGreaterThan(0, $id, 'idSejour doit être numérique dans test.sql');
 
             // Même parcours que SejourController::show() : séjour, puis patient, puis allergies.
-            $relu = $sejourDao->findById((int) $id);
-            self::assertNotNull($relu, "le séjour $id doit être retrouvé par son identifiant");
-            self::assertSame($sejour->getNumSejour(), $relu->getNumSejour());
+            $reread = $episodeOfCareDao->findById((int) $id);
+            self::assertNotNull($reread, "le séjour $id doit être retrouvé par son identifiant");
+            self::assertSame($episodeOfCare->getEpisodeNumber(), $reread->getEpisodeNumber());
 
-            $patient = $patientDao->findById($relu->getIdPatient());
+            $patient = $patientDao->findById($reread->getIdPatient());
             self::assertNotNull($patient, "le patient du séjour $id doit exister");
-            $allergieDao->findByPatient((int) $patient->getIdPatient());
+            $allergyIntoleranceDao->findByPatient((int) $patient->getIdPatient());
         }
     }
 
@@ -112,83 +112,83 @@ final class DonneesDemoTest extends TestCase
      * AURA-05 : un patient sans IPP (ipp NULL) apparaît dans la liste et son dossier
      * s'ouvre, avec « sans IPP » à la place de l'IPP (et non une cellule vide ou « 0 »).
      */
-    public function testUnPatientDeDemoSansIppSAfficheDansLaListeEtLeDossier(): void
+    public function testDemoPatientWithoutIppShowsInListAndRecord(): void
     {
         $patientDao = new PatientDao($this->pdo);
-        $sejourDao = new SejourDao($this->pdo);
+        $episodeOfCareDao = new EpisodeOfCareDao($this->pdo);
 
-        $sansIpp = [];
+        $withoutIpp = [];
         foreach ($patientDao->findAll() as $patient) {
             if ($patient->getIpp() === null) {
-                $sansIpp[$patient->getIdPatient()] = $patient;
+                $withoutIpp[$patient->getIdPatient()] = $patient;
             }
         }
-        self::assertNotEmpty($sansIpp, 'AURA-05 : au moins un patient de démo sans IPP');
+        self::assertNotEmpty($withoutIpp, 'AURA-05 : au moins un patient de démo sans IPP');
 
-        $sejour = null;
-        foreach ($sejourDao->findEnCours() as $enCours) {
-            if (isset($sansIpp[$enCours->getIdPatient()])) {
-                $sejour = $enCours;
+        $episodeOfCare = null;
+        foreach ($episodeOfCareDao->findOngoing() as $ongoing) {
+            if (isset($withoutIpp[$ongoing->getIdPatient()])) {
+                $episodeOfCare = $ongoing;
                 break;
             }
         }
-        self::assertNotNull($sejour, 'AURA-05 : le patient sans IPP de démo doit avoir un séjour en cours');
-        $patient = $sansIpp[$sejour->getIdPatient()];
+        self::assertNotNull($episodeOfCare, 'AURA-05 : le patient sans IPP de démo doit avoir un séjour en cours');
+        $patient = $withoutIpp[$episodeOfCare->getIdPatient()];
 
         // GET /patients : même câblage que public/index.php.
-        $liste = self::xpath(self::capturer([], static function () use ($patientDao, $sejourDao): void {
+        $items = self::xpath(self::capture([], static function () use ($patientDao, $episodeOfCareDao): void {
             (new PatientController(
-                listePatientsService: new ListePatientsService($patientDao, $sejourDao)
+                patientListService: new PatientListService($patientDao, $episodeOfCareDao)
             ))->list();
         }));
-        $ligne = null;
-        foreach ($liste->query('//table[contains(@class, "liste-patients")]/tbody/tr') as $tr) {
-            $cellules = $liste->query('td', $tr);
+        $line = null;
+        foreach ($items->query('//table[contains(@class, "liste-patients")]/tbody/tr') as $tr) {
+            $cells = $items->query('td', $tr);
             if (
-                trim($cellules->item(0)->textContent) === $patient->getNom()
-                && trim($cellules->item(1)->textContent) === $patient->getPrenom()
+                trim($cells->item(0)->textContent) === $patient->getLastName()
+                && trim($cells->item(1)->textContent) === $patient->getFirstName()
             ) {
-                $ligne = $cellules;
+                $line = $cells;
                 break;
             }
         }
-        self::assertNotNull($ligne, 'le patient sans IPP doit figurer dans la liste /patients');
-        self::assertSame('sans IPP', trim($ligne->item(2)->textContent), 'colonne IPP de la liste');
+        self::assertNotNull($line, 'le patient sans IPP doit figurer dans la liste /patients');
+        self::assertSame('sans IPP', trim($line->item(2)->textContent), 'colonne IPP de la liste');
         self::assertSame(
-            '/sejour?id=' . $sejour->getIdSejour(),
-            $liste->evaluate('string(a/@href)', $ligne->item(5)),
+            '/sejour?id=' . $episodeOfCare->getIdEpisodeOfCare(),
+            $items->evaluate('string(a/@href)', $line->item(5)),
             'lien « Voir » vers le dossier du séjour en cours'
         );
 
         // GET /sejour?id=… : même câblage que public/index.php.
         $pdo = $this->pdo;
-        $dossier = self::xpath(self::capturer(
-            ['id' => (string) $sejour->getIdSejour()],
+        $record = self::xpath(self::capture(
+            ['id' => (string) $episodeOfCare->getIdEpisodeOfCare()],
             static function () use ($pdo): void {
-                (new SejourController(new DossierPatientService(
-                    new SejourDao($pdo),
+                (new EpisodeOfCareController(new PatientRecordService(
+                    new EpisodeOfCareDao($pdo),
                     new PatientDao($pdo),
-                    new AllergieDao($pdo),
+                    new AllergyIntoleranceDao($pdo),
                     new SubstanceDao($pdo),
                     new DateTimeImmutable('today')
                 )))->show();
             }
         ));
-        $bandeau = '//header[contains(@class, "bandeau-patient")]';
+        $banner = '//header[contains(@class, "bandeau-patient")]';
         self::assertSame(
-            $patient->getNom(),
-            trim($dossier->evaluate("string($bandeau//span[@class='nom'])")),
+            $patient->getLastName(),
+            trim($record->evaluate("string($banner//span[@class='nom'])")),
             'le dossier du patient sans IPP doit s\'afficher avec son bandeau'
         );
         self::assertSame(
             'sans IPP',
-            trim($dossier->evaluate("string($bandeau//dt[normalize-space()='IPP']/following-sibling::dd[1])")),
+            trim($record->evaluate("string($banner//dt[normalize-space()='IPP']/following-sibling::dd[1])")),
             'IPP du bandeau'
         );
     }
 
     /** Exécute une action de contrôleur avec ce $_GET et renvoie le HTML produit. */
-    private static function capturer(array $get, callable $action): string
+    private static function capture(array $get, callable $action): string
     {
         $_GET = $get;
         ob_start();
@@ -205,10 +205,10 @@ final class DonneesDemoTest extends TestCase
     {
         $dom = new DOMDocument();
         // libxml ne connaît pas les balises HTML5 (header, main…) : avertissements ignorés.
-        $precedent = libxml_use_internal_errors(true);
+        $previous = libxml_use_internal_errors(true);
         $dom->loadHTML('<?xml encoding="UTF-8">' . $html);
         libxml_clear_errors();
-        libxml_use_internal_errors($precedent);
+        libxml_use_internal_errors($previous);
 
         return new DOMXPath($dom);
     }

@@ -54,19 +54,19 @@ class PatientDao
      *
      * @return Patient[]
      */
-    public function search(string $terme): array
+    public function search(string $term): array
     {
-        $motif = '%' . addcslashes($terme, '\\%_') . '%';
+        $reason = '%' . addcslashes($term, '\\%_') . '%';
 
         // Sans émulation des requêtes préparées, un paramètre nommé ne peut servir qu'une fois.
         $stmt = $this->pdo->prepare(
             'SELECT ' . self::IDENTITY_COLUMNS . ' FROM Patient
-             WHERE lastName LIKE :nom ESCAPE \'\\\\\'
-                OR firstName LIKE :prenom ESCAPE \'\\\\\'
+             WHERE lastName LIKE :lastName ESCAPE \'\\\\\'
+                OR firstName LIKE :firstName ESCAPE \'\\\\\'
                 OR CAST(ipp AS CHAR) LIKE :ipp ESCAPE \'\\\\\'
              ORDER BY lastName, firstName'
         );
-        $stmt->execute(['nom' => $motif, 'prenom' => $motif, 'ipp' => $motif]);
+        $stmt->execute(['lastName' => $reason, 'firstName' => $reason, 'ipp' => $reason]);
 
         return array_map(fn(array $r) => $this->mapToEntity($r), $stmt->fetchAll(PDO::FETCH_ASSOC));
     }
@@ -212,16 +212,16 @@ class PatientDao
      *
      * @return Patient[]
      */
-    public function findByIdentite(string $nom, string $prenom, DateTimeInterface $dateNaissance): array
+    public function findByIdentity(string $lastName, string $firstName, DateTimeInterface $birthDate): array
     {
         $stmt = $this->pdo->prepare(
             'SELECT ' . self::columns() . ' FROM Patient
              WHERE lastName = :lastName AND firstName = :firstName AND birthDate = :birthDate'
         );
         $stmt->execute([
-            'lastName' => $nom,
-            'firstName' => $prenom,
-            'birthDate' => $dateNaissance->format('Y-m-d'),
+            'lastName' => $lastName,
+            'firstName' => $firstName,
+            'birthDate' => $birthDate->format('Y-m-d'),
         ]);
 
         return array_map(fn(array $r) => $this->mapToEntity($r), $stmt->fetchAll(PDO::FETCH_ASSOC));
@@ -251,11 +251,11 @@ class PatientDao
             $stmt->execute([
                 'idPatient' => (string) $id,
                 'ipp' => $p->getIpp(),
-                'lastName' => $p->getNom(),
-                'firstName' => $p->getPrenom(),
-                'birthDate' => $p->getDateNaissance()?->format('Y-m-d'),
-                'sex' => $p->getSexe(),
-                'phoneNumber' => $p->getTelephone(),
+                'lastName' => $p->getLastName(),
+                'firstName' => $p->getFirstName(),
+                'birthDate' => $p->getBirthDate()?->format('Y-m-d'),
+                'sex' => $p->getSex(),
+                'phoneNumber' => $p->getPhone(),
                 'email' => $p->getEmail(),
             ] + $details);
 
@@ -286,11 +286,11 @@ class PatientDao
         $stmt->execute([
             'idPatient' => (string) $id,
             'ipp' => $p->getIpp(),
-            'lastName' => $p->getNom(),
-            'firstName' => $p->getPrenom(),
-            'birthDate' => $p->getDateNaissance()?->format('Y-m-d'),
-            'sex' => $p->getSexe(),
-            'phoneNumber' => $p->getTelephone(),
+            'lastName' => $p->getLastName(),
+            'firstName' => $p->getFirstName(),
+            'birthDate' => $p->getBirthDate()?->format('Y-m-d'),
+            'sex' => $p->getSex(),
+            'phoneNumber' => $p->getPhone(),
             'email' => $p->getEmail(),
         ] + $details);
     }
@@ -360,11 +360,11 @@ class PatientDao
         return new Patient(
             idPatient: (int) $r['idPatient'],
             ipp: $r['ipp'] !== null ? (string) $r['ipp'] : null,
-            nom: $r['lastName'],
-            prenom: $r['firstName'],
-            dateNaissance: $r['birthDate'] !== null ? new DateTimeImmutable($r['birthDate']) : null,
-            sexe: $r['sex'],
-            telephone: $r['phoneNumber'],
+            lastName: $r['lastName'],
+            firstName: $r['firstName'],
+            birthDate: $r['birthDate'] !== null ? new DateTimeImmutable($r['birthDate']) : null,
+            sex: $r['sex'],
+            phone: $r['phoneNumber'],
             email: $r['email'],
             details: array_map(
                 static fn ($v): ?string => $v === null ? null : (string) $v,

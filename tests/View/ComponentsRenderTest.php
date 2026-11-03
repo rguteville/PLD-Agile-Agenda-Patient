@@ -13,7 +13,7 @@ use PHPUnit\Framework\TestCase;
  */
 final class ComponentsRenderTest extends TestCase
 {
-    public function testIconeDecorativeEstCacheeAuxLecteursDEcran(): void
+    public function testDecorativeIconIsHiddenFromScreenReaders(): void
     {
         $html = View::render('components/icon', ['name' => 'clock']);
 
@@ -22,7 +22,7 @@ final class ComponentsRenderTest extends TestCase
         self::assertStringContainsString('<circle cx="12" cy="12" r="10"/>', $html);
     }
 
-    public function testIconePorteuseDeSensALabelEchappe(): void
+    public function testMeaningfulIconHasEscapedLabel(): void
     {
         $html = View::render('components/icon', ['name' => 'triangle-alert', 'label' => 'Allergie <sévère>']);
 
@@ -30,15 +30,15 @@ final class ComponentsRenderTest extends TestCase
         self::assertStringContainsString('aria-label="Allergie &lt;sévère&gt;"', $html);
     }
 
-    public function testIconeInconnueRetombeSurInfo(): void
+    public function testUnknownIconFallsBackToInfo(): void
     {
-        $html = View::render('components/icon', ['name' => 'inexistante']);
+        $html = View::render('components/icon', ['name' => 'nonexistent']);
 
         self::assertStringContainsString('icon-info', $html);
-        self::assertStringNotContainsString('inexistante', $html);
+        self::assertStringNotContainsString('nonexistent', $html);
     }
 
-    public function testBadgeConnuAIconeTexteEtClasse(): void
+    public function testKnownBadgeHasIconTextAndClass(): void
     {
         $html = View::render('components/status_badge', ['status' => 'late']);
 
@@ -47,7 +47,7 @@ final class ComponentsRenderTest extends TestCase
         self::assertStringContainsString('<span>En retard</span>', $html);
     }
 
-    public function testBadgeLibelleRemplaceEtEchappe(): void
+    public function testBadgeLabelOverriddenAndEscaped(): void
     {
         $html = View::render('components/status_badge', ['status' => 'validated', 'label' => 'Validée par <X>']);
 
@@ -55,7 +55,7 @@ final class ComponentsRenderTest extends TestCase
         self::assertStringContainsString('Validée par &lt;X&gt;', $html);
     }
 
-    public function testBadgeStatutInconnuAfficheLaValeurEnNeutre(): void
+    public function testUnknownStatusBadgeShowsValueAsNeutral(): void
     {
         $html = View::render('components/status_badge', ['status' => 'NOUVEAU']);
 
@@ -64,7 +64,7 @@ final class ComponentsRenderTest extends TestCase
         self::assertStringContainsString('icon-circle-alert', $html);
     }
 
-    public function testEtatVideAvecTitreEtTexte(): void
+    public function testEmptyStateWithTitleAndText(): void
     {
         $html = View::render('components/empty_state', ['title' => 'Rien <ici>', 'text' => 'Explication']);
 
@@ -74,9 +74,9 @@ final class ComponentsRenderTest extends TestCase
         self::assertStringContainsString('icon-inbox', $html);
     }
 
-    public function testBandeauSansAllergieAffichelEtatExplicite(): void
+    public function testBannerWithoutAllergyShowsExplicitState(): void
     {
-        $html = View::render('components/bandeau_patient', ['bandeau' => self::bandeau()]);
+        $html = View::render('components/patient_banner', ['banner' => self::banner()]);
 
         self::assertStringContainsString('role="region"', $html);
         self::assertStringContainsString('Aucune allergie connue', $html);
@@ -86,11 +86,11 @@ final class ComponentsRenderTest extends TestCase
         self::assertStringContainsString('non renseignée', $html, 'taille absente');
     }
 
-    public function testBandeauAvecAllergiesLesListeAvecAlerte(): void
+    public function testBannerWithAllergiesListsThemWithAlert(): void
     {
-        $html = View::render('components/bandeau_patient', ['bandeau' => self::bandeau([
-            ['libelle' => 'Substance <A>', 'criticite' => 'sévère'],
-            ['libelle' => 'Substance B', 'criticite' => null],
+        $html = View::render('components/patient_banner', ['banner' => self::banner([
+            ['label' => 'Substance <A>', 'criticality' => 'sévère'],
+            ['label' => 'Substance B', 'criticality' => null],
         ])]);
 
         self::assertStringContainsString('Allergies :', $html);
@@ -101,7 +101,7 @@ final class ComponentsRenderTest extends TestCase
     }
 
     /** @return array<string, mixed> */
-    public function testChampAvecAideEstDecritPourLesLecteursDEcran(): void
+    public function testFieldWithHelpIsDescribedForScreenReaders(): void
     {
         $html = View::render('components/field', ['field' => [
             'name' => 'insNumber', 'label' => 'Matricule INS', 'help' => 'Aide <courte>', 'value' => '', 'error' => '',
@@ -112,7 +112,7 @@ final class ComponentsRenderTest extends TestCase
         self::assertStringContainsString('<label for="insNumber">', $html);
     }
 
-    public function testChampEnErreurAvecAideCumuleLesDeuxDescriptions(): void
+    public function testFailingFieldWithHelpCombinesBothDescriptions(): void
     {
         $html = View::render('components/field', ['field' => [
             'name' => 'x', 'label' => 'X', 'help' => 'Aide', 'value' => '', 'error' => 'Trop long',
@@ -123,7 +123,7 @@ final class ComponentsRenderTest extends TestCase
         self::assertStringContainsString('role="alert"', $html);
     }
 
-    public function testListeACasesCocheLesValeursEtPorteUnGroupeNomme(): void
+    public function testCheckboxListChecksValuesAndHasNamedGroup(): void
     {
         $html = View::render('components/field', ['field' => [
             'name' => 'allergies', 'label' => 'Allergies', 'type' => 'checkbox-group',
@@ -136,7 +136,7 @@ final class ComponentsRenderTest extends TestCase
         self::assertStringContainsString('Latex &lt;x&gt;', $html);
     }
 
-    public function testListeACasesVideAfficheLeMessageDeRepli(): void
+    public function testEmptyCheckboxListShowsFallbackMessage(): void
     {
         $html = View::render('components/field', ['field' => [
             'name' => 'allergies', 'label' => 'Allergies', 'type' => 'checkbox-group', 'options' => [],
@@ -147,7 +147,7 @@ final class ComponentsRenderTest extends TestCase
         self::assertStringNotContainsString('type="checkbox"', $html);
     }
 
-    public function testListeDeroulanteFacultativeProposeUnChoixVide(): void
+    public function testOptionalSelectOffersEmptyChoice(): void
     {
         $html = View::render('components/field', ['field' => [
             'name' => 'asaScore', 'label' => 'ASA', 'type' => 'select', 'empty' => 'Non renseigné',
@@ -158,38 +158,38 @@ final class ComponentsRenderTest extends TestCase
         self::assertMatchesRegularExpression('/value="II"\s+selected/', $html);
     }
 
-    public function testChampCacheEtTitreDeGroupe(): void
+    public function testHiddenFieldAndGroupHeading(): void
     {
         $cache = View::render('components/field', ['field' => [
             'name' => 'idPatient', 'type' => 'hidden', 'value' => '9',
         ]]);
         self::assertSame('<input type="hidden" id="idPatient" name="idPatient" value="9">', trim($cache));
 
-        $titre = View::render('components/field', ['field' => [
-            'name' => 'identite', 'type' => 'heading', 'label' => 'Identité <x>', 'help' => 'Aide',
+        $title = View::render('components/field', ['field' => [
+            'name' => 'identity', 'type' => 'heading', 'label' => 'Identité <x>', 'help' => 'Aide',
         ]]);
-        self::assertStringContainsString('<h2 class="form-subtitle" id="identite">Identité &lt;x&gt;</h2>', $titre);
-        self::assertStringNotContainsString('<input', $titre);
+        self::assertStringContainsString('<h2 class="form-subtitle" id="identity">Identité &lt;x&gt;</h2>', $title);
+        self::assertStringNotContainsString('<input', $title);
     }
 
-    public function testBandeauAllergiesNonRenseigneesEstUnEtatDistinct(): void
+    public function testBannerAllergiesNotRecordedIsADistinctState(): void
     {
-        $html = View::render('components/bandeau_patient', [
-            'bandeau' => self::bandeau() + ['allergiesStatus' => 'unknown'],
+        $html = View::render('components/patient_banner', [
+            'banner' => self::banner() + ['allergiesStatus' => 'unknown'],
         ]);
 
         self::assertStringContainsString('allergies--unknown', $html);
         self::assertStringContainsString('Allergies non renseignées', $html);
         self::assertStringNotContainsString('Aucune allergie connue', $html);
 
-        $none = View::render('components/bandeau_patient', [
-            'bandeau' => self::bandeau() + ['allergiesStatus' => 'none'],
+        $none = View::render('components/patient_banner', [
+            'banner' => self::banner() + ['allergiesStatus' => 'none'],
         ]);
         self::assertStringContainsString('allergies--none', $none);
         self::assertStringContainsString('Aucune allergie connue', $none);
     }
 
-    public function testFilDArianeMarqueLaPageCourante(): void
+    public function testBreadcrumbMarksCurrentPage(): void
     {
         $html = View::render('components/breadcrumb', ['items' => [
             ['label' => 'Patients', 'href' => '/patients'],
@@ -205,7 +205,7 @@ final class ComponentsRenderTest extends TestCase
         self::assertSame(2, substr_count($html, '<a '), 'la page courante n\'est pas un lien');
     }
 
-    public function testListeDesAllergiesAvecCriticiteParAllergene(): void
+    public function testAllergyListWithCriticalityPerAllergen(): void
     {
         $html = View::render('components/field', ['field' => [
             'name' => 'allergies', 'label' => 'Allergies', 'type' => 'allergy-picker',
@@ -222,11 +222,11 @@ final class ComponentsRenderTest extends TestCase
         self::assertStringContainsString('1 allergène coché', $html);
     }
 
-    public function testBandeauColoreChaqueAllergieSelonSaCriticite(): void
+    public function testBannerColorsEachAllergyByCriticality(): void
     {
-        $html = View::render('components/bandeau_patient', ['bandeau' => self::bandeau([
-            ['libelle' => 'Pénicilline', 'criticite' => 'Élevée', 'niveau' => 'high'],
-            ['libelle' => 'Latex', 'criticite' => null, 'niveau' => 'unknown'],
+        $html = View::render('components/patient_banner', ['banner' => self::banner([
+            ['label' => 'Pénicilline', 'criticality' => 'Élevée', 'level' => 'high'],
+            ['label' => 'Latex', 'criticality' => null, 'level' => 'unknown'],
         ])]);
 
         self::assertStringContainsString('allergie--high', $html);
@@ -234,7 +234,7 @@ final class ComponentsRenderTest extends TestCase
         self::assertStringContainsString('(criticité non évaluée)', $html, 'jamais la couleur seule');
     }
 
-    public function testChampDateEnJjMmAaaaAvecExempleGrise(): void
+    public function testDateFieldInDdMmYyyyWithGreyedExample(): void
     {
         $html = View::render('components/field', ['field' => [
             'name' => 'birthDate', 'label' => 'Date de naissance', 'type' => 'date', 'value' => '1958-03-14',
@@ -247,7 +247,7 @@ final class ComponentsRenderTest extends TestCase
         self::assertStringContainsString('data-date-input', $html);
     }
 
-    public function testExempleGriseDuChamp(): void
+    public function testFieldGreyedExample(): void
     {
         $html = View::render('components/field', ['field' => [
             'name' => 'lastname', 'label' => 'Nom', 'placeholder' => 'Ex. : <DUPONT>', 'value' => '', 'error' => '',
@@ -256,19 +256,19 @@ final class ComponentsRenderTest extends TestCase
         self::assertStringContainsString('placeholder="Ex. : &lt;DUPONT&gt;"', $html);
     }
 
-    public static function bandeau(array $allergies = []): array
+    public static function banner(array $allergies = []): array
     {
         return [
-            'nom' => 'DUPONT',
-            'prenom' => 'Test',
-            'sexe' => 'F',
-            'dateNaissance' => '01/01/1980',
+            'lastName' => 'DUPONT',
+            'firstName' => 'Test',
+            'sex' => 'F',
+            'birthDate' => '01/01/1980',
             'age' => 46,
             'ipp' => '123456',
-            'numeroSejour' => '2026-000001',
-            'dateAdmission' => '14/10/2026 08:00',
-            'poids' => '62,5 kg',
-            'taille' => null,
+            'episodeNumber' => '2026-000001',
+            'admissionDate' => '14/10/2026 08:00',
+            'weight' => '62,5 kg',
+            'height' => null,
             'allergies' => $allergies,
         ];
     }

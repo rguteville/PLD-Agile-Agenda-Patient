@@ -11,7 +11,7 @@ use DateTimeImmutable;
  * Liée au patient et non au séjour. L'id est null tant que l'allergie n'est pas enregistrée
  * (AllergieDao::insert() le calcule).
  */
-class Allergie
+class AllergyIntolerance
 {
     /**
      * Criticités acceptées (AURA-13.2) : liste fermée côté PHP, valeurs stockées telles
@@ -34,18 +34,18 @@ class Allergie
     }
 
     public function __construct(
-        private ?int $idAllergie,
+        private ?int $idAllergyIntolerance,
         private int $idPatient,
-        private string $idAllergene,
+        private string $idSubstance,
         private string $substance,
-        private ?string $criticite = null,
-        private ?DateTimeImmutable $dateSaisie = null
+        private ?string $criticality = null,
+        private ?DateTimeImmutable $recordedAt = null
     ) {
     }
 
-    public function getIdAllergie(): ?int
+    public function getIdAllergyIntolerance(): ?int
     {
-        return $this->idAllergie;
+        return $this->idAllergyIntolerance;
     }
 
     public function getIdPatient(): int
@@ -53,9 +53,9 @@ class Allergie
         return $this->idPatient;
     }
 
-    public function getIdAllergene(): string
+    public function getIdSubstance(): string
     {
-        return $this->idAllergene;
+        return $this->idSubstance;
     }
 
     /** Libellé de l'allergène (Substance::getDescription()). */
@@ -64,17 +64,17 @@ class Allergie
         return $this->substance;
     }
 
-    public function getCriticite(): ?string
+    public function getCriticality(): ?string
     {
-        return $this->criticite;
+        return $this->criticality;
     }
 
     /**
      * Date d'enregistrement dans AURA, fixée par la base à l'insertion (null tant que l'allergie
      * n'est pas enregistrée). Pas la date d'apparition de l'allergie.
      */
-    public function getDateSaisie(): ?DateTimeImmutable
+    public function getRecordedAt(): ?DateTimeImmutable
     {
-        return $this->dateSaisie;
+        return $this->recordedAt;
     }
 }

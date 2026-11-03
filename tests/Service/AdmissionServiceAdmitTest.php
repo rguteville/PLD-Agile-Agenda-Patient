@@ -7,9 +7,9 @@ namespace Aura\Tests\Service;
 use Aura\Dao\PatientDao;
 use Aura\Dao\Transaction;
 use Aura\Domain\Patient;
-use Aura\Domain\Sejour;
+use Aura\Domain\EpisodeOfCare;
 use Aura\Service\AdmissionService;
-use Aura\Service\SejourService;
+use Aura\Service\EpisodeOfCareService;
 use DateTimeImmutable;
 use InvalidArgumentException;
 use LogicException;
@@ -17,102 +17,105 @@ use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
 /** AURA-10.4 : admettre() enregistre le patient et ouvre son séjour, sans base (DAO simulés). */
-final class AdmissionServiceAdmettreTest extends TestCase
+final class AdmissionServiceAdmitTest extends TestCase
 {
-    private const DONNEES = [
-        'nom' => ' Durand ',
-        'prenom' => 'Alice',
+    private const DATA = [
+        'lastName' => ' Durand ',
+        'firstName' => 'Alice',
         'ipp' => '123456',
-        'dateNaissance' => '1990-06-15',
-        'sexe' => 'F',
+        'birthDate' => '1990-06-15',
+        'sex' => 'F',
     ];
 
     private PatientDao&MockObject $patients;
-    private SejourService&MockObject $sejours;
+    private EpisodeOfCareService&MockObject $episodesOfCare;
     private AdmissionService $service;
 
     protected function setUp(): void
     {
         $this->patients = $this->createMock(PatientDao::class);
-        $this->sejours = $this->createMock(SejourService::class);
+        $this->episodesOfCare = $this->createMock(EpisodeOfCareService::class);
 
         // La transaction exécute simplement le traitement : pas de base ici.
         $transaction = $this->createMock(Transaction::class);
-        $transaction->method('run')->willReturnCallback(fn(callable $traitement) => $traitement());
+        $transaction->method('run')->willReturnCallback(fn(callable $treatment) => $treatment());
 
         $this->service = new AdmissionService(
             new DateTimeImmutable('2026-10-14'),
             $this->patients,
-            $this->sejours,
+            $this->episodesOfCare,
             $transaction
         );
     }
 
-    public function testNouveauPatientInsereEtSejourOuvert(): void
+    public function testNewPatientInsertedAndEpisodeOpened(): void
     {
         $this->patients->method('findByIpp')->with('123456')->willReturn(null);
         $this->patients->expects($this->once())
             ->method('insert')
             ->with($this->callback(function (Patient $p): bool {
                 $this->assertNull($p->getIdPatient());
-                $this->assertSame('Durand', $p->getNom(), 'le nom est nettoyé (trim)');
-                $this->assertSame('Alice', $p->getPrenom());
+                $this->assertSame('Durand', $p->getLastName(), 'le nom est nettoyé (trim)');
+                $this->assertSame('Alice', $p->getFirstName());
                 $this->assertSame('123456', $p->getIpp());
-                $this->assertSame('1990-06-15', $p->getDateNaissance()?->format('Y-m-d'));
-                $this->assertSame('F', $p->getSexe());
+                $this->assertSame('1990-06-15', $p->getBirthDate()?->format('Y-m-d'));
+                $this->assertSame('F', $p->getSex());
 
                 return true;
             }))
             ->willReturn(42);
-        $sejour = $this->sejour(idPatient: 42);
-        $this->sejours->expects($this->once())->method('ouvrirSejour')->with(42)->willReturn($sejour);
+        $episodeOfCare = $this->episodeOfCare(idPatient: 42);
+        $this->episodesOfCare->expects($this->once())
+            ->method('openEpisodeOfCare')
+            ->with(42)
+            ->willReturn($episodeOfCare);
 
-        $this->assertSame($sejour, $this->service->admettre(self::DONNEES));
+        $this->assertSame($episodeOfCare, $this->service->admit(self::DATA));
     }
 
     /** AURA-10.1 : les mesures saisies sont enregistrées sur le séjour ouvert. */
-    public function testMesuresTransmisesAuSejour(): void
+    public function testMeasuresPassedToEpisode(): void
     {
         $this->patients->method('findByIpp')->willReturn(null);
         $this->patients->method('insert')->willReturn(42);
-        $sejour = $this->sejour(idPatient: 42);
-        $this->sejours->expects($this->once())
-            ->method('ouvrirSejour')
+        $episodeOfCare = $this->episodeOfCare(idPatient: 42);
+        $this->episodesOfCare->expects($this->once())
+            ->method('openEpisodeOfCare')
             // idPatient, lit, box, poids (kg), taille (cm), précautions
             ->with(42, null, null, 68.5, 172.46, "Isolement contact\nRisque de chute")
-            ->willReturn($sejour);
+            ->willReturn($episodeOfCare);
 
-        $this->service->admettre([
-            'poids' => ' 68.5 ',
-            'taille' => '172.456',
+        $this->service->admit([
+            'weight' => ' 68.5 ',
+            'height' => '172.456',
             'precautions' => " Isolement contact\r\nRisque de chute ",
-        ] + self::DONNEES);
+        ] + self::DATA);
     }
 
-    public function testMesuresVidesDeviennentNull(): void
+    public function testEmptyMeasuresBecomeNull(): void
     {
         $this->patients->method('findByIpp')->willReturn(null);
         $this->patients->method('insert')->willReturn(42);
-        $this->sejours->expects($this->once())
-            ->method('ouvrirSejour')
+        $this->episodesOfCare->expects($this->once())
+            ->method('openEpisodeOfCare')
             ->with(42, null, null, null, null, null)
-            ->willReturn($this->sejour(idPatient: 42));
+            ->willReturn($this->episodeOfCare(idPatient: 42));
 
-        $this->service->admettre(['poids' => '', 'taille' => '  ', 'precautions' => ' '] + self::DONNEES);
+        $this->service->admit(['weight' => '', 'height' => '  ', 'precautions' => ' '] + self::DATA);
     }
 
-    public function testMesureInvalideNeTouchePasLaBase(): void
+    public function testInvalidMeasureDoesNotTouchDatabase(): void
     {
         $this->patients->expects($this->never())->method('insert');
-        $this->sejours->expects($this->never())->method('ouvrirSejour');
+        $this->episodesOfCare->expects($this->never())->method('openEpisodeOfCare');
 
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('inférieur à 1000 kg');
 
-        $this->service->admettre(['poids' => '1200'] + self::DONNEES);
+        $this->service->admit(['weight' => '1200'] + self::DATA);
     }
 
-    public function testNomEtPrenomSeulsSuffisent(): void
+    public function testLastAndFirstNameAloneSuffice(): void
     {
         $this->patients->expects($this->never())->method('findByIpp');
         $this->patients->expects($this->once())->method('nextIpp')->willReturn(100000042);
@@ -120,68 +123,68 @@ final class AdmissionServiceAdmettreTest extends TestCase
             ->method('insert')
             ->with($this->callback(function (Patient $p): bool {
                 $this->assertSame('100000042', $p->getIpp(), 'IPP attribué automatiquement');
-                $this->assertNull($p->getDateNaissance());
-                $this->assertNull($p->getSexe(), 'RG1 : le sexe n\'est pas obligatoire');
+                $this->assertNull($p->getBirthDate());
+                $this->assertNull($p->getSex(), 'RG1 : le sexe n\'est pas obligatoire');
 
                 return true;
             }))
             ->willReturn(7);
-        $this->sejours->method('ouvrirSejour')->with(7)->willReturn($this->sejour(idPatient: 7));
+        $this->episodesOfCare->method('openEpisodeOfCare')->with(7)->willReturn($this->episodeOfCare(idPatient: 7));
 
-        $sejour = $this->service->admettre(['nom' => 'Martin', 'prenom' => 'Paul']);
+        $episodeOfCare = $this->service->admit(['lastName' => 'Martin', 'firstName' => 'Paul']);
 
-        $this->assertSame(7, $sejour->getIdPatient());
+        $this->assertSame(7, $episodeOfCare->getIdPatient());
     }
 
-    public function testPatientDejaConnuParSonIppEstReutilise(): void
+    public function testPatientKnownByIppIsReused(): void
     {
-        $existant = new Patient(3, '123456', 'Durand', 'Alice', new DateTimeImmutable('1990-06-15'), 'F');
-        $this->patients->method('findByIpp')->with('123456')->willReturn($existant);
+        $existing = new Patient(3, '123456', 'Durand', 'Alice', new DateTimeImmutable('1990-06-15'), 'F');
+        $this->patients->method('findByIpp')->with('123456')->willReturn($existing);
         $this->patients->expects($this->never())->method('insert');
-        $sejour = $this->sejour(idPatient: 3);
-        $this->sejours->expects($this->once())->method('ouvrirSejour')->with(3)->willReturn($sejour);
+        $episodeOfCare = $this->episodeOfCare(idPatient: 3);
+        $this->episodesOfCare->expects($this->once())->method('openEpisodeOfCare')->with(3)->willReturn($episodeOfCare);
 
-        $this->assertSame($sejour, $this->service->admettre(self::DONNEES));
+        $this->assertSame($episodeOfCare, $this->service->admit(self::DATA));
     }
 
-    public function testDonneesInvalidesNeTouchentPasLaBase(): void
+    public function testInvalidDataDoesNotTouchDatabase(): void
     {
         $this->patients->expects($this->never())->method('insert');
-        $this->sejours->expects($this->never())->method('ouvrirSejour');
+        $this->episodesOfCare->expects($this->never())->method('openEpisodeOfCare');
 
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('obligatoire');
 
-        $this->service->admettre(['nom' => '', 'prenom' => 'Paul']);
+        $this->service->admit(['lastName' => '', 'firstName' => 'Paul']);
     }
 
-    public function testSejourRefuseFaitEchouerLAdmission(): void
+    public function testRejectedEpisodeFailsAdmission(): void
     {
         $this->patients->method('findByIpp')->willReturn(null);
         $this->patients->method('insert')->willReturn(42);
-        $this->sejours->method('ouvrirSejour')
+        $this->episodesOfCare->method('openEpisodeOfCare')
             ->willThrowException(new InvalidArgumentException('Le patient a déjà un séjour en cours (n° 2026-000001)'));
 
         // L'exception traverse la transaction : c'est elle qui annule l'insertion du patient.
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('déjà un séjour en cours');
 
-        $this->service->admettre(self::DONNEES);
+        $this->service->admit(self::DATA);
     }
 
-    public function testSansAccesALaBaseAdmettreEstImpossible(): void
+    public function testWithoutDatabaseAccessAdmitIsImpossible(): void
     {
         $this->expectException(LogicException::class);
 
-        (new AdmissionService())->admettre(self::DONNEES);
+        (new AdmissionService())->admit(self::DATA);
     }
 
-    private function sejour(int $idPatient): Sejour
+    private function episodeOfCare(int $idPatient): EpisodeOfCare
     {
-        return new Sejour(11, $idPatient, '2026-000011', new DateTimeImmutable('2026-10-14 10:00:00'));
+        return new EpisodeOfCare(11, $idPatient, '2026-000011', new DateTimeImmutable('2026-10-14 10:00:00'));
     }
     /** Plage des IPP épuisée : message clair à l'utilisateur, jamais une erreur technique. */
-    public function testPlageDIppEpuiseeDonneUnMessageEtNInsereRien(): void
+    public function testExhaustedIppRangeGivesMessageAndInsertsNothing(): void
     {
         $this->patients->method('nextIpp')->willThrowException(new \LogicException('Plus aucun IPP'));
         $this->patients->expects($this->never())->method('insert');
@@ -189,6 +192,6 @@ final class AdmissionServiceAdmettreTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('saisissez l\'IPP du patient');
 
-        $this->service->admettre(['nom' => 'Martin', 'prenom' => 'Paul']);
+        $this->service->admit(['lastName' => 'Martin', 'firstName' => 'Paul']);
     }
 }

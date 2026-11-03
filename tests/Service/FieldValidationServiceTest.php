@@ -23,22 +23,22 @@ final class FieldValidationServiceTest extends TestCase
         $this->service = new FieldValidationService(new DateTimeImmutable('2026-10-14'));
     }
 
-    public function testToutVideEstValide(): void
+    public function testAllEmptyIsValid(): void
     {
-        $vides = array_fill_keys(array_keys(RecordFields::PATIENT + RecordFields::EPISODE), '');
+        $empties = array_fill_keys(array_keys(RecordFields::PATIENT + RecordFields::EPISODE), '');
 
-        self::assertSame([], $this->service->validate(RecordFields::PATIENT, $vides));
-        self::assertSame([], $this->service->validate(RecordFields::EPISODE, $vides));
+        self::assertSame([], $this->service->validate(RecordFields::PATIENT, $empties));
+        self::assertSame([], $this->service->validate(RecordFields::EPISODE, $empties));
     }
 
-    public function testUneCleInconnueEstIgnoree(): void
+    public function testUnknownKeyIsIgnored(): void
     {
         self::assertSame([], $this->service->validate(RecordFields::PATIENT, ['idPatient' => '1; DROP TABLE']));
         self::assertSame([], $this->service->normalize(RecordFields::PATIENT, ['idPatient' => '1']));
     }
 
     /** @return iterable<string, array{array<string, mixed>, string, string}> */
-    public static function valeursInvalides(): iterable
+    public static function invalidValues(): iterable
     {
         yield 'score ASA hors échelle' => [['asaScore' => 'VII'], 'asaScore', 'échelle'];
         yield 'GIR 0 non proposé' => [['girScore' => '0'], 'girScore', 'échelle'];
@@ -59,17 +59,17 @@ final class FieldValidationServiceTest extends TestCase
     }
 
     /** @param array<string, mixed> $valeurs */
-    #[DataProvider('valeursInvalides')]
-    public function testValeurInvalideDonneUneErreurSurCeChamp(array $valeurs, string $champ, string $extrait): void
+    #[DataProvider('invalidValues')]
+    public function testInvalidValueGivesErrorOnThatField(array $values, string $field, string $excerpt): void
     {
-        $erreurs = $this->service->validate(RecordFields::PATIENT + RecordFields::EPISODE, $valeurs);
+        $errors = $this->service->validate(RecordFields::PATIENT + RecordFields::EPISODE, $values);
 
-        self::assertSame([$champ], array_keys($erreurs));
-        self::assertStringContainsString($extrait, $erreurs[$champ]);
+        self::assertSame([$field], array_keys($errors));
+        self::assertStringContainsString($excerpt, $errors[$field]);
     }
 
     /** @return iterable<string, array{array<string, mixed>}> */
-    public static function valeursValides(): iterable
+    public static function validValues(): iterable
     {
         yield 'toutes les échelles à une valeur officielle' => [[
             'asaScore' => 'III', 'nyhaClass' => 'IV', 'mcCabeScore' => '2', 'knausScore' => 'D',
@@ -85,13 +85,13 @@ final class FieldValidationServiceTest extends TestCase
     }
 
     /** @param array<string, mixed> $valeurs */
-    #[DataProvider('valeursValides')]
-    public function testValeurValideNeDonneAucuneErreur(array $valeurs): void
+    #[DataProvider('validValues')]
+    public function testValidValueGivesNoError(array $values): void
     {
-        self::assertSame([], $this->service->validate(RecordFields::PATIENT + RecordFields::EPISODE, $valeurs));
+        self::assertSame([], $this->service->validate(RecordFields::PATIENT + RecordFields::EPISODE, $values));
     }
 
-    public function testNormaliseEspacesFinsDeLigneEtVides(): void
+    public function testNormalizesSpacesLineEndingsAndEmpties(): void
     {
         $clean = $this->service->normalize(RecordFields::PATIENT, [
             'medicalHistory' => "  HTA\r\nDiabète  ",
@@ -105,10 +105,10 @@ final class FieldValidationServiceTest extends TestCase
         );
     }
 
-    public function testLeMessageNeRepeteJamaisLaValeurSaisie(): void
+    public function testMessageNeverRepeatsEnteredValue(): void
     {
-        $erreurs = $this->service->validate(RecordFields::PATIENT, ['trustedPersonEmail' => 'secret@patient']);
+        $errors = $this->service->validate(RecordFields::PATIENT, ['trustedPersonEmail' => 'secret@patient']);
 
-        self::assertStringNotContainsString('secret', $erreurs['trustedPersonEmail']);
+        self::assertStringNotContainsString('secret', $errors['trustedPersonEmail']);
     }
 }

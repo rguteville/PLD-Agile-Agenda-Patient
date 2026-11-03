@@ -5,7 +5,7 @@ use Aura\Core\View;
 
 $type     = $field['type'] ?? 'text';
 $name     = $field['name'];
-// Identifiant HTML : le nom par défaut ; un préfixe (« summary-nom ») évite les doublons quand plusieurs
+// Identifiant HTML : le nom par défaut ; un préfixe (« summary-lastName ») évite les doublons quand plusieurs
 // formulaires de la même page ont un champ du même nom (parties du dossier).
 $fieldId  = $field['id'] ?? $name;
 $label    = $field['label'] ?? ucfirst($name);

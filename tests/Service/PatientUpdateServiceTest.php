@@ -7,89 +7,89 @@ namespace Aura\Tests\Service;
 use Aura\Dao\PatientDao;
 use Aura\Domain\Patient;
 use Aura\Service\AdmissionService;
-use Aura\Service\ModificationPatientService;
+use Aura\Service\PatientUpdateService;
 use DateTimeImmutable;
 use InvalidArgumentException;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
 /** AURA-12.2 : modification d'un patient, sans base (DAO simulé). */
-final class ModificationPatientServiceTest extends TestCase
+final class PatientUpdateServiceTest extends TestCase
 {
-    private const DONNEES = [
-        'nom' => 'Durand',
-        'prenom' => 'Alice',
+    private const DATA = [
+        'lastName' => 'Durand',
+        'firstName' => 'Alice',
         'ipp' => '123456',
-        'dateNaissance' => '1990-06-15',
-        'sexe' => 'F',
+        'birthDate' => '1990-06-15',
+        'sex' => 'F',
     ];
 
     private PatientDao&MockObject $patients;
-    private ModificationPatientService $service;
+    private PatientUpdateService $service;
 
     protected function setUp(): void
     {
         $this->patients = $this->createMock(PatientDao::class);
-        $this->service = new ModificationPatientService(
+        $this->service = new PatientUpdateService(
             $this->patients,
             new AdmissionService(new DateTimeImmutable('2026-10-19'))
         );
     }
 
-    public function testModificationValideMetAJourLePatientSansEffacerLeTelephone(): void
+    public function testValidUpdateUpdatesPatientWithoutErasingPhone(): void
     {
         $this->patients->method('findById')->with(7)->willReturn($this->patient(7, '100000007'));
         $this->patients->method('findByIpp')->with('123456')->willReturn(null);
         $this->patients->expects($this->once())->method('update')->with($this->callback(
             fn(Patient $p) => $p->getIdPatient() === 7
-                && $p->getNom() === 'Durand'
+                && $p->getLastName() === 'Durand'
                 && $p->getIpp() === '123456'
-                && $p->getDateNaissance()?->format('Y-m-d') === '1990-06-15'
-                && $p->getTelephone() === '0600000007'
+                && $p->getBirthDate()?->format('Y-m-d') === '1990-06-15'
+                && $p->getPhone() === '0600000007'
         ));
 
-        self::assertSame([], $this->service->modifier(7, self::DONNEES));
+        self::assertSame([], $this->service->edit(7, self::DATA));
     }
 
-    public function testErreursDeValidationSansEcriture(): void
+    public function testValidationErrorsWithoutWrite(): void
     {
         $this->patients->method('findById')->with(7)->willReturn($this->patient(7, '100000007'));
         $this->patients->expects($this->never())->method('update');
 
-        $erreurs = $this->service->modifier(7, ['nom' => ''] + self::DONNEES);
+        $errors = $this->service->edit(7, ['lastName' => ''] + self::DATA);
 
-        self::assertSame(['nom' => 'Le nom est obligatoire.'], $erreurs);
+        self::assertSame(['lastName' => 'Le nom est obligatoire.'], $errors);
     }
 
-    public function testIppPorteParUnAutrePatientEstRefuse(): void
+    public function testIppHeldByAnotherPatientIsRejected(): void
     {
         $this->patients->method('findById')->with(7)->willReturn($this->patient(7, '100000007'));
         $this->patients->method('findByIpp')->with('123456')->willReturn($this->patient(99, '123456'));
         $this->patients->expects($this->never())->method('update');
 
-        $erreurs = $this->service->modifier(7, self::DONNEES);
+        $errors = $this->service->edit(7, self::DATA);
 
-        self::assertSame(['ipp'], array_keys($erreurs));
-        self::assertStringNotContainsString('123456', $erreurs['ipp'], 'le message ne doit pas reprendre la saisie');
+        self::assertSame(['ipp'], array_keys($errors));
+        self::assertStringNotContainsString('123456', $errors['ipp'], 'le message ne doit pas reprendre la saisie');
     }
 
-    public function testIppDejaPorteParLePatientLuiMemeEstAccepte(): void
+    public function testIppAlreadyHeldByPatientItselfIsAccepted(): void
     {
         $this->patients->method('findById')->with(7)->willReturn($this->patient(7, '123456'));
         $this->patients->method('findByIpp')->with('123456')->willReturn($this->patient(7, '123456'));
         $this->patients->expects($this->once())->method('update');
 
-        self::assertSame([], $this->service->modifier(7, self::DONNEES));
+        self::assertSame([], $this->service->edit(7, self::DATA));
     }
 
-    public function testPatientIntrouvableLeveUneException(): void
+    public function testPatientNotFoundThrows(): void
     {
         $this->patients->method('findById')->with(42)->willReturn(null);
         $this->patients->expects($this->never())->method('update');
 
         $this->expectException(InvalidArgumentException::class);
 
-        $this->service->modifier(42, self::DONNEES);
+        $this->service->edit(42, self::DATA);
     }
 
 

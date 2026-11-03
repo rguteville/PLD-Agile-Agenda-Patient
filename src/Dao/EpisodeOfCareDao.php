@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Aura\Dao;
 
 use Aura\Domain\RecordFields;
-use Aura\Domain\Sejour;
+use Aura\Domain\EpisodeOfCare;
 use DateTimeImmutable;
 use DateTimeInterface;
 use LogicException;
@@ -16,11 +16,11 @@ use PDOException;
  * Accès aux séjours : table EpisodeOfCare (noms HL7 depuis AURA-16, cf. database/schema.sql) ;
  * les entités du domaine restent en français.
  */
-class SejourDao
+class EpisodeOfCareDao
 {
     /** Colonnes lues, renommées vers les clés utilisées par mapToEntity() (sans les champs complémentaires). */
     private const BASE_COLUMNS =
-        'idEpisodeOfCare AS idSejour, idPatient, episodeNumber AS sejourNumber, admissionDate, dischargeDate,
+        'idEpisodeOfCare, idPatient, episodeNumber, admissionDate, dischargeDate,
          bedNumber, boxNumber, idHealthcareService AS idService, weight, height, precautions';
 
     /** Colonnes écrites par insert(), dans l'ordre des paramètres (sans les champs complémentaires). */
@@ -29,10 +29,10 @@ class SejourDao
          idHealthcareService, weight, height, precautions';
 
     /** Nombre d'essais d'insertion si un autre séjour prend le même id ou numéro entre-temps. */
-    private const ESSAIS_INSERTION = 3;
+    private const INSERT_ATTEMPTS = 3;
 
     /** Code MariaDB d'une violation de clé unique (« Duplicate entry »). */
-    private const ERREUR_DOUBLON = 1062;
+    private const DUPLICATE_ERROR = 1062;
 
     public function __construct(private PDO $pdo)
     {
@@ -45,7 +45,7 @@ class SejourDao
     }
 
     /** Séjour par identifiant interne, champs complémentaires compris ; null s'il n'existe pas. */
-    public function findById(int $id): ?Sejour
+    public function findById(int $id): ?EpisodeOfCare
     {
         $stmt = $this->pdo->prepare('SELECT ' . self::columns() . ' FROM EpisodeOfCare WHERE idEpisodeOfCare = :id');
         $stmt->execute(['id' => $id]);
@@ -55,7 +55,7 @@ class SejourDao
     }
 
     /** Séjour par son numéro (AAAA-NNNNNN, cf. insert()) ; null s'il n'existe pas. */
-    public function findByNumber(string $number): ?Sejour
+    public function findByNumber(string $number): ?EpisodeOfCare
     {
         $stmt = $this->pdo->prepare('SELECT ' . self::columns() . ' FROM EpisodeOfCare WHERE episodeNumber = :number');
         $stmt->execute(['number' => $number]);
@@ -86,7 +86,7 @@ class SejourDao
      *
      * @return Sejour[]
      */
-    public function findEnCours(): array
+    public function findOngoing(): array
     {
         $rows = $this->pdo->query(
             'SELECT ' . self::columns() . ' FROM EpisodeOfCare
@@ -100,32 +100,32 @@ class SejourDao
     public function findByHealthcareService(string $idService): array
     {
          $stmt = $this->pdo->prepare(
-            'SELECT ' . self::columns() . ' FROM EpisodeOfCare
+             'SELECT ' . self::columns() . ' FROM EpisodeOfCare
              WHERE idHealthcareService = :idHealthcareService
              AND dischargeDate IS NULL
              ORDER BY admissionDate DESC, CAST(idEpisodeOfCare AS UNSIGNED) DESC'
-        );
+         );
         $stmt->execute(['idHealthcareService' => $idService]);
 
         return array_map(fn(array $r) => $this->mapToEntity($r), $stmt->fetchAll(PDO::FETCH_ASSOC));
     }
 
     /** Enregistre la date de sortie (clôture du séjour). */
-    public function updateSortie(int $idSejour, DateTimeInterface $dateSortie): void
+    public function updateDischarge(int $idEpisodeOfCare, DateTimeInterface $dischargeDate): void
     {
         $stmt = $this->pdo->prepare(
             'UPDATE EpisodeOfCare SET dischargeDate = :dischargeDate WHERE idEpisodeOfCare = :id'
         );
-        $stmt->execute(['dischargeDate' => $dateSortie->format('Y-m-d H:i:s'), 'id' => $idSejour]);
+        $stmt->execute(['dischargeDate' => $dischargeDate->format('Y-m-d H:i:s'), 'id' => $idEpisodeOfCare]);
     }
 
     /** Change le lit et le box d'un séjour (null = non attribué). */
-    public function updateEmplacement(int $idSejour, ?string $numLit, ?string $numBox): void
+    public function updateLocation(int $idEpisodeOfCare, ?string $bedNumber, ?string $boxNumber): void
     {
         $stmt = $this->pdo->prepare(
             'UPDATE EpisodeOfCare SET bedNumber = :bedNumber, boxNumber = :boxNumber WHERE idEpisodeOfCare = :id'
         );
-        $stmt->execute(['bedNumber' => $numLit, 'boxNumber' => $numBox, 'id' => $idSejour]);
+        $stmt->execute(['bedNumber' => $bedNumber, 'boxNumber' => $boxNumber, 'id' => $idEpisodeOfCare]);
     }
 
     /**
@@ -140,65 +140,65 @@ class SejourDao
      * des maxima est verrouillée (FOR UPDATE) ; si un doublon passe malgré tout, la contrainte
      * UNIQUE le refuse et l'insertion est retentée avec des valeurs recalculées.
      */
-    public function insert(Sejour $s): Sejour
+    public function insert(EpisodeOfCare $s): EpisodeOfCare
     {
-        return (new Transaction($this->pdo))->run(function () use ($s): Sejour {
-            $annee = $s->getDateAdmission()->format('Y');
+        return (new Transaction($this->pdo))->run(function () use ($s): EpisodeOfCare {
+            $year = $s->getAdmissionDate()->format('Y');
 
-            for ($essai = 1;; $essai++) {
+            for ($attempt = 1;; $attempt++) {
                 $stmt = $this->pdo->prepare(
                     'SELECT COALESCE(MAX(CAST(idEpisodeOfCare AS UNSIGNED)), 0) + 1 AS id,
-                            COALESCE(MAX(CASE WHEN episodeNumber LIKE :prefixe
-                                         THEN CAST(SUBSTRING(episodeNumber, 6) AS UNSIGNED) END), 0) + 1 AS compteur
+                            COALESCE(MAX(CASE WHEN episodeNumber LIKE :prefix
+                                         THEN CAST(SUBSTRING(episodeNumber, 6) AS UNSIGNED) END), 0) + 1 AS counter
                      FROM EpisodeOfCare FOR UPDATE'
                 );
-                $stmt->execute(['prefixe' => $annee . '-%']);
-                $suivant = $stmt->fetch(PDO::FETCH_ASSOC);
-                $id = (int) $suivant['id'];
-                $numSejour = sprintf('%s-%06d', $annee, (int) $suivant['compteur']);
+                $stmt->execute(['prefix' => $year . '-%']);
+                $next = $stmt->fetch(PDO::FETCH_ASSOC);
+                $id = (int) $next['id'];
+                $episodeNumber = sprintf('%s-%06d', $year, (int) $next['counter']);
 
                 $details = self::detailValues($s);
                 try {
                     $this->pdo->prepare(
                         'INSERT INTO EpisodeOfCare (' . self::BASE_INSERT_COLUMNS . ', '
                         . implode(', ', array_keys($details)) . ')
-                         VALUES (:idSejour, :idPatient, :sejourNumber, :admissionDate,
+                         VALUES (:idEpisodeOfCare, :idPatient, :episodeNumber, :admissionDate,
                                  :dischargeDate, :bedNumber, :boxNumber, :idService,
                                  :weight, :height, :precautions, '
                         . implode(', ', array_map(static fn (string $c): string => ':' . $c, array_keys($details)))
                         . ')'
                     )->execute([
-                        'idSejour' => (string) $id,
+                        'idEpisodeOfCare' => (string) $id,
                         'idPatient' => (string) $s->getIdPatient(),
-                        'sejourNumber' => $numSejour,
-                        'admissionDate' => $s->getDateAdmission()->format('Y-m-d H:i:s'),
-                        'dischargeDate' => $s->getDateSortie()?->format('Y-m-d H:i:s'),
-                        'bedNumber' => $s->getNumLit(),
-                        'boxNumber' => $s->getNumBox(),
+                        'episodeNumber' => $episodeNumber,
+                        'admissionDate' => $s->getAdmissionDate()->format('Y-m-d H:i:s'),
+                        'dischargeDate' => $s->getDischargeDate()?->format('Y-m-d H:i:s'),
+                        'bedNumber' => $s->getBedNumber(),
+                        'boxNumber' => $s->getBoxNumber(),
                         'idService' => $s->getIdService(),
-                        'weight' => $s->getPoids(),
-                        'height' => $s->getTaille(),
+                        'weight' => $s->getWeight(),
+                        'height' => $s->getHeight(),
                         'precautions' => $s->getPrecautions(),
                     ] + $details);
                     break;
                 } catch (PDOException $e) {
-                    if (($e->errorInfo[1] ?? null) !== self::ERREUR_DOUBLON || $essai >= self::ESSAIS_INSERTION) {
+                    if (($e->errorInfo[1] ?? null) !== self::DUPLICATE_ERROR || $attempt >= self::INSERT_ATTEMPTS) {
                         throw $e;
                     }
                 }
             }
 
-            return new Sejour(
-                idSejour: $id,
+            return new EpisodeOfCare(
+                idEpisodeOfCare: $id,
                 idPatient: $s->getIdPatient(),
-                numSejour: $numSejour,
-                dateAdmission: $s->getDateAdmission(),
-                dateSortie: $s->getDateSortie(),
-                numLit: $s->getNumLit(),
-                numBox: $s->getNumBox(),
+                episodeNumber: $episodeNumber,
+                admissionDate: $s->getAdmissionDate(),
+                dischargeDate: $s->getDischargeDate(),
+                bedNumber: $s->getBedNumber(),
+                boxNumber: $s->getBoxNumber(),
                 idService: $s->getIdService(),
-                poids: $s->getPoids(),
-                taille: $s->getTaille(),
+                weight: $s->getWeight(),
+                height: $s->getHeight(),
                 precautions: $s->getPrecautions(),
                 details: $s->getDetails()
             );
@@ -217,7 +217,7 @@ class SejourDao
      *
      * @param array<string, ?string> $details
      */
-    public function updateDetails(int $idSejour, array $details): void
+    public function updateDetails(int $idEpisodeOfCare, array $details): void
     {
         $details = array_intersect_key(
             $details,
@@ -232,7 +232,7 @@ class SejourDao
             . implode(', ', array_map(static fn (string $c): string => $c . ' = :' . $c, array_keys($details)))
             . ' WHERE idEpisodeOfCare = :id'
         );
-        $stmt->execute(['id' => (string) $idSejour] + $details);
+        $stmt->execute(['id' => (string) $idEpisodeOfCare] + $details);
     }
 
     /**
@@ -260,7 +260,7 @@ class SejourDao
      *
      * @return array<string, ?string>
      */
-    private static function detailValues(Sejour $s): array
+    private static function detailValues(EpisodeOfCare $s): array
     {
         $values = [];
         foreach (RecordFields::episodeColumns() as $column) {
@@ -270,20 +270,20 @@ class SejourDao
         return $values;
     }
 
-    private function mapToEntity(array $r): Sejour
+    private function mapToEntity(array $r): EpisodeOfCare
     {
-        return new Sejour(
-            idSejour: (int) $r['idSejour'],
+        return new EpisodeOfCare(
+            idEpisodeOfCare: (int) $r['idEpisodeOfCare'],
             idPatient: (int) $r['idPatient'],
-            numSejour: (string) $r['sejourNumber'],
-            dateAdmission: new DateTimeImmutable($r['admissionDate']),
-            dateSortie: $r['dischargeDate'] !== null ? new DateTimeImmutable($r['dischargeDate']) : null,
-            numLit: $r['bedNumber'],
-            numBox: $r['boxNumber'],
+            episodeNumber: (string) $r['episodeNumber'],
+            admissionDate: new DateTimeImmutable($r['admissionDate']),
+            dischargeDate: $r['dischargeDate'] !== null ? new DateTimeImmutable($r['dischargeDate']) : null,
+            bedNumber: $r['bedNumber'],
+            boxNumber: $r['boxNumber'],
             idService: $r['idService'],
             // DECIMAL arrive en chaîne ("62.50") depuis PDO MySQL.
-            poids: $r['weight'] !== null ? (float) $r['weight'] : null,
-            taille: $r['height'] !== null ? (float) $r['height'] : null,
+            weight: $r['weight'] !== null ? (float) $r['weight'] : null,
+            height: $r['height'] !== null ? (float) $r['height'] : null,
             precautions: $r['precautions'],
             details: array_map(
                 static fn ($v): ?string => $v === null ? null : (string) $v,

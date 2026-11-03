@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Aura\Service;
 
 use Aura\Dao\PatientDao;
-use Aura\Dao\SejourDao;
+use Aura\Dao\EpisodeOfCareDao;
 use Aura\Domain\Patient;
-use Aura\Domain\Sejour;
+use Aura\Domain\EpisodeOfCare;
 
 /**
  * Liste des patients du service avec leur séjour en cours (AURA-12.1).
@@ -15,14 +15,14 @@ use Aura\Domain\Sejour;
  * Tous les patients de la base apparaissent, avec ou sans séjour en cours ; la
  * recherche (nom, prénom ou IPP) est faite en base par PatientDao::search().
  */
-final class ListePatientsService
+final class PatientListService
 {
     /** Longueur maximale du terme de recherche (au-delà, la saisie est tronquée). */
-    public const LONGUEUR_MAX_RECHERCHE = 50;
+    public const SEARCH_MAX_LENGTH = 50;
 
     public function __construct(
         private PatientDao $patientDao,
-        private SejourDao $sejourDao
+        private EpisodeOfCareDao $episodeOfCareDao
     ) {
     }
 
@@ -39,32 +39,32 @@ final class ListePatientsService
      *     numeroSejour: ?string
      * }>
      */
-    public function lister(?string $recherche = null): array
+    public function listAll(?string $search = null): array
     {
-        $recherche = self::nettoyerRecherche($recherche);
-        $patients = $recherche === null ? $this->patientDao->findAll() : $this->patientDao->search($recherche);
+        $search = self::cleanSearch($search);
+        $patients = $search === null ? $this->patientDao->findAll() : $this->patientDao->search($search);
 
-        $enCours = [];
-        foreach ($this->sejourDao->findEnCours() as $sejour) {
+        $ongoing = [];
+        foreach ($this->episodeOfCareDao->findOngoing() as $episodeOfCare) {
             // Un patient ne devrait avoir qu'un séjour en cours ; on garde le premier.
-            $enCours[$sejour->getIdPatient()] ??= $sejour;
+            $ongoing[$episodeOfCare->getIdPatient()] ??= $episodeOfCare;
         }
 
         return array_map(
-            fn(Patient $p) => self::presenterLigne($p, $enCours[$p->getIdPatient()] ?? null),
+            fn(Patient $p) => self::presentLine($p, $ongoing[$p->getIdPatient()] ?? null),
             $patients
         );
     }
 
     /** Terme de recherche nettoyé : null si vide, tronqué à LONGUEUR_MAX_RECHERCHE. */
-    public static function nettoyerRecherche(?string $recherche): ?string
+    public static function cleanSearch(?string $search): ?string
     {
-        $recherche = trim((string) $recherche);
-        if ($recherche === '') {
+        $search = trim((string) $search);
+        if ($search === '') {
             return null;
         }
 
-        return mb_substr($recherche, 0, self::LONGUEUR_MAX_RECHERCHE);
+        return mb_substr($search, 0, self::SEARCH_MAX_LENGTH);
     }
 
     /**
@@ -78,16 +78,16 @@ final class ListePatientsService
      *     numeroSejour: ?string
      * }
      */
-    private static function presenterLigne(Patient $patient, ?Sejour $sejourEnCours): array
+    private static function presentLine(Patient $patient, ?EpisodeOfCare $ongoingEpisodeOfCare): array
     {
         return [
             'idPatient' => (int) $patient->getIdPatient(),
-            'nom' => $patient->getNom(),
-            'prenom' => $patient->getPrenom(),
+            'lastName' => $patient->getLastName(),
+            'firstName' => $patient->getFirstName(),
             'ipp' => $patient->getIpp(),
-            'dateNaissance' => $patient->getDateNaissance()?->format('d/m/Y'),
-            'idSejour' => $sejourEnCours?->getIdSejour(),
-            'numeroSejour' => $sejourEnCours?->getNumSejour(),
+            'birthDate' => $patient->getBirthDate()?->format('d/m/Y'),
+            'idEpisodeOfCare' => $ongoingEpisodeOfCare?->getIdEpisodeOfCare(),
+            'episodeNumber' => $ongoingEpisodeOfCare?->getEpisodeNumber(),
         ];
     }
 }

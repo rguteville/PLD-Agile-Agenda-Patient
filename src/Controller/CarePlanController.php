@@ -44,7 +44,7 @@ final class CarePlanController
 
         $page = $this->carePlanService->listing($idEpisodeOfCare);
         if ($page === null) {
-            View::erreur(404, sprintf('Aucun séjour ne porte l\'identifiant « %d ».', $idEpisodeOfCare));
+            View::error(404, sprintf('Aucun séjour ne porte l\'identifiant « %d ».', $idEpisodeOfCare));
             return;
         }
 
@@ -68,11 +68,11 @@ final class CarePlanController
             self::positiveInt($_GET['validated'] ?? null)
         );
         if ($form === null) {
-            View::erreur(404, sprintf('Aucun séjour ne porte l\'identifiant « %d ».', $idEpisodeOfCare));
+            View::error(404, sprintf('Aucun séjour ne porte l\'identifiant « %d ».', $idEpisodeOfCare));
             return;
         }
         if (!$form['isOpen']) {
-            View::erreur(400, 'Ce séjour est clos : on ne peut plus y ajouter de prescription.');
+            View::error(400, 'Ce séjour est clos : on ne peut plus y ajouter de prescription.');
             return;
         }
 
@@ -163,9 +163,9 @@ final class CarePlanController
         } catch (InvalidArgumentException $e) {
             // Erreur affichée dans le formulaire du dossier par form.js ; sans JavaScript, page d'erreur.
             if ($this->expectsJson()) {
-                $this->respondJson(422, ['ok' => false, 'erreurs' => [self::FORM_ERROR => $e->getMessage()]]);
+                $this->respondJson(422, ['ok' => false, 'errors' => [self::FORM_ERROR => $e->getMessage()]]);
             } else {
-                View::erreur(422, $e->getMessage());
+                View::error(422, $e->getMessage());
             }
             return;
         }
@@ -190,7 +190,7 @@ final class CarePlanController
             }
             $lines = $this->planDefinitionService->linesToPrefill($idPlanDefinition, $start);
         } catch (InvalidArgumentException $e) {
-            $this->respondJson(422, ['ok' => false, 'erreurs' => [self::FORM_ERROR => $e->getMessage()]]);
+            $this->respondJson(422, ['ok' => false, 'errors' => [self::FORM_ERROR => $e->getMessage()]]);
             return;
         }
 
@@ -205,7 +205,7 @@ final class CarePlanController
     {
         $id = self::positiveInt($_GET['idEpisodeOfCare'] ?? null);
         if ($id === null) {
-            View::erreur(400, 'Identifiant de séjour manquant ou invalide.');
+            View::error(400, 'Identifiant de séjour manquant ou invalide.');
         }
 
         return $id;
@@ -235,13 +235,13 @@ final class CarePlanController
     {
         if ($this->expectsJson()) {
             // Clé « erreurs » : c'est celle que lit public/js/form.js (partagé avec l'admission).
-            $this->respondJson(422, ['ok' => false, 'erreurs' => $errors]);
+            $this->respondJson(422, ['ok' => false, 'errors' => $errors]);
             return;
         }
 
         $form = $this->carePlanService->form($idEpisodeOfCare);
         if ($form === null) {
-            View::erreur(404, sprintf('Aucun séjour ne porte l\'identifiant « %d ».', $idEpisodeOfCare));
+            View::error(404, sprintf('Aucun séjour ne porte l\'identifiant « %d ».', $idEpisodeOfCare));
             return;
         }
         http_response_code(422);
@@ -264,9 +264,9 @@ final class CarePlanController
         return sprintf(
             'AURA - %s - %s %s, séjour %s',
             $subject,
-            $page['banner']['nom'],
-            $page['banner']['prenom'],
-            $page['banner']['numeroSejour']
+            $page['banner']['lastName'],
+            $page['banner']['firstName'],
+            $page['banner']['episodeNumber']
         );
     }
 

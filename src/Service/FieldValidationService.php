@@ -81,7 +81,7 @@ final class FieldValidationService
     /** Libellé utilisé dans les messages d'erreur (jamais la valeur saisie : données de santé). */
     private function validateValue(array $spec, string $value): ?string
     {
-        $label = (string) ($spec['label'] ?? 'champ');
+        $label = (string) ($spec['label'] ?? 'field');
         $max = $spec['max'] ?? null;
         if ($max !== null && mb_strlen($value) > $max) {
             return sprintf('« %s » ne doit pas dépasser %d caractères.', $label, $max);

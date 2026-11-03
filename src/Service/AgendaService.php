@@ -8,7 +8,7 @@ use Aura\Dao\ActivityDefinitionDao;
 use Aura\Dao\AppointmentDao;
 use Aura\Dao\CarePlanDao;
 use Aura\Dao\MedicationDao;
-use Aura\Dao\SejourDao;
+use Aura\Dao\EpisodeOfCareDao;
 use Aura\Domain\CarePlan;
 use Aura\Domain\MedicationRequest;
 use Aura\Domain\ServiceRequest;
@@ -24,7 +24,7 @@ final class AgendaService
      */
     public const SHIFTS = [
         ['key' => 'nuit-fin', 'label' => 'Nuit (fin)', 'hours' => '0 h – 6 h', 'from' => 0, 'to' => 6],
-        ['key' => 'matin', 'label' => 'Matin', 'hours' => '6 h – 14 h', 'from' => 6, 'to' => 14],
+        ['key' => 'morning', 'label' => 'Matin', 'hours' => '6 h – 14 h', 'from' => 6, 'to' => 14],
         ['key' => 'apres-midi', 'label' => 'Après-midi', 'hours' => '14 h – 22 h', 'from' => 14, 'to' => 22],
         ['key' => 'nuit-debut', 'label' => 'Nuit (début)', 'hours' => '22 h – 24 h', 'from' => 22, 'to' => 24],
     ];
@@ -47,18 +47,19 @@ final class AgendaService
         private CarePlanDao $carePlanDao,
         private AppointmentDao $appointmentDao,
         private ActivityDefinitionDao $activityDefinitionDao,
-        private SejourDao $sejourDao,
+        private EpisodeOfCareDao $episodeOfCareDao,
         private MedicationDao $medicationDao,
     ) {
     }
 
     public function getAgendaService(string $idHealthServiceId): array
-    { // TODO
+    {
+ // TODO
         $response = [];
 
-        $episodesOfCare = $this->sejourDao->findByHealthcareService($idHealthServiceId);
-        foreach ($episodesOfCare as $episodeOfCare) { 
-            $response[] = $this->getAgenda($episodeOfCare->getIdSejour());
+        $episodesOfCare = $this->episodeOfCareDao->findByHealthcareService($idHealthServiceId);
+        foreach ($episodesOfCare as $episodeOfCare) {
+            $response[] = $this->getAgenda($episodeOfCare->getIdEpisodeOfCare());
         }
         return $response;
     }
@@ -160,7 +161,7 @@ final class AgendaService
                 'idMedicationRequest' => $request->getIdMedicationRequest(),
                 'idCarePlan' => $request->getIdCarePlan(),
                 'idActivityDefinition' => $request->getIdActivityDefinition(),
-                'idMedication'=>$request->getIdMedication(),
+                'idMedication' => $request->getIdMedication(),
                 'dose' => $request->getDose(),
                 'route' => $request->getRoute(),
                 'startDate' => $request->getStartDate(),
@@ -172,7 +173,7 @@ final class AgendaService
                 'appointments' => $this->serializeAppointment(
                     $appointments[$request->getIdMedicationRequest()] ?? []
                 ),
-                
+
             ];
         }
         return $res;
@@ -213,7 +214,7 @@ final class AgendaService
     }
 
     /**
-     * Vue-modèle de l'agenda d'un jour (src/View/pages/sejour/agenda-patient.php) à partir du
+     * Vue-modèle de l'agenda d'un jour (src/View/pages/episode/patient-agenda.php) à partir du
      * résultat de getAgenda() : soins et médicaments du jour triés par heure, les retards épinglés
      * en tête, le reste réparti par rotation. Pure : le jour affiché et l'heure courante sont injectés.
      *

@@ -14,10 +14,10 @@ use PHPUnit\Framework\TestCase;
  */
 final class PagesRenderTest extends TestCase
 {
-    public function testLayoutCompletContientLienDEvitementThemeEtTitreEchappe(): void
+    public function testFullLayoutHasSkipLinkThemeAndEscapedTitle(): void
     {
         ob_start();
-        View::page('erreur', ['code' => 404, 'message' => 'Page <introuvable>'], 'AURA - <Erreur>');
+        View::page('error', ['code' => 404, 'message' => 'Page <introuvable>'], 'AURA - <Erreur>');
         $html = (string) ob_get_clean();
 
         self::assertStringContainsString('<html lang="fr">', $html);
@@ -32,10 +32,10 @@ final class PagesRenderTest extends TestCase
         self::assertStringContainsString('role="alert"', $html);
     }
 
-    public function testAgendaVideAfficheUnEtatVideEtLesQuatreRotations(): void
+    public function testEmptyAgendaShowsEmptyStateAndFourShifts(): void
     {
-        $html = View::render('pages/sejour/agenda-patient', [
-            'bandeau' => ComponentsRenderTest::bandeau(),
+        $html = View::render('pages/episode/patient-agenda', [
+            'banner' => ComponentsRenderTest::banner(),
             'idEpisodeOfCare' => 1,
             'agenda' => self::agenda(),
         ]);
@@ -50,7 +50,7 @@ final class PagesRenderTest extends TestCase
         self::assertStringNotContainsString('<dialog', $html, 'validation désactivée : pas de dialogue');
     }
 
-    public function testAgendaAvecRetardEpingleEtValidationActivee(): void
+    public function testAgendaWithLateCarePinnedAndValidationEnabled(): void
     {
         $late = self::item('S1', '08:00', 'late');
         $done = self::item('S2', '09:00', 'done', completedAt: '09:10', comment: 'Note <test>');
@@ -58,8 +58,8 @@ final class PagesRenderTest extends TestCase
             'total' => 2, 'late' => 1, 'done' => 1, 'planned' => 0,
         ]);
 
-        $html = View::render('pages/sejour/agenda-patient', [
-            'bandeau' => ComponentsRenderTest::bandeau(),
+        $html = View::render('pages/episode/patient-agenda', [
+            'banner' => ComponentsRenderTest::banner(),
             'idEpisodeOfCare' => 1,
             'agenda' => $agenda,
             'validationEnabled' => true,
@@ -78,10 +78,10 @@ final class PagesRenderTest extends TestCase
         self::assertStringContainsString('<time datetime="2026-10-14T08:00">08:00</time>', $html);
     }
 
-    public function testListeDesPrescriptionsAvecLesTroisStatuts(): void
+    public function testPrescriptionListWithThreeStatuses(): void
     {
         $html = View::render('pages/careplan/list', [
-            'banner' => ComponentsRenderTest::bandeau(),
+            'banner' => ComponentsRenderTest::banner(),
             'idEpisodeOfCare' => 1,
             'isOpen' => true,
             'lines' => [
@@ -98,10 +98,10 @@ final class PagesRenderTest extends TestCase
         self::assertStringContainsString('Nouvelle prescription', $html);
     }
 
-    public function testListeDesPrescriptionsVideSejourClos(): void
+    public function testEmptyPrescriptionListClosedEpisode(): void
     {
         $html = View::render('pages/careplan/list', [
-            'banner' => ComponentsRenderTest::bandeau(),
+            'banner' => ComponentsRenderTest::banner(),
             'idEpisodeOfCare' => 1,
             'isOpen' => false,
             'lines' => [],
@@ -112,15 +112,15 @@ final class PagesRenderTest extends TestCase
         self::assertStringNotContainsString('Nouvelle prescription', $html);
     }
 
-    public function testDossierDuSejourSansPrescription(): void
+    public function testEpisodeRecordWithoutPrescription(): void
     {
-        $html = View::render('pages/sejour/dossier', [
-            'bandeau' => ComponentsRenderTest::bandeau(),
-            'sejour' => [
-                'enCours' => true, 'dateSortie' => null, 'service' => 'Réa <1>', 'lit' => 'L01', 'box' => null,
-                'poids' => '62,5 kg', 'taille' => null, 'precautions' => null, 'telephone' => null, 'email' => null,
+        $html = View::render('pages/episode/record', [
+            'banner' => ComponentsRenderTest::banner(),
+            'episodeOfCare' => [
+                'ongoing' => true, 'dischargeDate' => null, 'service' => 'Réa <1>', 'bed' => 'L01', 'box' => null,
+                'weight' => '62,5 kg', 'height' => null, 'precautions' => null, 'phone' => null, 'email' => null,
             ],
-            'idSejour' => 1,
+            'idEpisodeOfCare' => 1,
             'prescriptions' => [],
             'doctors' => [],
             'allergies' => [],
@@ -136,15 +136,15 @@ final class PagesRenderTest extends TestCase
     }
 
     /** Dossier complet : sections présentes même vides, « Non renseigné » explicite, valeurs échappées. */
-    public function testDossierAfficheLesSectionsDuDossierComplet(): void
+    public function testRecordShowsFullRecordSections(): void
     {
-        $html = View::render('pages/sejour/dossier', [
-            'bandeau' => ComponentsRenderTest::bandeau(),
-            'sejour' => [
-                'enCours' => true, 'dateSortie' => null, 'service' => null, 'motifAdmission' => null, 'lit' => null,
-                'box' => null, 'precautions' => null, 'telephone' => null, 'email' => null,
+        $html = View::render('pages/episode/record', [
+            'banner' => ComponentsRenderTest::banner(),
+            'episodeOfCare' => [
+                'ongoing' => true, 'dischargeDate' => null, 'service' => null, 'admissionReason' => null, 'bed' => null,
+                'box' => null, 'precautions' => null, 'phone' => null, 'email' => null,
             ],
-            'idSejour' => 1,
+            'idEpisodeOfCare' => 1,
             'prescriptions' => [],
             'doctors' => [],
             'allergies' => [],
@@ -179,10 +179,10 @@ final class PagesRenderTest extends TestCase
     }
 
     /** Formulaire d'admission : essentiels visibles, sections repliées avec compteur, référentiels. */
-    public function testAdmissionAffichLesSectionsRepliesEtLesReferentiels(): void
+    public function testAdmissionShowsCollapsedSectionsAndReferenceData(): void
     {
         $html = View::render('pages/patient/admission', [
-            'referentiels' => [
+            'referenceDataSets' => [
                 'services' => ['SRV01' => 'Réa <1>'],
                 'substances' => ['ALG01' => 'Pénicilline'],
             ],
@@ -191,15 +191,15 @@ final class PagesRenderTest extends TestCase
         self::assertStringContainsString('name="lastname"', $html);
         self::assertStringContainsString('name="admissionReason"', $html);
         // Deux colonnes : identité → note sur les allergies à gauche, sections à droite, recherche en tête.
-        $gauche = strpos($html, 'form-columns__main');
-        $droite = strpos($html, 'form-columns__more');
-        self::assertNotFalse($gauche);
-        self::assertNotFalse($droite);
-        self::assertLessThan($gauche, strpos($html, 'name="patientSearch"'), 'recherche avant les colonnes');
+        $left = strpos($html, 'form-columns__main');
+        $right = strpos($html, 'form-columns__more');
+        self::assertNotFalse($left);
+        self::assertNotFalse($right);
+        self::assertLessThan($left, strpos($html, 'name="patientSearch"'), 'recherche avant les colonnes');
         self::assertStringContainsString('<div class="form-lead">', $html, 'recherche : IPP et nom côte à côte');
-        self::assertGreaterThan($gauche, strpos($html, 'name="allergyNote"'));
-        self::assertLessThan($droite, strpos($html, 'name="allergyNote"'), 'note sur les allergies à gauche');
-        self::assertGreaterThan($droite, strpos($html, 'id="section-history"'), 'Antécédents à droite');
+        self::assertGreaterThan($left, strpos($html, 'name="allergyNote"'));
+        self::assertLessThan($right, strpos($html, 'name="allergyNote"'), 'note sur les allergies à gauche');
+        self::assertGreaterThan($right, strpos($html, 'id="section-history"'), 'Antécédents à droite');
         // Recherche d'un patient existant : combobox accessible, liste de suggestions, champs cachés.
         self::assertMatchesRegularExpression('/name="patientSearch"[^>]*role="combobox"/', $html);
         self::assertStringContainsString('aria-controls="patient-suggestions"', $html);
@@ -220,14 +220,14 @@ final class PagesRenderTest extends TestCase
         self::assertStringContainsString('À remplir par le médecin en charge uniquement en cas de plan blanc.', $html);
     }
 
-    public function testAdmissionApresRefusOuvreLaSectionEnErreurEtRessaisitLesValeurs(): void
+    public function testAdmissionAfterRejectionOpensFailingSectionAndRefillsValues(): void
     {
         $html = View::render('pages/patient/admission', [
-            'valeurs' => [
+            'values' => [
                 'lastname' => 'Durand', 'asaScore' => 'III', 'allergies' => ['ALG01'], 'medicalHistory' => 'HTA',
             ],
-            'erreurs' => ['girScore' => 'Hors échelle'],
-            'referentiels' => ['services' => [], 'substances' => ['ALG01' => 'Pénicilline', 'ALG02' => 'Latex']],
+            'errors' => ['girScore' => 'Hors échelle'],
+            'referenceDataSets' => ['services' => [], 'substances' => ['ALG01' => 'Pénicilline', 'ALG02' => 'Latex']],
         ]);
 
         self::assertStringContainsString('id="section-scores"', $html);
@@ -238,7 +238,7 @@ final class PagesRenderTest extends TestCase
         self::assertStringContainsString('Référentiel indisponible', $html, 'liste des services vide');
     }
 
-    public function testAdmissionSansBaseResteAffichable(): void
+    public function testAdmissionWithoutDatabaseStillRenders(): void
     {
         $html = View::render('pages/patient/admission', []);
 
@@ -247,16 +247,16 @@ final class PagesRenderTest extends TestCase
     }
 
     /** Édition en ligne : chaque ligne modifiable est un bouton avec ses métadonnées, panneau d'historique. */
-    public function testDossierEditableRendLesBoutonsEtLHistorique(): void
+    public function testEditableRecordRendersButtonsAndHistory(): void
     {
-        $html = View::render('pages/sejour/dossier', [
-            'bandeau' => ComponentsRenderTest::bandeau(),
-            'sejour' => [
-                'idPatient' => 4, 'enCours' => true, 'dateSortie' => null, 'service' => null,
-                'motifAdmission' => null, 'lit' => null, 'box' => null, 'precautions' => null,
-                'telephone' => null, 'email' => null,
+        $html = View::render('pages/episode/record', [
+            'banner' => ComponentsRenderTest::banner(),
+            'episodeOfCare' => [
+                'idPatient' => 4, 'ongoing' => true, 'dischargeDate' => null, 'service' => null,
+                'admissionReason' => null, 'bed' => null, 'box' => null, 'precautions' => null,
+                'phone' => null, 'email' => null,
             ],
-            'idSejour' => 1,
+            'idEpisodeOfCare' => 1,
             'prescriptions' => [],
             'doctors' => [],
             'allergies' => [],
@@ -315,7 +315,7 @@ final class PagesRenderTest extends TestCase
         self::assertStringContainsString('data-part-edit="summary"', $html);
         self::assertStringContainsString('data-part-edit="scores"', $html);
         self::assertMatchesRegularExpression('/<form class="part-form" data-part="summary"/', $html);
-        self::assertStringContainsString('id="summary-nom"', $html, 'identifiants préfixés par la partie');
+        self::assertStringContainsString('id="summary-lastName"', $html, 'identifiants préfixés par la partie');
         self::assertStringContainsString('data-end-stay', $html, 'séjour en cours : bouton de fin de séjour');
         self::assertStringContainsString('<dialog id="auth-dialog"', $html);
         self::assertStringContainsString('le mot de passe n\'est pas vérifié', $html, 'authentification factice');
@@ -325,15 +325,15 @@ final class PagesRenderTest extends TestCase
         self::assertStringContainsString('<span class="non-renseigne">vide</span>', $html);
     }
 
-    public function testDossierNonEditableNAPasDeBoutonNiDHistorique(): void
+    public function testReadOnlyRecordHasNoButtonOrHistory(): void
     {
-        $html = View::render('pages/sejour/dossier', [
-            'bandeau' => ComponentsRenderTest::bandeau(),
-            'sejour' => [
-                'enCours' => true, 'dateSortie' => null, 'service' => null, 'motifAdmission' => null, 'lit' => null,
-                'box' => null, 'precautions' => null, 'telephone' => null, 'email' => null,
+        $html = View::render('pages/episode/record', [
+            'banner' => ComponentsRenderTest::banner(),
+            'episodeOfCare' => [
+                'ongoing' => true, 'dischargeDate' => null, 'service' => null, 'admissionReason' => null, 'bed' => null,
+                'box' => null, 'precautions' => null, 'phone' => null, 'email' => null,
             ],
-            'idSejour' => 1, 'prescriptions' => [], 'doctors' => [], 'allergies' => [], 'substances' => [],
+            'idEpisodeOfCare' => 1, 'prescriptions' => [], 'doctors' => [], 'allergies' => [], 'substances' => [],
             'criticalities' => [], 'sections' => [],
         ]);
 
@@ -341,30 +341,30 @@ final class PagesRenderTest extends TestCase
         self::assertStringNotContainsString('dossier-historique', $html);
     }
 
-    public function testListeDesPatientsVideEtAvecRecherche(): void
+    public function testPatientListEmptyAndWithSearch(): void
     {
-        $vide = View::render('pages/patient/list', ['patients' => [], 'recherche' => 'zz<q>']);
-        self::assertStringContainsString('Aucun patient ne correspond à « zz&lt;q&gt; »', $vide);
+        $empty = View::render('pages/patient/list', ['patients' => [], 'search' => 'zz<q>']);
+        self::assertStringContainsString('Aucun patient ne correspond à « zz&lt;q&gt; »', $empty);
 
-        $pleine = View::render('pages/patient/list', ['patients' => [[
-            'idPatient' => 1, 'nom' => 'DUPONT', 'prenom' => 'Test', 'ipp' => null, 'dateNaissance' => null,
-            'idSejour' => 7, 'numeroSejour' => '2026-000007',
-        ]], 'recherche' => null]);
-        self::assertStringContainsString('href="/sejour?id=7"', $pleine);
-        self::assertStringContainsString('aria-label="Dossier de DUPONT Test"', $pleine);
-        self::assertStringNotContainsString('/patients/modifier', $pleine, 'modification depuis le dossier seulement');
-        self::assertStringContainsString('<th scope="col">', $pleine);
+        $full = View::render('pages/patient/list', ['patients' => [[
+            'idPatient' => 1, 'lastName' => 'DUPONT', 'firstName' => 'Test', 'ipp' => null, 'birthDate' => null,
+            'idEpisodeOfCare' => 7, 'episodeNumber' => '2026-000007',
+        ]], 'search' => null]);
+        self::assertStringContainsString('href="/sejour?id=7"', $full);
+        self::assertStringContainsString('aria-label="Dossier de DUPONT Test"', $full);
+        self::assertStringNotContainsString('/patients/modifier', $full, 'modification depuis le dossier seulement');
+        self::assertStringContainsString('<th scope="col">', $full);
     }
 
-    public function testVueConsolideeDuServiceAffichePatientsCreneauxEtRetards(): void
+    public function testConsolidatedServiceViewShowsPatientsSlotsAndLateCare(): void
     {
-        $html = View::render('pages/service/vue-consolidee', ['service' => [
+        $html = View::render('pages/service/consolidated-view', ['service' => [
             'date' => '2026-10-14',
             'dateLabel' => 'mercredi 14 octobre 2026',
             'slots' => ['06:00', '08:00'],
             'patients' => [[
-                'idSejour' => 1, 'nom' => 'DUPONT', 'prenom' => 'Test', 'lit' => 'L01',
-                'numeroSejour' => '2026-000001', 'late' => 2,
+                'idEpisodeOfCare' => 1, 'lastName' => 'DUPONT', 'firstName' => 'Test', 'bed' => 'L01',
+                'episodeNumber' => '2026-000001', 'late' => 2,
                 'cells' => ['06:00' => ['done' => 1, 'late' => 2]],
             ]],
         ]]);
@@ -376,9 +376,9 @@ final class PagesRenderTest extends TestCase
         self::assertStringContainsString('aria-label="Légende"', $html);
     }
 
-    public function testVueConsolideeSansPatient(): void
+    public function testConsolidatedViewWithoutPatient(): void
     {
-        $html = View::render('pages/service/vue-consolidee', ['service' => [
+        $html = View::render('pages/service/consolidated-view', ['service' => [
             'date' => '2026-10-14', 'dateLabel' => 'mercredi 14 octobre 2026', 'slots' => [], 'patients' => [],
         ]]);
 

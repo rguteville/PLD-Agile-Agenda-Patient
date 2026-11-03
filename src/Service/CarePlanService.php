@@ -122,7 +122,7 @@ final class CarePlanService
     public function __construct(
         private CarePlanDao $carePlanDao,
         private ReferenceDataDao $referenceDataDao,
-        private DossierPatientService $dossierPatientService
+        private PatientRecordService $patientRecordService
     ) {
     }
 
@@ -134,16 +134,16 @@ final class CarePlanService
      */
     public function listing(int $idEpisodeOfCare): ?array
     {
-        $dossier = $this->dossierPatientService->dossier($idEpisodeOfCare);
-        if ($dossier === null) {
+        $record = $this->patientRecordService->record($idEpisodeOfCare);
+        if ($record === null) {
             return null;
         }
 
         return [
             // Bandeau identité + allergies : vue-modèle de DossierPatientService (clés existantes).
-            'banner' => $dossier['bandeau'],
+            'banner' => $record['banner'],
             'idEpisodeOfCare' => $idEpisodeOfCare,
-            'isOpen' => $dossier['sejour']['enCours'],
+            'isOpen' => $record['episodeOfCare']['ongoing'],
             'lines' => $this->presentedLines($idEpisodeOfCare),
         ];
     }
@@ -204,8 +204,8 @@ final class CarePlanService
         ?int $savedCarePlanId = null,
         ?int $validatedCarePlanId = null
     ): ?array {
-        $dossier = $this->dossierPatientService->dossier($idEpisodeOfCare);
-        if ($dossier === null) {
+        $record = $this->patientRecordService->record($idEpisodeOfCare);
+        if ($record === null) {
             return null;
         }
 
@@ -252,9 +252,9 @@ final class CarePlanService
         }
 
         return [
-            'banner' => $dossier['bandeau'],
+            'banner' => $record['banner'],
             'idEpisodeOfCare' => $idEpisodeOfCare,
-            'isOpen' => $dossier['sejour']['enCours'],
+            'isOpen' => $record['episodeOfCare']['ongoing'],
             'savedCarePlanId' => in_array($savedCarePlanId, $carePlanIds, true) ? $savedCarePlanId : null,
             'validatedCarePlanId' => in_array($validatedCarePlanId, $carePlanIds, true) ? $validatedCarePlanId : null,
             'modes' => self::MODE_LABELS,
@@ -322,11 +322,11 @@ final class CarePlanService
             throw new InvalidArgumentException(implode(' ', $errors));
         }
 
-        $dossier = $this->dossierPatientService->dossier($idEpisodeOfCare);
-        if ($dossier === null) {
+        $record = $this->patientRecordService->record($idEpisodeOfCare);
+        if ($record === null) {
             throw new InvalidArgumentException('Ce séjour n\'existe pas.');
         }
-        if (!$dossier['sejour']['enCours']) {
+        if (!$record['episodeOfCare']['ongoing']) {
             throw new InvalidArgumentException('Ce séjour est clos : on ne peut plus y ajouter de prescription.');
         }
 
@@ -432,8 +432,8 @@ final class CarePlanService
             throw new InvalidArgumentException('Seul un médecin peut arrêter une prescription.');
         }
 
-        $dossier = $this->dossierPatientService->dossier($idEpisodeOfCare);
-        if ($dossier === null || !$dossier['sejour']['enCours']) {
+        $record = $this->patientRecordService->record($idEpisodeOfCare);
+        if ($record === null || !$record['episodeOfCare']['ongoing']) {
             throw new InvalidArgumentException('Ce séjour est clos : ses prescriptions ne peuvent plus changer.');
         }
 

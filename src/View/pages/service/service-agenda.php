@@ -2,49 +2,20 @@
 
 use Aura\Core\View;
 
-/**
- * Agenda du séjour (AURA-24) : bandeau identité + allergies en tête (RG2), puis la chronologie
- * du jour choisi : retards épinglés en tête, puis les soins par rotation. Toute la logique
- * (filtre, tri, retard, rotations) est dans AgendaService::presentDay(), testée sans base.
+/** TODO
+ * Attention à prévoir le cas de chevauchement d'appointments sur la même période
  *
- * @var array<string, mixed> $bandeau vue-modèle de DossierPatientService::presenterBandeau()
- * @var int $idEpisodeOfCare
- * @var array<string, mixed> $agenda vue-modèle de AgendaService::presentDay()
- * @var bool $validationEnabled colonne « Valider » + dialogue (balisage seul, cf. validation_dialog.php)
- * @var array<string, string> $validators soignants proposés par le dialogue
+ * @var array<string, mixed> $agenda
  */
-$validationEnabled = $validationEnabled ?? false;
-$validators = $validators ?? [];
-$dayUrl = static fn (string $date): string => '/agenda-patient?id=' . $idEpisodeOfCare . '&date=' . $date;
 ?>
 
-<?= View::render('components/bandeau_patient', ['bandeau' => $bandeau]) ?>
-<?= View::render('components/breadcrumb', ['items' => [
-    ['label' => 'Patients', 'href' => '/patients'],
-    ['label' => 'Dossier du séjour n° ' . $bandeau['numeroSejour'], 'href' => '/sejour?id=' . $idEpisodeOfCare],
-    ['label' => 'Agenda'],
-]]) ?>
-
-<?php
-// Même menu que le dossier : le bouton « Dossier du séjour » est exactement là où se trouve
-// « Agenda du jour » dans le dossier (retours du 2026-11-02).
-$dossierUrl = '/sejour?id=' . $idEpisodeOfCare;
-?>
-<div class="dossier-layout">
-<?= View::render('components/sejour_menu', [
-    'primary' => ['href' => $dossierUrl, 'label' => 'Dossier du séjour', 'icon' => 'inbox'],
-    'items' => [
-        ['href' => $dossierUrl . '#dossier-resume', 'label' => 'Dossier'],
-        ['href' => $dossierUrl . '#titre-allergies', 'label' => 'Allergies'],
-        ['href' => $dossierUrl . '#titre-dossier-complet', 'label' => 'Dossier complet'],
-        ['href' => $dossierUrl . '#titre-prescriptions', 'label' => 'Prescriptions en cours'],
-    ],
-]) ?>
 
 <section class="agenda">
     <div class="page-header">
-        <h1 class="form-title">Agenda du séjour n° <?= View::e($bandeau['numeroSejour']) ?></h1>
+        <h1 class="form-title">Agenda du service </h1>
         <p class="page-actions">
+            <a class="button button--secondary"
+               href="/sejour?id=<?= View::e($idEpisodeOfCare) ?>">Dossier du séjour</a>
             <button type="button" id="print-page" class="button button--secondary">
                 <?= View::render('components/icon', ['name' => 'printer']) ?>
                 Imprimer la journée
@@ -124,4 +95,3 @@ $dossierUrl = '/sejour?id=' . $idEpisodeOfCare;
         <?= View::render('components/validation_dialog', ['validators' => $validators]) ?>
     <?php endif; ?>
 </section>
-</div>

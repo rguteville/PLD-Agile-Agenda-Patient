@@ -13,7 +13,7 @@
         return;
     }
     const csrf = root.dataset.csrf;
-    const idSejour = root.dataset.idSejour;
+    const idEpisodeOfCare = root.dataset.idEpisodeOfCare;
     const authForm = dialog.querySelector('form');
     const authError = dialog.querySelector('[data-auth-error]');
     const authSummary = dialog.querySelector('[data-auth-summary]');
@@ -202,7 +202,7 @@
             goTo(data.redirect);
             return;
         }
-        const errors = data.erreurs || {};
+        const errors = data.errors || {};
         // Erreur d'authentification ou de date de sortie : on reste dans la fenêtre.
         if (errors.auth || errors.dischargeDate || (!pending.form && data.message)) {
             authError.textContent = errors.auth || errors.dischargeDate || data.message;
@@ -239,7 +239,7 @@
                 url: '/sejour/partie/modifier',
                 form,
                 summary: `Modification de la partie « ${form.dataset.title} » du dossier.`,
-                payload: { sejour: idSejour, part: form.dataset.part, values: formValues(form), oldValues },
+                payload: { episodeOfCare: idEpisodeOfCare, part: form.dataset.part, values: formValues(form), oldValues },
             });
         });
     });
@@ -252,7 +252,7 @@
             form: null,
             discharge: true,
             summary: 'Mettre fin au séjour : le patient n\'apparaîtra plus comme présent dans le service.',
-            payload: { sejour: idSejour },
+            payload: { episodeOfCare: idEpisodeOfCare },
         }));
     }
 })();

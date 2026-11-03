@@ -48,20 +48,20 @@ final class PatientDaoTest extends TestCase
         }
     }
 
-    public function testRechercheParFragmentDeNomSansTenirCompteDeLaCasse(): void
+    public function testSearchByNameFragmentCaseInsensitive(): void
     {
-        $noms = array_map(fn(Patient $p) => $p->getNom(), $this->dao->search('DUPRECHERCHE'));
+        $names = array_map(fn(Patient $p) => $p->getLastName(), $this->dao->search('DUPRECHERCHE'));
 
-        self::assertSame(['Zzduprecherche'], $noms);
+        self::assertSame(['Zzduprecherche'], $names);
     }
 
-    public function testRechercheParPrenomEtParIpp(): void
+    public function testSearchByFirstNameAndByIpp(): void
     {
-        self::assertSame('Bob', $this->dao->search('bob')[0]->getPrenom());
+        self::assertSame('Bob', $this->dao->search('bob')[0]->getFirstName());
         self::assertSame('987654302', $this->dao->search('987654302')[0]->getIpp());
     }
 
-    public function testLesJokersSqlSontEchappes(): void
+    public function testSqlWildcardsAreEscaped(): void
     {
         // « _ » est un joker LIKE : sans échappement, « zzsous_ligne » et « zzsousXligne » matcheraient tous deux.
         self::assertCount(1, $this->dao->search('zzsous_ligne'));
@@ -69,7 +69,7 @@ final class PatientDaoTest extends TestCase
         self::assertSame([], $this->dao->search('%'), 'un simple % ne doit pas renvoyer toute la table');
     }
 
-    public function testUneTentativeDInjectionNeRenvoieRien(): void
+    public function testInjectionAttemptReturnsNothing(): void
     {
         self::assertSame([], $this->dao->search("' OR '1'='1"));
         self::assertSame([], $this->dao->search("zz'; DROP TABLE Patient; --"));
@@ -77,34 +77,34 @@ final class PatientDaoTest extends TestCase
         self::assertNotEmpty($this->dao->search('zzmartinrecherche'));
     }
 
-    public function testRechercheSansResultat(): void
+    public function testSearchWithoutResult(): void
     {
         self::assertSame([], $this->dao->search('zzaucunpatientnesappelleainsi'));
     }
 
-    public function testUpdateChampsPatient(): void
+    public function testUpdatePatientFields(): void
     {
         $id = $this->dao->insert($this->patient('Zzdupdate', 'Alice', '987654303'));
 
         $this->dao->update(new Patient(
             idPatient: $id,
             ipp: '987654304',
-            nom: 'Zzdupdate2',
-            prenom: 'Alice2',
-            dateNaissance: new DateTimeImmutable('1985-06-15'),
-            sexe: 'M'
+            lastName: 'Zzdupdate2',
+            firstName: 'Alice2',
+            birthDate: new DateTimeImmutable('1985-06-15'),
+            sex: 'M'
         ));
 
-        $relu = $this->dao->findById($id);
-        self::assertNotNull($relu);
-        self::assertSame('Zzdupdate2', $relu->getNom());
-        self::assertSame('Alice2', $relu->getPrenom());
-        self::assertSame('987654304', $relu->getIpp());
-        self::assertSame('1985-06-15', $relu->getDateNaissance()?->format('Y-m-d'));
-        self::assertSame('M', $relu->getSexe());
+        $reread = $this->dao->findById($id);
+        self::assertNotNull($reread);
+        self::assertSame('Zzdupdate2', $reread->getLastName());
+        self::assertSame('Alice2', $reread->getFirstName());
+        self::assertSame('987654304', $reread->getIpp());
+        self::assertSame('1985-06-15', $reread->getBirthDate()?->format('Y-m-d'));
+        self::assertSame('M', $reread->getSex());
     }
 
-    public function testUpdateAccepteUnIppVide(): void
+    public function testUpdateAcceptsEmptyIpp(): void
     {
         $id = $this->dao->insert($this->patient('Zzdupdate5', 'Chloé', '987654307'));
 
@@ -120,7 +120,7 @@ final class PatientDaoTest extends TestCase
         self::assertNull($this->dao->findById($id)?->getIpp());
     }
 
-    public function testUpdateNeToucheQueLePatientVise(): void
+    public function testUpdateTouchesOnlyTargetPatient(): void
     {
         $id1 = $this->dao->insert($this->patient('Zzdupdate3', 'Alice', '987654305'));
         $id2 = $this->dao->insert($this->patient('Zzdupdate4', 'Bob', '987654306'));
@@ -134,19 +134,19 @@ final class PatientDaoTest extends TestCase
             'F'
         ));
 
-        self::assertSame('Zzdupdate3modifie', $this->dao->findById($id1)?->getNom());
-        self::assertSame('Zzdupdate4', $this->dao->findById($id2)?->getNom());
+        self::assertSame('Zzdupdate3modifie', $this->dao->findById($id1)?->getLastName());
+        self::assertSame('Zzdupdate4', $this->dao->findById($id2)?->getLastName());
     }
 
     /** Écriture conditionnelle (concurrence optimiste) : n'écrit que si la valeur attendue est encore en base. */
-    public function testUpdateDetailIfUnchangedNEcritQueSiLaValeurAttendueEstEncoreLa(): void
+    public function testUpdateDetailIfUnchangedWritesOnlyIfExpectedValueStillThere(): void
     {
         $id = $this->dao->findByIpp('987654301')?->getIdPatient();
         self::assertNotNull($id);
 
         self::assertTrue($this->dao->updateDetailIfUnchanged($id, 'lifestyle', 'Non fumeur', null), 'NULL attendu');
         self::assertFalse($this->dao->updateDetailIfUnchanged($id, 'lifestyle', 'Fumeur', null), 'valeur changée');
-        self::assertTrue($this->dao->updateDetailIfUnchanged($id, 'lifestyle', null, 'Non fumeur'), 'vidage');
+        self::assertTrue($this->dao->updateDetailIfUnchanged($id, 'lifestyle', null, 'Non fumeur'), 'flush');
         self::assertNull($this->dao->findById($id)?->getDetail('lifestyle'));
         self::assertFalse($this->dao->updateDetailIfUnchanged(999999, 'lifestyle', 'x', null), 'ligne absente');
 
@@ -154,8 +154,8 @@ final class PatientDaoTest extends TestCase
         $this->dao->updateDetailIfUnchanged($id, 'lastName', 'x', null);
     }
 
-    private function patient(string $nom, string $prenom, ?string $ipp): Patient
+    private function patient(string $lastName, string $firstName, ?string $ipp): Patient
     {
-        return new Patient(null, $ipp, $nom, $prenom, new DateTimeImmutable('1970-01-01'), 'F');
+        return new Patient(null, $ipp, $lastName, $firstName, new DateTimeImmutable('1970-01-01'), 'F');
     }
 }

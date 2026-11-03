@@ -4,7 +4,7 @@ use Aura\Core\View;
 
 /**
  * Bandeau identité + allergies (RG2). À inclure en tête de TOUTE page liée à un séjour
- * (dossier, prescriptions, agenda) : View::render('components/bandeau_patient', ['bandeau' => …]).
+ * (dossier, prescriptions, agenda) : View::render('components/patient_banner', ['bandeau' => …]).
  * Il reste collé en haut de l'écran (position: sticky) et ne se replie jamais : les allergies
  * doivent rester visibles pendant toute la consultation du séjour.
  *
@@ -13,51 +13,51 @@ use Aura\Core\View;
 ?>
 <header class="bandeau-patient" role="region" aria-label="Identité du patient et allergies connues">
     <div class="identite">
-        <span class="nom"><?= View::e($bandeau['nom']) ?></span>
-        <span class="prenom"><?= View::e($bandeau['prenom']) ?></span>
-        <?php if ($bandeau['sexe'] !== null) : ?>
-            <span class="sexe">(<?= View::e($bandeau['sexe']) ?>)</span>
+        <span class="nom"><?= View::e($banner['lastName']) ?></span>
+        <span class="prenom"><?= View::e($banner['firstName']) ?></span>
+        <?php if ($banner['sex'] !== null) : ?>
+            <span class="sexe">(<?= View::e($banner['sex']) ?>)</span>
         <?php endif; ?>
     </div>
     <dl>
         <div>
             <dt>Né(e) le</dt>
             <dd>
-                <?= View::e($bandeau['dateNaissance'] ?? 'non renseignée') ?>
-                <?php if ($bandeau['age'] !== null) : ?>
-                    (<?= View::e($bandeau['age']) ?> ans)
+                <?= View::e($banner['birthDate'] ?? 'non renseignée') ?>
+                <?php if ($banner['age'] !== null) : ?>
+                    (<?= View::e($banner['age']) ?> ans)
                 <?php endif; ?>
             </dd>
         </div>
         <div>
             <dt>IPP</dt>
-            <dd><?= View::e($bandeau['ipp'] ?? 'sans IPP') ?></dd>
+            <dd><?= View::e($banner['ipp'] ?? 'sans IPP') ?></dd>
         </div>
         <div>
             <dt>Séjour</dt>
             <dd>
-                n° <?= View::e($bandeau['numeroSejour']) ?>,
-                admission le <?= View::e($bandeau['dateAdmission'] ?? '?') ?>
+                n° <?= View::e($banner['episodeNumber']) ?>,
+                admission le <?= View::e($banner['admissionDate'] ?? '?') ?>
             </dd>
         </div>
         <div>
             <dt>Poids</dt>
-            <dd><?= View::e($bandeau['poids'] ?? 'non renseigné') ?></dd>
+            <dd><?= View::e($banner['weight'] ?? 'non renseigné') ?></dd>
         </div>
         <div>
             <dt>Taille</dt>
-            <dd><?= View::e($bandeau['taille'] ?? 'non renseignée') ?></dd>
+            <dd><?= View::e($banner['height'] ?? 'non renseignée') ?></dd>
         </div>
         <div>
             <dt>Groupe sanguin</dt>
-            <dd><?= View::e($bandeau['groupeSanguin'] ?? 'non renseigné') ?></dd>
+            <dd><?= View::e($banner['bloodType'] ?? 'non renseigné') ?></dd>
         </div>
     </dl>
     <?php
     // Trois états distincts (identitovigilance) : allergies connues (rouge), « Aucune allergie connue »
     // (vert : vérifié, aucune) et « Allergies non renseignées » (orange : l'information manque).
     // Le service fournit allergiesStatus ; à défaut, l'absence de liste vaut « aucune connue ».
-    $allergiesStatus = $bandeau['allergiesStatus'] ?? ($bandeau['allergies'] === [] ? 'none' : 'known');
+    $allergiesStatus = $banner['allergiesStatus'] ?? ($banner['allergies'] === [] ? 'none' : 'known');
     ?>
     <div class="allergies allergies--<?= View::e($allergiesStatus) ?>">
         <?php if ($allergiesStatus === 'unknown') : ?>
@@ -65,7 +65,7 @@ use Aura\Core\View;
                 <?= View::render('components/icon', ['name' => 'circle-alert']) ?>
                 Allergies non renseignées
             </span>
-        <?php elseif ($bandeau['allergies'] === []) : ?>
+        <?php elseif ($banner['allergies'] === []) : ?>
             <?php /* État distinct, pas un bandeau vide : « aucune connue » n'est pas « non renseigné ». */ ?>
             <span class="aucune-allergie">
                 <?= View::render('components/icon', ['name' => 'circle-check']) ?>
@@ -77,12 +77,12 @@ use Aura\Core\View;
                 Allergies :
             </span>
             <ul>
-                <?php foreach ($bandeau['allergies'] as $allergie) : ?>
+                <?php foreach ($banner['allergies'] as $allergy) : ?>
                     <?php /* Couleur selon la criticité : rouge plein = élevée, orange = faible,
                              rouge pâle = non évaluée (le texte de la criticité est toujours affiché). */ ?>
-                    <li class="allergie allergie--<?= View::e($allergie['niveau'] ?? 'unknown') ?>">
-                        <?= View::e($allergie['libelle']) ?>
-                        (<?= View::e($allergie['criticite'] ?? 'criticité non évaluée') ?>)
+                    <li class="allergie allergie--<?= View::e($allergy['level'] ?? 'unknown') ?>">
+                        <?= View::e($allergy['label']) ?>
+                        (<?= View::e($allergy['criticality'] ?? 'criticité non évaluée') ?>)
                     </li>
                 <?php endforeach; ?>
             </ul>

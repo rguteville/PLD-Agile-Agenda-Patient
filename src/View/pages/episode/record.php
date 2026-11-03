@@ -28,12 +28,12 @@ $history = $history ?? [];
 $partValues = $partValues ?? [];
 $services = $services ?? [];
 // Crayon « Modifier » d'une partie entière (retours du 2026-11-02), à côté du titre de la partie.
-$crayonPartie = static fn (string $part, string $title): string =>
+$partEditButton = static fn (string $part, string $title): string =>
     '<button type="button" class="part-edit" data-part-edit="' . View::e($part) . '" aria-label="Modifier la partie : '
     . View::e($title) . '" title="Modifier toute la partie">'
     . View::render('components/icon', ['name' => 'pen-line']) . '<span>Modifier</span></button>';
 // Contenu HTML (échappé) d'une ligne du dossier complet : valeur, ou état explicite si absente.
-$valeurLigne = static function (array $row): string {
+$lineValue = static function (array $row): string {
     if ($row['value'] !== null) {
         $html = View::e($row['value']);
     } else {
@@ -46,17 +46,17 @@ $valeurLigne = static function (array $row): string {
     return $html;
 };
 ?>
-<?= View::render('components/bandeau_patient', ['bandeau' => $bandeau]) ?>
+<?= View::render('components/patient_banner', ['banner' => $banner]) ?>
 <?= View::render('components/breadcrumb', ['items' => [
     ['label' => 'Patients', 'href' => '/patients'],
-    ['label' => 'Dossier du séjour n° ' . $bandeau['numeroSejour']],
+    ['label' => 'Dossier du séjour n° ' . $banner['episodeNumber']],
 ]]) ?>
 
 <div class="dossier-layout">
 <?php /* Menu figé à gauche (retours du 2026-11-02) : agenda en tête, puis les parties du dossier ; les
-         sous-catégories du dossier complet ouvrent leur section (public/js/dossier-menu.js). */ ?>
+         sous-catégories du dossier complet ouvrent leur section (public/js/record-menu.js). */ ?>
 <?php
-$sousParties = array_map(
+$subParts = array_map(
     static fn (array $section): array => [
         'href' => '#dossier-' . $section['id'],
         'label' => $section['title'],
@@ -65,30 +65,34 @@ $sousParties = array_map(
     $sections
 );
 if ($editable) {
-    $sousParties[] = [
+    $subParts[] = [
         'href' => '#dossier-historique',
         'label' => 'Historique des modifications',
         'openDetails' => true,
     ];
 }
 ?>
-<?= View::render('components/sejour_menu', [
-    'primary' => ['href' => '/agenda-patient?id=' . $idSejour, 'label' => 'Agenda du jour', 'icon' => 'calendar'],
+<?= View::render('components/episode_menu', [
+    'primary' => [
+        'href' => '/agenda-patient?id=' . $idEpisodeOfCare,
+        'label' => 'Agenda du jour',
+        'icon' => 'calendar',
+    ],
     'items' => [
         ['href' => '#dossier-resume', 'label' => 'Dossier'],
         ['href' => '#titre-allergies', 'label' => 'Allergies'],
-        ['href' => '#titre-dossier-complet', 'label' => 'Dossier complet', 'children' => $sousParties],
+        ['href' => '#titre-dossier-complet', 'label' => 'Dossier complet', 'children' => $subParts],
         ['href' => '#titre-prescriptions', 'label' => 'Prescriptions en cours'],
     ],
 ]) ?>
 
 <section class="dossier">
     <div class="page-header" id="dossier-resume">
-        <h1 class="form-title">Dossier du séjour n° <?= View::e($bandeau['numeroSejour']) ?></h1>
+        <h1 class="form-title">Dossier du séjour n° <?= View::e($banner['episodeNumber']) ?></h1>
         <?php if ($editable) : ?>
             <p class="page-actions">
-                <?= $crayonPartie(RecordSectionService::PART_SUMMARY, 'Dossier') ?>
-                <?php if ($sejour['enCours']) : ?>
+                <?= $partEditButton(RecordSectionService::PART_SUMMARY, 'Dossier') ?>
+                <?php if ($episodeOfCare['ongoing']) : ?>
                     <?php /* Fin du séjour : validée par un médecin dans la même fenêtre que les modifications. */ ?>
                     <button type="button" class="button button--danger" data-end-stay>
                         Mettre fin au séjour
@@ -100,41 +104,45 @@ if ($editable) {
     <dl class="dossier-resume" data-part-view="<?= RecordSectionService::PART_SUMMARY ?>">
         <dt>Patient</dt>
         <dd>
-            <?= View::e(mb_strtoupper($bandeau['nom']) . ' ' . $bandeau['prenom']) ?>
-            <?php if ($bandeau['sexe'] !== null) : ?>
-                (<?= View::e($bandeau['sexe']) ?>)
+            <?= View::e(mb_strtoupper($banner['lastName']) . ' ' . $banner['firstName']) ?>
+            <?php if ($banner['sex'] !== null) : ?>
+                (<?= View::e($banner['sex']) ?>)
             <?php endif; ?>
         </dd>
         <dt>Né(e) le</dt>
-        <dd><?= View::e($bandeau['dateNaissance'] ?? 'non renseignée') ?></dd>
+        <dd><?= View::e($banner['birthDate'] ?? 'non renseignée') ?></dd>
         <dt>IPP</dt>
-        <dd><?= View::e($bandeau['ipp'] ?? 'sans IPP') ?></dd>
+        <dd><?= View::e($banner['ipp'] ?? 'sans IPP') ?></dd>
         <dt>Statut</dt>
         <dd>
-            <?php if ($sejour['enCours']) : ?>
+            <?php if ($episodeOfCare['ongoing']) : ?>
                 <?= View::render('components/status_badge', ['status' => 'planned', 'label' => 'En cours']) ?>
             <?php else : ?>
                 <?= View::render('components/status_badge', ['status' => 'stopped', 'label' => 'Clos']) ?>
-                le <?= View::e($sejour['dateSortie']) ?>
+                le <?= View::e($episodeOfCare['dischargeDate']) ?>
             <?php endif; ?>
         </dd>
         <dt>Admission</dt>
-        <dd><?= View::e($bandeau['dateAdmission'] ?? 'non renseignée') ?></dd>
+        <dd><?= View::e($banner['admissionDate'] ?? 'non renseignée') ?></dd>
         <dt>Service</dt>
-        <dd><?= View::e($sejour['service'] ?? 'non renseigné') ?></dd>
+        <dd><?= View::e($episodeOfCare['service'] ?? 'non renseigné') ?></dd>
         <dt>Motif d'admission</dt>
-        <dd><?= isset($sejour['motifAdmission']) ? nl2br(View::e($sejour['motifAdmission'])) : 'non renseigné' ?></dd>
+        <dd><?= isset($episodeOfCare['admissionReason'])
+            ? nl2br(View::e($episodeOfCare['admissionReason']))
+            : 'non renseigné' ?></dd>
         <dt>Lit</dt>
-        <dd><?= View::e($sejour['lit'] ?? 'non attribué') ?></dd>
+        <dd><?= View::e($episodeOfCare['bed'] ?? 'non attribué') ?></dd>
         <dt>Box</dt>
-        <dd><?= View::e($sejour['box'] ?? 'non attribué') ?></dd>
+        <dd><?= View::e($episodeOfCare['box'] ?? 'non attribué') ?></dd>
         <dt>Précautions</dt>
         <?php /* « non renseignées », pas « aucune » : rien de saisi ne veut pas dire aucun risque. */ ?>
-        <dd><?= isset($sejour['precautions']) ? nl2br(View::e($sejour['precautions'])) : 'non renseignées' ?></dd>
+        <dd><?= isset($episodeOfCare['precautions'])
+            ? nl2br(View::e($episodeOfCare['precautions']))
+            : 'non renseignées' ?></dd>
         <dt>Téléphone</dt>
-        <dd><?= View::e($sejour['telephone'] ?? 'non renseigné') ?></dd>
+        <dd><?= View::e($episodeOfCare['phone'] ?? 'non renseigné') ?></dd>
         <dt>E-mail</dt>
-        <dd><?= View::e($sejour['email'] ?? 'non renseigné') ?></dd>
+        <dd><?= View::e($episodeOfCare['email'] ?? 'non renseigné') ?></dd>
     </dl>
     <?php if ($editable) : ?>
         <?= View::render('components/part_form', [
@@ -179,7 +187,7 @@ if ($editable) {
                               'Retirer l\'allergie « %s » du dossier de ce patient ? Elle disparaîtra du bandeau.',
                               $allergy['label']
                           )) ?>">
-                        <input type="hidden" name="idSejour" value="<?= View::e($idSejour) ?>">
+                        <input type="hidden" name="idSejour" value="<?= View::e($idEpisodeOfCare) ?>">
                         <input type="hidden" name="idAllergy" value="<?= View::e($allergy['idAllergy']) ?>">
                         <button type="submit" aria-label="Retirer l'allergie <?= View::e($allergy['label']) ?>">
                             Retirer
@@ -194,7 +202,7 @@ if ($editable) {
         <p class="referentiel-epuise">Tous les allergènes du référentiel sont déjà enregistrés pour ce patient.</p>
     <?php else : ?>
         <form method="post" action="/sejour/allergies/ajouter" class="ajouter-allergie">
-            <input type="hidden" name="idSejour" value="<?= View::e($idSejour) ?>">
+            <input type="hidden" name="idSejour" value="<?= View::e($idEpisodeOfCare) ?>">
             <div class="champ">
                 <label for="idSubstance">Allergène</label>
                 <select id="idSubstance" name="idSubstance" required>
@@ -227,7 +235,7 @@ if ($editable) {
     <?php endif; ?>
     <div class="dossier-sections" aria-labelledby="titre-dossier-complet"<?= $editable
         ? ' data-inline-edit data-endpoint="/sejour/champ/modifier" data-csrf="' . View::e($csrfToken) . '"'
-            . ' data-id-sejour="' . View::e($idSejour) . '"'
+            . ' data-id-sejour="' . View::e($idEpisodeOfCare) . '"'
         : '' ?>>
     <?php /* Messages d'enregistrement et d'erreur annoncés aux lecteurs d'écran (aria-live). */ ?>
     <p class="inline-edit__status" id="inline-edit-status" aria-live="polite" hidden></p>
@@ -236,7 +244,7 @@ if ($editable) {
                  id="dossier-<?= View::e($section['id']) ?>"<?= $section['filled'] > 0 ? ' open' : '' ?>>
             <summary>
                 <span class="dossier-section__title"><?= View::e($section['title']) ?></span>
-                <?= $editable ? $crayonPartie($section['id'], $section['title']) : '' ?>
+                <?= $editable ? $partEditButton($section['id'], $section['title']) : '' ?>
                 <span class="dossier-section__count">
                     <?= View::e($section['filled']) ?> sur <?= View::e($section['total']) ?>
                     renseigné<?= $section['filled'] > 1 ? 's' : '' ?>
@@ -249,7 +257,9 @@ if ($editable) {
                         <?php /* Bouton focalisable : Entrée ou clic passe en saisie (inline-edit.js). */ ?>
                         <dd class="inline-edit"
                             data-entity="<?= View::e($row['entity']) ?>"
-                            data-id="<?= View::e($row['entity'] === 'patient' ? $sejour['idPatient'] : $idSejour) ?>"
+                            data-id="<?= View::e($row['entity'] === 'patient'
+                                     ? $episodeOfCare['idPatient']
+                                     : $idEpisodeOfCare) ?>"
                             data-field="<?= View::e($row['field']) ?>"
                             data-type="<?= View::e($row['type']) ?>"
                             data-label="<?= View::e($row['label']) ?>"
@@ -261,7 +271,7 @@ if ($editable) {
                             <?php /* Crayon visible au survol ou au focus seulement. */ ?>
                             <button type="button" class="inline-edit__value"
                                     aria-label="Modifier : <?= View::e($row['label']) ?>"
-                                    ><span class="inline-edit__text"><?= $valeurLigne($row) ?></span><?=
+                                    ><span class="inline-edit__text"><?= $lineValue($row) ?></span><?=
                                     View::render('components/icon', [
                                         'name' => 'pen-line',
                                         'class' => 'inline-edit__pencil',
@@ -270,7 +280,7 @@ if ($editable) {
                     <?php else : ?>
                         <?php /* Valeur collée à la balise : pre-line conserve les retours à la ligne. */ ?>
                         <dd data-entity="<?= View::e($row['entity']) ?>"
-                            data-field="<?= View::e($row['field']) ?>"><?= $valeurLigne($row) ?></dd>
+                            data-field="<?= View::e($row['field']) ?>"><?= $lineValue($row) ?></dd>
                     <?php endif; ?>
                 <?php endforeach; ?>
             </dl>
@@ -343,12 +353,13 @@ if ($editable) {
     <div class="dossier-aside__header">
         <h2 class="dossier-subtitle" id="titre-prescriptions">Prescriptions en cours</h2>
         <p class="dossier-aside__actions">
-            <?php if ($sejour['enCours']) : ?>
+            <?php if ($episodeOfCare['ongoing']) : ?>
                 <?php /* AURA-20 : vers l'écran B3 « Nouvelles prescriptions » (séjour en cours seulement). */ ?>
-                <a class="button" href="/care-plans/new?idEpisodeOfCare=<?= View::e($idSejour) ?>">Prescription</a>
+                <a class="button"
+                   href="/care-plans/new?idEpisodeOfCare=<?= View::e($idEpisodeOfCare) ?>">Prescription</a>
             <?php endif; ?>
             <a class="button button--secondary"
-               href="/care-plans?idEpisodeOfCare=<?= View::e($idSejour) ?>">Toutes les prescriptions</a>
+               href="/care-plans?idEpisodeOfCare=<?= View::e($idEpisodeOfCare) ?>">Toutes les prescriptions</a>
         </p>
     </div>
     <?php if ($prescriptions === []) : ?>
@@ -390,10 +401,10 @@ if ($editable) {
                         <dt>Validée</dt>
                         <dd><?= View::e($line['validation']) ?></dd>
                     </dl>
-                    <?php if ($sejour['enCours']) : ?>
+                    <?php if ($episodeOfCare['ongoing']) : ?>
                         <?php /* AURA-22 : un médecin arrête la ligne ; elle quitte alors cette liste. */ ?>
                         <form class="stop-form" method="post" data-ajax
-                              action="/care-plans/stop?idEpisodeOfCare=<?= View::e($idSejour) ?>">
+                              action="/care-plans/stop?idEpisodeOfCare=<?= View::e($idEpisodeOfCare) ?>">
                             <input type="hidden" name="idLine" value="<?= View::e($line['idLine']) ?>">
                             <input type="hidden" name="isMedication"
                                    value="<?= $line['isMedication'] ? '1' : '0' ?>">

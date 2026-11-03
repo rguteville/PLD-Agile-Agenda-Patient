@@ -22,9 +22,9 @@ use Aura\Core\View;
         <label for="<?= View::e($name) ?>-filtre" class="sr-only">Filtrer les allergènes</label>
         <input type="search" id="<?= View::e($name) ?>-filtre" class="allergy-picker__filter"
                placeholder="Filtrer : pénicilline, latex, iode…" autocomplete="off" data-allergy-filter>
-        <?php $pluriel = count($checked) > 1 ? 's' : ''; ?>
+        <?php $plural = count($checked) > 1 ? 's' : ''; ?>
         <span class="allergy-picker__count" aria-live="polite" data-allergy-count>
-            <?= count($checked) ?> allergène<?= $pluriel ?> coché<?= $pluriel ?>
+            <?= count($checked) ?> allergène<?= $plural ?> coché<?= $plural ?>
         </span>
     </div>
     <ul class="allergy-picker__list">

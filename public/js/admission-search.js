@@ -69,13 +69,13 @@
 
     function describe(p) {
         const parts = [];
-        parts.push(p.dateNaissance ? `né(e) le ${p.dateNaissance}${p.age !== null ? ` (${p.age} ans)` : ''}` : 'date de naissance inconnue');
-        parts.push(p.sexe ? `sexe ${p.sexe}` : 'sexe non renseigné');
+        parts.push(p.birthDate ? `né(e) le ${p.birthDate}${p.age !== null ? ` (${p.age} ans)` : ''}` : 'date de naissance inconnue');
+        parts.push(p.sex ? `sexe ${p.sex}` : 'sexe non renseigné');
         parts.push(p.ipp ? `IPP ${p.ipp}` : 'sans IPP');
-        if (p.nomNaissance) {
-            parts.push(`né(e) ${p.nomNaissance}`);
+        if (p.birthLastName) {
+            parts.push(`né(e) ${p.birthLastName}`);
         }
-        parts.push(p.dernierSejour ? `dernier séjour le ${p.dernierSejour}` : 'aucun séjour');
+        parts.push(p.lastEpisodeOfCare ? `dernier séjour le ${p.lastEpisodeOfCare}` : 'aucun séjour');
         return parts.join(', ');
     }
 
@@ -104,13 +104,13 @@
 
     function renderResults(data, statusTarget, isIpp) {
         closeList();
-        results = data.resultats || [];
+        results = data.results || [];
         if (results.length === 0) {
             setStatus(statusTarget, isIpp ? MESSAGES.ippUnknown : MESSAGES.none, 'inconnu');
             return;
         }
         setStatus(statusTarget, MESSAGES.results(results.length), 'trouve');
-        if (data.homonymes) {
+        if (data.homonyms) {
             const warning = document.createElement('li');
             warning.className = 'suggestions__warning';
             warning.setAttribute('role', 'presentation');
@@ -124,7 +124,7 @@
             li.setAttribute('aria-selected', 'false');
             li.className = 'suggestions__option';
             const name = document.createElement('strong');
-            name.textContent = `${p.nom} ${p.prenom}`;
+            name.textContent = `${p.lastName} ${p.firstName}`;
             const details = document.createElement('span');
             details.textContent = ' — ' + describe(p);
             li.appendChild(name);
@@ -136,7 +136,7 @@
             });
             listbox.appendChild(li);
         });
-        if (data.tronque) {
+        if (data.truncated) {
             const more = document.createElement('li');
             more.className = 'suggestions__warning';
             more.setAttribute('role', 'presentation');
@@ -176,7 +176,7 @@
         }
         if (!data.ok) {
             closeList();
-            setStatus(statusTarget, (data.erreurs && Object.values(data.erreurs)[0]) || MESSAGES.failure, 'erreur');
+            setStatus(statusTarget, (data.errors && Object.values(data.errors)[0]) || MESSAGES.failure, 'erreur');
             return;
         }
         renderResults(data, statusTarget, isIpp);
@@ -210,18 +210,18 @@
         control.dispatchEvent(new Event('input', { bubbles: true }));
     }
 
-    function fillForm(fiche) {
-        Object.keys(fiche.patient).forEach(name => {
+    function fillForm(patientRecord) {
+        Object.keys(patientRecord.patient).forEach(name => {
             if (name === 'gender') {
                 form.querySelectorAll('input[type="radio"][name="gender"]').forEach(radio => {
-                    radio.checked = radio.value === fiche.patient.gender;
+                    radio.checked = radio.value === patientRecord.patient.gender;
                 });
                 return;
             }
-            setFieldValue(name, fiche.patient[name]);
+            setFieldValue(name, patientRecord.patient[name]);
         });
-        const allergies = fiche.allergies || [];
-        const criticalities = fiche.allergyCriticalities || {};
+        const allergies = patientRecord.allergies || [];
+        const criticalities = patientRecord.allergyCriticalities || {};
         form.querySelectorAll('input[type="checkbox"][name="allergies[]"]').forEach(box => {
             box.checked = allergies.includes(box.value);
             const select = form.querySelector(`select[name="allergyCriticality[${CSS.escape(box.value)}]"]`);
@@ -262,7 +262,7 @@
         form.querySelectorAll('.patient-card').forEach(el => el.remove());
     }
 
-    function showCard(p, fiche) {
+    function showCard(p, patientRecord) {
         removeCard();
         const card = document.createElement('section');
         card.className = 'patient-card';
@@ -275,24 +275,24 @@
         const name = document.createElement('p');
         name.className = 'patient-card__name';
         const strong = document.createElement('strong');
-        strong.textContent = `${p.nom.toUpperCase()} ${p.prenom}`;
+        strong.textContent = `${p.lastName.toUpperCase()} ${p.firstName}`;
         name.appendChild(strong);
-        name.append(p.sexe ? ` (${p.sexe})` : '');
-        const birth = p.dateNaissance
-            ? ` · né(e) le ${p.dateNaissance}${p.age !== null ? ` (${p.age} ans)` : ''}`
+        name.append(p.sex ? ` (${p.sex})` : '');
+        const birth = p.birthDate
+            ? ` · né(e) le ${p.birthDate}${p.age !== null ? ` (${p.age} ans)` : ''}`
             : ' · date de naissance inconnue';
         name.append(birth);
 
         const ids = document.createElement('p');
         ids.className = 'patient-card__ids';
         ids.textContent = `IPP ${p.ipp || 'sans IPP'} · `
-            + (p.dernierSejour ? `dernier séjour le ${p.dernierSejour}` : 'aucun séjour');
+            + (p.lastEpisodeOfCare ? `dernier séjour le ${p.lastEpisodeOfCare}` : 'aucun séjour');
 
         const allergies = document.createElement('div');
         allergies.className = 'patient-card__allergies';
-        const labels = fiche.allergiesLibelles || [];
-        const ids2 = fiche.allergies || [];
-        const crit = fiche.allergyCriticalities || {};
+        const labels = patientRecord.allergyLabels || [];
+        const ids2 = patientRecord.allergies || [];
+        const crit = patientRecord.allergyCriticalities || {};
         if (labels.length === 0) {
             const none = document.createElement('span');
             none.className = 'allergie allergie--none';
@@ -335,7 +335,7 @@
         actions.appendChild(detach);
 
         card.append(title, name, ids, allergies, actions);
-        const heading = document.getElementById('identite');
+        const heading = document.getElementById('identity');
         (heading ? heading.parentElement : listbox).insertAdjacentElement('afterend', card);
         showIdentityFields(false);
     }

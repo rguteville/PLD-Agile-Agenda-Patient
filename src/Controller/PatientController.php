@@ -7,11 +7,11 @@ namespace Aura\Controller;
 use Aura\Core\DateInput;
 use Aura\Core\View;
 use Aura\Domain\RecordFields;
-use Aura\Service\ModificationPatientService;
+use Aura\Service\PatientUpdateService;
 use Aura\Service\AdmissionService;
-use Aura\Service\ListePatientsService;
+use Aura\Service\PatientListService;
 use Aura\Service\PatientSearchService;
-use Aura\Service\RechercheIppService;
+use Aura\Service\IppSearchService;
 use InvalidArgumentException;
 use LogicException;
 
@@ -28,14 +28,14 @@ class PatientController
      * AURA-40) et les clés attendues par le domaine. Le mapping vit ici, pas dans
      * le service, pour que la validation reste indépendante de l'IHM.
      */
-    private const CHAMPS_FORMULAIRE = [
-        'lastname' => 'nom',
-        'firstname' => 'prenom',
+    private const FORM_FIELDS = [
+        'lastname' => 'lastName',
+        'firstname' => 'firstName',
         'ipp' => 'ipp',
-        'birthDate' => 'dateNaissance',
-        'gender' => 'sexe',
-        'taille' => 'taille',
-        'poids' => 'poids',
+        'birthDate' => 'birthDate',
+        'gender' => 'sex',
+        'height' => 'height',
+        'weight' => 'weight',
         'precautions' => 'precautions',
         'idHealthcareService' => 'idService',
         // Patient sélectionné dans la recherche (champ caché posé par admission-search.js) et mode de recherche.
@@ -47,16 +47,16 @@ class PatientController
      * Allergènes cochés à l'admission (liste à cases `allergies[]`) : seul champ à valeurs
      * multiples, lu à part de lireSaisie().
      */
-    private const CHAMP_ALLERGIES = 'allergies';
+    private const ALLERGIES_FIELD = 'allergies';
 
     /** Criticité choisie pour chaque allergène coché : allergyCriticality[idSubstance] = « Faible »… */
     private const ALLERGY_CRITICALITY_FIELD = 'allergyCriticality';
 
     /** Le formulaire propose H/F, le domaine attend M/F (colonne Patient.sexe). */
-    private const SEXE_FORMULAIRE_VERS_DOMAINE = ['H' => 'M', 'F' => 'F'];
+    private const FORM_SEX_TO_DOMAIN = ['H' => 'M', 'F' => 'F'];
 
-    private const VUE_ADMISSION = 'patient/admission';
-    private const TITRE_ADMISSION = 'AURA - Admission';
+    private const ADMISSION_VIEW = 'patient/admission';
+    private const ADMISSION_TITLE = 'AURA - Admission';
     /**
      * Scripts du formulaire d'admission : envoi AJAX (AURA-10.2), recherche par IPP (AURA-15),
      * sections repliables avec compteur de champs renseignés (form-sections.js).
@@ -70,10 +70,10 @@ class PatientController
     ];
 
     /** Message renvoyé quand aucun patient ne porte l'IPP recherché (AURA-15). */
-    public const MESSAGE_IPP_INCONNU = 'IPP inconnu, saisie manuelle.';
+    public const UNKNOWN_IPP_MESSAGE = 'IPP inconnu, saisie manuelle.';
 
-    private const VUE_MODIFICATION = 'patient/modifier';
-    private const TITRE_MODIFICATION = 'AURA - Modifier le patient';
+    private const EDIT_VIEW = 'patient/edit';
+    private const EDIT_TITLE = 'AURA - Modifier le patient';
 
     /**
      * Les services qui lisent la base ne sont fournis que par les routes qui en ont besoin
@@ -85,16 +85,16 @@ class PatientController
      */
     public function __construct(
         private AdmissionService $admissionService = new AdmissionService(),
-        private ?ListePatientsService $listePatientsService = null,
-        private ?ModificationPatientService $modificationPatientService = null,
-        private ?RechercheIppService $rechercheIppService = null,
-        private array $referentiels = [],
+        private ?PatientListService $patientListService = null,
+        private ?PatientUpdateService $patientUpdateService = null,
+        private ?IppSearchService $ippSearchService = null,
+        private array $referenceDataSets = [],
         private ?PatientSearchService $patientSearchService = null
     ) {
     }
 
     /** Message affiché sous le champ de recherche quand la saisie est trop courte. */
-    public const MESSAGE_RECHERCHE_COURTE = 'Saisissez au moins 2 caractères.';
+    public const SHORT_SEARCH_MESSAGE = 'Saisissez au moins 2 caractères.';
 
     /**
      * GET /patients/recherche?q=… : patients existants correspondant à un IPP (résultat unique) ou à
@@ -107,21 +107,21 @@ class PatientController
         if ($this->patientSearchService === null) {
             throw new LogicException('PatientController::search() requiert un PatientSearchService.');
         }
-        $saisie = $_GET['q'] ?? '';
-        $q = is_string($saisie) ? trim($saisie) : '';
+        $input = $_GET['q'] ?? '';
+        $q = is_string($input) ? trim($input) : '';
         if (mb_strlen($q) < PatientSearchService::MIN_LENGTH) {
-            $this->repondreJson(422, ['ok' => false, 'erreurs' => ['patientSearch' => self::MESSAGE_RECHERCHE_COURTE]]);
+            $this->respondJson(422, ['ok' => false, 'errors' => ['patientSearch' => self::SHORT_SEARCH_MESSAGE]]);
             return;
         }
 
-        $resultat = $this->patientSearchService->search($q);
-        $this->repondreJson(200, [
+        $result = $this->patientSearchService->search($q);
+        $this->respondJson(200, [
             'ok' => true,
-            'mode' => $resultat['mode'],
-            'resultats' => $resultat['results'],
-            'total' => count($resultat['results']),
-            'tronque' => $resultat['truncated'],
-            'homonymes' => $resultat['homonyms'],
+            'mode' => $result['mode'],
+            'results' => $result['results'],
+            'total' => count($result['results']),
+            'truncated' => $result['truncated'],
+            'homonyms' => $result['homonyms'],
         ]);
     }
 
@@ -134,36 +134,36 @@ class PatientController
         if ($this->patientSearchService === null) {
             throw new LogicException('PatientController::record() requiert un PatientSearchService.');
         }
-        $id = $this->lireIdPatient();
+        $id = $this->readPatientId();
         if ($id === null) {
-            $this->repondreJson(400, ['ok' => false, 'message' => 'Identifiant de patient manquant ou invalide.']);
+            $this->respondJson(400, ['ok' => false, 'message' => 'Identifiant de patient manquant ou invalide.']);
             return;
         }
-        $fiche = $this->patientSearchService->record($id);
-        if ($fiche === null) {
-            $this->repondreJson(404, ['ok' => false, 'message' => 'Aucun patient ne porte cet identifiant.']);
+        $card = $this->patientSearchService->record($id);
+        if ($card === null) {
+            $this->respondJson(404, ['ok' => false, 'message' => 'Aucun patient ne porte cet identifiant.']);
             return;
         }
 
         $patient = [];
-        foreach (self::CHAMPS_FORMULAIRE as $champ => $cle) {
-            if (array_key_exists($cle, $fiche['identite'])) {
-                $patient[$champ] = $fiche['identite'][$cle] ?? '';
+        foreach (self::FORM_FIELDS as $field => $key) {
+            if (array_key_exists($key, $card['identity'])) {
+                $patient[$field] = $card['identity'][$key] ?? '';
             }
         }
-        foreach ($fiche['details'] as $champ => $valeur) {
-            $patient[$champ] = $valeur ?? '';
+        foreach ($card['details'] as $field => $value) {
+            $patient[$field] = $value ?? '';
         }
         // Le formulaire saisit les dates en JJ/MM/AAAA.
         $patient['birthDate'] = DateInput::fromIso($patient['birthDate'] ?? '');
 
-        $this->repondreJson(200, [
+        $this->respondJson(200, [
             'ok' => true,
             'patient' => $patient,
-            'allergies' => array_column($fiche['allergies'], 'idSubstance'),
-            'allergiesLibelles' => array_column($fiche['allergies'], 'libelle'),
+            'allergies' => array_column($card['allergies'], 'idSubstance'),
+            'allergyLabels' => array_column($card['allergies'], 'label'),
             // Criticité connue de chaque allergie, pour pré-régler la liste de l'admission.
-            'allergyCriticalities' => array_column($fiche['allergies'], 'criticite', 'idSubstance'),
+            'allergyCriticalities' => array_column($card['allergies'], 'criticality', 'idSubstance'),
         ]);
     }
 
@@ -171,9 +171,9 @@ class PatientController
     public function showAdmissionForm(): void
     {
         View::page(
-            self::VUE_ADMISSION,
-            ['referentiels' => $this->referentiels],
-            self::TITRE_ADMISSION,
+            self::ADMISSION_VIEW,
+            ['referenceDataSets' => $this->referenceDataSets],
+            self::ADMISSION_TITLE,
             self::SCRIPTS_ADMISSION
         );
     }
@@ -185,61 +185,61 @@ class PatientController
      * Réponses : 422 si l'IPP est vide ou hors format ; 200 avec `trouve: false` si inconnu ;
      * 200 avec `trouve: true`, `patient` et `allergies` sinon.
      */
-    public function rechercherParIpp(): void
+    public function searchByIpp(): void
     {
-        if ($this->rechercheIppService === null) {
+        if ($this->ippSearchService === null) {
             throw new LogicException('PatientController::rechercherParIpp() requiert un RechercheIppService.');
         }
 
-        $saisie = $_GET['ipp'] ?? '';
-        $ipp = is_string($saisie) ? trim($saisie) : '';
-        $erreur = $ipp === '' ? 'Saisissez un IPP pour lancer la recherche.' : AdmissionService::validerIpp($ipp);
-        if ($erreur !== null) {
-            $this->repondreJson(422, ['ok' => false, 'erreurs' => ['ipp' => $erreur]]);
+        $input = $_GET['ipp'] ?? '';
+        $ipp = is_string($input) ? trim($input) : '';
+        $error = $ipp === '' ? 'Saisissez un IPP pour lancer la recherche.' : AdmissionService::validateIpp($ipp);
+        if ($error !== null) {
+            $this->respondJson(422, ['ok' => false, 'errors' => ['ipp' => $error]]);
             return;
         }
 
-        $resultat = $this->rechercheIppService->rechercher($ipp);
-        if ($resultat === null) {
-            $this->repondreJson(200, ['ok' => true, 'trouve' => false, 'message' => self::MESSAGE_IPP_INCONNU]);
+        $result = $this->ippSearchService->search($ipp);
+        if ($result === null) {
+            $this->respondJson(200, ['ok' => true, 'found' => false, 'message' => self::UNKNOWN_IPP_MESSAGE]);
             return;
         }
 
         // Identité indexée par nom de champ du formulaire (même correspondance que la saisie).
         $patient = [];
-        foreach (self::CHAMPS_FORMULAIRE as $champ => $cle) {
-            if (array_key_exists($cle, $resultat) && !in_array($champ, ['idPatient', 'searchMode'], true)) {
-                $patient[$champ] = $resultat[$cle] ?? '';
+        foreach (self::FORM_FIELDS as $field => $key) {
+            if (array_key_exists($key, $result) && !in_array($field, ['idPatient', 'searchMode'], true)) {
+                $patient[$field] = $result[$key] ?? '';
             }
         }
-        $patient['lienModification'] = '/patients/modifier?id=' . $resultat['idPatient'];
+        $patient['editLink'] = '/patients/modifier?id=' . $result['idPatient'];
 
-        $this->repondreJson(200, [
+        $this->respondJson(200, [
             'ok' => true,
-            'trouve' => true,
+            'found' => true,
             'patient' => $patient,
-            'allergies' => $resultat['allergies'],
+            'allergies' => $result['allergies'],
         ]);
     }
 
     /** GET /patients?q=… : liste des patients avec leur séjour en cours (AURA-12.1). */
     public function list(): void
     {
-        if ($this->listePatientsService === null) {
+        if ($this->patientListService === null) {
             throw new LogicException('PatientController::list() requiert un ListePatientsService.');
         }
 
-        $saisie = $_GET['q'] ?? null;
-        $recherche = ListePatientsService::nettoyerRecherche(is_string($saisie) ? $saisie : null);
+        $input = $_GET['q'] ?? null;
+        $search = PatientListService::cleanSearch(is_string($input) ? $input : null);
 
         View::page('patient/list', [
-            'patients' => $this->listePatientsService->lister($recherche),
-            'recherche' => $recherche,
+            'patients' => $this->patientListService->listAll($search),
+            'search' => $search,
         ], 'AURA - Patients');
     }
 
     /** Clé d'erreur hors champ (admission refusée) : affichée en tête du formulaire. */
-    public const ERREUR_FORMULAIRE = 'form';
+    public const FORM_ERROR = 'form';
 
     /**
      * Admission d'un patient (AURA-10).
@@ -253,26 +253,26 @@ class PatientController
      */
     public function create(): void
     {
-        $saisie = $this->lireSaisie($_POST);
-        $donnees = $this->versDomaine($saisie);
-        $erreurs = $this->admissionService->valider($donnees, $this->referentiels);
+        $input = $this->readInput($_POST);
+        $data = $this->toDomain($input);
+        $errors = $this->admissionService->validate($data, $this->referenceDataSets);
 
-        if ($erreurs !== []) {
-            $this->repondreErreurs($saisie, $this->versFormulaire($erreurs));
+        if ($errors !== []) {
+            $this->respondWithErrors($input, $this->toForm($errors));
             return;
         }
 
         try {
-            $sejour = $this->admissionService->admettre($donnees, $this->referentiels);
+            $episodeOfCare = $this->admissionService->admit($data, $this->referenceDataSets);
         } catch (InvalidArgumentException $e) {
             // Admission refusée par le métier (déjà hospitalisé, lit occupé…) : rien n'a été écrit.
-            $this->repondreErreurs($saisie, [self::ERREUR_FORMULAIRE => $e->getMessage()]);
+            $this->respondWithErrors($input, [self::FORM_ERROR => $e->getMessage()]);
             return;
         }
 
-        $destination = '/sejour?id=' . $sejour->getIdSejour();
-        if ($this->attendDuJson()) {
-            $this->repondreJson(200, ['ok' => true, 'redirect' => $destination]);
+        $destination = '/sejour?id=' . $episodeOfCare->getIdEpisodeOfCare();
+        if ($this->wantsJson()) {
+            $this->respondJson(200, ['ok' => true, 'redirect' => $destination]);
             return;
         }
         header('Location: ' . $destination, true, 303);
@@ -281,25 +281,25 @@ class PatientController
     /** GET /patients/modifier?id=… (AURA-12.2) : formulaire pré-rempli avec l'identité du patient ; 400 / 404 sinon. */
     public function edit(): void
     {
-        $service = $this->modificationPatientService();
-        $id = $this->lireIdPatient();
+        $service = $this->patientUpdateService();
+        $id = $this->readPatientId();
         if ($id === null) {
-            View::erreur(400, 'Identifiant de patient manquant ou invalide.');
+            View::error(400, 'Identifiant de patient manquant ou invalide.');
             return;
         }
 
-        $patient = $service->trouver($id);
+        $patient = $service->find($id);
         if ($patient === null) {
-            View::erreur(404, 'Aucun patient ne porte cet identifiant.');
+            View::error(404, 'Aucun patient ne porte cet identifiant.');
             return;
         }
 
-        $this->afficherModification($id, [
-            'lastname' => $patient->getNom(),
-            'firstname' => $patient->getPrenom(),
+        $this->showEditForm($id, [
+            'lastname' => $patient->getLastName(),
+            'firstname' => $patient->getFirstName(),
             'ipp' => $patient->getIpp() ?? '',
-            'birthDate' => $patient->getDateNaissance()?->format(AdmissionService::FORMAT_DATE) ?? '',
-            'gender' => $patient->getSexe() ?? '',
+            'birthDate' => $patient->getBirthDate()?->format(AdmissionService::FORMAT_DATE) ?? '',
+            'gender' => $patient->getSex() ?? '',
         ], []);
     }
 
@@ -309,40 +309,40 @@ class PatientController
      */
     public function update(): void
     {
-        $service = $this->modificationPatientService();
-        $id = $this->lireIdPatient();
+        $service = $this->patientUpdateService();
+        $id = $this->readPatientId();
         if ($id === null) {
-            View::erreur(400, 'Identifiant de patient manquant ou invalide.');
+            View::error(400, 'Identifiant de patient manquant ou invalide.');
             return;
         }
 
-        $saisie = $this->lireSaisie($_POST);
+        $input = $this->readInput($_POST);
         try {
-            $erreurs = $service->modifier($id, $this->versDomaine($saisie));
+            $errors = $service->edit($id, $this->toDomain($input));
         } catch (InvalidArgumentException) {
-            View::erreur(404, 'Aucun patient ne porte cet identifiant.');
+            View::error(404, 'Aucun patient ne porte cet identifiant.');
             return;
         }
 
-        if ($erreurs !== []) {
+        if ($errors !== []) {
             http_response_code(422);
-            $this->afficherModification($id, $saisie, $this->versFormulaire($erreurs));
+            $this->showEditForm($id, $input, $this->toForm($errors));
             return;
         }
 
         header('Location: /patients', true, 303);
     }
 
-    private function modificationPatientService(): ModificationPatientService
+    private function patientUpdateService(): PatientUpdateService
     {
-        if ($this->modificationPatientService === null) {
+        if ($this->patientUpdateService === null) {
             throw new LogicException('PatientController::edit() et update() requièrent un ModificationPatientService.');
         }
 
-        return $this->modificationPatientService;
+        return $this->patientUpdateService;
     }
 
-    private function lireIdPatient(): ?int
+    private function readPatientId(): ?int
     {
         $id = $_GET['id'] ?? null;
         if (!is_string($id) || preg_match('/^[1-9][0-9]{0,17}$/', $id) !== 1) {
@@ -352,12 +352,12 @@ class PatientController
         return (int) $id;
     }
 
-    private function afficherModification(int $idPatient, array $valeurs, array $erreurs): void
+    private function showEditForm(int $idPatient, array $values, array $errors): void
     {
         View::page(
-            self::VUE_MODIFICATION,
-            ['idPatient' => $idPatient, 'valeurs' => $valeurs, 'erreurs' => $erreurs],
-            self::TITRE_MODIFICATION,
+            self::EDIT_VIEW,
+            ['idPatient' => $idPatient, 'values' => $values, 'errors' => $errors],
+            self::EDIT_TITLE,
             ['/js/date-input.js']
         );
     }
@@ -371,9 +371,9 @@ class PatientController
     private static function dateFields(): array
     {
         $dates = ['birthDate'];
-        foreach (RecordFields::PATIENT + RecordFields::EPISODE as $champ => $spec) {
+        foreach (RecordFields::PATIENT + RecordFields::EPISODE as $field => $spec) {
             if ($spec['type'] === 'date') {
-                $dates[] = $champ;
+                $dates[] = $field;
             }
         }
 
@@ -387,11 +387,11 @@ class PatientController
      *
      * @return array<string, string>
      */
-    private static function champs(): array
+    private static function fields(): array
     {
         $catalogue = array_merge(RecordFields::patientColumns(), RecordFields::episodeColumns());
 
-        return self::CHAMPS_FORMULAIRE + array_combine($catalogue, $catalogue);
+        return self::FORM_FIELDS + array_combine($catalogue, $catalogue);
     }
 
     /**
@@ -402,63 +402,63 @@ class PatientController
      * @param array<string, mixed> $post
      * @return array<string, mixed> valeurs nettoyées, indexées par nom de champ du formulaire
      */
-    private function lireSaisie(array $post): array
+    private function readInput(array $post): array
     {
-        $saisie = [];
-        foreach (array_keys(self::CHAMPS_FORMULAIRE) as $champ) {
-            $valeur = $post[$champ] ?? '';
-            $saisie[$champ] = is_string($valeur) ? trim($valeur) : '';
+        $input = [];
+        foreach (array_keys(self::FORM_FIELDS) as $field) {
+            $value = $post[$field] ?? '';
+            $input[$field] = is_string($value) ? trim($value) : '';
         }
         // Champs du catalogue : seulement ceux présents dans la requête. Un champ absent n'est pas
         // « vidé » : pour un patient existant, il reste tel quel (un formulaire tronqué n'efface rien).
-        foreach (array_merge(RecordFields::patientColumns(), RecordFields::episodeColumns()) as $champ) {
-            if (array_key_exists($champ, $post)) {
-                $valeur = $post[$champ];
-                $saisie[$champ] = is_string($valeur) ? trim($valeur) : '';
+        foreach (array_merge(RecordFields::patientColumns(), RecordFields::episodeColumns()) as $field) {
+            if (array_key_exists($field, $post)) {
+                $value = $post[$field];
+                $input[$field] = is_string($value) ? trim($value) : '';
             }
         }
 
-        $allergies = $post[self::CHAMP_ALLERGIES] ?? [];
-        $saisie[self::CHAMP_ALLERGIES] = array_values(array_filter(
+        $allergies = $post[self::ALLERGIES_FIELD] ?? [];
+        $input[self::ALLERGIES_FIELD] = array_values(array_filter(
             is_array($allergies) ? $allergies : [$allergies],
             static fn ($v): bool => is_string($v) && trim($v) !== ''
         ));
         // Dates saisies en JJ/MM/AAAA : converties au format des services (AAAA-MM-JJ).
-        foreach (self::dateFields() as $champ) {
-            if (isset($saisie[$champ]) && is_string($saisie[$champ])) {
-                $saisie[$champ] = DateInput::toIso($saisie[$champ]);
+        foreach (self::dateFields() as $field) {
+            if (isset($input[$field]) && is_string($input[$field])) {
+                $input[$field] = DateInput::toIso($input[$field]);
             }
         }
         // Criticités : seules les paires (identifiant texte => valeur texte) sont gardées.
-        $criticites = $post[self::ALLERGY_CRITICALITY_FIELD] ?? [];
-        $saisie[self::ALLERGY_CRITICALITY_FIELD] = [];
-        foreach (is_array($criticites) ? $criticites : [] as $id => $valeur) {
-            if (is_string($valeur)) {
-                $saisie[self::ALLERGY_CRITICALITY_FIELD][(string) $id] = trim($valeur);
+        $criticalities = $post[self::ALLERGY_CRITICALITY_FIELD] ?? [];
+        $input[self::ALLERGY_CRITICALITY_FIELD] = [];
+        foreach (is_array($criticalities) ? $criticalities : [] as $id => $value) {
+            if (is_string($value)) {
+                $input[self::ALLERGY_CRITICALITY_FIELD][(string) $id] = trim($value);
             }
         }
 
-        return $saisie;
+        return $input;
     }
 
     /**
      * @param array<string, mixed> $saisie
      * @return array<string, mixed> données indexées par clé du domaine
      */
-    private function versDomaine(array $saisie): array
+    private function toDomain(array $input): array
     {
-        $donnees = [];
-        foreach (self::champs() as $champ => $cle) {
-            if (array_key_exists($champ, $saisie)) {
-                $donnees[$cle] = $saisie[$champ];
+        $data = [];
+        foreach (self::fields() as $field => $key) {
+            if (array_key_exists($field, $input)) {
+                $data[$key] = $input[$field];
             }
         }
-        $donnees[self::CHAMP_ALLERGIES] = $saisie[self::CHAMP_ALLERGIES] ?? [];
-        $donnees['allergyCriticalities'] = $saisie[self::ALLERGY_CRITICALITY_FIELD] ?? [];
+        $data[self::ALLERGIES_FIELD] = $input[self::ALLERGIES_FIELD] ?? [];
+        $data['allergyCriticalities'] = $input[self::ALLERGY_CRITICALITY_FIELD] ?? [];
         // Une valeur de sexe inconnue est transmise telle quelle : le service la refusera.
-        $donnees['sexe'] = self::SEXE_FORMULAIRE_VERS_DOMAINE[$donnees['sexe']] ?? $donnees['sexe'];
+        $data['sex'] = self::FORM_SEX_TO_DOMAIN[$data['sex']] ?? $data['sex'];
 
-        return $donnees;
+        return $data;
     }
 
     /**
@@ -469,51 +469,51 @@ class PatientController
      * @param array<string, string> $erreurs
      * @return array<string, string>
      */
-    private function versFormulaire(array $erreurs): array
+    private function toForm(array $errors): array
     {
-        $parChamp = [];
-        foreach (self::champs() as $champ => $cle) {
-            if (isset($erreurs[$cle])) {
-                $parChamp[$champ] = $erreurs[$cle];
-                unset($erreurs[$cle]);
+        $byField = [];
+        foreach (self::fields() as $field => $key) {
+            if (isset($errors[$key])) {
+                $byField[$field] = $errors[$key];
+                unset($errors[$key]);
             }
         }
 
-        if (isset($erreurs['allergyCriticalities'])) {
-            $erreurs[self::CHAMP_ALLERGIES] ??= $erreurs['allergyCriticalities'];
-            unset($erreurs['allergyCriticalities']);
+        if (isset($errors['allergyCriticalities'])) {
+            $errors[self::ALLERGIES_FIELD] ??= $errors['allergyCriticalities'];
+            unset($errors['allergyCriticalities']);
         }
 
-        return $parChamp + $erreurs;
+        return $byField + $errors;
     }
 
     /**
      * @param array<string, mixed> $saisie
      * @param array<string, string> $erreurs
      */
-    private function repondreErreurs(array $saisie, array $erreurs): void
+    private function respondWithErrors(array $input, array $errors): void
     {
-        if ($this->attendDuJson()) {
-            $this->repondreJson(422, ['ok' => false, 'erreurs' => $erreurs]);
+        if ($this->wantsJson()) {
+            $this->respondJson(422, ['ok' => false, 'errors' => $errors]);
             return;
         }
 
         http_response_code(422);
         View::page(
-            self::VUE_ADMISSION,
+            self::ADMISSION_VIEW,
             [
-                'valeurs' => $saisie,
-                'erreurs' => $erreurs,
-                'erreurFormulaire' => $erreurs[self::ERREUR_FORMULAIRE] ?? '',
-                'referentiels' => $this->referentiels,
+                'values' => $input,
+                'errors' => $errors,
+                'formError' => $errors[self::FORM_ERROR] ?? '',
+                'referenceDataSets' => $this->referenceDataSets,
             ],
-            self::TITRE_ADMISSION,
+            self::ADMISSION_TITLE,
             self::SCRIPTS_ADMISSION
         );
     }
 
     /** Requête AJAX : en-tête Accept: application/json ou X-Requested-With: XMLHttpRequest. */
-    private function attendDuJson(): bool
+    private function wantsJson(): bool
     {
         $accept = $_SERVER['HTTP_ACCEPT'] ?? '';
         $requestedWith = $_SERVER['HTTP_X_REQUESTED_WITH'] ?? '';
@@ -523,10 +523,10 @@ class PatientController
     }
 
     /** @param array<string, mixed> $corps */
-    private function repondreJson(int $statut, array $corps): void
+    private function respondJson(int $status, array $body): void
     {
-        http_response_code($statut);
+        http_response_code($status);
         header('Content-Type: application/json; charset=utf-8');
-        echo json_encode($corps, JSON_UNESCAPED_UNICODE);
+        echo json_encode($body, JSON_UNESCAPED_UNICODE);
     }
 }

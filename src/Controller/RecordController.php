@@ -59,27 +59,28 @@ final class RecordController
         if (!$this->checkToken($body)) {
             return;
         }
-        $idSejour = $body['sejour'] ?? null;
+        $idEpisodeOfCare = $body['episodeOfCare'] ?? null;
         $part = $body['part'] ?? null;
         $values = $body['values'] ?? null;
         $oldValues = $body['oldValues'] ?? null;
         if (
             !is_string($part) || !is_array($values) || !is_array($oldValues)
-            || !is_string($idSejour) && !is_int($idSejour) || preg_match(self::ID_PATTERN, (string) $idSejour) !== 1
+            || !is_string($idEpisodeOfCare) && !is_int($idEpisodeOfCare)
+            || preg_match(self::ID_PATTERN, (string) $idEpisodeOfCare) !== 1
         ) {
             $this->respond(400, ['ok' => false, 'message' => 'Requête incomplète.']);
             return;
         }
 
         $result = $this->sectionService()->updatePart(
-            (int) $idSejour,
+            (int) $idEpisodeOfCare,
             $part,
             $values,
             $oldValues,
             self::text($body['validator'] ?? null),
             self::text($body['password'] ?? null)
         );
-        $this->respondPart($result, (int) $idSejour, '#dossier-' . preg_replace('/[^a-z]/', '', $part));
+        $this->respondPart($result, (int) $idEpisodeOfCare, '#dossier-' . preg_replace('/[^a-z]/', '', $part));
     }
 
     /**
@@ -92,35 +93,38 @@ final class RecordController
         if (!$this->checkToken($body)) {
             return;
         }
-        $idSejour = $body['sejour'] ?? null;
-        if (!is_string($idSejour) && !is_int($idSejour) || preg_match(self::ID_PATTERN, (string) $idSejour) !== 1) {
+        $idEpisodeOfCare = $body['episodeOfCare'] ?? null;
+        if (
+            !is_string($idEpisodeOfCare) && !is_int($idEpisodeOfCare)
+            || preg_match(self::ID_PATTERN, (string) $idEpisodeOfCare) !== 1
+        ) {
             $this->respond(400, ['ok' => false, 'message' => 'Requête incomplète.']);
             return;
         }
 
         $result = $this->sectionService()->endStay(
-            (int) $idSejour,
+            (int) $idEpisodeOfCare,
             self::text($body['date'] ?? null),
             self::text($body['time'] ?? null),
             self::text($body['validator'] ?? null),
             self::text($body['password'] ?? null)
         );
-        $this->respondPart($result, (int) $idSejour, '#dossier-resume');
+        $this->respondPart($result, (int) $idEpisodeOfCare, '#dossier-resume');
     }
 
     /** @param array{status: string, errors: array<string, string>, message: ?string} $result */
-    private function respondPart(array $result, int $idSejour, string $anchor): void
+    private function respondPart(array $result, int $idEpisodeOfCare, string $anchor): void
     {
         $status = self::PART_HTTP_STATUS[$result['status']] ?? 500;
         if ($status === 200) {
-            $this->respond(200, ['ok' => true, 'redirect' => '/sejour?id=' . $idSejour . $anchor]);
+            $this->respond(200, ['ok' => true, 'redirect' => '/sejour?id=' . $idEpisodeOfCare . $anchor]);
             return;
         }
         $this->respond($status, [
             'ok' => false,
             'conflict' => $result['status'] === RecordSectionService::STATUS_CONFLICT,
             'message' => $result['message'],
-            'erreurs' => $result['errors'],
+            'errors' => $result['errors'],
         ]);
     }
 
@@ -163,15 +167,15 @@ final class RecordController
         $entity = $body['entity'] ?? null;
         $id = $body['id'] ?? null;
         $field = $body['field'] ?? null;
-        $idSejour = $body['sejour'] ?? null;
+        $idEpisodeOfCare = $body['episodeOfCare'] ?? null;
         $value = $body['value'] ?? null;
         $oldValue = $body['oldValue'] ?? null;
         if (
             !is_string($entity) || !is_string($field) || $field === ''
             || !is_string($id) && !is_int($id)
             || preg_match(self::ID_PATTERN, (string) $id) !== 1
-            || !is_string($idSejour) && !is_int($idSejour)
-            || preg_match(self::ID_PATTERN, (string) $idSejour) !== 1
+            || !is_string($idEpisodeOfCare) && !is_int($idEpisodeOfCare)
+            || preg_match(self::ID_PATTERN, (string) $idEpisodeOfCare) !== 1
             // Une valeur non scalaire (tableau, objet) n'est jamais interprétée comme un vidage du champ.
             || !is_scalar($value) && $value !== null
             || !is_scalar($oldValue) && $oldValue !== null
@@ -186,7 +190,7 @@ final class RecordController
             $field,
             $value,
             $oldValue,
-            idSejour: (int) $idSejour
+            idEpisodeOfCare: (int) $idEpisodeOfCare
         );
 
         $status = self::HTTP_STATUS[$result['status']] ?? 500;

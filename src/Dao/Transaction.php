@@ -21,18 +21,18 @@ class Transaction
      * @param callable(): T $traitement
      * @return T
      */
-    public function run(callable $traitement): mixed
+    public function run(callable $treatment): mixed
     {
         if ($this->pdo->inTransaction()) {
-            return $traitement();
+            return $treatment();
         }
 
         $this->pdo->beginTransaction();
         try {
-            $resultat = $traitement();
+            $result = $treatment();
             $this->pdo->commit();
 
-            return $resultat;
+            return $result;
         } catch (\Throwable $e) {
             $this->pdo->rollBack();
             throw $e;

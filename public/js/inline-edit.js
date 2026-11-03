@@ -16,7 +16,7 @@
     }
     const endpoint = root.dataset.endpoint;
     const csrf = root.dataset.csrf;
-    const idSejour = root.dataset.idSejour;
+    const idEpisodeOfCare = root.dataset.idEpisodeOfCare;
     const status = document.getElementById('inline-edit-status');
     const EMPTY_LABEL = 'Non renseigné';
     const STATUS_DELAY_MS = 2000;
@@ -207,7 +207,7 @@
                 body: JSON.stringify({
                     entity: cell.dataset.entity,
                     id: cell.dataset.id,
-                    sejour: idSejour,
+                    episodeOfCare: idEpisodeOfCare,
                     field: cell.dataset.field,
                     value: newRaw,
                     oldValue: oldRaw,

@@ -26,7 +26,7 @@ final class Database
 {
     private const CONFIG_DIR = __DIR__ . '/../../config/';
 
-    private const CLES_REQUISES = ['host', 'port', 'name', 'user', 'password'];
+    private const REQUIRED_KEYS = ['host', 'port', 'name', 'user', 'password'];
 
     private static ?PDO $pdo = null;
 
@@ -41,7 +41,7 @@ final class Database
     public static function get(): PDO
     {
         if (self::$pdo === null) {
-            self::$pdo = self::creerConnexion();
+            self::$pdo = self::createConnection();
         }
 
         return self::$pdo;
@@ -67,9 +67,9 @@ final class Database
      * Ouvre la connexion. La configuration n'est jamais passée en argument d'une
      * méthode : elle n'apparaît donc pas dans la trace d'une exception.
      */
-    private static function creerConnexion(): PDO
+    private static function createConnection(): PDO
     {
-        $config = self::lireConfiguration();
+        $config = self::readConfiguration();
 
         $dsn = sprintf(
             'mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4',
@@ -87,7 +87,7 @@ final class Database
         } catch (PDOException $e) {
             // On ne relance pas l'exception PDO d'origine : sa trace contient les
             // arguments du constructeur, donc le mot de passe.
-            $message = self::nettoyerMessage($e->getMessage(), $dsn, $config['user'], $config['password']);
+            $message = self::cleanMessage($e->getMessage(), $dsn, $config['user'], $config['password']);
 
             throw new ConfigurationException('Connexion à la base impossible : ' . $message);
         }
@@ -98,9 +98,9 @@ final class Database
      *
      * @return array{host: string, port: int, name: string, user: string, password: string}
      */
-    private static function lireConfiguration(): array
+    private static function readConfiguration(): array
     {
-        $path = self::resoudreCheminConfig();
+        $path = self::resolveConfigPath();
 
         if ($path === null) {
             throw new ConfigurationException(
@@ -116,10 +116,10 @@ final class Database
             );
         }
 
-        foreach (self::CLES_REQUISES as $cle) {
-            if (!array_key_exists($cle, $config['db'])) {
+        foreach (self::REQUIRED_KEYS as $key) {
+            if (!array_key_exists($key, $config['db'])) {
                 throw new ConfigurationException(
-                    'Configuration invalide : la clé db.' . $cle . ' est absente de ' . basename($path) . '.'
+                    'Configuration invalide : la clé db.' . $key . ' est absente de ' . basename($path) . '.'
                 );
             }
         }
@@ -134,21 +134,21 @@ final class Database
     }
 
     /** Premier fichier de configuration lisible, ou null s'il n'y en a aucun. */
-    private static function resoudreCheminConfig(): ?string
+    private static function resolveConfigPath(): ?string
     {
         if (self::$configPath !== null) {
-            $candidats = [self::$configPath];
+            $candidates = [self::$configPath];
         } else {
-            $candidats = [self::CONFIG_DIR . 'config.php'];
+            $candidates = [self::CONFIG_DIR . 'config.php'];
             // Le modèle ne sert de repli que si l'environnement fournit la base (CI).
             if ((string) getenv('DB_HOST') !== '') {
-                $candidats[] = self::CONFIG_DIR . 'config.example.php';
+                $candidates[] = self::CONFIG_DIR . 'config.example.php';
             }
         }
 
-        foreach ($candidats as $candidat) {
-            if (is_file($candidat) && is_readable($candidat)) {
-                return $candidat;
+        foreach ($candidates as $candidate) {
+            if (is_file($candidate) && is_readable($candidate)) {
+                return $candidate;
             }
         }
 
@@ -160,7 +160,7 @@ final class Database
      * mot de passe (au cas où le pilote les y ferait figurer) ainsi que le nom
      * d'utilisateur, que MariaDB renvoie sous la forme 'utilisateur'@'hôte'.
      */
-    private static function nettoyerMessage(string $message, string $dsn, string $user, string $password): string
+    private static function cleanMessage(string $message, string $dsn, string $user, string $password): string
     {
         $secrets = array_filter([$dsn, $password], fn(string $s) => $s !== '');
         $message = str_replace($secrets, '***', $message);

@@ -44,15 +44,15 @@ use Aura\Core\View;
                     <?php foreach ($service['patients'] as $patient) : ?>
                         <tr>
                             <th scope="row" class="col-patient">
-                                <?php $agendaUrl = '/agenda-patient?id=' . $patient['idSejour']
+                                <?php $agendaUrl = '/agenda-patient?id=' . $patient['idEpisodeOfCare']
                                     . '&date=' . $service['date']; ?>
                                 <a href="<?= View::e($agendaUrl) ?>">
-                                    <span class="patient-name"><?= View::e($patient['nom']) ?></span>
-                                    <?= View::e($patient['prenom']) ?>
+                                    <span class="patient-name"><?= View::e($patient['lastName']) ?></span>
+                                    <?= View::e($patient['firstName']) ?>
                                 </a>
                                 <span class="patient-bed">
-                                    <?= $patient['lit'] !== null ? 'Lit ' . View::e($patient['lit']) . ' · ' : '' ?>
-                                    séjour n° <?= View::e($patient['numeroSejour']) ?>
+                                    <?= $patient['bed'] !== null ? 'Lit ' . View::e($patient['bed']) . ' · ' : '' ?>
+                                    séjour n° <?= View::e($patient['episodeNumber']) ?>
                                 </span>
                             </th>
                             <?php foreach ($service['slots'] as $slot) : ?>

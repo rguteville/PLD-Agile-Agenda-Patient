@@ -33,10 +33,10 @@ class View
     }
 
     /** Page d'erreur applicative (400 paramètre invalide, 404 séjour inexistant…) dans le layout commun. */
-    public static function erreur(int $code, string $message): void
+    public static function error(int $code, string $message): void
     {
         http_response_code($code);
-        self::page('erreur', ['code' => $code, 'message' => $message], 'AURA - Erreur ' . $code);
+        self::page('error', ['code' => $code, 'message' => $message], 'AURA - Erreur ' . $code);
     }
 
     /** Échappe une valeur pour l'HTML (texte et attributs, guillemets compris), en UTF-8. */

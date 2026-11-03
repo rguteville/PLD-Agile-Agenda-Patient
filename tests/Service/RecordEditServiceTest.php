@@ -7,11 +7,11 @@ namespace Aura\Tests\Service;
 use Aura\Dao\AuditEventDao;
 use Aura\Dao\PatientDao;
 use Aura\Dao\ReferenceDataDao;
-use Aura\Dao\SejourDao;
+use Aura\Dao\EpisodeOfCareDao;
 use Aura\Dao\Transaction;
 use Aura\Domain\AuditEvent;
 use Aura\Domain\Patient;
-use Aura\Domain\Sejour;
+use Aura\Domain\EpisodeOfCare;
 use Aura\Service\RecordEditService;
 use DateTimeImmutable;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -24,14 +24,14 @@ use PHPUnit\Framework\TestCase;
 final class RecordEditServiceTest extends TestCase
 {
     private PatientDao&MockObject $patients;
-    private SejourDao&MockObject $sejours;
+    private EpisodeOfCareDao&MockObject $episodesOfCare;
     private AuditEventDao&MockObject $audit;
     private RecordEditService $service;
 
     protected function setUp(): void
     {
         $this->patients = $this->createMock(PatientDao::class);
-        $this->sejours = $this->createMock(SejourDao::class);
+        $this->episodesOfCare = $this->createMock(EpisodeOfCareDao::class);
         $this->audit = $this->createMock(AuditEventDao::class);
         $references = $this->createMock(ReferenceDataDao::class);
         $references->method('healthcareServices')->willReturn(['SRV01' => 'Réanimation médicale']);
@@ -41,7 +41,7 @@ final class RecordEditServiceTest extends TestCase
 
         $this->service = new RecordEditService(
             $this->patients,
-            $this->sejours,
+            $this->episodesOfCare,
             $this->audit,
             $transaction,
             $references,
@@ -49,7 +49,7 @@ final class RecordEditServiceTest extends TestCase
         );
     }
 
-    public function testChampHorsListeBlancheEstRefuseSansLireLaBase(): void
+    public function testFieldOutsideWhitelistIsRejectedWithoutReadingDatabase(): void
     {
         $this->patients->expects($this->never())->method('findById');
         $this->patients->expects($this->never())->method('updateDetailIfUnchanged');
@@ -58,11 +58,11 @@ final class RecordEditServiceTest extends TestCase
             $r = $this->service->update('patient', 9, $field, 'x', null);
             self::assertSame(RecordEditService::STATUS_FORBIDDEN_FIELD, $r['status'], $field);
         }
-        $r = $this->service->update('autre', 9, 'medicalHistory', 'x', null);
+        $r = $this->service->update('other', 9, 'medicalHistory', 'x', null);
         self::assertSame(RecordEditService::STATUS_FORBIDDEN_FIELD, $r['status'], 'entité inconnue');
     }
 
-    public function testDossierInexistant(): void
+    public function testNonexistentRecord(): void
     {
         $this->patients->method('findById')->willReturn(null);
 
@@ -71,7 +71,7 @@ final class RecordEditServiceTest extends TestCase
         self::assertSame(RecordEditService::STATUS_NOT_FOUND, $r['status']);
     }
 
-    public function testSuccesEcritLeChampEtUneLigneDHistorique(): void
+    public function testSuccessWritesFieldAndHistoryLine(): void
     {
         $this->patients->method('findById')->with(9)->willReturn($this->patient(['medicalHistory' => 'HTA']));
         $this->patients->expects($this->once())->method('updateDetailIfUnchanged')
@@ -92,10 +92,10 @@ final class RecordEditServiceTest extends TestCase
         self::assertSame('Enregistré', $r['message']);
     }
 
-    public function testValeurInvalideRefuseeAvecLeMessageDuChamp(): void
+    public function testInvalidValueRejectedWithFieldMessage(): void
     {
-        $this->sejours->method('findById')->with(9)->willReturn($this->sejour(['asaScore' => 'III']));
-        $this->sejours->expects($this->never())->method('updateDetailIfUnchanged');
+        $this->episodesOfCare->method('findById')->with(9)->willReturn($this->episodeOfCare(['asaScore' => 'III']));
+        $this->episodesOfCare->expects($this->never())->method('updateDetailIfUnchanged');
         $this->audit->expects($this->never())->method('insert');
 
         $r = $this->service->update('episode', 9, 'asaScore', 'IX', 'III');
@@ -105,7 +105,7 @@ final class RecordEditServiceTest extends TestCase
         self::assertSame('III', $r['value'], 'la valeur actuelle est renvoyée');
     }
 
-    public function testConflitDeConcurrenceRenvoieLaValeurActuelle(): void
+    public function testConcurrencyConflictReturnsCurrentValue(): void
     {
         $this->patients->method('findById')->willReturn($this->patient(['medicalHistory' => 'HTA, diabète']));
         $this->patients->expects($this->never())->method('updateDetailIfUnchanged');
@@ -117,10 +117,10 @@ final class RecordEditServiceTest extends TestCase
         self::assertStringContainsString('entre-temps', (string) $r['message']);
     }
 
-    public function testValeurInchangeeNEcritRien(): void
+    public function testUnchangedValueWritesNothing(): void
     {
-        $this->sejours->method('findById')->willReturn($this->sejour([], poids: 62.5));
-        $this->sejours->expects($this->never())->method('updateDetailIfUnchanged');
+        $this->episodesOfCare->method('findById')->willReturn($this->episodeOfCare([], weight: 62.5));
+        $this->episodesOfCare->expects($this->never())->method('updateDetailIfUnchanged');
         $this->audit->expects($this->never())->method('insert');
 
         $r = $this->service->update('episode', 9, 'weight', '62.50', '62.5');
@@ -129,10 +129,10 @@ final class RecordEditServiceTest extends TestCase
         self::assertSame('62.5', $r['display']);
     }
 
-    public function testChampsDeBaseDuSejourSontModifiablesEtArrondisCommeLAdmission(): void
+    public function testBaseEpisodeFieldsAreEditableAndRoundedLikeAdmission(): void
     {
-        $this->sejours->method('findById')->willReturn($this->sejour([], poids: 62.5));
-        $this->sejours->expects($this->once())->method('updateDetailIfUnchanged')
+        $this->episodesOfCare->method('findById')->willReturn($this->episodeOfCare([], weight: 62.5));
+        $this->episodesOfCare->expects($this->once())->method('updateDetailIfUnchanged')
             ->with(9, 'weight', '63.46', '62.5')->willReturn(true);
         $this->audit->expects($this->once())->method('insert')->willReturn(1);
 
@@ -142,14 +142,14 @@ final class RecordEditServiceTest extends TestCase
         self::assertSame('63.46', $r['value']);
     }
 
-    public function testServiceHospitalierEstControleParLeReferentiel(): void
+    public function testHealthcareServiceIsCheckedAgainstReferenceList(): void
     {
-        $this->sejours->method('findById')->willReturn($this->sejour([]));
+        $this->episodesOfCare->method('findById')->willReturn($this->episodeOfCare([]));
 
-        $refuse = $this->service->update('episode', 9, 'idHealthcareService', 'SRV99', 'REA');
-        self::assertSame(RecordEditService::STATUS_INVALID, $refuse['status']);
+        $rejected = $this->service->update('episode', 9, 'idHealthcareService', 'SRV99', 'REA');
+        self::assertSame(RecordEditService::STATUS_INVALID, $rejected['status']);
 
-        $this->sejours->expects($this->once())->method('updateDetailIfUnchanged')
+        $this->episodesOfCare->expects($this->once())->method('updateDetailIfUnchanged')
             ->with(9, 'idHealthcareService', 'SRV01', 'REA')->willReturn(true);
         $this->audit->method('insert')->willReturn(1);
         $ok = $this->service->update('episode', 9, 'idHealthcareService', 'SRV01', 'REA');
@@ -157,7 +157,7 @@ final class RecordEditServiceTest extends TestCase
         self::assertSame('Réanimation médicale', $ok['display'], 'libellé du service, pas son id');
     }
 
-    public function testViderUnChampEstUneModificationTracee(): void
+    public function testClearingFieldIsTracedChange(): void
     {
         $this->patients->method('findById')->willReturn($this->patient(['lifestyle' => 'Fumeur']));
         $this->patients->expects($this->once())->method('updateDetailIfUnchanged')
@@ -170,7 +170,7 @@ final class RecordEditServiceTest extends TestCase
         self::assertNull($r['value']);
     }
 
-    public function testConflitDetecteParLEcritureConditionnelleRenvoieLaValeurRelue(): void
+    public function testConflictDetectedByConditionalWriteReturnsRereadValue(): void
     {
         // Lecture : « HTA » ; entre la lecture et l'UPDATE, quelqu'un écrit « HTA, asthme » : l'UPDATE
         // conditionnel ne touche aucune ligne, la valeur est relue et renvoyée en conflit.
@@ -187,18 +187,18 @@ final class RecordEditServiceTest extends TestCase
         self::assertSame('HTA, asthme', $r['value']);
     }
 
-    public function testUnPatientNEstModifiableQueDepuisUnDeSesSejours(): void
+    public function testPatientIsEditableOnlyFromOneOfItsEpisodes(): void
     {
-        $this->sejours->method('findById')->with(3)->willReturn($this->sejour([]));
+        $this->episodesOfCare->method('findById')->with(3)->willReturn($this->episodeOfCare([]));
         $this->patients->expects($this->never())->method('updateDetailIfUnchanged');
 
         // Le séjour 3 appartient au patient 9 : le patient 4 est refusé comme introuvable.
-        $r = $this->service->update('patient', 4, 'medicalHistory', 'x', null, idSejour: 3);
+        $r = $this->service->update('patient', 4, 'medicalHistory', 'x', null, idEpisodeOfCare: 3);
 
         self::assertSame(RecordEditService::STATUS_NOT_FOUND, $r['status']);
     }
 
-    public function testHistoriqueTraduitLesLibellesEtLesEchelles(): void
+    public function testHistoryTranslatesLabelsAndScales(): void
     {
         $this->audit->method('findForRecord')->with(9, 3, 20)->willReturn([
             new AuditEvent(
@@ -211,7 +211,7 @@ final class RecordEditServiceTest extends TestCase
                 'non identifié',
                 new DateTimeImmutable('2026-10-14 08:05')
             ),
-            new AuditEvent(1, 'Patient', 9, 'inconnu', null, 'x', 'non identifié', new DateTimeImmutable('2026-10-13')),
+            new AuditEvent(1, 'Patient', 9, 'unknown', null, 'x', 'non identifié', new DateTimeImmutable('2026-10-13')),
             new AuditEvent(
                 0,
                 'EpisodeOfCare',
@@ -231,7 +231,7 @@ final class RecordEditServiceTest extends TestCase
         self::assertSame('ASA II – maladie systémique légère', $rows[0]['oldValue']);
         self::assertSame('ASA III – maladie systémique sévère', $rows[0]['newValue']);
         self::assertSame('14/10/2026 08:05', $rows[0]['recordedAt']);
-        self::assertSame('inconnu', $rows[1]['label'], 'un champ hors catalogue garde son nom brut');
+        self::assertSame('unknown', $rows[1]['label'], 'un champ hors catalogue garde son nom brut');
         self::assertNull($rows[1]['oldValue']);
         self::assertSame('Rattachement du séjour au patient', $rows[2]['label']);
         self::assertSame('patient n° 9', $rows[2]['newValue']);
@@ -245,15 +245,15 @@ final class RecordEditServiceTest extends TestCase
     }
 
     /** @param array<string, ?string> $details */
-    private function sejour(array $details, ?float $poids = null): Sejour
+    private function episodeOfCare(array $details, ?float $weight = null): EpisodeOfCare
     {
-        return new Sejour(
-            idSejour: 9,
+        return new EpisodeOfCare(
+            idEpisodeOfCare: 9,
             idPatient: 9,
-            numSejour: '2026-000009',
-            dateAdmission: new DateTimeImmutable('2026-10-13 09:30:00'),
+            episodeNumber: '2026-000009',
+            admissionDate: new DateTimeImmutable('2026-10-13 09:30:00'),
             idService: 'REA',
-            poids: $poids,
+            weight: $weight,
             details: $details
         );
     }

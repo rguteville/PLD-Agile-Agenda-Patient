@@ -44,9 +44,9 @@ $lead = $lead ?? [];
     <?php endif; ?>
 
     <?php foreach ($sections as $section) : ?>
-        <?php $enErreur = array_filter($section['fields'], static fn (array $f): bool => ($f['error'] ?? '') !== ''); ?>
+        <?php $failing = array_filter($section['fields'], static fn (array $f): bool => ($f['error'] ?? '') !== ''); ?>
         <details class="form-section" id="section-<?= View::e($section['id']) ?>"
-                 data-form-section<?= $enErreur !== [] ? ' open' : '' ?>>
+                 data-form-section<?= $failing !== [] ? ' open' : '' ?>>
             <summary>
                 <span class="form-section__title"><?= View::e($section['title']) ?></span>
                 <span class="form-section__count" data-section-count

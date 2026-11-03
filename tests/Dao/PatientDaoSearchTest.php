@@ -6,9 +6,9 @@ namespace Aura\Tests\Dao;
 
 use Aura\Core\Database;
 use Aura\Dao\PatientDao;
-use Aura\Dao\SejourDao;
+use Aura\Dao\EpisodeOfCareDao;
 use Aura\Domain\Patient;
-use Aura\Domain\Sejour;
+use Aura\Domain\EpisodeOfCare;
 use DateTimeImmutable;
 use PDO;
 use PHPUnit\Framework\TestCase;
@@ -50,52 +50,56 @@ final class PatientDaoSearchTest extends TestCase
         }
     }
 
-    public function testCasseEtAccentsIgnores(): void
+    public function testCaseAndAccentsIgnored(): void
     {
-        $noms = $this->noms($this->dao->searchByWords(['ZZLEFEVRE'], 21));
+        $names = $this->names($this->dao->searchByWords(['ZZLEFEVRE'], 21));
 
-        self::assertSame(['Zzlefèvre Jean-Pierre', 'Zzlefèvre Odette'], $noms);
+        self::assertSame(['Zzlefèvre Jean-Pierre', 'Zzlefèvre Odette'], $names);
     }
 
-    public function testChaqueMotCommenceUnMotDuNomOuDuPrenomQuelQueSoitLOrdre(): void
+    public function testEachWordStartsAWordOfLastOrFirstNameInAnyOrder(): void
     {
-        $direct = $this->noms($this->dao->searchByWords(['zzlef', 'odette'], 21));
-        $inverse = $this->noms($this->dao->searchByWords(['odette', 'zzlef'], 21));
+        $direct = $this->names($this->dao->searchByWords(['zzlef', 'odette'], 21));
+        $inverse = $this->names($this->dao->searchByWords(['odette', 'zzlef'], 21));
 
         self::assertSame(['Zzlefèvre Odette'], $direct);
         self::assertSame($direct, $inverse);
     }
 
-    public function testTiretEtApostropheDesNomsStockesSontTraversables(): void
+    public function testHyphenAndApostropheInStoredNamesAreMatched(): void
     {
         // « pierre » + « zzlef » : Zzlefèvre Jean-Pierre (2e mot du prénom) et Zzlefevrard Pierre.
         self::assertSame(
             ['Zzlefevrard Pierre', 'Zzlefèvre Jean-Pierre'],
-            $this->noms($this->dao->searchByWords(['pierre', 'zzlef'], 21))
+            $this->names($this->dao->searchByWords(['pierre', 'zzlef'], 21))
         );
-        self::assertSame(["Zzd'Arc Jeanne"], $this->noms($this->dao->searchByWords(['arc'], 21)));
+        self::assertSame(["Zzd'Arc Jeanne"], $this->names($this->dao->searchByWords(['arc'], 21)));
     }
 
-    public function testLeNomDeNaissanceEstCherche(): void
+    public function testBirthNameIsSearched(): void
     {
-        self::assertSame(["Zzd'Arc Jeanne"], $this->noms($this->dao->searchByWords(['zzrom'], 21)));
+        self::assertSame(["Zzd'Arc Jeanne"], $this->names($this->dao->searchByWords(['zzrom'], 21)));
     }
 
-    public function testUnMotNeCorrespondQuAuDebutDUnMot(): void
+    public function testWordMatchesOnlyAtWordStart(): void
     {
-        self::assertSame([], $this->noms($this->dao->searchByWords(['efèvre'], 21)), 'pas de correspondance au milieu');
+        self::assertSame(
+            [],
+            $this->names($this->dao->searchByWords(['efèvre'], 21)),
+            'pas de correspondance au milieu'
+        );
     }
 
-    public function testNomExactAvantLesAutresPuisAlphabetique(): void
+    public function testExactNameFirstThenAlphabetical(): void
     {
-        $noms = $this->noms($this->dao->searchByWords(['zzlefevr'], 21));
-        self::assertSame(['Zzlefevrard Pierre', 'Zzlefèvre Jean-Pierre', 'Zzlefèvre Odette'], $noms, 'alphabétique');
+        $names = $this->names($this->dao->searchByWords(['zzlefevr'], 21));
+        self::assertSame(['Zzlefevrard Pierre', 'Zzlefèvre Jean-Pierre', 'Zzlefèvre Odette'], $names, 'alphabétique');
 
-        $noms = $this->noms($this->dao->searchByWords(['zzlefevre'], 21));
-        self::assertSame(['Zzlefèvre Jean-Pierre', 'Zzlefèvre Odette'], $noms, 'nom exact (sans accent) d\'abord');
+        $names = $this->names($this->dao->searchByWords(['zzlefevre'], 21));
+        self::assertSame(['Zzlefèvre Jean-Pierre', 'Zzlefèvre Odette'], $names, 'nom exact (sans accent) d\'abord');
     }
 
-    public function testLimiteEtJokersEchappes(): void
+    public function testLimitAndEscapedWildcards(): void
     {
         self::assertCount(1, $this->dao->searchByWords(['zzlef'], 1));
         self::assertSame([], $this->dao->searchByWords(['%'], 21));
@@ -103,11 +107,15 @@ final class PatientDaoSearchTest extends TestCase
         self::assertSame([], $this->dao->searchByWords([], 21));
     }
 
-    public function testDateDuDernierSejour(): void
+    public function testLastEpisodeDate(): void
     {
-        $sejours = new SejourDao($this->pdo);
-        $sejours->insert($this->sejour($this->ids['lefevre2'], '2026-01-05 10:00:00', '2026-01-09 10:00:00'));
-        $sejours->insert($this->sejour($this->ids['lefevre2'], '2026-03-02 08:00:00', '2026-03-04 08:00:00'));
+        $episodesOfCare = new EpisodeOfCareDao($this->pdo);
+        $episodesOfCare->insert(
+            $this->episodeOfCare($this->ids['lefevre2'], '2026-01-05 10:00:00', '2026-01-09 10:00:00')
+        );
+        $episodesOfCare->insert(
+            $this->episodeOfCare($this->ids['lefevre2'], '2026-03-02 08:00:00', '2026-03-04 08:00:00')
+        );
 
         $rows = $this->dao->searchByWords(['odette', 'zzlef'], 21);
 
@@ -117,29 +125,29 @@ final class PatientDaoSearchTest extends TestCase
     }
 
     /** @param list<array{patient: Patient, lastAdmission: ?DateTimeImmutable}> $rows */
-    private function noms(array $rows): array
+    private function names(array $rows): array
     {
         return array_map(
-            static fn (array $r): string => $r['patient']->getNom() . ' ' . $r['patient']->getPrenom(),
+            static fn (array $r): string => $r['patient']->getLastName() . ' ' . $r['patient']->getFirstName(),
             $rows
         );
     }
 
-    private function patient(string $nom, string $prenom, ?string $ipp, ?string $birthLastName = null): Patient
+    private function patient(string $lastName, string $firstName, ?string $ipp, ?string $birthLastName = null): Patient
     {
-        return new Patient(null, $ipp, $nom, $prenom, new DateTimeImmutable('1970-01-01'), 'F', details: [
+        return new Patient(null, $ipp, $lastName, $firstName, new DateTimeImmutable('1970-01-01'), 'F', details: [
             'birthLastName' => $birthLastName,
         ]);
     }
 
-    private function sejour(int $idPatient, string $admission, string $sortie): Sejour
+    private function episodeOfCare(int $idPatient, string $admission, string $sortie): EpisodeOfCare
     {
-        return new Sejour(
-            idSejour: null,
+        return new EpisodeOfCare(
+            idEpisodeOfCare: null,
             idPatient: $idPatient,
-            numSejour: '',
-            dateAdmission: new DateTimeImmutable($admission),
-            dateSortie: new DateTimeImmutable($sortie)
+            episodeNumber: '',
+            admissionDate: new DateTimeImmutable($admission),
+            dischargeDate: new DateTimeImmutable($sortie)
         );
     }
 }

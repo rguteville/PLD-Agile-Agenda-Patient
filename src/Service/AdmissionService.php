@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace Aura\Service;
 
-use Aura\Dao\AllergieDao;
+use Aura\Dao\AllergyIntoleranceDao;
 use Aura\Dao\AuditEventDao;
 use Aura\Dao\PatientDao;
 use Aura\Dao\Transaction;
-use Aura\Domain\Allergie;
+use Aura\Domain\AllergyIntolerance;
 use Aura\Domain\AuditEvent;
 use Aura\Domain\Patient;
 use Aura\Domain\RecordFields;
-use Aura\Domain\Sejour;
+use Aura\Domain\EpisodeOfCare;
 use DateTimeImmutable;
 use InvalidArgumentException;
 use LogicException;
@@ -33,19 +33,19 @@ use PDOException;
 class AdmissionService
 {
     /** Valeurs de `sexe` acceptées (colonne Patient.sexe VARCHAR(1), cf. database/test.sql). */
-    public const SEXES_AUTORISES = ['M', 'F'];
+    public const ALLOWED_SEXES = ['M', 'F'];
 
     /** Format attendu pour la date de naissance (AAAA-MM-JJ). */
     public const FORMAT_DATE = 'Y-m-d';
 
     /** IPP : 6 à 9 chiffres (colonne Patient.ipp INT avec CHECK entre 100000 et 999999999). */
-    public const MOTIF_IPP = '/^\d{6,9}$/';
+    public const IPP_REASON = '/^\d{6,9}$/';
 
     /** Plus grande taille (cm) ou plus grand poids (kg) enregistrable : colonnes Sejour DECIMAL(5,2). */
-    public const MESURE_MAX = 999.99;
+    public const MEASURE_MAX = 999.99;
 
     /** Longueur maximale des précautions, en caractères (colonne Sejour.precautions VARCHAR(500)). */
-    public const PRECAUTIONS_LONGUEUR_MAX = 500;
+    public const PRECAUTIONS_MAX_LENGTH = 500;
 
     private FieldValidationService $fields;
 
@@ -59,15 +59,15 @@ class AdmissionService
      * @param RecordEditService|null $recordEditService mise à jour tracée, champ par champ, d'un patient existant
      */
     public function __construct(
-        private ?DateTimeImmutable $aujourdhui = null,
+        private ?DateTimeImmutable $today = null,
         private ?PatientDao $patientDao = null,
-        private ?SejourService $sejourService = null,
+        private ?EpisodeOfCareService $episodeOfCareService = null,
         private ?Transaction $transaction = null,
-        private ?AllergieDao $allergieDao = null,
+        private ?AllergyIntoleranceDao $allergyIntoleranceDao = null,
         private ?AuditEventDao $auditEventDao = null,
         private ?RecordEditService $recordEditService = null
     ) {
-        $this->fields = new FieldValidationService($aujourdhui);
+        $this->fields = new FieldValidationService($today);
     }
 
     /**
@@ -97,37 +97,37 @@ class AdmissionService
      * @throws InvalidArgumentException données invalides ou admission refusée (message affichable)
      * @throws LogicException si le service a été construit sans accès à la base
      */
-    public function admettre(array $donnees, array $referentiels = []): Sejour
+    public function admit(array $data, array $referenceDataSets = []): EpisodeOfCare
     {
-        if ($this->patientDao === null || $this->sejourService === null || $this->transaction === null) {
+        if ($this->patientDao === null || $this->episodeOfCareService === null || $this->transaction === null) {
             throw new LogicException('AdmissionService::admettre() requiert PatientDao, SejourService et Transaction.');
         }
 
-        $erreurs = $this->valider($donnees, $referentiels);
-        if ($erreurs !== []) {
-            throw new InvalidArgumentException(implode(' ', $erreurs));
+        $errors = $this->validate($data, $referenceDataSets);
+        if ($errors !== []) {
+            throw new InvalidArgumentException(implode(' ', $errors));
         }
 
-        $patientDetails = $this->fields->normalize(RecordFields::PATIENT, $donnees);
-        $patient = $this->construirePatient($donnees, $patientDetails);
-        $poids = $this->mesure($donnees['poids'] ?? null);
-        $taille = $this->mesure($donnees['taille'] ?? null);
-        $precautions = $this->precautions($donnees['precautions'] ?? null);
-        $idService = $this->texte($donnees['idService'] ?? null);
-        $episodeDetails = $this->fields->normalize(RecordFields::EPISODE, $donnees);
-        $allergies = $this->allergenes($donnees['allergies'] ?? null);
-        $criticites = $this->criticalities($donnees['allergyCriticalities'] ?? null);
-        if ($allergies !== [] && $this->allergieDao === null) {
+        $patientDetails = $this->fields->normalize(RecordFields::PATIENT, $data);
+        $patient = $this->buildPatient($data, $patientDetails);
+        $weight = $this->measure($data['weight'] ?? null);
+        $height = $this->measure($data['height'] ?? null);
+        $precautions = $this->precautions($data['precautions'] ?? null);
+        $idService = $this->text($data['idService'] ?? null);
+        $episodeDetails = $this->fields->normalize(RecordFields::EPISODE, $data);
+        $allergies = $this->allergens($data['allergies'] ?? null);
+        $criticalities = $this->criticalities($data['allergyCriticalities'] ?? null);
+        if ($allergies !== [] && $this->allergyIntoleranceDao === null) {
             throw new LogicException(
                 'AdmissionService::admettre() requiert AllergieDao pour enregistrer des allergies.'
             );
         }
-        $idSelectionne = $this->texte($donnees['idPatient'] ?? null);
-        $idSelectionne = $idSelectionne !== '' ? (int) $idSelectionne : null;
-        $modeRecherche = $this->texte($donnees['searchMode'] ?? null);
+        $selectedId = $this->text($data['idPatient'] ?? null);
+        $selectedId = $selectedId !== '' ? (int) $selectedId : null;
+        $searchMode = $this->text($data['searchMode'] ?? null);
         $patientDao = $this->patientDao;
-        $sejourService = $this->sejourService;
-        $allergieDao = $this->allergieDao;
+        $episodeOfCareService = $this->episodeOfCareService;
+        $allergyIntoleranceDao = $this->allergyIntoleranceDao;
 
         // Deux admissions simultanées se disputent les mêmes verrous (MAX(...) FOR UPDATE sur Patient) :
         // MariaDB interrompt l'une sur interblocage (1213) ou la contrainte UNIQUE la refuse (1062).
@@ -137,18 +137,18 @@ class AdmissionService
                 return $this->runAdmission(
                     $patient,
                     $patientDao,
-                    $sejourService,
-                    $allergieDao,
-                    $poids,
-                    $taille,
+                    $episodeOfCareService,
+                    $allergyIntoleranceDao,
+                    $weight,
+                    $height,
                     $precautions,
                     $idService,
                     $patientDetails,
                     $episodeDetails,
                     $allergies,
-                    $criticites,
-                    $idSelectionne,
-                    $modeRecherche
+                    $criticalities,
+                    $selectedId,
+                    $searchMode
                 );
             } catch (PDOException $e) {
                 $code = (int) ($e->errorInfo[1] ?? 0);
@@ -176,74 +176,74 @@ class AdmissionService
     private function runAdmission(
         Patient $patient,
         PatientDao $patientDao,
-        SejourService $sejourService,
-        ?AllergieDao $allergieDao,
-        ?float $poids,
-        ?float $taille,
+        EpisodeOfCareService $episodeOfCareService,
+        ?AllergyIntoleranceDao $allergyIntoleranceDao,
+        ?float $weight,
+        ?float $height,
         ?string $precautions,
         string $idService,
         array $patientDetails,
         array $episodeDetails,
         array $allergies,
-        array $criticites,
-        ?int $idSelectionne,
-        string $modeRecherche
-    ): Sejour {
+        array $criticalities,
+        ?int $selectedId,
+        string $searchMode
+    ): EpisodeOfCare {
         return $this->transaction->run(
             function () use (
                 $patient,
                 $patientDao,
-                $sejourService,
-                $allergieDao,
-                $poids,
-                $taille,
+                $episodeOfCareService,
+                $allergyIntoleranceDao,
+                $weight,
+                $height,
                 $precautions,
                 $idService,
                 $patientDetails,
                 $episodeDetails,
                 $allergies,
-                $criticites,
-                $idSelectionne,
-                $modeRecherche
-            ): Sejour {
+                $criticalities,
+                $selectedId,
+                $searchMode
+            ): EpisodeOfCare {
                 $rattachement = null;
-                if ($idSelectionne !== null) {
-                    $existant = $patientDao->findById($idSelectionne);
-                    if ($existant === null) {
+                if ($selectedId !== null) {
+                    $existing = $patientDao->findById($selectedId);
+                    if ($existing === null) {
                         throw new InvalidArgumentException(
                             'Le patient sélectionné est introuvable : relancez la recherche.'
                         );
                     }
-                    $idPatient = $idSelectionne;
-                    $this->mettreAJourPatientSelectionne($existant, $patient, $patientDetails);
-                    $rattachement = $modeRecherche === PatientSearchService::MODE_IPP
+                    $idPatient = $selectedId;
+                    $this->updateSelectedPatient($existing, $patient, $patientDetails);
+                    $rattachement = $searchMode === PatientSearchService::MODE_IPP
                         ? 'rattachement après recherche par IPP'
                         : 'rattachement après recherche par nom';
                 } else {
-                    $existant = $patient->getIpp() !== null ? $patientDao->findByIpp($patient->getIpp()) : null;
-                    if ($existant !== null) {
-                        $idPatient = (int) $existant->getIdPatient();
-                        $this->completerPatient(
-                            $existant,
+                    $existing = $patient->getIpp() !== null ? $patientDao->findByIpp($patient->getIpp()) : null;
+                    if ($existing !== null) {
+                        $idPatient = (int) $existing->getIdPatient();
+                        $this->completePatient(
+                            $existing,
                             array_filter($patientDetails, static fn (?string $v): bool => $v !== null)
                         );
                         $rattachement = 'rattachement par IPP saisi';
                     } else {
                         // Nouveau patient sans IPP saisi : un IPP est attribué automatiquement (retours
                         // du 2026-11-02), dans la même transaction que l'insertion.
-                        $ippGenere = null;
+                        $generatedIpp = null;
                         if ($patient->getIpp() === null) {
                             try {
-                                $ippGenere = (string) $patientDao->nextIpp();
+                                $generatedIpp = (string) $patientDao->nextIpp();
                             } catch (LogicException) {
                                 throw new InvalidArgumentException(
                                     'Aucun IPP ne peut être attribué automatiquement : saisissez l\'IPP du patient.'
                                 );
                             }
-                            $patient = self::withIpp($patient, $ippGenere);
+                            $patient = self::withIpp($patient, $generatedIpp);
                         }
                         $idPatient = $patientDao->insert($patient);
-                        if ($ippGenere !== null) {
+                        if ($generatedIpp !== null) {
                             // Traçabilité : cet IPP vient d'AURA, pas du système d'identité de l'hôpital.
                             $this->auditEventDao?->insert(new AuditEvent(
                                 null,
@@ -251,7 +251,7 @@ class AdmissionService
                                 $idPatient,
                                 'ipp',
                                 null,
-                                $ippGenere,
+                                $generatedIpp,
                                 AuditEvent::AUTHOR_UNKNOWN,
                                 detail: 'IPP attribué automatiquement par AURA à l\'admission'
                             ));
@@ -259,10 +259,10 @@ class AdmissionService
                     }
                 }
 
-                $sejour = $sejourService->ouvrirSejour(
+                $episodeOfCare = $episodeOfCareService->openEpisodeOfCare(
                     $idPatient,
-                    poids: $poids,
-                    taille: $taille,
+                    weight: $weight,
+                    height: $height,
                     precautions: $precautions,
                     idService: $idService !== '' ? $idService : null,
                     details: $episodeDetails
@@ -272,7 +272,7 @@ class AdmissionService
                     $this->auditEventDao?->insert(new AuditEvent(
                         null,
                         AuditEvent::ENTITY_EPISODE,
-                        (int) $sejour->getIdSejour(),
+                        (int) $episodeOfCare->getIdEpisodeOfCare(),
                         'idPatient',
                         null,
                         (string) $idPatient,
@@ -281,34 +281,40 @@ class AdmissionService
                     ));
                 }
 
-                if ($allergies !== [] && $allergieDao !== null) {
-                    $connues = [];
-                    foreach ($allergieDao->findByPatient($idPatient) as $connue) {
-                        $connues[$connue->getIdAllergene()] = $connue;
+                if ($allergies !== [] && $allergyIntoleranceDao !== null) {
+                    $knownOnes = [];
+                    foreach ($allergyIntoleranceDao->findByPatient($idPatient) as $known) {
+                        $knownOnes[$known->getIdSubstance()] = $known;
                     }
                     foreach ($allergies as $idSubstance) {
-                        $criticite = $criticites[$idSubstance] ?? null;
-                        if (!isset($connues[$idSubstance])) {
-                            $allergieDao->insert(new Allergie(null, $idPatient, $idSubstance, '', $criticite));
+                        $criticality = $criticalities[$idSubstance] ?? null;
+                        if (!isset($knownOnes[$idSubstance])) {
+                            $allergyIntoleranceDao->insert(
+                                new AllergyIntolerance(null, $idPatient, $idSubstance, '', $criticality)
+                            );
                             continue;
                         }
                         // Allergie déjà connue : une criticité choisie différente de celle enregistrée est
                         // appliquée et tracée (jamais ignorée en silence). Une criticité laissée vide ne
                         // remplace pas une criticité connue.
-                        $connue = $connues[$idSubstance];
-                        $avant = $connue->getCriticite() !== null && trim($connue->getCriticite()) !== ''
-                            ? trim($connue->getCriticite())
+                        $known = $knownOnes[$idSubstance];
+                        $before = $known->getCriticality() !== null && trim($known->getCriticality()) !== ''
+                            ? trim($known->getCriticality())
                             : null;
-                        if ($criticite !== null && $criticite !== $avant) {
-                            $allergieDao->updateCriticality((int) $connue->getIdAllergie(), $idPatient, $criticite);
-                            $libelle = trim($connue->getSubstance());
+                        if ($criticality !== null && $criticality !== $before) {
+                            $allergyIntoleranceDao->updateCriticality(
+                                (int) $known->getIdAllergyIntolerance(),
+                                $idPatient,
+                                $criticality
+                            );
+                            $label = trim($known->getSubstance());
                             $this->auditEventDao?->insert(new AuditEvent(
                                 null,
                                 AuditEvent::ENTITY_PATIENT,
                                 $idPatient,
                                 'allergyCriticality',
-                                $libelle . ' : ' . ($avant ?? 'non évaluée'),
-                                $libelle . ' : ' . $criticite,
+                                $label . ' : ' . ($before ?? 'non évaluée'),
+                                $label . ' : ' . $criticality,
                                 AuditEvent::AUTHOR_UNKNOWN,
                                 detail: 'modifié à l\'admission'
                             ));
@@ -316,7 +322,7 @@ class AdmissionService
                     }
                 }
 
-                return $sejour;
+                return $episodeOfCare;
             }
         );
     }
@@ -328,50 +334,50 @@ class AdmissionService
      * @param array<string, ?string> $details
      * @throws InvalidArgumentException si l'IPP saisi appartient à un autre patient
      */
-    private function mettreAJourPatientSelectionne(Patient $existant, Patient $saisi, array $details): void
+    private function updateSelectedPatient(Patient $existing, Patient $entered, array $details): void
     {
-        $idPatient = (int) $existant->getIdPatient();
-        $avant = self::identite($existant);
-        $apres = self::identite($saisi);
-        $changements = array_filter(
-            $apres,
-            static fn (?string $v, string $k): bool => $v !== $avant[$k],
+        $idPatient = (int) $existing->getIdPatient();
+        $before = self::identity($existing);
+        $after = self::identity($entered);
+        $changes = array_filter(
+            $after,
+            static fn (?string $v, string $k): bool => $v !== $before[$k],
             ARRAY_FILTER_USE_BOTH
         );
 
-        if ($changements !== []) {
-            if (isset($changements['ipp']) && $changements['ipp'] !== null) {
-                $porteur = $this->patientDao?->findByIpp($changements['ipp']);
-                if ($porteur !== null && $porteur->getIdPatient() !== $idPatient) {
+        if ($changes !== []) {
+            if (isset($changes['ipp']) && $changes['ipp'] !== null) {
+                $carrier = $this->patientDao?->findByIpp($changes['ipp']);
+                if ($carrier !== null && $carrier->getIdPatient() !== $idPatient) {
                     throw new InvalidArgumentException('Cet IPP est déjà utilisé par un autre patient.');
                 }
             }
             $this->patientDao?->update(new Patient(
                 idPatient: $idPatient,
-                ipp: $saisi->getIpp(),
-                nom: $saisi->getNom(),
-                prenom: $saisi->getPrenom(),
-                dateNaissance: $saisi->getDateNaissance(),
-                sexe: $saisi->getSexe(),
-                telephone: $existant->getTelephone(),
-                email: $existant->getEmail(),
-                details: $existant->getDetails()
+                ipp: $entered->getIpp(),
+                lastName: $entered->getLastName(),
+                firstName: $entered->getFirstName(),
+                birthDate: $entered->getBirthDate(),
+                sex: $entered->getSex(),
+                phone: $existing->getPhone(),
+                email: $existing->getEmail(),
+                details: $existing->getDetails()
             ));
-            foreach ($changements as $champ => $valeur) {
+            foreach ($changes as $field => $value) {
                 $this->auditEventDao?->insert(new AuditEvent(
                     null,
                     AuditEvent::ENTITY_PATIENT,
                     $idPatient,
-                    self::IDENTITY_COLUMNS[$champ],
-                    $avant[$champ],
-                    $valeur,
+                    self::IDENTITY_COLUMNS[$field],
+                    $before[$field],
+                    $value,
                     AuditEvent::AUTHOR_UNKNOWN,
                     detail: 'modifié à l\'admission'
                 ));
             }
         }
 
-        $this->completerPatient($existant, $details);
+        $this->completePatient($existing, $details);
     }
 
     /** Copie du patient avec l'IPP attribué (l'entité est immuable). */
@@ -380,11 +386,11 @@ class AdmissionService
         return new Patient(
             idPatient: $p->getIdPatient(),
             ipp: $ipp,
-            nom: $p->getNom(),
-            prenom: $p->getPrenom(),
-            dateNaissance: $p->getDateNaissance(),
-            sexe: $p->getSexe(),
-            telephone: $p->getTelephone(),
+            lastName: $p->getLastName(),
+            firstName: $p->getFirstName(),
+            birthDate: $p->getBirthDate(),
+            sex: $p->getSex(),
+            phone: $p->getPhone(),
             email: $p->getEmail(),
             details: $p->getDetails()
         );
@@ -392,22 +398,22 @@ class AdmissionService
 
     /** Colonnes SQL des champs d'identité, pour la trace (AuditEvent.field). */
     private const IDENTITY_COLUMNS = [
-        'nom' => 'lastName',
-        'prenom' => 'firstName',
+        'lastName' => 'lastName',
+        'firstName' => 'firstName',
         'ipp' => 'ipp',
-        'dateNaissance' => 'birthDate',
-        'sexe' => 'sex',
+        'birthDate' => 'birthDate',
+        'sex' => 'sex',
     ];
 
     /** @return array<string, ?string> identité comparable (clés du domaine) */
-    private static function identite(Patient $p): array
+    private static function identity(Patient $p): array
     {
         return [
-            'nom' => trim($p->getNom()),
-            'prenom' => trim($p->getPrenom()),
+            'lastName' => trim($p->getLastName()),
+            'firstName' => trim($p->getFirstName()),
             'ipp' => $p->getIpp(),
-            'dateNaissance' => $p->getDateNaissance()?->format(self::FORMAT_DATE),
-            'sexe' => $p->getSexe(),
+            'birthDate' => $p->getBirthDate()?->format(self::FORMAT_DATE),
+            'sex' => $p->getSex(),
         ];
     }
 
@@ -417,27 +423,27 @@ class AdmissionService
      *
      * @param array<string, ?string> $details
      */
-    private function completerPatient(Patient $existant, array $details): void
+    private function completePatient(Patient $existing, array $details): void
     {
-        $idPatient = (int) $existant->getIdPatient();
+        $idPatient = (int) $existing->getIdPatient();
         if ($this->recordEditService === null) {
             $this->patientDao?->updateDetails($idPatient, $details);
             return;
         }
-        foreach ($details as $champ => $valeur) {
-            $resultat = $this->recordEditService->update(
+        foreach ($details as $field => $value) {
+            $result = $this->recordEditService->update(
                 RecordEditService::ENTITY_PATIENT,
                 $idPatient,
-                $champ,
-                $valeur,
-                $existant->getDetail($champ),
+                $field,
+                $value,
+                $existing->getDetail($field),
                 AuditEvent::AUTHOR_UNKNOWN
             );
-            $statut = $resultat['status'];
-            if ($statut !== RecordEditService::STATUS_SAVED && $statut !== RecordEditService::STATUS_UNCHANGED) {
+            $status = $result['status'];
+            if ($status !== RecordEditService::STATUS_SAVED && $status !== RecordEditService::STATUS_UNCHANGED) {
                 // Rien ne doit passer inaperçu dans la transaction d'admission : elle est annulée.
                 throw new InvalidArgumentException(
-                    (string) ($resultat['message'] ?? 'La mise à jour du dossier existant a été refusée.')
+                    (string) ($result['message'] ?? 'La mise à jour du dossier existant a été refusée.')
                 );
             }
         }
@@ -449,16 +455,16 @@ class AdmissionService
      *
      * @return array<string, string>
      */
-    private function criticalities(mixed $valeur): array
+    private function criticalities(mixed $value): array
     {
-        $criticites = [];
-        foreach (is_array($valeur) ? $valeur : [] as $id => $criticite) {
-            if (is_string($criticite) && trim($criticite) !== '') {
-                $criticites[(string) $id] = trim($criticite);
+        $criticalities = [];
+        foreach (is_array($value) ? $value : [] as $id => $criticality) {
+            if (is_string($criticality) && trim($criticality) !== '') {
+                $criticalities[(string) $id] = trim($criticality);
             }
         }
 
-        return $criticites;
+        return $criticalities;
     }
 
     /**
@@ -467,14 +473,14 @@ class AdmissionService
      *
      * @return list<string>
      */
-    private function allergenes(mixed $valeur): array
+    private function allergens(mixed $value): array
     {
-        if ($valeur === null || $valeur === '') {
+        if ($value === null || $value === '') {
             return [];
         }
-        $liste = is_array($valeur) ? $valeur : [$valeur];
+        $items = is_array($value) ? $value : [$value];
         $ids = [];
-        foreach ($liste as $id) {
+        foreach ($items as $id) {
             if (is_string($id) && trim($id) !== '') {
                 $ids[] = trim($id);
             }
@@ -487,19 +493,19 @@ class AdmissionService
      * Mesure validée (taille ou poids) arrondie au centième, comme la stockera la colonne
      * DECIMAL(5,2) : la valeur renvoyée est celle qui sera relue. Vide = null.
      */
-    private function mesure(mixed $valeur): ?float
+    private function measure(mixed $value): ?float
     {
-        $texte = $this->texte($valeur);
+        $text = $this->text($value);
 
-        return $texte !== '' ? round((float) $texte, 2) : null;
+        return $text !== '' ? round((float) $text, 2) : null;
     }
 
     /** Précautions nettoyées, fins de ligne normalisées en \n. Vide = null. */
-    private function precautions(mixed $valeur): ?string
+    private function precautions(mixed $value): ?string
     {
-        $texte = str_replace("\r\n", "\n", $this->texte($valeur));
+        $text = str_replace("\r\n", "\n", $this->text($value));
 
-        return $texte !== '' ? $texte : null;
+        return $text !== '' ? $text : null;
     }
 
     /**
@@ -508,21 +514,21 @@ class AdmissionService
      * @param array<string, mixed> $donnees
      * @param array<string, ?string> $details champs complémentaires normalisés (RecordFields::PATIENT)
      */
-    private function construirePatient(array $donnees, array $details = []): Patient
+    private function buildPatient(array $data, array $details = []): Patient
     {
-        $ipp = $this->texte($donnees['ipp'] ?? null);
-        $dateNaissance = $this->texte($donnees['dateNaissance'] ?? null);
-        $sexe = $this->texte($donnees['sexe'] ?? null);
+        $ipp = $this->text($data['ipp'] ?? null);
+        $birthDate = $this->text($data['birthDate'] ?? null);
+        $sex = $this->text($data['sex'] ?? null);
 
         return new Patient(
             idPatient: null,
             ipp: $ipp !== '' ? $ipp : null,
-            nom: $this->texte($donnees['nom'] ?? null),
-            prenom: $this->texte($donnees['prenom'] ?? null),
-            dateNaissance: $dateNaissance !== ''
-                ? DateTimeImmutable::createFromFormat('!' . self::FORMAT_DATE, $dateNaissance) ?: null
+            lastName: $this->text($data['lastName'] ?? null),
+            firstName: $this->text($data['firstName'] ?? null),
+            birthDate: $birthDate !== ''
+                ? DateTimeImmutable::createFromFormat('!' . self::FORMAT_DATE, $birthDate) ?: null
                 : null,
-            sexe: $sexe !== '' ? $sexe : null,
+            sex: $sex !== '' ? $sex : null,
             details: $details
         );
     }
@@ -536,36 +542,36 @@ class AdmissionService
      * @param array<string, mixed> $donnees
      * @return array<string, string> erreurs indexées par champ ; [] si les données sont valides
      */
-    public function validerPatientIdentite(array $donnees): array
+    public function validatePatientIdentity(array $data): array
     {
-        $erreurs = [];
+        $errors = [];
 
-        if ($this->texte($donnees['nom'] ?? null) === '') {
-            $erreurs['nom'] = 'Le nom est obligatoire.';
+        if ($this->text($data['lastName'] ?? null) === '') {
+            $errors['lastName'] = 'Le nom est obligatoire.';
         }
-        if ($this->texte($donnees['prenom'] ?? null) === '') {
-            $erreurs['prenom'] = 'Le prénom est obligatoire.';
-        }
-
-        $erreurIpp = self::validerIpp($this->texte($donnees['ipp'] ?? null));
-        if ($erreurIpp !== null) {
-            $erreurs['ipp'] = $erreurIpp;
+        if ($this->text($data['firstName'] ?? null) === '') {
+            $errors['firstName'] = 'Le prénom est obligatoire.';
         }
 
-        $dateNaissance = $this->texte($donnees['dateNaissance'] ?? null);
-        if ($dateNaissance !== '') {
-            $erreurDate = $this->validerDateNaissance($dateNaissance);
-            if ($erreurDate !== null) {
-                $erreurs['dateNaissance'] = $erreurDate;
+        $ippError = self::validateIpp($this->text($data['ipp'] ?? null));
+        if ($ippError !== null) {
+            $errors['ipp'] = $ippError;
+        }
+
+        $birthDate = $this->text($data['birthDate'] ?? null);
+        if ($birthDate !== '') {
+            $dateError = $this->validateBirthDate($birthDate);
+            if ($dateError !== null) {
+                $errors['birthDate'] = $dateError;
             }
         }
 
-        $sexe = $this->texte($donnees['sexe'] ?? null);
-        if ($sexe !== '' && !in_array($sexe, self::SEXES_AUTORISES, true)) {
-            $erreurs['sexe'] = 'Le sexe doit être M ou F.';
+        $sex = $this->text($data['sex'] ?? null);
+        if ($sex !== '' && !in_array($sex, self::ALLOWED_SEXES, true)) {
+            $errors['sex'] = 'Le sexe doit être M ou F.';
         }
 
-        return $erreurs;
+        return $errors;
     }
 
     /**
@@ -583,74 +589,78 @@ class AdmissionService
      *        Une liste absente désactive le contrôle d'appartenance correspondant (tests unitaires).
      * @return array<string, string> erreurs indexées par champ ; [] si les données sont valides
      */
-    public function valider(array $donnees, array $referentiels = []): array
+    public function validate(array $data, array $referenceDataSets = []): array
     {
-        $erreurs = $this->validerPatientIdentite($donnees);
-        $erreurs += $this->fields->validate(RecordFields::PATIENT, $donnees);
-        $erreurs += $this->fields->validate(RecordFields::EPISODE, $donnees);
+        $errors = $this->validatePatientIdentity($data);
+        $errors += $this->fields->validate(RecordFields::PATIENT, $data);
+        $errors += $this->fields->validate(RecordFields::EPISODE, $data);
 
-        $idService = $this->texte($donnees['idService'] ?? null);
-        if ($idService !== '' && isset($referentiels['services']) && !isset($referentiels['services'][$idService])) {
-            $erreurs['idService'] = 'Le service hospitalier choisi est inconnu.';
+        $idService = $this->text($data['idService'] ?? null);
+        if (
+            $idService !== ''
+            && isset($referenceDataSets['services'])
+            && !isset($referenceDataSets['services'][$idService])
+        ) {
+            $errors['idService'] = 'Le service hospitalier choisi est inconnu.';
         }
 
         // Patient sélectionné dans la recherche : identifiant interne numérique (existence vérifiée à l'écriture).
-        $idPatient = $this->texte($donnees['idPatient'] ?? null);
+        $idPatient = $this->text($data['idPatient'] ?? null);
         if ($idPatient !== '' && preg_match('/^[1-9][0-9]{0,17}$/', $idPatient) !== 1) {
-            $erreurs['idPatient'] = 'Le patient sélectionné est invalide : relancez la recherche.';
+            $errors['idPatient'] = 'Le patient sélectionné est invalide : relancez la recherche.';
         }
 
-        $criticites = $donnees['allergyCriticalities'] ?? [];
-        if (!is_array($criticites)) {
-            $erreurs['allergyCriticalities'] = 'La criticité des allergies est invalide.';
+        $criticalities = $data['allergyCriticalities'] ?? [];
+        if (!is_array($criticalities)) {
+            $errors['allergyCriticalities'] = 'La criticité des allergies est invalide.';
         } else {
-            foreach ($criticites as $criticite) {
-                $criticite = is_string($criticite) ? trim($criticite) : null;
-                $inconnue = $criticite !== '' && !in_array($criticite, Allergie::CRITICALITIES, true);
-                if ($criticite === null || $inconnue) {
-                    $erreurs['allergyCriticalities'] = 'Criticité d\'allergie inconnue : choisissez Faible, Élevée '
+            foreach ($criticalities as $criticality) {
+                $criticality = is_string($criticality) ? trim($criticality) : null;
+                $unknownOne = $criticality !== '' && !in_array($criticality, AllergyIntolerance::CRITICALITIES, true);
+                if ($criticality === null || $unknownOne) {
+                    $errors['allergyCriticalities'] = 'Criticité d\'allergie inconnue : choisissez Faible, Élevée '
                         . 'ou non évaluée.';
                     break;
                 }
             }
         }
 
-        $allergies = $donnees['allergies'] ?? null;
+        $allergies = $data['allergies'] ?? null;
         if ($allergies !== null && $allergies !== '' && !is_array($allergies) && !is_string($allergies)) {
-            $erreurs['allergies'] = 'La liste des allergènes est invalide.';
-        } elseif (isset($referentiels['substances'])) {
-            foreach ($this->allergenes($allergies) as $idSubstance) {
-                if (!isset($referentiels['substances'][$idSubstance])) {
-                    $erreurs['allergies'] = 'Un allergène choisi est inconnu du référentiel.';
+            $errors['allergies'] = 'La liste des allergènes est invalide.';
+        } elseif (isset($referenceDataSets['substances'])) {
+            foreach ($this->allergens($allergies) as $idSubstance) {
+                if (!isset($referenceDataSets['substances'][$idSubstance])) {
+                    $errors['allergies'] = 'Un allergène choisi est inconnu du référentiel.';
                     break;
                 }
             }
         }
 
-        $taille = $this->texte($donnees['taille'] ?? null);
-        if ($taille !== '' && !$this->estStrictementPositif($taille)) {
-            $erreurs['taille'] = 'La taille doit être un nombre strictement positif.';
-        } elseif ($taille !== '' && !$this->tientDansLaColonne($taille)) {
-            $erreurs['taille'] = 'La taille doit être inférieure à 1000 cm.';
+        $height = $this->text($data['height'] ?? null);
+        if ($height !== '' && !$this->isStrictlyPositive($height)) {
+            $errors['height'] = 'La taille doit être un nombre strictement positif.';
+        } elseif ($height !== '' && !$this->tientDansLaColonne($height)) {
+            $errors['height'] = 'La taille doit être inférieure à 1000 cm.';
         }
 
-        $poids = $this->texte($donnees['poids'] ?? null);
-        if ($poids !== '' && !$this->estStrictementPositif($poids)) {
-            $erreurs['poids'] = 'Le poids doit être un nombre strictement positif.';
-        } elseif ($poids !== '' && !$this->tientDansLaColonne($poids)) {
-            $erreurs['poids'] = 'Le poids doit être inférieur à 1000 kg.';
+        $weight = $this->text($data['weight'] ?? null);
+        if ($weight !== '' && !$this->isStrictlyPositive($weight)) {
+            $errors['weight'] = 'Le poids doit être un nombre strictement positif.';
+        } elseif ($weight !== '' && !$this->tientDansLaColonne($weight)) {
+            $errors['weight'] = 'Le poids doit être inférieur à 1000 kg.';
         }
 
         // precautions : texte libre facultatif, limité à la taille de la colonne.
-        $precautions = $this->precautions($donnees['precautions'] ?? null);
-        if ($precautions !== null && mb_strlen($precautions) > self::PRECAUTIONS_LONGUEUR_MAX) {
-            $erreurs['precautions'] = sprintf(
+        $precautions = $this->precautions($data['precautions'] ?? null);
+        if ($precautions !== null && mb_strlen($precautions) > self::PRECAUTIONS_MAX_LENGTH) {
+            $errors['precautions'] = sprintf(
                 'Les précautions ne doivent pas dépasser %d caractères.',
-                self::PRECAUTIONS_LONGUEUR_MAX
+                self::PRECAUTIONS_MAX_LENGTH
             );
         }
 
-        return $erreurs;
+        return $errors;
     }
 
     /**
@@ -658,10 +668,10 @@ class AdmissionService
      * Un IPP vide est accepté : il est facultatif à l'admission (RG1). Partagé avec la recherche
      * par IPP (AURA-15) pour que les deux écrans appliquent la même règle.
      */
-    public static function validerIpp(string $ipp): ?string
+    public static function validateIpp(string $ipp): ?string
     {
         $ipp = trim($ipp);
-        if ($ipp !== '' && preg_match(self::MOTIF_IPP, $ipp) !== 1) {
+        if ($ipp !== '' && preg_match(self::IPP_REASON, $ipp) !== 1) {
             return "L'IPP doit contenir entre 6 et 9 chiffres.";
         }
 
@@ -669,49 +679,49 @@ class AdmissionService
     }
 
     /** Message d'erreur si la date n'est pas au format AAAA-MM-JJ ou n'est pas strictement passée, sinon null. */
-    private function validerDateNaissance(string $valeur): ?string
+    private function validateBirthDate(string $value): ?string
     {
-        $date = DateTimeImmutable::createFromFormat('!' . self::FORMAT_DATE, $valeur);
+        $date = DateTimeImmutable::createFromFormat('!' . self::FORMAT_DATE, $value);
         $anomalies = DateTimeImmutable::getLastErrors();
-        $avecAnomalies = $anomalies !== false
+        $withAnomalies = $anomalies !== false
             && ($anomalies['warning_count'] > 0 || $anomalies['error_count'] > 0);
 
         // Le contrôle aller-retour rejette les dates inexistantes (ex. 2026-13-45, 1990-02-30)
         // que createFromFormat accepterait en les décalant.
-        if ($date === false || $avecAnomalies || $date->format(self::FORMAT_DATE) !== $valeur) {
+        if ($date === false || $withAnomalies || $date->format(self::FORMAT_DATE) !== $value) {
             return 'La date de naissance est invalide (format attendu : JJ/MM/AAAA).';
         }
 
-        $aujourdhui = ($this->aujourdhui ?? new DateTimeImmutable())->setTime(0, 0);
-        if ($date >= $aujourdhui) {
+        $today = ($this->today ?? new DateTimeImmutable())->setTime(0, 0);
+        if ($date >= $today) {
             return 'La date de naissance doit être antérieure à la date du jour.';
         }
 
         return null;
     }
 
-    private function estStrictementPositif(string $valeur): bool
+    private function isStrictlyPositive(string $value): bool
     {
-        return is_numeric($valeur) && (float) $valeur > 0;
+        return is_numeric($value) && (float) $value > 0;
     }
 
     /** Une fois arrondie au centième, la valeur tient dans DECIMAL(5,2) (sinon MariaDB la refuse). */
-    private function tientDansLaColonne(string $valeur): bool
+    private function tientDansLaColonne(string $value): bool
     {
-        return round((float) $valeur, 2) <= self::MESURE_MAX;
+        return round((float) $value, 2) <= self::MEASURE_MAX;
     }
 
     /**
      * Normalise une valeur saisie en chaîne nettoyée.
      * Les valeurs non scalaires (tableau envoyé par un formulaire forgé) sont traitées comme vides.
      */
-    private function texte(mixed $valeur): string
+    private function text(mixed $value): string
     {
-        if (is_string($valeur)) {
-            return trim($valeur);
+        if (is_string($value)) {
+            return trim($value);
         }
-        if (is_int($valeur) || is_float($valeur)) {
-            return (string) $valeur;
+        if (is_int($value) || is_float($value)) {
+            return (string) $value;
         }
 
         return '';

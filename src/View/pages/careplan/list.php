@@ -13,16 +13,16 @@ use Aura\Domain\CarePlan;
  * @var list<array<string, mixed>> $lines vue-modèle de CarePlanService::presentLine()
  */
 ?>
-<?= View::render('components/bandeau_patient', ['bandeau' => $banner]) ?>
+<?= View::render('components/patient_banner', ['banner' => $banner]) ?>
 <?= View::render('components/breadcrumb', ['items' => [
     ['label' => 'Patients', 'href' => '/patients'],
-    ['label' => 'Dossier du séjour n° ' . $banner['numeroSejour'], 'href' => '/sejour?id=' . $idEpisodeOfCare],
+    ['label' => 'Dossier du séjour n° ' . $banner['episodeNumber'], 'href' => '/sejour?id=' . $idEpisodeOfCare],
     ['label' => 'Prescriptions'],
 ]]) ?>
 
 <section class="care-plans">
     <div class="page-header">
-        <h1 class="form-title">Prescriptions du séjour n° <?= View::e($banner['numeroSejour']) ?></h1>
+        <h1 class="form-title">Prescriptions du séjour n° <?= View::e($banner['episodeNumber']) ?></h1>
         <p class="page-actions">
             <a class="button button--secondary"
                href="/sejour?id=<?= View::e($idEpisodeOfCare) ?>">Dossier du séjour</a>

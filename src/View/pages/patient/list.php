@@ -19,20 +19,20 @@ use Aura\Core\View;
 
 <form class="recherche-patients" method="get" action="/patients" role="search">
     <label for="q">Rechercher</label>
-    <input type="search" id="q" name="q" value="<?= View::e($recherche ?? '') ?>"
+    <input type="search" id="q" name="q" value="<?= View::e($search ?? '') ?>"
            placeholder="Nom, prénom ou IPP" maxlength="50" autocomplete="off">
     <button type="submit" class="button--secondary">
         <?= View::render('components/icon', ['name' => 'search']) ?>
         Rechercher
     </button>
-    <?php if ($recherche !== null) : ?>
+    <?php if ($search !== null) : ?>
         <a href="/patients">Tous les patients</a>
     <?php endif; ?>
 </form>
 
 <?php if ($patients === []) : ?>
-    <?= View::render('components/empty_state', $recherche !== null
-        ? ['icon' => 'search', 'title' => 'Aucun patient ne correspond à « ' . $recherche . ' ».',
+    <?= View::render('components/empty_state', $search !== null
+        ? ['icon' => 'search', 'title' => 'Aucun patient ne correspond à « ' . $search . ' ».',
             'text' => 'Vérifiez l\'orthographe ou l\'IPP, ou affichez tous les patients.']
         : ['title' => 'Aucun patient dans le service.', 'text' => 'Admettez le premier patient depuis l\'accueil.']) ?>
 <?php else : ?>
@@ -52,21 +52,22 @@ use Aura\Core\View;
         <tbody>
             <?php foreach ($patients as $p) : ?>
                 <tr>
-                    <td><?= View::e($p['nom']) ?></td>
-                    <td><?= View::e($p['prenom']) ?></td>
+                    <td><?= View::e($p['lastName']) ?></td>
+                    <td><?= View::e($p['firstName']) ?></td>
                     <td><?= View::e($p['ipp'] ?? 'sans IPP') ?></td>
-                    <td><?= View::e($p['dateNaissance'] ?? 'non renseignée') ?></td>
+                    <td><?= View::e($p['birthDate'] ?? 'non renseignée') ?></td>
                     <td>
-                        <?php if ($p['numeroSejour'] !== null) : ?>
-                            n° <?= View::e($p['numeroSejour']) ?>
+                        <?php if ($p['episodeNumber'] !== null) : ?>
+                            n° <?= View::e($p['episodeNumber']) ?>
                         <?php else : ?>
                             <span class="hors-service">aucun</span>
                         <?php endif; ?>
                     </td>
                     <td>
-                        <?php if ($p['idSejour'] !== null) : ?>
-                            <a href="/sejour?id=<?= View::e($p['idSejour']) ?>"
-                               aria-label="Dossier de <?= View::e($p['nom'] . ' ' . $p['prenom']) ?>">Dossier</a>
+                        <?php if ($p['idEpisodeOfCare'] !== null) : ?>
+                            <a href="/sejour?id=<?= View::e($p['idEpisodeOfCare']) ?>"
+                               aria-label="Dossier de <?= View::e($p['lastName'] . ' '
+                                                      . $p['firstName']) ?>">Dossier</a>
                         <?php endif; ?>
                     </td>
                 </tr>

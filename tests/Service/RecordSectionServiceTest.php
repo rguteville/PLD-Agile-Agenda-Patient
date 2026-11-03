@@ -8,14 +8,14 @@ use Aura\Core\Database;
 use Aura\Dao\AuditEventDao;
 use Aura\Dao\PatientDao;
 use Aura\Dao\ReferenceDataDao;
-use Aura\Dao\SejourDao;
+use Aura\Dao\EpisodeOfCareDao;
 use Aura\Dao\Transaction;
 use Aura\Domain\AuditEvent;
 use Aura\Domain\Patient;
-use Aura\Domain\Sejour;
+use Aura\Domain\EpisodeOfCare;
 use Aura\Service\RecordEditService;
 use Aura\Service\RecordSectionService;
-use Aura\Service\SejourService;
+use Aura\Service\EpisodeOfCareService;
 use DateTimeImmutable;
 use PDO;
 use PHPUnit\Framework\TestCase;
@@ -29,7 +29,7 @@ final class RecordSectionServiceTest extends TestCase
     private PDO $pdo;
     private RecordSectionService $service;
     private int $idPatient;
-    private int $idSejour;
+    private int $idEpisodeOfCare;
     private string $idDoctor;
 
     protected function setUp(): void
@@ -43,7 +43,7 @@ final class RecordSectionServiceTest extends TestCase
         $this->pdo->beginTransaction();
 
         $patients = new PatientDao($this->pdo);
-        $sejours = new SejourDao($this->pdo);
+        $episodesOfCare = new EpisodeOfCareDao($this->pdo);
         $this->idPatient = $patients->insert(new Patient(
             null,
             '987654320',
@@ -53,23 +53,23 @@ final class RecordSectionServiceTest extends TestCase
             'F',
             details: ['medicalHistory' => 'HTA']
         ));
-        $this->idSejour = (int) $sejours->insert(new Sejour(
+        $this->idEpisodeOfCare = (int) $episodesOfCare->insert(new EpisodeOfCare(
             null,
             $this->idPatient,
             '',
             new DateTimeImmutable('2026-10-01 08:00'),
-            numLit: 'ZZL1',
-            numBox: 'ZZB1'
-        ))->getIdSejour();
+            bedNumber: 'ZZL1',
+            boxNumber: 'ZZB1'
+        ))->getIdEpisodeOfCare();
 
         $references = new ReferenceDataDao($this->pdo);
         $this->service = new RecordSectionService(
             $patients,
-            $sejours,
-            new SejourService($sejours),
+            $episodesOfCare,
+            new EpisodeOfCareService($episodesOfCare),
             new RecordEditService(
                 $patients,
-                $sejours,
+                $episodesOfCare,
                 new AuditEventDao($this->pdo),
                 new Transaction($this->pdo),
                 $references
@@ -90,15 +90,15 @@ final class RecordSectionServiceTest extends TestCase
         }
     }
 
-    public function testUnePartieEstEnregistreeEtChaqueChampTraceAuNomDuMedecin(): void
+    public function testPartIsSavedAndEachFieldTracedUnderDoctorName(): void
     {
         $result = $this->service->updatePart(
-            $this->idSejour,
+            $this->idEpisodeOfCare,
             'history',
             ['medicalHistory' => 'HTA, diabète', 'lifestyle' => 'Autonome', 'comorbidities' => ''],
             ['medicalHistory' => 'HTA', 'lifestyle' => '', 'comorbidities' => ''],
             $this->idDoctor,
-            'factice'
+            'fake'
         );
 
         self::assertSame(RecordSectionService::STATUS_SAVED, $result['status']);
@@ -110,63 +110,63 @@ final class RecordSectionServiceTest extends TestCase
         self::assertStringContainsString('authentification factice', $traces[0]->getAuthor());
     }
 
-    public function testUnChampRefuseAnnuleToutLaPartie(): void
+    public function testRejectedFieldCancelsWholePart(): void
     {
         $result = $this->service->updatePart(
-            $this->idSejour,
+            $this->idEpisodeOfCare,
             'summary',
-            ['prenom' => 'Alicia', 'email' => 'pas-un-mail'],
-            ['prenom' => 'Alice', 'email' => ''],
+            ['firstName' => 'Alicia', 'email' => 'pas-un-mail'],
+            ['firstName' => 'Alice', 'email' => ''],
             $this->idDoctor,
-            'factice'
+            'fake'
         );
 
         self::assertSame(RecordSectionService::STATUS_INVALID, $result['status']);
         self::assertArrayHasKey('email', $result['errors']);
-        $prenom = (new PatientDao($this->pdo))->findById($this->idPatient)?->getPrenom();
-        self::assertSame('Alice', $prenom, 'rien d\'écrit');
+        $firstName = (new PatientDao($this->pdo))->findById($this->idPatient)?->getFirstName();
+        self::assertSame('Alice', $firstName, 'rien d\'écrit');
         self::assertSame([], $this->traces());
     }
 
-    public function testIdentiteEtEmplacementModifiesEnUneFois(): void
+    public function testIdentityAndLocationUpdatedTogether(): void
     {
         $result = $this->service->updatePart(
-            $this->idSejour,
+            $this->idEpisodeOfCare,
             'summary',
-            ['nom' => 'Zzpartie', 'prenom' => 'Alicia', 'telephone' => '06 11 22 33 44', 'bedNumber' => 'ZZL2'],
-            ['nom' => 'Zzpartie', 'prenom' => 'Alice', 'telephone' => '', 'bedNumber' => 'ZZL1'],
+            ['lastName' => 'Zzpartie', 'firstName' => 'Alicia', 'phone' => '06 11 22 33 44', 'bedNumber' => 'ZZL2'],
+            ['lastName' => 'Zzpartie', 'firstName' => 'Alice', 'phone' => '', 'bedNumber' => 'ZZL1'],
             $this->idDoctor,
-            'factice'
+            'fake'
         );
 
         self::assertSame(RecordSectionService::STATUS_SAVED, $result['status'], json_encode($result['errors']));
         $patient = (new PatientDao($this->pdo))->findById($this->idPatient);
-        self::assertSame('Alicia', $patient?->getPrenom());
-        self::assertSame('0611223344', $patient?->getTelephone(), 'téléphone enregistré sans espaces');
-        self::assertSame('ZZL2', (new SejourDao($this->pdo))->findById($this->idSejour)?->getNumLit());
+        self::assertSame('Alicia', $patient?->getFirstName());
+        self::assertSame('0611223344', $patient?->getPhone(), 'téléphone enregistré sans espaces');
+        self::assertSame('ZZL2', (new EpisodeOfCareDao($this->pdo))->findById($this->idEpisodeOfCare)?->getBedNumber());
         self::assertSame(['bedNumber', 'firstName', 'phoneNumber'], $this->fields($this->traces()));
     }
 
-    public function testConflitSiLaValeurDOrigineNEstPlusCelleEnBase(): void
+    public function testConflictWhenOriginalValueIsNoLongerInDatabase(): void
     {
         $result = $this->service->updatePart(
-            $this->idSejour,
+            $this->idEpisodeOfCare,
             'history',
             ['medicalHistory' => 'HTA, asthme'],
             ['medicalHistory' => 'Autre valeur affichée'],
             $this->idDoctor,
-            'factice'
+            'fake'
         );
 
         self::assertSame(RecordSectionService::STATUS_CONFLICT, $result['status']);
         self::assertSame('HTA', (new PatientDao($this->pdo))->findById($this->idPatient)?->getDetail('medicalHistory'));
     }
 
-    public function testAuthentificationFacticeRefuseeSansMedecinOuSansMotDePasse(): void
+    public function testFakeAuthenticationRejectedWithoutDoctorOrPassword(): void
     {
         foreach ([['', 'x'], [$this->idDoctor, '  '], ['PRA-INCONNU', 'x']] as [$doctor, $password]) {
             $result = $this->service->updatePart(
-                $this->idSejour,
+                $this->idEpisodeOfCare,
                 'history',
                 ['lifestyle' => 'x'],
                 ['lifestyle' => ''],
@@ -178,60 +178,62 @@ final class RecordSectionServiceTest extends TestCase
         self::assertSame([], $this->traces());
     }
 
-    public function testUnChampHorsDeLaPartieEstIgnore(): void
+    public function testFieldOutsidePartIsIgnored(): void
     {
         $result = $this->service->updatePart(
-            $this->idSejour,
+            $this->idEpisodeOfCare,
             'history',
             ['lastName' => 'Pirate', 'idPatient' => '1'],
             ['lastName' => 'Zzpartie', 'idPatient' => (string) $this->idPatient],
             $this->idDoctor,
-            'factice'
+            'fake'
         );
 
         self::assertSame(RecordSectionService::STATUS_SAVED, $result['status'], 'rien à faire');
-        self::assertSame('Zzpartie', (new PatientDao($this->pdo))->findById($this->idPatient)?->getNom());
+        self::assertSame('Zzpartie', (new PatientDao($this->pdo))->findById($this->idPatient)?->getLastName());
     }
 
-    public function testFinDeSejourDateeEtTracee(): void
+    public function testEpisodeEndDatedAndTraced(): void
     {
-        $result = $this->service->endStay($this->idSejour, '02/10/2026', '09:30', $this->idDoctor, 'factice');
+        $result = $this->service->endStay($this->idEpisodeOfCare, '02/10/2026', '09:30', $this->idDoctor, 'fake');
 
         self::assertSame(RecordSectionService::STATUS_SAVED, $result['status'], json_encode($result['errors']));
-        $sejour = (new SejourDao($this->pdo))->findById($this->idSejour);
-        self::assertSame('2026-10-02 09:30', $sejour?->getDateSortie()?->format('Y-m-d H:i'));
+        $episodeOfCare = (new EpisodeOfCareDao($this->pdo))->findById($this->idEpisodeOfCare);
+        self::assertSame('2026-10-02 09:30', $episodeOfCare?->getDischargeDate()?->format('Y-m-d H:i'));
         self::assertSame(['dischargeDate'], $this->fields($this->traces()));
 
-        $again = $this->service->endStay($this->idSejour, '', '', $this->idDoctor, 'factice');
+        $again = $this->service->endStay($this->idEpisodeOfCare, '', '', $this->idDoctor, 'fake');
         self::assertSame(RecordSectionService::STATUS_INVALID, $again['status'], 'séjour déjà terminé');
     }
 
-    public function testFinDeSejourAvantLAdmissionRefusee(): void
+    public function testEpisodeEndBeforeAdmissionRejected(): void
     {
-        $result = $this->service->endStay($this->idSejour, '30/09/2026', '08:00', $this->idDoctor, 'factice');
+        $result = $this->service->endStay($this->idEpisodeOfCare, '30/09/2026', '08:00', $this->idDoctor, 'fake');
 
         self::assertSame(RecordSectionService::STATUS_INVALID, $result['status']);
         self::assertArrayHasKey('dischargeDate', $result['errors']);
     }
 
-    public function testValeursActuellesDUnePartieAuFormatDuFormulaire(): void
+    public function testCurrentPartValuesInFormFormat(): void
     {
         $patient = (new PatientDao($this->pdo))->findById($this->idPatient);
-        $sejour = (new SejourDao($this->pdo))->findById($this->idSejour);
+        $episodeOfCare = (new EpisodeOfCareDao($this->pdo))->findById($this->idEpisodeOfCare);
         self::assertNotNull($patient);
-        self::assertNotNull($sejour);
+        self::assertNotNull($episodeOfCare);
 
-        $values = RecordSectionService::currentValues('summary', $patient, $sejour);
+        $values = RecordSectionService::currentValues('summary', $patient, $episodeOfCare);
 
-        self::assertSame('01/01/1970', $values['dateNaissance'], 'date en JJ/MM/AAAA');
+        self::assertSame('01/01/1970', $values['birthDate'], 'date en JJ/MM/AAAA');
         self::assertSame('ZZL1', $values['bedNumber']);
-        self::assertSame('', $values['telephone']);
+        self::assertSame('', $values['phone']);
     }
 
     /** @return list<AuditEvent> */
     private function traces(): array
     {
-        return array_values((new AuditEventDao($this->pdo))->findForRecord($this->idPatient, $this->idSejour, 50));
+        return array_values(
+            (new AuditEventDao($this->pdo))->findForRecord($this->idPatient, $this->idEpisodeOfCare, 50)
+        );
     }
 
     /**

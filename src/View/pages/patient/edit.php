@@ -11,10 +11,10 @@ use Aura\Core\View;
  * @var array<string, string> $erreurs indexées par nom de champ, [] si aucune
  */
 $idPatient = $_GET['id'] ?? null;
-$valeurs = $valeurs ?? [];
-$erreurs = $erreurs ?? [];
+$values = $values ?? [];
+$errors = $errors ?? [];
 
-$champs = [
+$formFields = [
     ['name' => 'lastname', 'label' => 'Nom', 'required' => true, 'placeholder' => 'DUPONT'],
     ['name' => 'firstname', 'label' => 'Prénom', 'required' => true, 'placeholder' => 'Marie'],
     ['name' => 'ipp', 'label' => 'IPP (identifiant permanent du patient)', 'placeholder' => '100000123'],
@@ -27,11 +27,11 @@ $champs = [
     ]
 ];
 
-foreach ($champs as &$champ) {
-    $champ['value'] = $valeurs[$champ['name']] ?? '';
-    $champ['error'] = $erreurs[$champ['name']] ?? '';
+foreach ($formFields as &$formField) {
+    $formField['value'] = $values[$formField['name']] ?? '';
+    $formField['error'] = $errors[$formField['name']] ?? '';
 }
-unset($champ);
+unset($formField);
 
 ?>
 
@@ -40,7 +40,7 @@ unset($champ);
     'title' => 'Modifier le patient',
     'action' => '/patients/modifier?id=' . $idPatient,
     'submit' => 'Enregistrer',
-    'fields' => $champs,
+    'fields' => $formFields,
 ]);?>
 
 <p><a href="/patients">Annuler</a></p>

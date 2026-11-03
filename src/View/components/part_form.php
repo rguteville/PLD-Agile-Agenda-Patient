@@ -13,10 +13,10 @@ use Aura\Core\View;
  * @var array<string, array<string, mixed>> $fields RecordSectionService::partFields()
  * @var array<string, string> $values valeurs actuelles (RecordSectionService::currentValues())
  */
-$champs = [];
+$formFields = [];
 foreach ($fields as $key => $spec) {
     $type = $spec['type'];
-    $champ = [
+    $formField = [
         'name' => $key,
         'id' => $part . '-' . $key,
         'label' => $spec['label'],
@@ -26,31 +26,32 @@ foreach ($fields as $key => $spec) {
         'required' => !empty($spec['required']),
     ];
     if (isset($spec['placeholder'])) {
-        $champ['placeholder'] = $spec['placeholder'];
+        $formField['placeholder'] = $spec['placeholder'];
     }
     if (isset($spec['help'])) {
-        $champ['help'] = $spec['help'];
+        $formField['help'] = $spec['help'];
     }
     if ($type === 'select') {
-        $champ['options'] = $spec['options'] ?? [];
-        $champ['empty'] = 'Non renseigné';
+        $formField['options'] = $spec['options'] ?? [];
+        $formField['empty'] = 'Non renseigné';
     } elseif ($type === 'radio') {
-        $champ['options'] = $spec['options'] ?? [];
+        $formField['options'] = $spec['options'] ?? [];
     } elseif ($type === 'textarea') {
-        $champ['attributes'] = ['rows' => '3'] + (isset($spec['max']) ? ['maxlength' => (string) $spec['max']] : []);
+        $formField['attributes'] = ['rows' => '3']
+            + (isset($spec['max']) ? ['maxlength' => (string) $spec['max']] : []);
     } elseif ($type === 'number') {
-        $champ['attributes'] = ['inputmode' => 'decimal'];
+        $formField['attributes'] = ['inputmode' => 'decimal'];
     } elseif (isset($spec['max'])) {
-        $champ['attributes'] = ['maxlength' => (string) $spec['max']];
+        $formField['attributes'] = ['maxlength' => (string) $spec['max']];
     }
-    $champs[] = $champ;
+    $formFields[] = $formField;
 }
 ?>
 <form class="part-form" data-part="<?= View::e($part) ?>" data-title="<?= View::e($title) ?>"
       data-old="<?= View::e(json_encode($values, JSON_UNESCAPED_UNICODE | JSON_FORCE_OBJECT)) ?>" novalidate hidden>
     <p class="form-error" role="alert" data-part-error hidden></p>
-    <?php foreach ($champs as $champ) : ?>
-        <?= View::render('components/field', ['field' => $champ]) ?>
+    <?php foreach ($formFields as $formField) : ?>
+        <?= View::render('components/field', ['field' => $formField]) ?>
     <?php endforeach; ?>
     <div class="part-form__actions">
         <button type="submit" class="button">Enregistrer</button>

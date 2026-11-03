@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace Aura\Service;
 
-use Aura\Dao\AllergieDao;
+use Aura\Dao\AllergyIntoleranceDao;
 use Aura\Dao\PatientDao;
 use Aura\Dao\ReferenceDataDao;
-use Aura\Dao\SejourDao;
+use Aura\Dao\EpisodeOfCareDao;
 use Aura\Dao\SubstanceDao;
-use Aura\Domain\Allergie;
+use Aura\Domain\AllergyIntolerance;
 use Aura\Domain\Patient;
 use Aura\Domain\RecordFields;
-use Aura\Domain\Sejour;
+use Aura\Domain\EpisodeOfCare;
 use Aura\Domain\Substance;
 use DateTimeImmutable;
 use DateTimeInterface;
@@ -26,14 +26,14 @@ use DateTimeInterface;
  * Les données viennent de la base via les DAO (AURA-11) ; les méthodes presenter*()
  * et availableSubstances() sont pures (pas d'accès aux données) pour être testables sans base.
  */
-final class DossierPatientService
+final class PatientRecordService
 {
     public function __construct(
-        private SejourDao $sejourDao,
+        private EpisodeOfCareDao $episodeOfCareDao,
         private PatientDao $patientDao,
-        private AllergieDao $allergieDao,
+        private AllergyIntoleranceDao $allergyIntoleranceDao,
         private SubstanceDao $substanceDao,
-        private DateTimeImmutable $aujourdhui,
+        private DateTimeImmutable $today,
         private ?ReferenceDataDao $referenceDataDao = null,
     ) {
     }
@@ -44,72 +44,74 @@ final class DossierPatientService
      *               criticalities: list<string>}|null
      *         null si le séjour n'existe pas (ou si son patient a disparu : données incohérentes)
      */
-    public function dossier(int $idSejour): ?array
+    public function record(int $idEpisodeOfCare): ?array
     {
-        $sejour = $this->sejourDao->findById($idSejour);
-        if ($sejour === null) {
+        $episodeOfCare = $this->episodeOfCareDao->findById($idEpisodeOfCare);
+        if ($episodeOfCare === null) {
             return null;
         }
 
-        $patient = $this->patientDao->findById($sejour->getIdPatient());
+        $patient = $this->patientDao->findById($episodeOfCare->getIdPatient());
         if ($patient === null) {
             return null;
         }
 
-        $allergies = $this->allergieDao->findByPatient($patient->getIdPatient() ?? $sejour->getIdPatient());
+        $allergies = $this->allergyIntoleranceDao->findByPatient(
+            $patient->getIdPatient() ?? $episodeOfCare->getIdPatient()
+        );
         $services = $this->referenceDataDao?->healthcareServices() ?? [];
 
         return [
-            'bandeau' => self::presenterBandeau($patient, $sejour, $allergies, $this->aujourdhui),
-            'sejour' => self::presenterSejour($sejour, $patient, $services),
+            'banner' => self::presentBanner($patient, $episodeOfCare, $allergies, $this->today),
+            'episodeOfCare' => self::presentEpisodeOfCare($episodeOfCare, $patient, $services),
             'allergies' => self::presentAllergies($allergies),
             'substances' => self::availableSubstances($this->substanceDao->findAll(), $allergies),
-            'criticalities' => Allergie::CRITICALITIES,
+            'criticalities' => AllergyIntolerance::CRITICALITIES,
             // Sections du dossier complet (antécédents, histoire de la maladie, scores, mesures,
             // administratif) : une section vide reste affichée avec « Non renseigné ».
-            'sections' => self::presentSections($patient, $sejour, $services),
+            'sections' => self::presentSections($patient, $episodeOfCare, $services),
             // Valeurs actuelles de chaque partie, pour les formulaires « Modifier » (RecordSectionService).
-            'partValues' => self::partValues($patient, $sejour),
+            'partValues' => self::partValues($patient, $episodeOfCare),
             'services' => $services,
         ];
     }
 
     /**
      * Vue-modèle du bandeau : identité (nom, prénom, date de naissance, IPP) et allergies
-     * connues (RG2). Composant src/View/components/bandeau_patient.php.
+     * connues (RG2). Composant src/View/components/patient_banner.php.
      *
      * @param Allergie[] $allergies
      * @return array<string, mixed>
      */
-    public static function presenterBandeau(
+    public static function presentBanner(
         Patient $patient,
-        Sejour $sejour,
+        EpisodeOfCare $episodeOfCare,
         array $allergies,
-        DateTimeImmutable $aujourdhui
+        DateTimeImmutable $today
     ): array {
-        $naissance = $patient->getDateNaissance();
+        $birth = $patient->getBirthDate();
 
         return [
-            'nom' => trim($patient->getNom()),
-            'prenom' => trim($patient->getPrenom()),
-            'sexe' => self::texteOuNull($patient->getSexe()),
-            'dateNaissance' => $naissance?->format('d/m/Y'),
-            'age' => $naissance === null ? null : self::age($naissance, $aujourdhui),
-            'ipp' => self::texteOuNull($patient->getIpp()),
-            'numeroSejour' => trim($sejour->getNumSejour()) !== ''
-                ? trim($sejour->getNumSejour())
-                : (string) $sejour->getIdSejour(),
-            'dateAdmission' => $sejour->getDateAdmission()->format('d/m/Y H:i'),
+            'lastName' => trim($patient->getLastName()),
+            'firstName' => trim($patient->getFirstName()),
+            'sex' => self::textOrNull($patient->getSex()),
+            'birthDate' => $birth?->format('d/m/Y'),
+            'age' => $birth === null ? null : self::age($birth, $today),
+            'ipp' => self::textOrNull($patient->getIpp()),
+            'episodeNumber' => trim($episodeOfCare->getEpisodeNumber()) !== ''
+                ? trim($episodeOfCare->getEpisodeNumber())
+                : (string) $episodeOfCare->getIdEpisodeOfCare(),
+            'admissionDate' => $episodeOfCare->getAdmissionDate()->format('d/m/Y H:i'),
             // Mesures à l'admission, affichées dans le bandeau (dosage, matériel) ; null = non renseigné.
-            'poids' => self::mesure($sejour->getPoids(), 'kg'),
-            'taille' => self::mesure($sejour->getTaille(), 'cm'),
+            'weight' => self::measure($episodeOfCare->getWeight(), 'kg'),
+            'height' => self::measure($episodeOfCare->getHeight(), 'cm'),
             // Groupe sanguin (Patient.bloodType) ; null = non renseigné.
-            'groupeSanguin' => self::texteOuNull($patient->getDetail('bloodType')),
+            'bloodType' => self::textOrNull($patient->getDetail('bloodType')),
             'allergies' => array_values(array_map(
-                static fn (Allergie $a): array => [
-                    'libelle' => trim($a->getSubstance()),
-                    'criticite' => self::texteOuNull($a->getCriticite()),
-                    'niveau' => Allergie::criticalityLevel($a->getCriticite()),
+                static fn (AllergyIntolerance $a): array => [
+                    'label' => trim($a->getSubstance()),
+                    'criticality' => self::textOrNull($a->getCriticality()),
+                    'level' => AllergyIntolerance::criticalityLevel($a->getCriticality()),
                 ],
                 $allergies
             )),
@@ -124,28 +126,31 @@ final class DossierPatientService
      * @param array<string, string> $services référentiel des services (id => nom) pour afficher le nom
      * @return array<string, mixed>
      */
-    public static function presenterSejour(Sejour $sejour, Patient $patient, array $services = []): array
-    {
-        $sortie = $sejour->getDateSortie();
-        $idService = self::texteOuNull($sejour->getIdService());
+    public static function presentEpisodeOfCare(
+        EpisodeOfCare $episodeOfCare,
+        Patient $patient,
+        array $services = []
+    ): array {
+        $sortie = $episodeOfCare->getDischargeDate();
+        $idService = self::textOrNull($episodeOfCare->getIdService());
 
         return [
-            'idSejour' => $sejour->getIdSejour(),
-            'idPatient' => $sejour->getIdPatient(),
-            'dateAdmission' => $sejour->getDateAdmission()->format('d/m/Y H:i'),
-            'enCours' => $sortie === null,
-            'dateSortie' => $sortie?->format('d/m/Y H:i'),
+            'idEpisodeOfCare' => $episodeOfCare->getIdEpisodeOfCare(),
+            'idPatient' => $episodeOfCare->getIdPatient(),
+            'admissionDate' => $episodeOfCare->getAdmissionDate()->format('d/m/Y H:i'),
+            'ongoing' => $sortie === null,
+            'dischargeDate' => $sortie?->format('d/m/Y H:i'),
             // Nom du service si le référentiel le connaît, sinon l'identifiant brut (on ne cache rien).
             'service' => $idService === null ? null : ($services[$idService] ?? $idService),
-            'motifAdmission' => self::texteOuNull($sejour->getDetail('admissionReason')),
-            'lit' => self::texteOuNull($sejour->getNumLit()),
-            'box' => self::texteOuNull($sejour->getNumBox()),
+            'admissionReason' => self::textOrNull($episodeOfCare->getDetail('admissionReason')),
+            'bed' => self::textOrNull($episodeOfCare->getBedNumber()),
+            'box' => self::textOrNull($episodeOfCare->getBoxNumber()),
             // Mesures relevées à l'admission (AURA-10.1) ; null = non renseigné.
-            'poids' => self::mesure($sejour->getPoids(), 'kg'),
-            'taille' => self::mesure($sejour->getTaille(), 'cm'),
-            'precautions' => self::texteOuNull($sejour->getPrecautions()),
-            'telephone' => self::texteOuNull($patient->getTelephone()),
-            'email' => self::texteOuNull($patient->getEmail()),
+            'weight' => self::measure($episodeOfCare->getWeight(), 'kg'),
+            'height' => self::measure($episodeOfCare->getHeight(), 'cm'),
+            'precautions' => self::textOrNull($episodeOfCare->getPrecautions()),
+            'phone' => self::textOrNull($patient->getPhone()),
+            'email' => self::textOrNull($patient->getEmail()),
         ];
     }
 
@@ -160,12 +165,12 @@ final class DossierPatientService
     public static function presentAllergies(array $allergies): array
     {
         return array_values(array_map(
-            static fn (Allergie $a): array => [
-                'idAllergy' => $a->getIdAllergie(),
+            static fn (AllergyIntolerance $a): array => [
+                'idAllergy' => $a->getIdAllergyIntolerance(),
                 'label' => trim($a->getSubstance()),
-                'criticality' => self::texteOuNull($a->getCriticite()),
-                'level' => Allergie::criticalityLevel($a->getCriticite()),
-                'recordedAt' => $a->getDateSaisie()?->format('d/m/Y'),
+                'criticality' => self::textOrNull($a->getCriticality()),
+                'level' => AllergyIntolerance::criticalityLevel($a->getCriticality()),
+                'recordedAt' => $a->getRecordedAt()?->format('d/m/Y'),
             ],
             $allergies
         ));
@@ -182,7 +187,7 @@ final class DossierPatientService
      */
     public static function availableSubstances(array $substances, array $allergies): array
     {
-        $known = array_map(static fn (Allergie $a): string => $a->getIdAllergene(), $allergies);
+        $known = array_map(static fn (AllergyIntolerance $a): string => $a->getIdSubstance(), $allergies);
 
         $available = [];
         foreach ($substances as $substance) {
@@ -206,7 +211,7 @@ final class DossierPatientService
      * @return list<array{id: string, title: string, filled: int, total: int,
      *               rows: list<array<string, mixed>>}>
      */
-    public static function presentSections(Patient $patient, Sejour $sejour, array $services = []): array
+    public static function presentSections(Patient $patient, EpisodeOfCare $episodeOfCare, array $services = []): array
     {
         $sections = [];
         foreach (RecordFields::SECTIONS as $id => $title) {
@@ -216,9 +221,9 @@ final class DossierPatientService
                     'episode',
                     'admissionReason',
                     RecordFields::EPISODE['admissionReason'],
-                    $sejour->getDetail('admissionReason')
+                    $episodeOfCare->getDetail('admissionReason')
                 );
-                $idService = self::texteOuNull($sejour->getIdService());
+                $idService = self::textOrNull($episodeOfCare->getIdService());
                 $rows[] = [
                     'entity' => 'episode', 'field' => 'idHealthcareService', 'label' => 'Service hospitalier',
                     'type' => 'select', 'options' => $services, 'computed' => false, 'help' => null,
@@ -230,19 +235,19 @@ final class DossierPatientService
                 $rows[] = [
                     'entity' => 'episode', 'field' => 'weight', 'label' => 'Poids à l\'admission (kg)',
                     'type' => 'number', 'options' => null, 'computed' => false, 'help' => null,
-                    'raw' => $sejour->getPoids() === null ? null : (string) $sejour->getPoids(),
-                    'value' => self::mesure($sejour->getPoids(), 'kg'),
+                    'raw' => $episodeOfCare->getWeight() === null ? null : (string) $episodeOfCare->getWeight(),
+                    'value' => self::measure($episodeOfCare->getWeight(), 'kg'),
                 ];
                 $rows[] = [
                     'entity' => 'episode', 'field' => 'height', 'label' => 'Taille (cm)',
                     'type' => 'number', 'options' => null, 'computed' => false, 'help' => null,
-                    'raw' => $sejour->getTaille() === null ? null : (string) $sejour->getTaille(),
-                    'value' => self::mesure($sejour->getTaille(), 'cm'),
+                    'raw' => $episodeOfCare->getHeight() === null ? null : (string) $episodeOfCare->getHeight(),
+                    'value' => self::measure($episodeOfCare->getHeight(), 'cm'),
                 ];
                 $derived = DerivedMeasuresService::present(
-                    $sejour->getPoids(),
-                    $sejour->getTaille(),
-                    $patient->getSexe()
+                    $episodeOfCare->getWeight(),
+                    $episodeOfCare->getHeight(),
+                    $patient->getSex()
                 );
                 // Valeurs indicatives, formules adultes : une aide, pas une consigne de réglage.
                 $labels = [
@@ -269,15 +274,15 @@ final class DossierPatientService
             }
             foreach (RecordFields::EPISODE as $field => $spec) {
                 if ($spec['section'] === $id && $field !== 'admissionReason') {
-                    $rows[] = self::row('episode', $field, $spec, $sejour->getDetail($field));
+                    $rows[] = self::row('episode', $field, $spec, $episodeOfCare->getDetail($field));
                 }
             }
             if ($id === 'admin') {
                 $rows[] = [
                     'entity' => 'episode', 'field' => 'precautions', 'label' => 'Précautions', 'type' => 'textarea',
                     'options' => null, 'computed' => false, 'help' => null,
-                    'raw' => self::texteOuNull($sejour->getPrecautions()),
-                    'value' => self::texteOuNull($sejour->getPrecautions()),
+                    'raw' => self::textOrNull($episodeOfCare->getPrecautions()),
+                    'value' => self::textOrNull($episodeOfCare->getPrecautions()),
                 ];
             }
 
@@ -303,7 +308,7 @@ final class DossierPatientService
      */
     private static function row(string $entity, string $field, array $spec, ?string $raw): array
     {
-        $raw = self::texteOuNull($raw);
+        $raw = self::textOrNull($raw);
         $value = $raw;
         if ($raw !== null && $spec['type'] === 'select') {
             $value = $spec['options'][$raw] ?? $raw;
@@ -332,45 +337,45 @@ final class DossierPatientService
      *
      * @return array<string, array<string, string>>
      */
-    public static function partValues(Patient $patient, Sejour $sejour): array
+    public static function partValues(Patient $patient, EpisodeOfCare $episodeOfCare): array
     {
         $parts = [RecordSectionService::PART_SUMMARY, ...array_keys(RecordFields::SECTIONS)];
         $values = [];
         foreach ($parts as $part) {
-            $values[$part] = RecordSectionService::currentValues($part, $patient, $sejour);
+            $values[$part] = RecordSectionService::currentValues($part, $patient, $episodeOfCare);
         }
 
         return $values;
     }
 
     /** Âge révolu à la date donnée ; null si la date de naissance est dans le futur. */
-    public static function age(DateTimeInterface $naissance, DateTimeInterface $aujourdhui): ?int
+    public static function age(DateTimeInterface $birth, DateTimeInterface $today): ?int
     {
-        if ($naissance > $aujourdhui) {
+        if ($birth > $today) {
             return null;
         }
 
-        return $naissance->diff($aujourdhui)->y;
+        return $birth->diff($today)->y;
     }
 
     /** Mesure à la française, sans zéros inutiles : 62.5 → « 62,5 kg », 164.0 → « 164 cm ». */
-    public static function mesure(?float $valeur, string $unite): ?string
+    public static function measure(?float $value, string $unit): ?string
     {
-        if ($valeur === null) {
+        if ($value === null) {
             return null;
         }
-        $nombre = rtrim(rtrim(number_format($valeur, 2, ',', ''), '0'), ',');
+        $number = rtrim(rtrim(number_format($value, 2, ',', ''), '0'), ',');
 
-        return $nombre . ' ' . $unite;
+        return $number . ' ' . $unit;
     }
 
-    private static function texteOuNull(?string $valeur): ?string
+    private static function textOrNull(?string $value): ?string
     {
-        if ($valeur === null) {
+        if ($value === null) {
             return null;
         }
-        $texte = trim($valeur);
+        $text = trim($value);
 
-        return $texte === '' ? null : $texte;
+        return $text === '' ? null : $text;
     }
 }

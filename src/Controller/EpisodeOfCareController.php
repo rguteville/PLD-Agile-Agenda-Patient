@@ -9,9 +9,9 @@ use Aura\Core\View;
 use Aura\Service\AgendaService;
 use Aura\Service\AllergyIntoleranceService;
 use Aura\Service\CarePlanService;
-use Aura\Service\DossierPatientService;
+use Aura\Service\PatientRecordService;
 use Aura\Service\RecordEditService;
-use Aura\Service\SejourService;
+use Aura\Service\EpisodeOfCareService;
 use DateTimeImmutable;
 use InvalidArgumentException;
 use LogicException;
@@ -20,18 +20,18 @@ use LogicException;
  * Écrans d'un séjour : dossier (bandeau RG2, allergies, dossier complet éditable, prescriptions
  * validées, historique), ajout / retrait d'allergie (AURA-13.2) et agenda du jour (AURA-24).
  */
-final class SejourController
+final class EpisodeOfCareController
 {
-    private const RECORD_VIEW = 'sejour/dossier';
+    private const RECORD_VIEW = 'episode/record';
     /**
      * form.js : arrêt d'une ligne de prescription en AJAX ; confirm.js : confirmation du retrait d'une
-     * allergie ; inline-edit.js : édition champ par champ du dossier complet ; dossier-menu.js : menu figé.
+     * allergie ; inline-edit.js : édition champ par champ du dossier complet ; record-menu.js : menu figé.
      */
     private const RECORD_SCRIPTS = [
         '/js/form.js',
         '/js/confirm.js',
         '/js/inline-edit.js',
-        '/js/dossier-menu.js',
+        '/js/record-menu.js',
         '/js/date-input.js',
         '/js/part-edit.js',
     ];
@@ -47,10 +47,10 @@ final class SejourController
      * addAllergy() / removeAllergy() le dossier et les allergies ; getAgenda() l'agenda et le séjour.
      */
     public function __construct(
-        private ?DossierPatientService $dossierPatientService = null,
+        private ?PatientRecordService $patientRecordService = null,
         private ?CarePlanService $carePlanService = null,
         private ?AgendaService $agendaService = null,
-        private ?SejourService $sejourService = null,
+        private ?EpisodeOfCareService $episodeOfCareService = null,
         private ?AllergyIntoleranceService $allergyIntoleranceService = null,
         private ?RecordEditService $recordEditService = null
     ) {
@@ -61,7 +61,7 @@ final class SejourController
     {
         $id = self::readId($_GET['id'] ?? null);
         if ($id === null) {
-            View::erreur(400, 'Identifiant de séjour manquant ou invalide.');
+            View::error(400, 'Identifiant de séjour manquant ou invalide.');
             return;
         }
 
@@ -76,141 +76,141 @@ final class SejourController
      */
     public function addAllergy(): void
     {
-        $idSejour = self::readId($_POST['idSejour'] ?? null);
-        if ($idSejour === null) {
-            View::erreur(400, 'Identifiant de séjour manquant ou invalide.');
+        $idEpisodeOfCare = self::readId($_POST['idEpisodeOfCare'] ?? null);
+        if ($idEpisodeOfCare === null) {
+            View::error(400, 'Identifiant de séjour manquant ou invalide.');
             return;
         }
 
         try {
             $this->allergyIntoleranceService()->add(
-                $idSejour,
+                $idEpisodeOfCare,
                 $_POST['idSubstance'] ?? null,
                 $_POST['criticality'] ?? null
             );
         } catch (InvalidArgumentException $e) {
-            $this->showRecord($idSejour, $e->getMessage());
+            $this->showRecord($idEpisodeOfCare, $e->getMessage());
             return;
         }
 
-        header('Location: /sejour?id=' . $idSejour, true, 303);
+        header('Location: /sejour?id=' . $idEpisodeOfCare, true, 303);
     }
 
     /** POST /sejour/allergies/retirer (AURA-13.2) : champs idSejour, idAllergy. Même schéma que l'ajout. */
     public function removeAllergy(): void
     {
-        $idSejour = self::readId($_POST['idSejour'] ?? null);
-        if ($idSejour === null) {
-            View::erreur(400, 'Identifiant de séjour manquant ou invalide.');
+        $idEpisodeOfCare = self::readId($_POST['idEpisodeOfCare'] ?? null);
+        if ($idEpisodeOfCare === null) {
+            View::error(400, 'Identifiant de séjour manquant ou invalide.');
             return;
         }
 
         $idAllergy = self::readId($_POST['idAllergy'] ?? null);
         if ($idAllergy === null) {
-            $this->showRecord($idSejour, 'Allergie à retirer manquante ou invalide.');
+            $this->showRecord($idEpisodeOfCare, 'Allergie à retirer manquante ou invalide.');
             return;
         }
 
         try {
-            $this->allergyIntoleranceService()->remove($idSejour, $idAllergy);
+            $this->allergyIntoleranceService()->remove($idEpisodeOfCare, $idAllergy);
         } catch (InvalidArgumentException $e) {
-            $this->showRecord($idSejour, $e->getMessage());
+            $this->showRecord($idEpisodeOfCare, $e->getMessage());
             return;
         }
 
-        header('Location: /sejour?id=' . $idSejour, true, 303);
+        header('Location: /sejour?id=' . $idEpisodeOfCare, true, 303);
     }
 
     /** GET /agenda-patient?id=… ou ?numSejour=… : agenda du séjour, bandeau en tête (RG2, AURA-24). */
     public function getAgenda(): void
     {
         $id = $_GET['id'] ?? null;
-        $numSejour = $_GET['numSejour'] ?? null;
-        if ($id === null && $numSejour === null) {
-            View::erreur(404, 'Identifiant ou numéro de séjour manquant.');
+        $episodeNumber = $_GET['episodeNumber'] ?? null;
+        if ($id === null && $episodeNumber === null) {
+            View::error(404, 'Identifiant ou numéro de séjour manquant.');
             return;
         }
         //Recuperer l'id du sejour selon son numero
-        if ($id === null && $numSejour !== null) {
-            $id = (string) $this->sejourService->getSejourByNumber($numSejour)->getIdSejour();
+        if ($id === null && $episodeNumber !== null) {
+            $id = (string) $this->episodeOfCareService->getEpisodeOfCareByNumber($episodeNumber)->getIdEpisodeOfCare();
         }
 
-        $idSejour = self::readId($id);
-        if ($idSejour === null) {
-            View::erreur(400, 'Identifiant de séjour manquant ou invalide.');
+        $idEpisodeOfCare = self::readId($id);
+        if ($idEpisodeOfCare === null) {
+            View::error(400, 'Identifiant de séjour manquant ou invalide.');
             return;
         }
 
         // Bandeau identité + allergies : même vue-modèle que le dossier (DossierPatientService).
-        $dossier = $this->dossierPatientService()->dossier($idSejour);
-        if ($dossier === null) {
-            View::erreur(404, sprintf('Aucun séjour ne porte l\'identifiant « %d ».', $idSejour));
+        $record = $this->patientRecordService()->record($idEpisodeOfCare);
+        if ($record === null) {
+            View::error(404, sprintf('Aucun séjour ne porte l\'identifiant « %d ».', $idEpisodeOfCare));
             return;
         }
 
         // Jour demandé (?date=AAAA-MM-JJ), aujourd'hui sinon ; le retard se calcule à l'heure courante.
         $now = new DateTimeImmutable('now');
         $agenda = AgendaService::presentDay(
-            $this->agendaService->getAgenda($idSejour),
+            $this->agendaService->getAgenda($idEpisodeOfCare),
             AgendaService::parseDay($_GET['date'] ?? null, $now),
             $now
         );
-        $titre = sprintf(
+        $title = sprintf(
             'AURA - Agenda de %s %s, séjour %s',
-            $dossier['bandeau']['nom'],
-            $dossier['bandeau']['prenom'],
-            $dossier['bandeau']['numeroSejour']
+            $record['banner']['lastName'],
+            $record['banner']['firstName'],
+            $record['banner']['episodeNumber']
         );
         //$validators = récupérer la liste des practiciens
-        View::page('sejour/agenda-patient', [
-            'bandeau' => $dossier['bandeau'],
-            'idEpisodeOfCare' => $idSejour,
+        View::page('episode/patient-agenda', [
+            'banner' => $record['banner'],
+            'idEpisodeOfCare' => $idEpisodeOfCare,
             'agenda' => $agenda,
             //'validators' => $validators,
             // La validation d'un soin n'a pas encore de route : colonne et dialogue restent masqués.
             'validationEnabled' => true,
-        ], $titre, self::AGENDA_SCRIPTS);
+        ], $title, self::AGENDA_SCRIPTS);
     }
 
     /**
      * Affiche le dossier du séjour (404 s'il n'existe pas). Avec un message d'erreur, la
      * page est servie en 422 et le message apparaît dans la section « Allergies connues ».
      */
-    private function showRecord(int $idSejour, ?string $allergyError = null): void
+    private function showRecord(int $idEpisodeOfCare, ?string $allergyError = null): void
     {
-        $dossier = $this->dossierPatientService()->dossier($idSejour);
-        if ($dossier === null) {
-            View::erreur(404, sprintf('Aucun séjour ne porte l\'identifiant « %d ».', $idSejour));
+        $record = $this->patientRecordService()->record($idEpisodeOfCare);
+        if ($record === null) {
+            View::error(404, sprintf('Aucun séjour ne porte l\'identifiant « %d ».', $idEpisodeOfCare));
             return;
         }
 
         if ($allergyError !== null) {
             http_response_code(422);
-            $dossier['allergyError'] = $allergyError;
+            $record['allergyError'] = $allergyError;
         }
 
-        $titre = sprintf(
+        $title = sprintf(
             'AURA - %s %s, séjour %s',
-            $dossier['bandeau']['nom'],
-            $dossier['bandeau']['prenom'],
-            $dossier['bandeau']['numeroSejour']
+            $record['banner']['lastName'],
+            $record['banner']['firstName'],
+            $record['banner']['episodeNumber']
         );
         // Édition en ligne : jeton de session pour l'endpoint JSON et historique des 20 dernières modifications.
-        $idPatient = (int) ($dossier['sejour']['idPatient'] ?? 0);
+        $idPatient = (int) ($record['episodeOfCare']['idPatient'] ?? 0);
         $editing = $this->recordEditService !== null ? [
             'editable' => true,
             'csrfToken' => Csrf::token(),
-            'history' => $this->recordEditService->history($idPatient, $idSejour),
+            'history' => $this->recordEditService->history($idPatient, $idEpisodeOfCare),
         ] : ['editable' => false, 'csrfToken' => null, 'history' => []];
 
-        View::page(self::RECORD_VIEW, $dossier + $editing + [
+        View::page(self::RECORD_VIEW, $record + $editing + [
             // idSejour : lien du bouton « Prescription » vers l'écran B3 (AURA-20) et formulaires d'allergie.
-            'idSejour' => $idSejour,
+            'idEpisodeOfCare' => $idEpisodeOfCare,
             // Prescriptions validées par un médecin (RG5), sans les lignes arrêtées.
-            'prescriptions' => $this->carePlanService?->validatedLines($idSejour) ?? [],
+            'prescriptions' => $this->carePlanService?->validatedLines($idEpisodeOfCare) ?? [],
             // Médecins proposés pour le bouton « Arrêter » (AURA-22).
             'doctors' => $this->carePlanService?->doctors() ?? [],
-        ], $titre, self::RECORD_SCRIPTS);
+        ], $title, self::RECORD_SCRIPTS);
     }
 
     /** Id lu dans la requête (query string ou corps du POST) ; null si absent ou mal formé. */
@@ -223,13 +223,13 @@ final class SejourController
         return (int) $value;
     }
 
-    private function dossierPatientService(): DossierPatientService
+    private function patientRecordService(): PatientRecordService
     {
-        if ($this->dossierPatientService === null) {
+        if ($this->patientRecordService === null) {
             throw new LogicException('SejourController : le dossier de séjour requiert un DossierPatientService.');
         }
 
-        return $this->dossierPatientService;
+        return $this->patientRecordService;
     }
 
     private function allergyIntoleranceService(): AllergyIntoleranceService

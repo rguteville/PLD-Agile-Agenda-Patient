@@ -6,27 +6,27 @@ namespace Aura\Domain;
 
 use DateTimeInterface;
 
-class Sejour
+class EpisodeOfCare
 {
     public function __construct(
-        private ?int $idSejour,
+        private ?int $idEpisodeOfCare,
         private int $idPatient,
-        private string $numSejour,
-        private DateTimeInterface $dateAdmission,
-        private ?DateTimeInterface $dateSortie = null,
-        private ?string $numLit = null,
-        private ?string $numBox = null,
+        private string $episodeNumber,
+        private DateTimeInterface $admissionDate,
+        private ?DateTimeInterface $dischargeDate = null,
+        private ?string $bedNumber = null,
+        private ?string $boxNumber = null,
         private ?string $idService = null,
-        private ?float $poids = null,
-        private ?float $taille = null,
+        private ?float $weight = null,
+        private ?float $height = null,
         private ?string $precautions = null,
         private array $details = []
     ) {
     }
 
-    public function getIdSejour(): ?int
+    public function getIdEpisodeOfCare(): ?int
     {
-        return $this->idSejour;
+        return $this->idEpisodeOfCare;
     }
 
     public function getIdPatient(): int
@@ -34,29 +34,29 @@ class Sejour
         return $this->idPatient;
     }
 
-    public function getNumSejour(): string
+    public function getEpisodeNumber(): string
     {
-        return $this->numSejour;
+        return $this->episodeNumber;
     }
 
-    public function getDateAdmission(): DateTimeInterface
+    public function getAdmissionDate(): DateTimeInterface
     {
-        return $this->dateAdmission;
+        return $this->admissionDate;
     }
 
-    public function getDateSortie(): ?DateTimeInterface
+    public function getDischargeDate(): ?DateTimeInterface
     {
-        return $this->dateSortie;
+        return $this->dischargeDate;
     }
 
-    public function getNumLit(): ?string
+    public function getBedNumber(): ?string
     {
-        return $this->numLit;
+        return $this->bedNumber;
     }
 
-    public function getNumBox(): ?string
+    public function getBoxNumber(): ?string
     {
-        return $this->numBox;
+        return $this->boxNumber;
     }
 
     public function getIdService(): ?string
@@ -65,15 +65,15 @@ class Sejour
     }
 
     /** Poids à l'admission, en kg (null = non renseigné). */
-    public function getPoids(): ?float
+    public function getWeight(): ?float
     {
-        return $this->poids;
+        return $this->weight;
     }
 
     /** Taille à l'admission, en cm (null = non renseignée). */
-    public function getTaille(): ?float
+    public function getHeight(): ?float
     {
-        return $this->taille;
+        return $this->height;
     }
 
     /** Précautions à prendre (isolement, risque de chute…), texte libre. */
@@ -99,8 +99,8 @@ class Sejour
         return $this->details[$field] ?? null;
     }
 
-    public function estEnCours(): bool
+    public function isOngoing(): bool
     {
-        return $this->dateSortie === null;
+        return $this->dischargeDate === null;
     }
 }
