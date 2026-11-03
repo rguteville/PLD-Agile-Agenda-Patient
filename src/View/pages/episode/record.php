@@ -356,7 +356,7 @@ if ($editable) {
             <?php if ($episodeOfCare['ongoing']) : ?>
                 <?php /* AURA-20 : vers l'écran B3 « Nouvelles prescriptions » (séjour en cours seulement). */ ?>
                 <a class="button"
-                   href="/care-plans/new?idEpisodeOfCare=<?= View::e($idEpisodeOfCare) ?>">Prescription</a>
+                   href="/care-plans/new?idEpisodeOfCare=<?= View::e($idEpisodeOfCare) ?>">Nouvelle prescription</a>
             <?php endif; ?>
             <a class="button button--secondary"
                href="/care-plans?idEpisodeOfCare=<?= View::e($idEpisodeOfCare) ?>">Toutes les prescriptions</a>

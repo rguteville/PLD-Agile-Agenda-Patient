@@ -57,16 +57,16 @@ $sectionFields = static function (string $section) use ($catalogField): array {
 };
 
 $search = [
-    // Recherche d'un patient déjà venu (identitovigilance) : un seul champ en tête, qui reconnaît un IPP
+    // Recherche d'un patient connu (identitovigilance) : un seul champ en tête, qui reconnaît un IPP
     // (6 à 9 chiffres) ou des mots du nom et du prénom (ordre libre). Recherche automatique à l'arrêt de
     // la frappe ; la sélection demande une confirmation, puis l'identité s'affiche en carte en lecture
     // seule et la fiche pré-remplit le formulaire (public/js/admission-search.js).
     [
         'name' => 'patientSearch',
-        'label' => 'Patient déjà venu ? IPP, nom ou prénom',
+        'label' => 'Patient connu ? IPP, nom ou prénom',
         'status' => 'patient-search-status',
         'listbox' => 'patient-suggestions',
-        'placeholder' => '100000001 ou dupont marie',
+        'placeholder' => '100000001 ou simpson marge',
         'attributes' => [
             'autocomplete' => 'off', 'maxlength' => '100',
             'role' => 'combobox', 'aria-autocomplete' => 'list', 'aria-expanded' => 'false',
