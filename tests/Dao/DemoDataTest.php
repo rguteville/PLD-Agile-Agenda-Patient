@@ -72,6 +72,20 @@ final class DemoDataTest extends TestCase
         }
     }
 
+    /**
+     * Retours du 2026-11-03 : la démo montre les deux cas du médecin référent parmi les séjours en
+     * cours, un référent nommé et un séjour « à désigner » (admission de garde).
+     */
+    public function testOngoingDemoEpisodesShowNamedAndMissingReferent(): void
+    {
+        $ongoing = (new EpisodeOfCareDao($this->pdo))->findOngoing();
+        $named = array_filter($ongoing, static fn ($e): bool => $e->getReferringPractitionerName() !== null);
+
+        self::assertNotEmpty($named, 'au moins un séjour en cours avec un référent');
+        self::assertLessThan(count($ongoing), count($named), 'au moins un séjour en cours « à désigner »');
+        self::assertGreaterThan(count($ongoing) / 2, count($named), 'référent renseigné pour la plupart');
+    }
+
     public function testAtLeastOneDemoPatientHasAllergies(): void
     {
         $allergyIntoleranceDao = new AllergyIntoleranceDao($this->pdo);

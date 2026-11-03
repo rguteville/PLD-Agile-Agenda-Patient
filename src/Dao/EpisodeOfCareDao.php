@@ -21,12 +21,21 @@ class EpisodeOfCareDao
     /** Colonnes lues, renommées vers les clés utilisées par mapToEntity() (sans les champs complémentaires). */
     private const BASE_COLUMNS =
         'idEpisodeOfCare, idPatient, episodeNumber, admissionDate, dischargeDate,
-         bedNumber, boxNumber, idHealthcareService AS idService, weight, height, precautions';
+         bedNumber, boxNumber, idHealthcareService AS idService, weight, height, precautions,
+         idReferringPractitioner, referrer.firstName AS referrerFirstName, referrer.lastName AS referrerLastName';
+
+    /**
+     * Séjour + nom de son médecin référent (retours du 2026-11-03), pour l'afficher sans autre requête.
+     * Practitioner n'a aucune colonne homonyme de EpisodeOfCare : les colonnes non préfixées restent univoques.
+     */
+    private const FROM =
+        'EpisodeOfCare LEFT JOIN Practitioner referrer
+         ON referrer.idPractitioner = EpisodeOfCare.idReferringPractitioner';
 
     /** Colonnes écrites par insert(), dans l'ordre des paramètres (sans les champs complémentaires). */
     private const BASE_INSERT_COLUMNS =
         'idEpisodeOfCare, idPatient, episodeNumber, admissionDate, dischargeDate, bedNumber, boxNumber,
-         idHealthcareService, weight, height, precautions';
+         idHealthcareService, weight, height, precautions, idReferringPractitioner';
 
     /** Nombre d'essais d'insertion si un autre séjour prend le même id ou numéro entre-temps. */
     private const INSERT_ATTEMPTS = 3;
@@ -47,7 +56,9 @@ class EpisodeOfCareDao
     /** Séjour par identifiant interne, champs complémentaires compris ; null s'il n'existe pas. */
     public function findById(int $id): ?EpisodeOfCare
     {
-        $stmt = $this->pdo->prepare('SELECT ' . self::columns() . ' FROM EpisodeOfCare WHERE idEpisodeOfCare = :id');
+        $stmt = $this->pdo->prepare(
+            'SELECT ' . self::columns() . ' FROM ' . self::FROM . ' WHERE idEpisodeOfCare = :id'
+        );
         $stmt->execute(['id' => $id]);
         $r = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -57,7 +68,9 @@ class EpisodeOfCareDao
     /** Séjour par son numéro (AAAA-NNNNNN, cf. insert()) ; null s'il n'existe pas. */
     public function findByNumber(string $number): ?EpisodeOfCare
     {
-        $stmt = $this->pdo->prepare('SELECT ' . self::columns() . ' FROM EpisodeOfCare WHERE episodeNumber = :number');
+        $stmt = $this->pdo->prepare(
+            'SELECT ' . self::columns() . ' FROM ' . self::FROM . ' WHERE episodeNumber = :number'
+        );
         $stmt->execute(['number' => $number]);
         $r = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -72,7 +85,7 @@ class EpisodeOfCareDao
     public function findByPatient(int $idPatient): array
     {
         $stmt = $this->pdo->prepare(
-            'SELECT ' . self::columns() . ' FROM EpisodeOfCare
+            'SELECT ' . self::columns() . ' FROM ' . self::FROM . '
              WHERE idPatient = :idPatient
              ORDER BY admissionDate DESC, CAST(idEpisodeOfCare AS UNSIGNED) DESC'
         );
@@ -89,7 +102,7 @@ class EpisodeOfCareDao
     public function findOngoing(): array
     {
         $rows = $this->pdo->query(
-            'SELECT ' . self::columns() . ' FROM EpisodeOfCare
+            'SELECT ' . self::columns() . ' FROM ' . self::FROM . '
              WHERE dischargeDate IS NULL
              ORDER BY admissionDate, CAST(idEpisodeOfCare AS UNSIGNED)'
         )->fetchAll(PDO::FETCH_ASSOC);
@@ -100,7 +113,7 @@ class EpisodeOfCareDao
     public function findByHealthcareService(string $idService): array
     {
          $stmt = $this->pdo->prepare(
-             'SELECT ' . self::columns() . ' FROM EpisodeOfCare
+             'SELECT ' . self::columns() . ' FROM ' . self::FROM . '
              WHERE idHealthcareService = :idHealthcareService
              AND dischargeDate IS NULL
              ORDER BY admissionDate DESC, CAST(idEpisodeOfCare AS UNSIGNED) DESC'
@@ -164,7 +177,7 @@ class EpisodeOfCareDao
                         . implode(', ', array_keys($details)) . ')
                          VALUES (:idEpisodeOfCare, :idPatient, :episodeNumber, :admissionDate,
                                  :dischargeDate, :bedNumber, :boxNumber, :idService,
-                                 :weight, :height, :precautions, '
+                                 :weight, :height, :precautions, :idReferringPractitioner, '
                         . implode(', ', array_map(static fn (string $c): string => ':' . $c, array_keys($details)))
                         . ')'
                     )->execute([
@@ -179,6 +192,7 @@ class EpisodeOfCareDao
                         'weight' => $s->getWeight(),
                         'height' => $s->getHeight(),
                         'precautions' => $s->getPrecautions(),
+                        'idReferringPractitioner' => $s->getIdReferringPractitioner(),
                     ] + $details);
                     break;
                 } catch (PDOException $e) {
@@ -200,16 +214,20 @@ class EpisodeOfCareDao
                 weight: $s->getWeight(),
                 height: $s->getHeight(),
                 precautions: $s->getPrecautions(),
-                details: $s->getDetails()
+                details: $s->getDetails(),
+                idReferringPractitioner: $s->getIdReferringPractitioner(),
+                referringPractitionerName: $s->getReferringPractitionerName()
             );
         });
     }
 
     /**
      * Colonnes de base modifiables champ par champ depuis le dossier (RecordEditService), en plus
-     * du catalogue RecordFields::EPISODE : mesures d'admission, précautions, service.
+     * du catalogue RecordFields::EPISODE : mesures d'admission, précautions, service, médecin référent.
      */
-    public const EDITABLE_BASE_COLUMNS = ['weight', 'height', 'precautions', 'idHealthcareService'];
+    public const EDITABLE_BASE_COLUMNS = [
+        'weight', 'height', 'precautions', 'idHealthcareService', 'idReferringPractitioner',
+    ];
 
     /**
      * Met à jour seulement les champs fournis : clés de RecordFields::EPISODE ou colonnes de
@@ -288,7 +306,22 @@ class EpisodeOfCareDao
             details: array_map(
                 static fn ($v): ?string => $v === null ? null : (string) $v,
                 array_intersect_key($r, RecordFields::EPISODE)
-            )
+            ),
+            idReferringPractitioner: $r['idReferringPractitioner'] !== null
+                ? (string) $r['idReferringPractitioner']
+                : null,
+            referringPractitionerName: self::referrerName($r)
         );
+    }
+
+    /** « Prénom Nom » du référent joint ; l'identifiant si le praticien n'a pas de nom, null sans référent. */
+    private static function referrerName(array $r): ?string
+    {
+        if ($r['idReferringPractitioner'] === null) {
+            return null;
+        }
+        $name = trim($r['referrerFirstName'] . ' ' . $r['referrerLastName']);
+
+        return $name !== '' ? $name : (string) $r['idReferringPractitioner'];
     }
 }

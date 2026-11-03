@@ -64,7 +64,8 @@ class EpisodeOfCareService
      * Ouvre un séjour : la date de prise en charge est celle du moment, le numéro est généré.
      * Poids (kg), taille (cm) et précautions sont les mesures relevées à l'admission (AURA-10.1),
      * déjà validées par l'appelant (AdmissionService::validate()), comme le service hospitalier
-     * et les champs complémentaires ($details, clés de RecordFields::EPISODE).
+     * et les champs complémentaires ($details, clés de RecordFields::EPISODE). Le médecin référent
+     * (null = à désigner) a lui aussi été contrôlé contre la liste des médecins par l'appelant.
      *
      * @param array<string, ?string> $details
      * @throws InvalidArgumentException si le patient a déjà un séjour en cours ou si l'emplacement est pris
@@ -77,7 +78,8 @@ class EpisodeOfCareService
         ?float $height = null,
         ?string $precautions = null,
         ?string $idService = null,
-        array $details = []
+        array $details = [],
+        ?string $idReferringPractitioner = null
     ): EpisodeOfCare {
         foreach ($this->episodeOfCareDao->findByPatient($idPatient) as $episodeOfCare) {
             if ($episodeOfCare->isOngoing()) {
@@ -102,7 +104,8 @@ class EpisodeOfCareService
             weight: $weight,
             height: $height,
             precautions: $precautions,
-            details: $details
+            details: $details,
+            idReferringPractitioner: $idReferringPractitioner
         ));
     }
 

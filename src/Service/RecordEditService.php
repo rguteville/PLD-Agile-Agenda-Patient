@@ -53,7 +53,8 @@ class RecordEditService
 
     /**
      * Champs modifiables d'une entité : spécification (label, type, bornes, options) par nom de
-     * colonne. Pour le séjour, les mesures d'admission et le service s'ajoutent au catalogue.
+     * colonne. Pour le séjour, les mesures d'admission, le service et le médecin référent s'ajoutent au
+     * catalogue.
      *
      * @return array<string, array<string, mixed>>
      */
@@ -79,6 +80,11 @@ class RecordEditService
                 'idHealthcareService' => [
                     'label' => 'Service hospitalier', 'type' => 'select',
                     'options' => $this->referenceDataDao?->healthcareServices() ?? [],
+                ],
+                // Médecin référent (retours du 2026-11-03) : un médecin de la liste, vide = à désigner.
+                'idReferringPractitioner' => [
+                    'label' => 'Médecin référent', 'type' => 'select',
+                    'options' => $this->referenceDataDao?->doctors() ?? [],
                 ],
             ];
         }
@@ -262,6 +268,8 @@ class RecordEditService
                     return self::blankToNull($record->getPrecautions());
                 case 'idHealthcareService':
                     return self::blankToNull($record->getIdService());
+                case 'idReferringPractitioner':
+                    return self::blankToNull($record->getIdReferringPractitioner());
                 default:
                     return self::blankToNull($record->getDetail($field));
             }

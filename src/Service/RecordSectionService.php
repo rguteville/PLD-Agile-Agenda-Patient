@@ -30,6 +30,9 @@ use InvalidArgumentException;
  *  - tout ou rien : la partie est écrite dans une transaction, annulée à la première erreur ;
  *  - traçabilité : chaque champ modifié écrit une ligne AuditEvent au nom du médecin qui valide.
  *
+ * Médecin référent du séjour (retours des médecins du 2026-11-03) : modifiable dans la partie « Dossier »
+ * et dans « Admission », comme le service ; contrôlé contre la liste des médecins (RecordEditService).
+ *
  * AUTHENTIFICATION FACTICE : le médecin est choisi dans la liste des praticiens habilités (RG5) et le
  * mot de passe est exigé mais NON vérifié. Elle prépare l'authentification réelle (AURA-18) ; la
  * trace le dit explicitement (« authentification factice »).
@@ -75,9 +78,11 @@ class RecordSectionService
      * Champs modifiables d'une partie : clé => ['entity' => patient|episode|identity|location, 'label',
      * 'type', 'options'?]. [] si la partie est inconnue.
      *
+     * @param array<string, string> $services référentiel des services (id => nom)
+     * @param array<string, string> $doctors médecins pouvant être référents (id => « Dr Prénom Nom »)
      * @return array<string, array<string, mixed>>
      */
-    public static function partFields(string $part, array $services = []): array
+    public static function partFields(string $part, array $services = [], array $doctors = []): array
     {
         if ($part === self::PART_SUMMARY) {
             return [
@@ -110,6 +115,7 @@ class RecordSectionService
                 'idHealthcareService' => [
                     'entity' => 'episode', 'label' => 'Service', 'type' => 'select', 'options' => $services,
                 ],
+                'idReferringPractitioner' => self::referentField($doctors),
                 'admissionReason' => ['entity' => 'episode'] + RecordFields::EPISODE['admissionReason'],
                 'bedNumber' => [
                     'entity' => 'location',
@@ -141,6 +147,7 @@ class RecordSectionService
             $fields['idHealthcareService'] = [
                 'entity' => 'episode', 'label' => 'Service hospitalier', 'type' => 'select', 'options' => $services,
             ];
+            $fields['idReferringPractitioner'] = self::referentField($doctors);
         }
         if ($part === 'measures') {
             $fields['weight'] = [
@@ -169,6 +176,21 @@ class RecordSectionService
         }
 
         return $fields;
+    }
+
+    /**
+     * Médecin référent (responsable de soin) : liste des médecins, « À désigner » si vide.
+     *
+     * @param array<string, string> $doctors
+     * @return array<string, mixed>
+     */
+    private static function referentField(array $doctors): array
+    {
+        return [
+            'entity' => 'episode', 'label' => 'Médecin référent', 'type' => 'select', 'options' => $doctors,
+            'empty' => 'À désigner',
+            'help' => 'Le médecin de jour qui reprend le patient (après une admission de garde, notamment).',
+        ];
     }
 
     /**
@@ -227,7 +249,11 @@ class RecordSectionService
         if ($episodeOfCare === null || $patient === null) {
             return self::result(self::STATUS_NOT_FOUND, [], 'Dossier introuvable.');
         }
-        $fields = self::partFields($part, $this->referenceDataDao->healthcareServices());
+        $fields = self::partFields(
+            $part,
+            $this->referenceDataDao->healthcareServices(),
+            $this->referenceDataDao->doctors()
+        );
         if ($fields === []) {
             return self::result(self::STATUS_NOT_FOUND, [], 'Partie du dossier inconnue.');
         }
@@ -549,6 +575,7 @@ class RecordSectionService
             'bedNumber' => self::blankToNull($episodeOfCare->getBedNumber()),
             'boxNumber' => self::blankToNull($episodeOfCare->getBoxNumber()),
             'idHealthcareService' => self::blankToNull($episodeOfCare->getIdService()),
+            'idReferringPractitioner' => self::blankToNull($episodeOfCare->getIdReferringPractitioner()),
             'precautions' => self::blankToNull($episodeOfCare->getPrecautions()),
             'weight' => $episodeOfCare->getWeight() === null ? null : self::number($episodeOfCare->getWeight()),
             'height' => $episodeOfCare->getHeight() === null ? null : self::number($episodeOfCare->getHeight()),

@@ -120,6 +120,25 @@ class ReferenceDataDao
         return $list;
     }
 
+    /**
+     * Médecins (praticiens habilités à valider, RG5) proposés comme référent du séjour :
+     * idPractitioner => « Dr Prénom Nom », par nom puis prénom. Même définition du médecin que
+     * la validation des prescriptions et la fenêtre d'authentification du dossier (canValidate).
+     *
+     * @return array<string, string>
+     */
+    public function doctors(): array
+    {
+        $list = [];
+        foreach ($this->practitioners() as $id => $practitioner) {
+            if ($practitioner->canValidate()) {
+                $list[(string) $id] = $practitioner->getDoctorName();
+            }
+        }
+
+        return $list;
+    }
+
     /** Praticien par identifiant, avec son rôle (libellé, droit de validation RG5) ; null s'il n'existe pas. */
     public function practitioner(string $idPractitioner): ?Practitioner
     {

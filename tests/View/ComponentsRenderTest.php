@@ -86,6 +86,21 @@ final class ComponentsRenderTest extends TestCase
         self::assertStringContainsString('non renseignée', $html, 'taille absente');
     }
 
+    /** Retours du 2026-11-03 : référent nommé, ou « à désigner » mis en évidence sans couleur seule. */
+    public function testBannerShowsReferentOrHighlightedToBeDesignated(): void
+    {
+        $named = View::render('components/patient_banner', [
+            'banner' => ['referent' => 'Dr Claire <Morel>'] + self::banner(),
+        ]);
+        $missing = View::render('components/patient_banner', ['banner' => self::banner()]);
+
+        self::assertMatchesRegularExpression('/<dt>Référent<\/dt>\s*<dd>\s*Dr Claire &lt;Morel&gt;/', $named);
+        self::assertStringNotContainsString('referent-missing', $named);
+        self::assertStringContainsString('<span class="referent-missing">', $missing);
+        self::assertStringContainsString('icon-circle-alert', $missing, 'icône en plus du texte');
+        self::assertMatchesRegularExpression('/<\/svg>\s*à désigner/', $missing);
+    }
+
     public function testBannerWithAllergiesListsThemWithAlert(): void
     {
         $html = View::render('components/patient_banner', ['banner' => self::banner([

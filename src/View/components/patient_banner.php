@@ -52,6 +52,21 @@ use Aura\Core\View;
             <dt>Groupe sanguin</dt>
             <dd><?= View::e($banner['bloodType'] ?? 'non renseigné') ?></dd>
         </div>
+        <?php /* Médecin référent du séjour (responsable de soin). Absent = « à désigner » (admission de
+                 garde) : mis en évidence par l'icône, le texte et le cadre, pas par la couleur seule. */ ?>
+        <div class="banner-referent">
+            <dt>Référent</dt>
+            <dd>
+                <?php if (($banner['referent'] ?? null) !== null) : ?>
+                    <?= View::e($banner['referent']) ?>
+                <?php else : ?>
+                    <span class="referent-missing">
+                        <?= View::render('components/icon', ['name' => 'circle-alert']) ?>
+                        à désigner
+                    </span>
+                <?php endif; ?>
+            </dd>
+        </div>
     </dl>
     <?php
     // Trois états distincts (identitovigilance) : allergies connues (rouge), « Aucune allergie connue »

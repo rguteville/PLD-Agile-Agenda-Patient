@@ -33,7 +33,8 @@ foreach ($fields as $key => $spec) {
     }
     if ($type === 'select') {
         $formField['options'] = $spec['options'] ?? [];
-        $formField['empty'] = 'Non renseigné';
+        // Libellé de l'option vide propre au champ (« À désigner » pour le médecin référent).
+        $formField['empty'] = $spec['empty'] ?? 'Non renseigné';
     } elseif ($type === 'radio') {
         $formField['options'] = $spec['options'] ?? [];
     } elseif ($type === 'textarea') {

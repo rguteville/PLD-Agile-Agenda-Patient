@@ -214,6 +214,52 @@ final class RecordSectionServiceTest extends TestCase
         self::assertArrayHasKey('dischargeDate', $result['errors']);
     }
 
+    /** Retours du 2026-11-03 : un médecin de jour se désigne référent depuis la partie « Dossier ». */
+    public function testReferentDesignatedFromSummaryPartAndTraced(): void
+    {
+        $result = $this->service->updatePart(
+            $this->idEpisodeOfCare,
+            RecordSectionService::PART_SUMMARY,
+            ['idReferringPractitioner' => $this->idDoctor],
+            ['idReferringPractitioner' => ''],
+            $this->idDoctor,
+            'fake'
+        );
+
+        self::assertSame(RecordSectionService::STATUS_SAVED, $result['status'], json_encode($result['errors']));
+        $episodeOfCare = (new EpisodeOfCareDao($this->pdo))->findById($this->idEpisodeOfCare);
+        self::assertSame($this->idDoctor, $episodeOfCare?->getIdReferringPractitioner());
+        $traces = $this->traces();
+        self::assertSame(['idReferringPractitioner'], $this->fields($traces));
+        self::assertNull($traces[0]->getOldValue());
+        self::assertSame($this->idDoctor, $traces[0]->getNewValue());
+        self::assertStringContainsString('authentification factice', $traces[0]->getAuthor());
+    }
+
+    public function testReferentOutsideDoctorListIsRejectedAndNothingWritten(): void
+    {
+        // Praticien sans rôle de médecin (comme un interne) : présent en base, absent de la liste des médecins.
+        $this->pdo->exec(
+            "INSERT INTO Practitioner (idPractitioner, firstName, lastName) VALUES ('ZZINT1', 'Zzinterne', 'Zztest')"
+        );
+
+        $result = $this->service->updatePart(
+            $this->idEpisodeOfCare,
+            'admission',
+            ['idReferringPractitioner' => 'ZZINT1'],
+            ['idReferringPractitioner' => ''],
+            $this->idDoctor,
+            'fake'
+        );
+
+        self::assertSame(RecordSectionService::STATUS_INVALID, $result['status']);
+        self::assertArrayHasKey('idReferringPractitioner', $result['errors']);
+        self::assertNull(
+            (new EpisodeOfCareDao($this->pdo))->findById($this->idEpisodeOfCare)?->getIdReferringPractitioner()
+        );
+        self::assertSame([], $this->traces());
+    }
+
     public function testCurrentPartValuesInFormFormat(): void
     {
         $patient = (new PatientDao($this->pdo))->findById($this->idPatient);

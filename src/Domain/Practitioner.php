@@ -45,6 +45,18 @@ class Practitioner
         return trim($this->firstName . ' ' . $this->lastName);
     }
 
+    /** « Dr Claire Morel » : nom affiché d'un médecin (référent du séjour). */
+    public function getDoctorName(): string
+    {
+        return self::doctorTitle($this->getFullName());
+    }
+
+    /** Préfixe « Dr » devant un nom complet déjà composé (« Claire Morel » → « Dr Claire Morel »). */
+    public static function doctorTitle(string $fullName): string
+    {
+        return 'Dr ' . trim($fullName);
+    }
+
     /**
      * RG5 : médecin habilité (PractitionerRole.canValidate). Ses prescriptions sont validées
      * d'office et il peut valider celles des autres.

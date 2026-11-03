@@ -11,6 +11,7 @@ use Aura\Dao\EpisodeOfCareDao;
 use Aura\Dao\SubstanceDao;
 use Aura\Domain\AllergyIntolerance;
 use Aura\Domain\Patient;
+use Aura\Domain\Practitioner;
 use Aura\Domain\RecordFields;
 use Aura\Domain\EpisodeOfCare;
 use Aura\Domain\Substance;
@@ -60,6 +61,15 @@ final class PatientRecordService
             $patient->getIdPatient() ?? $episodeOfCare->getIdPatient()
         );
         $services = $this->referenceDataDao?->healthcareServices() ?? [];
+        // Médecins proposés comme référent (formulaires « Modifier ») ; le nom affiché du référent actuel
+        // vient du séjour lui-même (jointure du DAO), même si ce praticien n'est plus dans la liste.
+        $doctors = $this->referenceDataDao?->doctors() ?? [];
+        $idReferent = $episodeOfCare->getIdReferringPractitioner();
+        if ($idReferent !== null && !isset($doctors[$idReferent])) {
+            // Référent actuel absent de la liste (rôle changé depuis) : gardé dans les choix, sinon la liste
+            // retomberait sur « À désigner » et une modification d'un autre champ de la partie l'effacerait.
+            $doctors[$idReferent] = self::referent($episodeOfCare) ?? $idReferent;
+        }
 
         return [
             'banner' => self::presentBanner($patient, $episodeOfCare, $allergies, $this->today),
@@ -69,11 +79,23 @@ final class PatientRecordService
             'criticalities' => AllergyIntolerance::CRITICALITIES,
             // Sections du dossier complet (antécédents, histoire de la maladie, scores, mesures,
             // administratif) : une section vide reste affichée avec « Non renseigné ».
-            'sections' => self::presentSections($patient, $episodeOfCare, $services),
+            'sections' => self::presentSections($patient, $episodeOfCare, $services, $doctors),
             // Valeurs actuelles de chaque partie, pour les formulaires « Modifier » (RecordSectionService).
             'partValues' => self::partValues($patient, $episodeOfCare),
             'services' => $services,
+            'referringDoctors' => $doctors,
         ];
+    }
+
+    /**
+     * « Dr Prénom Nom » du médecin référent du séjour (responsable de soin), ou null s'il est à désigner
+     * (admission pendant une garde). Pure ; partagée par le bandeau, le dossier et l'agenda du service.
+     */
+    public static function referent(EpisodeOfCare $episodeOfCare): ?string
+    {
+        $name = self::textOrNull($episodeOfCare->getReferringPractitionerName());
+
+        return $name === null ? null : Practitioner::doctorTitle($name);
     }
 
     /**
@@ -107,6 +129,8 @@ final class PatientRecordService
             'height' => self::measure($episodeOfCare->getHeight(), 'cm'),
             // Groupe sanguin (Patient.bloodType) ; null = non renseigné.
             'bloodType' => self::textOrNull($patient->getDetail('bloodType')),
+            // Médecin référent (« Dr Prénom Nom ») ; null = à désigner, mis en évidence par le bandeau.
+            'referent' => self::referent($episodeOfCare),
             'allergies' => array_values(array_map(
                 static fn (AllergyIntolerance $a): array => [
                     'label' => trim($a->getSubstance()),
@@ -142,6 +166,8 @@ final class PatientRecordService
             'dischargeDate' => $sortie?->format('d/m/Y H:i'),
             // Nom du service si le référentiel le connaît, sinon l'identifiant brut (on ne cache rien).
             'service' => $idService === null ? null : ($services[$idService] ?? $idService),
+            // Médecin référent (« Dr Prénom Nom ») ; null = à désigner.
+            'referent' => self::referent($episodeOfCare),
             'admissionReason' => self::textOrNull($episodeOfCare->getDetail('admissionReason')),
             'bed' => self::textOrNull($episodeOfCare->getBedNumber()),
             'box' => self::textOrNull($episodeOfCare->getBoxNumber()),
@@ -208,11 +234,16 @@ final class PatientRecordService
      * Pure : aucune lecture en base, testable avec des entités construites à la main.
      *
      * @param array<string, string> $services référentiel des services (id => nom)
+     * @param array<string, string> $doctors médecins pouvant être référents (id => « Dr Prénom Nom »)
      * @return list<array{id: string, title: string, filled: int, total: int,
      *               rows: list<array<string, mixed>>}>
      */
-    public static function presentSections(Patient $patient, EpisodeOfCare $episodeOfCare, array $services = []): array
-    {
+    public static function presentSections(
+        Patient $patient,
+        EpisodeOfCare $episodeOfCare,
+        array $services = [],
+        array $doctors = []
+    ): array {
         $sections = [];
         foreach (RecordFields::SECTIONS as $id => $title) {
             $rows = [];
@@ -229,6 +260,13 @@ final class PatientRecordService
                     'type' => 'select', 'options' => $services, 'computed' => false, 'help' => null,
                     'raw' => $idService,
                     'value' => $idService === null ? null : ($services[$idService] ?? $idService),
+                ];
+                $rows[] = [
+                    'entity' => 'episode', 'field' => 'idReferringPractitioner', 'label' => 'Médecin référent',
+                    'type' => 'select', 'options' => $doctors, 'computed' => false,
+                    'help' => null, 'placeholder' => null, 'emptyLabel' => 'À désigner',
+                    'raw' => self::textOrNull($episodeOfCare->getIdReferringPractitioner()),
+                    'value' => self::referent($episodeOfCare),
                 ];
             }
             if ($id === 'measures') {
