@@ -53,11 +53,12 @@ final class AgendaService
     }
 
     public function getAgendaService(string $idHealthServiceId): array
-    { // TODO
+    {
+ // TODO
         $response = [];
 
         $episodesOfCare = $this->sejourDao->findByHealthcareService($idHealthServiceId);
-        foreach ($episodesOfCare as $episodeOfCare) { 
+        foreach ($episodesOfCare as $episodeOfCare) {
             $response[] = $this->getAgenda($episodeOfCare->getIdSejour());
         }
         return $response;
@@ -160,7 +161,7 @@ final class AgendaService
                 'idMedicationRequest' => $request->getIdMedicationRequest(),
                 'idCarePlan' => $request->getIdCarePlan(),
                 'idActivityDefinition' => $request->getIdActivityDefinition(),
-                'idMedication'=>$request->getIdMedication(),
+                'idMedication' => $request->getIdMedication(),
                 'dose' => $request->getDose(),
                 'route' => $request->getRoute(),
                 'startDate' => $request->getStartDate(),
@@ -172,7 +173,7 @@ final class AgendaService
                 'appointments' => $this->serializeAppointment(
                     $appointments[$request->getIdMedicationRequest()] ?? []
                 ),
-                
+
             ];
         }
         return $res;

@@ -10,7 +10,6 @@ use DateTimeImmutable;
 
 final class ServiceController
 {
-
     public function __construct(
         private AgendaService $agendaService
     ) {
@@ -27,14 +26,15 @@ final class ServiceController
         }
 
         // A adapter à la vue service !!!
-        // Attention à la fonction presentDay qui était utilisée pour l'agenda-patient et qui devrait être réutilisée pour l'agenda-service
+        // Attention à la fonction presentDay qui était utilisée pour l'agenda-patient et qui devrait être
+        // réutilisée pour l'agenda-service
         $now = new DateTimeImmutable('now');
         $agenda = AgendaService::presentDay(
             $this->agendaService->getAgendaService($id),
             AgendaService::parseDay($_GET['date'] ?? null, $now),
             $now
         );
-        
+
         // Créer la sérialisation suivant le modèle de agenda-service
         View::page('service/agenda-service', [
             'agenda' => $agenda,

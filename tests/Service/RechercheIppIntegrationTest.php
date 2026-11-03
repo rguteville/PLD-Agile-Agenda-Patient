@@ -48,7 +48,7 @@ final class RechercheIppIntegrationTest extends TestCase
         $idPatient = (new PatientDao($this->pdo))->insert(
             new Patient(null, '987654320', 'Zzrechercheipp', 'Alice', new DateTimeImmutable('1990-06-15'), 'F')
         );
-        $this->pdo->exec("INSERT INTO Substance (idSubstance, description) VALUES ('T_IP', 'Iode test')");
+        $this->pdo->exec("INSERT INTO Substance (idSubstance, name) VALUES ('T_IP', 'Iode test')");
         $this->pdo->prepare(
             'INSERT INTO AllergyIntolerance (idAllergy, idPatient, idSubstance, criticality) VALUES (?, ?, ?, ?)'
         )->execute(['9015', (string) $idPatient, 'T_IP', 'Élevée']);

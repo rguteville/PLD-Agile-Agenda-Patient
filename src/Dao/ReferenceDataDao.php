@@ -105,7 +105,7 @@ class ReferenceDataDao
     public function practitioners(): array
     {
         $rows = $this->pdo->query(
-            'SELECT p.idPractitioner, p.lastName, p.firstName, r.description, r.canValidate
+            'SELECT p.idPractitioner, p.lastName, p.firstName, r.title, r.canValidate
              FROM Practitioner p
              LEFT JOIN PractitionerRole r ON r.idPractitionerRole = p.idPractitionerRole
              ORDER BY p.lastName, p.firstName'
@@ -124,7 +124,7 @@ class ReferenceDataDao
     public function practitioner(string $idPractitioner): ?Practitioner
     {
         $stmt = $this->pdo->prepare(
-            'SELECT p.idPractitioner, p.lastName, p.firstName, r.description, r.canValidate
+            'SELECT p.idPractitioner, p.lastName, p.firstName, r.title, r.canValidate
              FROM Practitioner p
              LEFT JOIN PractitionerRole r ON r.idPractitionerRole = p.idPractitionerRole
              WHERE p.idPractitioner = :idPractitioner'
@@ -141,7 +141,7 @@ class ReferenceDataDao
             idPractitioner: (string) $r['idPractitioner'],
             lastName: (string) $r['lastName'],
             firstName: (string) $r['firstName'],
-            role: $r['description'] !== null ? (string) $r['description'] : null,
+            role: $r['title'] !== null ? (string) $r['title'] : null,
             // Sans rôle (LEFT JOIN vide), canValidate est NULL : pas de droit de validation.
             canValidate: (bool) $r['canValidate']
         );

@@ -45,7 +45,7 @@ final class SubstanceDaoTest extends TestCase
     public function testFindAllSortedByDescription(): void
     {
         $this->pdo->exec(
-            "INSERT INTO Substance (idSubstance, description)
+            "INSERT INTO Substance (idSubstance, name)
              VALUES ('T_ZZ', 'Zz allergene test'), ('T_AA', 'Aa allergene test')"
         );
 
@@ -60,7 +60,7 @@ final class SubstanceDaoTest extends TestCase
 
     public function testFindById(): void
     {
-        $this->pdo->exec("INSERT INTO Substance (idSubstance, description) VALUES ('T_ID', 'Identifiant test')");
+        $this->pdo->exec("INSERT INTO Substance (idSubstance, name) VALUES ('T_ID', 'Identifiant test')");
 
         $substance = $this->dao->findById('T_ID');
 

@@ -29,11 +29,11 @@ class AllergieDao
     {
         $stmt = $this->pdo->prepare(
             'SELECT a.idAllergy AS idAllergie, a.idPatient, a.idSubstance AS idAllergene,
-                    g.description AS substance, a.criticality, a.recordedAt
+                    g.name AS substance, a.criticality, a.recordedAt
              FROM AllergyIntolerance a
              JOIN Substance g ON g.idSubstance = a.idSubstance
              WHERE a.idPatient = :idPatient
-             ORDER BY g.description'
+             ORDER BY g.name'
         );
         $stmt->execute(['idPatient' => $idPatient]);
 

@@ -3,8 +3,8 @@
 use Aura\Core\View;
 
 /** TODO
- * Attention à prévoir le cas de chevauchement d'appointments sur la même période 
- * 
+ * Attention à prévoir le cas de chevauchement d'appointments sur la même période
+ *
  * @var array<string, mixed> $agenda
  */
 ?>
