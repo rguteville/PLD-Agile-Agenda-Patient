@@ -203,9 +203,11 @@
             return;
         }
         const errors = data.errors || {};
-        // Erreur d'authentification ou de date de sortie : on reste dans la fenêtre.
-        if (errors.auth || errors.dischargeDate || (!pending.form && data.message)) {
-            authError.textContent = errors.auth || errors.dischargeDate || data.message;
+        // Erreur d'authentification ou de date de sortie, ou action sans formulaire (fin de séjour, décès) :
+        // on reste dans la fenêtre et on y affiche le message.
+        const firstError = Object.values(errors)[0];
+        if (errors.auth || errors.dischargeDate || (!pending.form && (data.message || firstError))) {
+            authError.textContent = errors.auth || errors.dischargeDate || data.message || firstError;
             authError.hidden = false;
             return;
         }
@@ -243,6 +245,22 @@
             });
         });
     });
+
+    // ── Déclaration du décès : seul le champ deceased de la partie « admin » est envoyé ──
+    const death = document.querySelector('[data-declare-death]');
+    if (death) {
+        death.addEventListener('click', () => openDialog({
+            url: '/sejour/partie/modifier',
+            form: null,
+            summary: 'Déclarer le décès du patient : il sera signalé sur tous les écrans de soins.',
+            payload: {
+                episodeOfCare: idEpisodeOfCare,
+                part: 'admin',
+                values: { deceased: '1' },
+                oldValues: { deceased: death.dataset.current || '' },
+            },
+        }));
+    }
 
     // ── Fin du séjour ──
     const endStay = document.querySelector('[data-end-stay]');

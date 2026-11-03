@@ -42,11 +42,6 @@ final class AgendaService
         'NON_FAIT' => 'not_done',
     ];
 
-    /**
-     * Un soin prévu devient validable ce nombre de minutes avant son heure (HYPOTHÈSE à confirmer avec le
-     * service) ; le serveur applique la même règle (AppointmentService::VALIDATION_LEAD_MINUTES).
-     */
-    public const VALIDATION_LEAD_MINUTES = 60;
 
     /** Durée d'un créneau de la vue du service, en heures (0 h, 2 h… 22 h). */
     public const SERVICE_SLOT_HOURS = 2;
@@ -745,11 +740,11 @@ final class AgendaService
             // RG5 / AURA-23 : ordonnance pas encore validée par un médecin (urgence, paramédicale) :
             // ses soins entrent dans l'agenda avec un marqueur visible.
             'notValidated' => $plan !== [] && array_key_exists('validatedAt', $plan) && $plan['validatedAt'] === null,
-            // Validable maintenant : en retard, ou prévu dans moins de VALIDATION_LEAD_MINUTES (un soin
-            // du soir ne se valide pas le matin) ; un soin d'une ligne arrêtée peut être tracé s'il a été fait.
+            // Validable : en retard, ou prévu aujourd'hui (retours du 2026-11-04 : un soin fait en avance
+            // doit pouvoir être validé), pas un soin d'un jour à venir ; une ligne arrêtée se trace si
+            // la dose a été faite avant l'arrêt. Même règle au serveur (AppointmentService::apply()).
             'canValidate' => in_array($status, ['late', 'stopped'], true)
-                || ($status === 'planned'
-                    && $planned <= $now->modify('+' . self::VALIDATION_LEAD_MINUTES . ' minutes')),
+                || ($status === 'planned' && $planned->format('Y-m-d') <= $now->format('Y-m-d')),
         ];
     }
 

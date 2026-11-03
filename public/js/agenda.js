@@ -14,8 +14,22 @@ if (filters) {
     const typeFilter = filters.querySelector('[data-type-filter]');
     let status = 'all';
 
+    const state = filters.querySelector('[data-filter-state]');
+
     function apply() {
         const type = typeFilter ? typeFilter.value : '';
+        // Rappel du filtre actif sur le bouton replié (« Filtres : En retard · Paracétamol »).
+        if (state) {
+            const pressed = filters.querySelector('[data-filter][aria-pressed="true"]');
+            const parts = [];
+            if (status !== 'all' && pressed) {
+                parts.push(pressed.textContent.trim());
+            }
+            if (type !== '') {
+                parts.push(type);
+            }
+            state.textContent = parts.length ? ` : ${parts.join(' · ')}` : '';
+        }
         rows.forEach(row => {
             row.hidden = (status !== 'all' && row.dataset.status !== status)
                 || (type !== '' && row.dataset.careLabel !== type);
@@ -70,6 +84,8 @@ if (dialog && careForm && typeof dialog.showModal === 'function') {
     // pour « Non effectué ».
     function applyAction() {
         const action = careForm.elements.action.value;
+        // Bouton « Note » : seulement la note (et qui l'écrit), sans le choix Réalisé / Non effectué.
+        careForm.querySelector('[data-action-choice]').hidden = action === 'note';
         careForm.querySelectorAll('[data-only-action]').forEach(block => {
             block.hidden = block.dataset.onlyAction !== action;
         });

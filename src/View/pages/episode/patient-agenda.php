@@ -169,15 +169,21 @@ $recordUrl = '/sejour?id=' . $idEpisodeOfCare;
             'text' => 'Les soins apparaissent ici dès qu\'une prescription validée les planifie.',
         ]) ?>
     <?php else : ?>
-        <div class="agenda-filters" role="group" aria-label="Filtrer les soins" data-agenda-filters hidden>
-            <?php foreach (
-            ['all' => 'Tous', 'late' => 'En retard', 'planned' => 'À faire',
-                'done' => 'Réalisés', 'not_done' => 'Non effectués'] as $filter => $label
+        <?php /* Retours du 2026-11-04 : filtres regroupés derrière un bouton (agenda.js). */ ?>
+        <details class="filter-menu" data-agenda-filters hidden>
+            <summary class="button button--secondary">
+                Filtres<span class="filter-menu__state" data-filter-state></span>
+            </summary>
+            <div class="agenda-filters" role="group" aria-label="Filtrer les soins">
+                <?php foreach (
+                ['all' => 'Tous', 'late' => 'En retard', 'planned' => 'À faire',
+                    'done' => 'Réalisés', 'not_done' => 'Non effectués'] as $filter => $label
 ) : ?>
-                <button type="button" class="button button--secondary" data-filter="<?= View::e($filter) ?>"
-                        aria-pressed="<?= $filter === 'all' ? 'true' : 'false' ?>"><?= View::e($label) ?></button>
-            <?php endforeach; ?>
-        </div>
+                    <button type="button" class="button button--secondary" data-filter="<?= View::e($filter) ?>"
+                            aria-pressed="<?= $filter === 'all' ? 'true' : 'false' ?>"><?= View::e($label) ?></button>
+                <?php endforeach; ?>
+            </div>
+        </details>
 
         <?php if ($agenda['late'] !== []) : ?>
             <?php /* Figure 4 du cahier des charges : les retards restent en tête, quelle que soit la rotation. */ ?>

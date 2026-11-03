@@ -273,7 +273,9 @@ $medicationParams = [
                     <span class="b3-required">*</span>
                     <div class="b3-value"><input type="text" id="group-name" readonly tabindex="-1"></div>
 
-                    <label for="group-start">Du</label>
+                    <?php /* Retours du 2026-11-04 : un protocole n'a qu'un début (chaque ligne a sa durée) ;
+                             « Du » sans « Au » prêtait à confusion. */ ?>
+                    <label for="group-start">Début du protocole</label>
                     <span class="b3-required">*</span>
                     <div class="b3-value"><input type="datetime-local" id="group-start"></div>
                 </div>

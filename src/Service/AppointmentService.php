@@ -31,9 +31,6 @@ final class AppointmentService
     /** Longueur de la colonne Appointment.comment. */
     public const COMMENT_MAX = 100;
 
-    /** Même règle que l'agenda (AgendaService::VALIDATION_LEAD_MINUTES) : pas de validation des heures à l'avance. */
-    public const VALIDATION_LEAD_MINUTES = 60;
-
     /** Marge tolérée pour une heure de réalisation saisie « dans le futur » (horloges décalées). */
     private const FUTURE_TOLERANCE_MINUTES = 5;
 
@@ -213,16 +210,14 @@ final class AppointmentService
             ];
         }
         $planned = $appointment->getPlannedTime();
-        if (
-            $action === self::ACTION_DONE && $planned !== null
-            && $planned > $now->modify('+' . self::VALIDATION_LEAD_MINUTES . ' minutes')
-        ) {
+        // Un soin fait en avance se valide le jour même ; un soin d'un jour à venir, non (même règle que
+        // AgendaService : canValidate). L'heure de réalisation, elle, n'est jamais dans le futur (validate()).
+        if ($action === self::ACTION_DONE && $planned !== null && $planned->format('Y-m-d') > $now->format('Y-m-d')) {
             return [
                 'status' => self::STATUS_INVALID,
                 'errors' => ['completedAt' => sprintf(
-                    'Soin prévu à %s : il se valide au plus tôt %d minutes avant.',
-                    $planned->format('H:i'),
-                    self::VALIDATION_LEAD_MINUTES
+                    'Soin prévu le %s : il se valide le jour même, pas à l\'avance.',
+                    $planned->format('d/m à H:i')
                 )],
             ];
         }

@@ -437,6 +437,9 @@ class AdmissionService
         ];
     }
 
+    /** Champs d'un patient connu que l'admission ne modifie pas une fois renseignés : clé => libellé. */
+    private const LOCKED_FOR_KNOWN_PATIENT = ['bloodType' => 'groupe sanguin'];
+
     /**
      * Champs complémentaires d'un patient existant : chaque valeur différente de la fiche est
      * enregistrée et tracée par RecordEditService ; sans ce service (tests), écriture directe.
@@ -446,6 +449,22 @@ class AdmissionService
     private function completePatient(Patient $existing, array $details): void
     {
         $idPatient = (int) $existing->getIdPatient();
+        // Retours du 2026-11-04 : une donnée vitale déjà connue (groupe sanguin) ne change pas à l'admission ;
+        // elle se corrige dans le dossier, validée par un médecin et tracée. Vide, elle peut être complétée.
+        foreach (self::LOCKED_FOR_KNOWN_PATIENT as $field => $label) {
+            $known = trim((string) $existing->getDetail($field));
+            $entered = trim((string) ($details[$field] ?? ''));
+            if ($known !== '' && $entered !== '' && $entered !== $known) {
+                throw new InvalidArgumentException(sprintf(
+                    'Le %s de ce patient est déjà connu (%s) : il se modifie dans son dossier, pas à l\'admission.',
+                    $label,
+                    $known
+                ));
+            }
+            if ($known !== '') {
+                unset($details[$field]);
+            }
+        }
         if ($this->recordEditService === null) {
             $this->patientDao?->updateDetails($idPatient, $details);
             return;

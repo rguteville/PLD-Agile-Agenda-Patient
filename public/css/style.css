@@ -4893,3 +4893,68 @@ form.form--columns .form-lead > .form-row {
 .patient-list__closed {
     white-space: nowrap;
 }
+
+/* ===== Retours du 2026-11-04 : dialogue de soin plus large, champs à l'horizontale ===== */
+#validation-dialog {
+    width: min(760px, 95vw);
+}
+
+.dialog-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-3);
+}
+
+.dialog-row > .dialog-field {
+    flex: 1 1 200px;
+    min-width: 0;
+}
+
+.care-actions {
+    flex-direction: row;
+}
+
+/* ===== Retours du 2026-11-04 : filtres regroupés derrière un bouton ===== */
+.filter-menu {
+    margin: var(--sp-3) 0;
+}
+
+.filter-menu > summary {
+    display: inline-flex;
+    list-style: none;
+    cursor: pointer;
+}
+
+.filter-menu > summary::-webkit-details-marker {
+    display: none;
+}
+
+.filter-menu[open] > .agenda-filters {
+    margin-top: var(--sp-2);
+    padding: var(--sp-3);
+    background: var(--bg-raised);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+}
+
+.filter-menu__state {
+    font-weight: 400;
+}
+
+/* ===== Retours du 2026-11-04 : écran de prescription, une liste longue ne déborde plus à droite ===== */
+.b3-entry {
+    min-width: 0;
+}
+
+.b3-grid {
+    grid-template-columns: 200px 24px minmax(0, 1fr);
+}
+
+.b3-row select,
+.b3-grid select,
+.b3-grid input,
+.b3-grid textarea {
+    min-width: 0;
+    max-width: 100%;
+    text-overflow: ellipsis;
+}

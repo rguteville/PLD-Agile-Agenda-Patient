@@ -155,17 +155,27 @@ $url = static fn (string $date, string $shift): string => '/mon-planning?idPract
                         'title' => 'Aucun soin prévu pour vos patients pendant cette vacation.',
                     ]) ?>
                 <?php else : ?>
-                    <div class="agenda-filters" role="group" aria-label="Filtrer les soins" data-agenda-filters hidden>
-                        <?php foreach (
-                        ['all' => 'Tous', 'late' => 'En retard', 'planned' => 'À faire',
-                            'done' => 'Réalisés', 'not_done' => 'Non effectués'] as $filter => $label
-) : ?>
-                            <button type="button" class="button button--secondary" data-filter="<?= View::e($filter) ?>"
-                                    aria-pressed="<?= $filter === 'all' ? 'true' : 'false' ?>">
-                                <?= View::e($label) ?>
-                            </button>
-                        <?php endforeach; ?>
-                    </div>
+                    <?php /* Retours du 2026-11-04 : filtres regroupés derrière un bouton (agenda.js). */ ?>
+                    <details class="filter-menu" data-agenda-filters hidden>
+                        <summary class="button button--secondary">
+                            Filtres<span class="filter-menu__state" data-filter-state></span>
+                        </summary>
+                        <div class="agenda-filters" role="group" aria-label="Filtrer les soins">
+                            <?php
+                            $filters = [
+                                'all' => 'Tous', 'late' => 'En retard', 'planned' => 'À faire',
+                                'done' => 'Réalisés', 'not_done' => 'Non effectués',
+                            ];
+                            ?>
+                            <?php foreach ($filters as $filter => $label) : ?>
+                                <button type="button" class="button button--secondary"
+                                        data-filter="<?= View::e($filter) ?>"
+                                        aria-pressed="<?= $filter === 'all' ? 'true' : 'false' ?>">
+                                    <?= View::e($label) ?>
+                                </button>
+                            <?php endforeach; ?>
+                        </div>
+                    </details>
                     <div class="table-scroll">
                         <table class="agenda-table">
                             <caption class="sr-only">Soins de la vacation, par heure</caption>

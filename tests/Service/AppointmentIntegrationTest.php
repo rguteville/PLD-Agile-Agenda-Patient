@@ -131,17 +131,29 @@ final class AppointmentIntegrationTest extends TestCase
         self::assertArrayHasKey('comment', $other['errors']);
     }
 
-    public function testCareCannotBeValidatedHoursAhead(): void
+    public function testCareOfAComingDayCannotBeValidatedAhead(): void
+    {
+        $result = $this->service->apply(
+            1,
+            'ZZ_SOI',
+            ['action' => 'done', 'idPerformer' => 'PRA04', 'password' => 'x', 'completedAt' => '2026-10-13T23:00'],
+            new DateTimeImmutable('2026-10-13 23:00:00')
+        );
+
+        self::assertSame(AppointmentService::STATUS_INVALID, $result['status'], 'prévu le lendemain à 8 h');
+        self::assertArrayHasKey('completedAt', $result['errors']);
+    }
+
+    public function testCareOfTheDayDoneEarlyCanBeValidated(): void
     {
         $result = $this->service->apply(
             1,
             'ZZ_SOI',
             ['action' => 'done', 'idPerformer' => 'PRA04', 'password' => 'x', 'completedAt' => '2026-10-14T05:00'],
-            new DateTimeImmutable('2026-10-14 05:00:00')
+            new DateTimeImmutable('2026-10-14 05:10:00')
         );
 
-        self::assertSame(AppointmentService::STATUS_INVALID, $result['status'], 'prévu à 8 h, validé à 5 h');
-        self::assertArrayHasKey('completedAt', $result['errors']);
+        self::assertSame(AppointmentService::STATUS_SAVED, $result['status'], 'prévu à 8 h, fait et validé à 5 h');
     }
 
     public function testStoppedLineAcceptsOnlyCareDoneBeforeTheStop(): void

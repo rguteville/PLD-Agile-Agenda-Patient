@@ -26,13 +26,16 @@ $back = $back ?? '';
         <input type="hidden" name="appointment" value="">
         <input type="hidden" name="back" value="<?= View::e($back) ?>">
 
-        <fieldset class="dialog-field care-actions">
-            <legend>Action</legend>
+        <?php /* Retours du 2026-11-04 : Réalisé / Non effectué côte à côte ; la note seule s'ouvre par le
+                 bouton « Note » de l'agenda (choix masqué, data-note-mode). */ ?>
+        <fieldset class="dialog-field care-actions" data-action-choice>
+            <legend>Le soin a été</legend>
             <label><input type="radio" name="action" value="done" checked> Réalisé</label>
             <label><input type="radio" name="action" value="not_done"> Non effectué</label>
-            <label><input type="radio" name="action" value="note"> Note seulement</label>
+            <label hidden><input type="radio" name="action" value="note"> Note</label>
         </fieldset>
 
+        <div class="dialog-row">
         <div class="dialog-field">
             <label for="validation-performer">Soignant</label>
             <select id="validation-performer" name="idPerformer" required aria-describedby="validation-auth-error">
@@ -55,6 +58,7 @@ $back = $back ?? '';
             <input type="datetime-local" id="validation-time" name="completedAt"
                    aria-describedby="validation-time-error">
             <p class="form-error" role="alert" id="validation-time-error" data-error="completedAt" hidden></p>
+        </div>
         </div>
 
         <div class="dialog-field">

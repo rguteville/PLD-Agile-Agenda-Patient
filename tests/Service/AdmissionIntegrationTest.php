@@ -327,6 +327,57 @@ final class AdmissionIntegrationTest extends TestCase
         self::assertArrayNotHasKey('Patient.lastName', $byField, 'un champ inchangé n\'est pas tracé');
     }
 
+    /**
+     * Retours du 2026-11-04 : le groupe sanguin déjà connu d'un patient sélectionné ne se change pas à
+     * l'admission (refus, rien n'est écrit) ; inconnu, il peut être complété.
+     */
+    public function testKnownBloodTypeCannotBeChangedAtAdmission(): void
+    {
+        $service = $this->fullService();
+        $first = $service->admit(['lastName' => self::LAST_NAME, 'firstName' => 'Alice', 'bloodType' => 'A+']);
+        (new EpisodeOfCareService(new EpisodeOfCareDao($this->pdo)))
+            ->closeEpisodeOfCare((int) $first->getIdEpisodeOfCare());
+        $idPatient = $first->getIdPatient();
+        [$patientsBefore, $episodesBefore] = $this->countRows();
+
+        try {
+            $service->admit([
+                'idPatient' => (string) $idPatient, 'searchMode' => 'name',
+                'lastName' => self::LAST_NAME, 'firstName' => 'Alice', 'bloodType' => 'O-',
+            ]);
+            self::fail('Groupe sanguin connu modifié à l\'admission : refus attendu.');
+        } catch (InvalidArgumentException $e) {
+            self::assertStringContainsString('groupe sanguin', $e->getMessage());
+        }
+        self::assertSame([$patientsBefore, $episodesBefore], $this->countRows(), 'rien n\'a été écrit');
+
+        // Champ masqué à l'écran (envoyé vide) : le groupe connu est conservé, l'admission passe.
+        $service->admit([
+            'idPatient' => (string) $idPatient, 'searchMode' => 'name',
+            'lastName' => self::LAST_NAME, 'firstName' => 'Alice', 'bloodType' => '',
+        ]);
+        $reread = (new PatientDao($this->pdo))->findById($idPatient);
+        self::assertNotNull($reread);
+        self::assertSame('A+', $reread->getDetail('bloodType'));
+    }
+
+    public function testUnknownBloodTypeCanBeCompletedAtAdmission(): void
+    {
+        $service = $this->fullService();
+        $first = $service->admit(['lastName' => self::LAST_NAME, 'firstName' => 'Bob']);
+        (new EpisodeOfCareService(new EpisodeOfCareDao($this->pdo)))
+            ->closeEpisodeOfCare((int) $first->getIdEpisodeOfCare());
+
+        $service->admit([
+            'idPatient' => (string) $first->getIdPatient(), 'searchMode' => 'name',
+            'lastName' => self::LAST_NAME, 'firstName' => 'Bob', 'bloodType' => 'B+',
+        ]);
+
+        $reread = (new PatientDao($this->pdo))->findById($first->getIdPatient());
+        self::assertNotNull($reread);
+        self::assertSame('B+', $reread->getDetail('bloodType'));
+    }
+
     public function testNonexistentSelectedPatientIsRejectedWithoutWriting(): void
     {
         $service = $this->fullService();

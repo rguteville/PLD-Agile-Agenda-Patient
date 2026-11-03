@@ -128,6 +128,14 @@ if ($editable) {
                         Mettre fin au séjour
                     </button>
                 <?php endif; ?>
+                <?php if ($editable && empty($banner['deceased'])) : ?>
+                    <?php /* Retours du 2026-11-04 : le décès se déclare d'un bouton visible (il était caché dans
+                             la partie « Administratif complémentaire »), validé par un médecin et tracé. */ ?>
+                    <button type="button" class="button button--secondary" data-declare-death
+                            data-current="<?= View::e($partValues['admin']['deceased'] ?? '') ?>">
+                        Déclarer le décès
+                    </button>
+                <?php endif; ?>
             </p>
         <?php endif; ?>
     </div>

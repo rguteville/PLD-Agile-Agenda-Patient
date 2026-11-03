@@ -124,24 +124,30 @@ $slotLabel = static function (string $slot): string {
         $careLabels = array_keys($careLabels);
         sort($careLabels);
         ?>
-        <div class="agenda-filters" role="group" aria-label="Filtrer les soins" data-agenda-filters hidden>
-            <?php foreach (
-            ['all' => 'Tous', 'late' => 'En retard', 'planned' => 'À faire',
-                'done' => 'Réalisés', 'not_done' => 'Non effectués'] as $filter => $label
+        <?php /* Retours du 2026-11-04 : filtres regroupés derrière un bouton (agenda.js). */ ?>
+        <details class="filter-menu" data-agenda-filters hidden>
+            <summary class="button button--secondary">
+                Filtres<span class="filter-menu__state" data-filter-state></span>
+            </summary>
+            <div class="agenda-filters" role="group" aria-label="Filtrer les soins">
+                <?php foreach (
+                ['all' => 'Tous', 'late' => 'En retard', 'planned' => 'À faire',
+                    'done' => 'Réalisés', 'not_done' => 'Non effectués'] as $filter => $label
 ) : ?>
-                <button type="button" class="button button--secondary" data-filter="<?= View::e($filter) ?>"
-                        aria-pressed="<?= $filter === 'all' ? 'true' : 'false' ?>"><?= View::e($label) ?></button>
-            <?php endforeach; ?>
-            <?php if (count($careLabels) > 1) : ?>
-                <label for="care-type-filter" class="sr-only">Type de soin</label>
-                <select id="care-type-filter" data-type-filter>
-                    <option value="">Tous les types de soin</option>
-                    <?php foreach ($careLabels as $careLabel) : ?>
-                        <option value="<?= View::e($careLabel) ?>"><?= View::e($careLabel) ?></option>
-                    <?php endforeach; ?>
-                </select>
-            <?php endif; ?>
-        </div>
+                    <button type="button" class="button button--secondary" data-filter="<?= View::e($filter) ?>"
+                            aria-pressed="<?= $filter === 'all' ? 'true' : 'false' ?>"><?= View::e($label) ?></button>
+                <?php endforeach; ?>
+                <?php if (count($careLabels) > 1) : ?>
+                    <label for="care-type-filter" class="sr-only">Type de soin</label>
+                    <select id="care-type-filter" data-type-filter>
+                        <option value="">Tous les types de soin</option>
+                        <?php foreach ($careLabels as $careLabel) : ?>
+                            <option value="<?= View::e($careLabel) ?>"><?= View::e($careLabel) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                <?php endif; ?>
+            </div>
+        </details>
 
         <div class="table-scroll">
             <table class="service-timeline">

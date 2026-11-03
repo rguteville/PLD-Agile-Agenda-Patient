@@ -135,7 +135,7 @@ final class AgendaServicePresentWeekTest extends TestCase
         self::assertSame(0, $agenda['counts']['late']);
         self::assertTrue($items['S']['canValidate'], 'une dose faite avant l\'arrêt reste traçable');
         self::assertTrue($items['SOON']['canValidate'], 'à moins d\'une heure');
-        self::assertFalse($items['LATER']['canValidate'], 'le soin du soir ne se valide pas le matin');
+        self::assertTrue($items['LATER']['canValidate'], 'un soin du jour fait en avance se valide');
         self::assertTrue($items['LATER']['notValidated'], 'RG5 : ordonnance non validée signalée');
     }
 

@@ -236,7 +236,8 @@
     // pas depuis l'admission (retours du 2026-11-03 : plus de « Corriger l'identité », la correction se
     // fait dans le dossier, tracée). « Ce n'est pas ce patient » détache.
 
-    const IDENTITY_FIELDS = ['lastname', 'firstname', 'birthDate', 'gender', 'ipp'];
+    // Le groupe sanguin d'un patient connu est sur sa carte, en lecture seule (retours du 2026-11-04).
+    const IDENTITY_FIELDS = ['lastname', 'firstname', 'birthDate', 'gender', 'ipp', 'bloodType'];
 
     function identityRows() {
         return IDENTITY_FIELDS
@@ -341,6 +342,14 @@
         const heading = document.getElementById('identity');
         (heading ? heading.parentElement : listbox).insertAdjacentElement('afterend', card);
         showIdentityFields(false);
+        // Groupe sanguin inconnu dans le dossier : il peut être complété ici (le serveur refuse de remplacer
+        // un groupe déjà connu).
+        if (!bloodType) {
+            const bloodRow = form.querySelector('[name="bloodType"]')?.closest('.form-row');
+            if (bloodRow) {
+                bloodRow.hidden = false;
+            }
+        }
     }
 
     // « Ce n'est pas ce patient » : vide tout le formulaire, y compris le rattachement.
