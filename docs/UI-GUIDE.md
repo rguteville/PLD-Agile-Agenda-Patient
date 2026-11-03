@@ -48,7 +48,7 @@ deux blocs (`prefers-color-scheme` et `data-theme="dark"`). Toute nouvelle coule
 Contraste : texte sur fond ≥ 4,5:1, composants et icônes ≥ 3:1 (WCAG 2.2 AA). Les couleurs ci-dessus ont été
 choisies pour respecter ce seuil sur `--bg-raised` et `--bg`. Vérifier toute nouvelle paire avec un outil de contraste.
 
-## Bandeau patient (`components/bandeau_patient`)
+## Bandeau patient (`components/patient_banner`)
 
 Nom (capitales), prénom, sexe, date de naissance et âge, IPP, numéro de séjour et date d'admission, poids, taille,
 puis la zone allergies avec **trois états distincts** :
@@ -70,8 +70,8 @@ RG2 antérieure). Produire `unknown` demande une donnée d'évaluation des aller
 | `breadcrumb` | Fil d'Ariane sur les écrans de séjour (Patients › Dossier › Agenda / Prescriptions) | Dernier élément = page courante (`aria-current`), sans lien. |
 | `part_form` + `.part-edit` | Crayon « Modifier » à côté du titre d'une partie du dossier : la partie entière devient un formulaire | Valeurs d'origine en `data-old` (concurrence) ; « Enregistrer » ouvre la fenêtre de validation. |
 | `#auth-dialog` | Fenêtre de validation par un médecin (modification d'une partie, fin de séjour) | **Factice** : le mot de passe n'est pas vérifié, ce que la fenêtre affiche ; `<dialog>` modal, Échap ferme. |
-| `sejour_menu` | Menu figé des écrans de séjour : bouton principal en tête (« Agenda du jour » dans le dossier, « Dossier du séjour » dans l'agenda, au même endroit) | Même composant pour les deux écrans. |
-| `.dossier-menu` | Menu figé à gauche du dossier patient : « Agenda du jour » en tête, Dossier, Allergies, Dossier complet (sous-catégories), Prescriptions en cours | Collant sous le bandeau dès 1024 px, en tête de page en dessous ; partie visible signalée par `aria-current="location"` (`dossier-menu.js`), sous-catégorie = ouverture de sa section. |
+| `episode_menu` | Menu figé des écrans de séjour : bouton principal en tête (« Agenda du jour » dans le dossier, « Dossier du séjour » dans l'agenda, au même endroit) | Même composant pour les deux écrans. |
+| `.dossier-menu` | Menu figé à gauche du dossier patient : « Agenda du jour » en tête, Dossier, Allergies, Dossier complet (sous-catégories), Prescriptions en cours | Collant sous le bandeau dès 1024 px, en tête de page en dessous ; partie visible signalée par `aria-current="location"` (`record-menu.js`), sous-catégorie = ouverture de sa section. |
 | `form` + `field` | Formulaires : une colonne, libellé au-dessus, aide (`help`) sous le libellé, erreur sous le champ | Types : text, date, number, email, tel, radio, select (`empty`), textarea, checkbox-group, hidden, heading ; `listbox` pour une combobox. |
 | `form` → `sections` | Sections repliables `<details>` des formulaires longs, compteur « n sur m renseignés » | Repliées par défaut, ouvertes si un champ est en erreur (`form-sections.js`). |
 | `status_badge` | Icône + texte + couleur d'un statut | Clés dans `docs/ui.md`. `late` est désormais rouge. |

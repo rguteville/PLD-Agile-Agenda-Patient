@@ -26,7 +26,7 @@ Les bonnes pratiques
 
 - nom d'attributs SQL et noms de variables camelCase : exempleDeCamel
 - noms de classes et tables PascalCase : ExempleDePascal
-- coder en français / BD en anglais / traduction niveau DAO
+- code et BD en anglais (HL7) ; affichage et commentaires en français
 
 ## Stack et versions
 
@@ -401,16 +401,16 @@ Scénarios manuels avec les données de démo (`database/test.sql`), serveur lan
 3. **Aucun identifiant ni mot de passe dans le dépôt**
 4. **On ne modifie pas le code directement sur la VM** : on passe par GitHub puis `deploy.sh`.
 5. La structure de la base ne change que par `database/schema.sql`, géré par le responsable BDD.
-6. **Convention de nommage (AURA-02)** : les tables et colonnes SQL de `database/schema.sql` sont en **camelCase anglais** (`Patient.lastName`, `Sejour.admissionDate`), comme le diagramme de classes HL7 du dossier. Le code PHP (entités, services, vues, messages) reste en **français** (`Patient::getNom()`, `Sejour::getDateAdmission()`). La traduction entre les deux se fait **uniquement dans `src/Dao/`** : aucune colonne SQL ne doit apparaître hors de ce dossier.
-7. **Numéro de séjour (AURA-10.3)** : format `AAAA-NNNNNN`, soit l'année de la date d'admission, un tiret et un compteur sur 6 chiffres qui repart à `000001` chaque année (ex. `2026-000108`). Il est généré uniquement par `SejourDao::insert()`, jamais saisi ni fourni par un formulaire (RG1). La colonne `Sejour.sejourNumber` est `NOT NULL UNIQUE` : la base refuse tout doublon. Les jeux de données (`database/test.sql`) doivent suivre ce format.
+6. **Convention de nommage (AURA-02, révisée le 2026-11-03)** : les tables et colonnes SQL de `database/schema.sql` sont en **camelCase anglais** (`Patient.lastName`, `EpisodeOfCare.admissionDate`), comme le diagramme de classes HL7 du dossier. **Tout le code** (classes, méthodes, variables, clés, noms de tests, fichiers) est aussi en **anglais** (`Patient::getLastName()`, `EpisodeOfCare::getAdmissionDate()`) ; seuls l'affichage (textes, URL) et les commentaires restent en **français**. Aucune colonne SQL ne doit apparaître hors de `src/Dao/`.
+7. **Numéro de séjour (AURA-10.3)** : format `AAAA-NNNNNN`, soit l'année de la date d'admission, un tiret et un compteur sur 6 chiffres qui repart à `000001` chaque année (ex. `2026-000108`). Il est généré uniquement par `EpisodeOfCareDao::insert()`, jamais saisi ni fourni par un formulaire (RG1). La colonne `Sejour.sejourNumber` est `NOT NULL UNIQUE` : la base refuse tout doublon. Les jeux de données (`database/test.sql`) doivent suivre ce format.
 
 ---
 
 ## Conventions
 
-- **Nommage** : SQL en camelCase anglais HL7 (`Patient.lastName`), traduction uniquement dans `src/Dao/`. Classes
-  historiques en français (`Patient`, `Sejour`, `DossierPatientService`) conservées ; **tout nouveau code en anglais
-  HL7** (`CarePlan`, `AuditEvent`, `RecordEditService`), décision du 2026-10-21. Commentaires, messages
+- **Nommage** : SQL en camelCase anglais HL7 (`Patient.lastName`), traduction uniquement dans `src/Dao/`. **Tout le code
+  en anglais HL7** (`EpisodeOfCare`, `PatientRecordService`, `CarePlan`), décision du 2026-11-03 qui remplace
+  celle du 2026-10-21 (classes historiques en français). Commentaires, messages
   utilisateur, URL, commits et PR en français.
 - **Branches** : une par ticket, depuis `main` à jour : `feature/AURA-NN-slug`, `fix/…`, `docs/…`, `chore/…`, `ci/…`.
   Pour des changements dépendants, PR empilées (`gh pr create --base <branche précédente>`), fusionnées dans l'ordre.

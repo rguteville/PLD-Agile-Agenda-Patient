@@ -59,7 +59,7 @@ journée »).
 | `icon` | Icône Lucide (1.66.0, licence ISC) en SVG inline. | `name` ; `label` (texte alternatif, sinon décorative) ; `class` (`icon--lg`). |
 | `status_badge` | Icône + texte + couleur d'un statut. | `status` (clé, voir ci-dessous) ; `label` facultatif pour remplacer le texte. |
 | `empty_state` | Écran ou section sans donnée, avec explication. | `title` ; `text` ; `icon`. |
-| `bandeau_patient` | Identité, IPP, séjour, poids, taille, allergies (RG2). Collant, jamais replié. | `bandeau` (vue-modèle de `DossierPatientService::presenterBandeau()`). |
+| `patient_banner` | Identité, IPP, séjour, poids, taille, allergies (RG2). Collant, jamais replié. | `bandeau` (vue-modèle de `PatientRecordService::presenterBandeau()`). |
 | `agenda_table` | Tableau d'une tranche de l'agenda. | `items`, `caption`, `validationEnabled`. |
 | `validation_dialog` | `<dialog>` « Valider un soin » : qui, quand, note. **Balisage seul** (voir « Hors périmètre »). | `validators`. |
 | `form` + `field` | Formulaires (inchangés) : label associé, `aria-invalid`, `aria-describedby`, `role="alert"`. | voir `.claude/rules/views-ui.md`. |
@@ -95,13 +95,13 @@ Une valeur inconnue en base s'affiche telle quelle, en neutre, avec l'icône `ci
 
 ## Écrans
 
-- **Agenda patient** (`pages/sejour/agenda-patient.php`) : un jour, chronologique. Les retards sont épinglés en tête
+- **Agenda patient** (`pages/episode/patient-agenda.php`) : un jour, chronologique. Les retards sont épinglés en tête
   (figure 4 du cahier des charges), puis quatre tranches de rotation : Nuit (fin) 0 h–6 h, Matin 6 h–14 h,
   Après-midi 14 h–22 h, Nuit (début) 22 h–24 h. **Bornes = hypothèse** à confirmer avec le service
   (`AgendaService::SHIFTS`). La colonne « Responsable » (IDE / IDE-AS) est déduite du type de ligne faute de
   donnée en base. Toute la logique est dans `AgendaService::presentDay()` (pur, testé).
 - **Prescriptions** (`pages/careplan/list.php`) : badge `to_validate` = « petit stylo » du SI réel (RG5).
-- **Vue du service** (`pages/service/vue-consolidee.php`) : patients × créneaux avec compteur de retards.
+- **Vue du service** (`pages/service/consolidated-view.php`) : patients × créneaux avec compteur de retards.
   **Balisage seul**, sans route : le contrat du vue-modèle est documenté en tête du fichier et couvert par un test.
 
 ## Vérifier

@@ -13,7 +13,7 @@ modules, le trajet d'une requête, le modèle de données réel et les décision
 | `src/Service` | Règles métier. `valider()` est pure (sans PDO ni HTTP, date injectée) ; les écritures passent par `Transaction::run()`. | Un service par cas d'usage ; les méthodes `present*()` préparent des vue-modèles testables sans base. |
 | `src/Dao` | Seul endroit où apparaissent les colonnes SQL (camelCase anglais HL7). Requêtes préparées, ids `VARCHAR(20)` calculés par `MAX(CAST(id AS UNSIGNED)) + 1 … FOR UPDATE`. | Traduction colonnes ↔ entités françaises ; listes blanches de colonnes pour les mises à jour partielles. |
 | `src/Domain` | Entités immuables (getters), constantes métier (`ClinicalScales`, `RecordFields`, statuts). | Pas d'accès aux données. |
-| `src/View` | `layouts/main.php`, `components/` (form, field, bandeau_patient, breadcrumb, status_badge, empty_state, icon, agenda_table…), `pages/`. | Tout est échappé par `View::e()` ; pas de fonction nommée dans une vue. |
+| `src/View` | `layouts/main.php`, `components/` (form, field, patient_banner, breadcrumb, status_badge, empty_state, icon, agenda_table…), `pages/`. | Tout est échappé par `View::e()` ; pas de fonction nommée dans une vue. |
 | `public/css/style.css`, `public/js/*.js`, `public/fonts/` | Un seul fichier CSS (blocs ajoutés en fin de fichier), scripts vanilla par fonctionnalité, police vendorisée. | Aucun CDN. |
 | `database/` | `schema.sql` (structure complète, rejouée sur base vide par le CI), `test.sql` (données de démo fictives), `migrations/` (ALTER additifs pour une base existante). | Le schéma est géré par le responsable BDD. |
 
@@ -299,7 +299,7 @@ modifications (sans clé étrangère). Régénérer le diagramme : parser les `C
 - **Identité et IPP** : nom et prénom obligatoires, IPP facultatif (RG1, patient admis en urgence). L'existence d'un
   patient est vérifiée dans la base locale d'AURA (par IPP, puis par nom / prénom, sélection explicite d'un résultat) ;
   **OpenEMR n'est pas connecté** (AURA-38 hors périmètre), le SI est autonome.
-- **Numéro de séjour** `AAAA-NNNNNN` généré uniquement par `SejourDao::insert()` dans une transaction verrouillée,
+- **Numéro de séjour** `AAAA-NNNNNN` généré uniquement par `EpisodeOfCareDao::insert()` dans une transaction verrouillée,
   jamais saisi (AURA-10.3).
 - **Nommage** : SQL camelCase anglais HL7 (diagramme de classes du dossier de cadrage) ; classes historiques en
   français conservées, nouveau code en anglais HL7 (décision du 2026-10-21) ; messages, commentaires, commits en français.
