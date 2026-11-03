@@ -58,7 +58,8 @@ document.querySelectorAll('form[data-ajax]').forEach(form => {
 
         let data;
         try {
-            const response = await fetch(form.action, {
+            // getAttribute : un champ nommé « action » masquerait form.action (même piège que agenda.js).
+            const response = await fetch(form.getAttribute('action') || window.location.href, {
                 method: 'POST',
                 body: new FormData(form),
                 headers: {
