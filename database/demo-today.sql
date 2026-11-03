@@ -38,4 +38,6 @@ SET plannedTime = plannedTime + INTERVAL @shift DAY,
 
 UPDATE AuditEvent SET recordedAt = recordedAt + INTERVAL @shift DAY;
 
+UPDATE CareTeam SET shiftDate = shiftDate + INTERVAL @shift DAY;
+
 SELECT @shift AS jours_decales;

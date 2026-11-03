@@ -71,7 +71,8 @@ final class CareController
         if (!$this->expectsJson()) {
             // Sans JavaScript : retour à la page d'origine, le résultat se lit dans l'agenda rechargé.
             $back = $body['back'] ?? '';
-            $back = is_string($back) && preg_match('#^/agenda-(patient|service)\?[\w=&%-]*$#', $back) === 1
+            $origin = '#^/(agenda-patient|agenda-service|mon-planning)\?[\w=&%-]*$#';
+            $back = is_string($back) && preg_match($origin, $back) === 1
                 ? $back : '/agenda-patient?id=' . (int) $idEpisodeOfCare;
             header('Location: ' . $back, true, 303);
             return;

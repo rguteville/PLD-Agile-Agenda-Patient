@@ -251,3 +251,16 @@ INSERT INTO Appointment (idAppointment, idServiceRequest, idMedicationRequest, p
     ('SOI12', NULL, '6',  '2026-09-27 00:00:00', 'ANNULE',   NULL,                  '2026-09-26 15:00:00', 'Arrêt du traitement'),
     ('SOI13', '2',  NULL, '2026-10-13 10:00:00', 'REALISE',  '2026-10-13 10:30:00', '2026-10-13 10:35:00', NULL),
     ('SOI14', NULL, '8',  '2026-10-16 03:15:00', 'REALISE',  '2026-10-16 03:20:00', '2026-10-16 03:25:00', 'Fièvre à 39,5 °C');
+-- ---------------------------------------------------------------------------
+-- Équipes de la vacation de jour du 14 octobre 2026 en réanimation médicale (AURA-30) :
+--   Équipe A : Thomas Girard (IDE) + Julien Perrin (AS) → Simpson (1) et Skywalker (2)
+--   Équipe B : Inès Rousseau (IDE) → Ripley (8)
+INSERT INTO CareTeam (idCareTeam, idHealthcareService, shiftDate, shift, name) VALUES
+    (1, 'SRV01', '2026-10-14', 'JOUR', 'Équipe A'),
+    (2, 'SRV01', '2026-10-14', 'JOUR', 'Équipe B');
+
+INSERT INTO CareTeamMember (idCareTeam, idPractitioner) VALUES
+    (1, 'PRA04'), (1, 'PRA06'), (2, 'PRA05');
+
+INSERT INTO CareTeamPatient (idCareTeam, idEpisodeOfCare) VALUES
+    (1, '1'), (1, '2'), (2, '8');

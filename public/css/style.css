@@ -4304,3 +4304,119 @@ form.form--columns .form-lead > .form-row {
 .referent-missing svg {
     flex: none;
 }
+
+/* ===== AURA-30 / AURA-31 : équipes de vacation et « Mon planning » ===== */
+.team-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: var(--sp-4);
+    margin: var(--sp-4) 0;
+    padding: 0;
+    list-style: none;
+}
+
+.team-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-1);
+    padding: var(--sp-3) var(--sp-4);
+    background: var(--bg-raised);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+}
+
+.team-card__title {
+    margin: 0;
+    font-size: var(--fs-3);
+}
+
+.team-card__label {
+    margin: var(--sp-2) 0 0;
+    color: var(--fg-muted);
+    font-size: var(--fs-0);
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.team-card__list {
+    margin: 0;
+    padding-left: var(--sp-4);
+}
+
+.team-card form {
+    margin-top: var(--sp-3);
+}
+
+.team-form {
+    max-width: 720px;
+    margin-top: var(--sp-5);
+    padding: var(--sp-4);
+    background: var(--bg-raised);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+}
+
+.team-form .checkbox-group {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: var(--sp-1) var(--sp-3);
+    margin: var(--sp-3) 0;
+    border: 0;
+    padding: 0;
+}
+
+.team-form .checkbox-group legend {
+    margin-bottom: var(--sp-2);
+    font-weight: 600;
+}
+
+.team-form .checkbox-group label {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-2);
+    min-height: var(--tap);
+}
+
+.planning-teams {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-2) var(--sp-4);
+    margin: var(--sp-3) 0;
+}
+
+.planning-layout {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-4);
+    align-items: flex-start;
+}
+
+.planning-patients {
+    flex: 1 1 260px;
+    max-width: 340px;
+}
+
+.planning-patients ul {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.planning-patients .patient-bed {
+    color: var(--fg-muted);
+    font-size: var(--fs-1);
+}
+
+.planning-main {
+    flex: 999 1 560px;
+    min-width: 0;
+}
+
+.planning-view .service-alert {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+}

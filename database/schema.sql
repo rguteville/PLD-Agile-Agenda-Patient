@@ -9,6 +9,9 @@
 #USE aura;
 
 DROP TABLE IF EXISTS AuditEvent; -- Historique des modifications du dossier (aucune clé étrangère)
+DROP TABLE IF EXISTS CareTeamPatient; -- PatientÉquipe ->[CareTeam,EpisodeOfCare]
+DROP TABLE IF EXISTS CareTeamMember; -- MembreÉquipe ->[CareTeam,Practitioner]
+DROP TABLE IF EXISTS CareTeam; -- Équipe d'une vacation ->[HealthcareService]
 DROP TABLE IF EXISTS Appointment; -- SoinPlanifié ->[ServiceRequest,MedicationRequest]
 DROP TABLE IF EXISTS MedicationRequest; -- PrescriptionMedicament ->[Medication,ActivityDefinition,CarePlan,Practitioner]
 DROP TABLE IF EXISTS ServiceRequest; -- PrescriptionSoin ->[ActivityDefinition,CarePlan,Practitioner]
@@ -375,4 +378,43 @@ CREATE TABLE AuditEvent(
     recordedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     INDEX idx_auditevent_entity (entity, entityId, recordedAt)
+);
+
+-- Équipes et vacations (AURA-30, PROPOSITION 2026-11-03 à valider par le responsable BDD) : au début de
+-- chaque vacation (JOUR 8 h – 20 h, NUIT 20 h – 8 h, hypothèse à confirmer avec le service), le cadre
+-- compose les équipes et leur attribue des patients. Une équipe retirée garde sa ligne (removedAt) ;
+-- activeKey rend le nom unique parmi les équipes actives de la vacation (convention de suppression
+-- logique du README). Un patient n'appartient qu'à une équipe par vacation : contrôlé par le service
+-- (CareTeamService), la base ne pouvant l'exprimer sans dupliquer la vacation dans CareTeamPatient.
+CREATE TABLE CareTeam( -- Équipe d'une vacation
+    idCareTeam INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    idHealthcareService VARCHAR(20) NOT NULL,
+    shiftDate DATE NOT NULL,
+    shift VARCHAR(5) NOT NULL,
+    name VARCHAR(30) NOT NULL,
+    removedAt DATETIME,
+    activeKey TINYINT AS (IF(removedAt IS NULL, 1, NULL)) STORED,
+
+    CONSTRAINT chk_careteam_shift CHECK (shift IN ('JOUR', 'NUIT')),
+    CONSTRAINT uq_careteam_name UNIQUE (idHealthcareService, shiftDate, shift, name, activeKey),
+    CONSTRAINT fk_healthcareservice_careteam FOREIGN KEY (idHealthcareService)
+        REFERENCES HealthcareService(idHealthcareService)
+);
+
+CREATE TABLE CareTeamMember( -- Soignant d'une équipe
+    idCareTeam INT UNSIGNED NOT NULL,
+    idPractitioner VARCHAR(20) NOT NULL,
+
+    PRIMARY KEY (idCareTeam, idPractitioner),
+    CONSTRAINT fk_careteam_member FOREIGN KEY (idCareTeam) REFERENCES CareTeam(idCareTeam),
+    CONSTRAINT fk_practitioner_member FOREIGN KEY (idPractitioner) REFERENCES Practitioner(idPractitioner)
+);
+
+CREATE TABLE CareTeamPatient( -- Patient attribué à une équipe
+    idCareTeam INT UNSIGNED NOT NULL,
+    idEpisodeOfCare VARCHAR(20) NOT NULL,
+
+    PRIMARY KEY (idCareTeam, idEpisodeOfCare),
+    CONSTRAINT fk_careteam_patient FOREIGN KEY (idCareTeam) REFERENCES CareTeam(idCareTeam),
+    CONSTRAINT fk_episode_careteam FOREIGN KEY (idEpisodeOfCare) REFERENCES EpisodeOfCare(idEpisodeOfCare)
 );

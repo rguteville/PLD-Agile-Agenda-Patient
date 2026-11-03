@@ -444,6 +444,74 @@ final class AgendaService
         ];
     }
 
+    /**
+     * Vue-modèle d'une vacation pour un soignant (AURA-31, « Mon planning ») : les soins des patients
+     * de son équipe dont l'heure prévue tombe dans la vacation [début, fin[, par ordre chronologique,
+     * avec le patient de chaque soin, et un résumé par patient (allergies RG2, retards, à faire).
+     * Mêmes règles que presentDay(). Pure : la fenêtre et l'heure courante sont injectées.
+     *
+     * @param list<array<string, mixed>> $episodes sortie de getAgendaService(), restreinte à l'équipe
+     * @return array{items: list<array<string, mixed>>, patients: list<array<string, mixed>>,
+     *               counts: array{total: int, late: int, done: int, planned: int}}
+     */
+    public static function presentShift(
+        array $episodes,
+        DateTimeImmutable $start,
+        DateTimeImmutable $end,
+        DateTimeImmutable $now
+    ): array {
+        $items = [];
+        $patients = [];
+        foreach ($episodes as $episode) {
+            $name = mb_strtoupper((string) $episode['lastName']) . ' ' . $episode['firstName'];
+            $own = [];
+            // Une vacation de nuit chevauche deux jours civils : on lit chaque jour qu'elle touche.
+            for ($day = $start->setTime(0, 0); $day < $end; $day = $day->modify('+1 day')) {
+                $agenda = self::presentDay($episode['carePlans'] ?? [], $day, $now);
+                foreach ([$agenda['late'], ...array_column($agenda['shifts'], 'items')] as $list) {
+                    foreach ($list as $item) {
+                        $at = new DateTimeImmutable($item['datetime']);
+                        if ($at >= $start && $at < $end) {
+                            $own[] = $item + [
+                                'idEpisodeOfCare' => (int) $episode['idEpisodeOfCare'],
+                                'patient' => $name,
+                                'bed' => $episode['bed'] ?? null,
+                            ];
+                        }
+                    }
+                }
+            }
+            $patients[] = [
+                'idEpisodeOfCare' => (int) $episode['idEpisodeOfCare'],
+                'name' => $name,
+                'bed' => $episode['bed'] ?? null,
+                'allergies' => $episode['allergies'] ?? null,
+                'late' => count(array_filter($own, static fn (array $i): bool => $i['status'] === 'late')),
+                'planned' => count(array_filter($own, static fn (array $i): bool => $i['status'] === 'planned')),
+                'done' => count(array_filter($own, static fn (array $i): bool => $i['status'] === 'done')),
+            ];
+            $items = [...$items, ...$own];
+        }
+        usort(
+            $items,
+            static fn (array $a, array $b): int => [$a['datetime'], $a['patient']] <=> [$b['datetime'], $b['patient']]
+        );
+        $countBy = static fn (string $status): int => count(
+            array_filter($items, static fn (array $i): bool => $i['status'] === $status)
+        );
+
+        return [
+            'items' => $items,
+            'patients' => $patients,
+            'counts' => [
+                'total' => count($items),
+                'late' => $countBy('late'),
+                'done' => $countBy('done'),
+                'planned' => $countBy('planned'),
+            ],
+        ];
+    }
+
     /** Rang d'un statut dans une cellule de la vue du service ; un statut inconnu passe en dernier. */
     private static function cellRank(string $status): int
     {

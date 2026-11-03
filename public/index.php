@@ -18,6 +18,7 @@ use Aura\Controller\PatientController;
 use Aura\Controller\RecordController;
 use Aura\Controller\EpisodeOfCareController;
 use Aura\Controller\ServiceController;
+use Aura\Controller\TeamController;
 use Aura\Core\ConfigurationException;
 use Aura\Core\Database;
 use Aura\Core\Router;
@@ -25,6 +26,7 @@ use Aura\Core\View;
 
 use Aura\Dao\AllergyIntoleranceDao;
 use Aura\Dao\AuditEventDao;
+use Aura\Dao\CareTeamDao;
 use Aura\Dao\CarePlanDao;
 use Aura\Dao\PatientDao;
 use Aura\Dao\PlanDefinitionDao;
@@ -48,6 +50,7 @@ use Aura\Service\RecordSectionService;
 use Aura\Service\EpisodeOfCareService;
 use Aura\Service\AgendaService;
 use Aura\Service\AppointmentService;
+use Aura\Service\CareTeamService;
 
 // Récupération de l'url
 $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?: '/';
@@ -265,6 +268,21 @@ try {
         $controller->getAgenda();
     };
 
+    // AURA-30 / AURA-31 : équipes de vacation et « Mon planning » par soignant.
+    $teamController = static function () use ($agendaService, $appointmentService): TeamController {
+        $pdo = Database::get();
+        $appointments = $appointmentService($pdo);
+
+        return new TeamController(
+            new CareTeamService(new CareTeamDao($pdo), new Transaction($pdo)),
+            new CareTeamDao($pdo),
+            $agendaService($pdo),
+            (new ReferenceDataDao($pdo))->healthcareServices(),
+            $appointments->performers(),
+            $appointments
+        );
+    };
+
     // AURA-26 / AURA-28 : valider un soin, le marquer non effectué, ou y ajouter une note.
     $careAction = static function () use ($appointmentService): void {
         (new CareController($appointmentService(Database::get())))->act();
@@ -311,6 +329,10 @@ try {
     $router->get('/care-plans/protocol-lines', static fn () => $carePlans()->protocolLines());
     $router->get('/agenda-patient', $getAgenda);
     $router->post('/agenda-patient/soin', $careAction);
+    $router->get('/equipes', static fn () => $teamController()->teams());
+    $router->post('/equipes/creer', static fn () => $teamController()->create());
+    $router->post('/equipes/retirer', static fn () => $teamController()->remove());
+    $router->get('/mon-planning', static fn () => $teamController()->planning());
     $router->get('/agenda-service', $getAgendaService);
 
 

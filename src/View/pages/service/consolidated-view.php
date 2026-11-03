@@ -31,24 +31,6 @@ $slotLabel = static function (string $slot): string {
 
     return (int) substr($slot, 0, 2) . ' h – ' . $end . ' h';
 };
-// Boutons d'action d'un soin (mêmes attributs que components/agenda_table, lus par agenda.js).
-$careButtons = static function (array $item, int $idEpisodeOfCare, string $who) use ($validationEnabled): string {
-    if (!$validationEnabled) {
-        return '';
-    }
-    $attributes = ' data-appointment="' . View::e($item['id']) . '"'
-        . ' data-episode="' . View::e($idEpisodeOfCare) . '"'
-        . ' data-label="' . View::e($who . ' · ' . $item['time'] . ' · ' . $item['label']) . '"';
-    $html = '<span class="care-buttons">';
-    if (in_array($item['status'], ['planned', 'late'], true)) {
-        $html .= '<button type="button" class="button" data-care-action="done"' . $attributes . '>Valider</button>'
-            . '<button type="button" class="button button--secondary" data-care-action="not_done"' . $attributes
-            . '>Non effectué</button>';
-    }
-
-    return $html . '<button type="button" class="button button--secondary" data-care-action="note"' . $attributes
-        . '>Note</button></span>';
-};
 ?>
 <section class="service-view">
     <div class="page-header">
@@ -110,7 +92,13 @@ $careButtons = static function (array $item, int $idEpisodeOfCare, string $who) 
                             <?= View::e($item['patient']) ?>
                         </a>
                         <span class="item-label"><?= View::e($item['label']) ?></span>
-                        <?= $careButtons($item, $item['idEpisodeOfCare'], $item['patient']) ?>
+                        <?php if ($validationEnabled) : ?>
+                            <?= View::render('components/care_buttons', [
+                                'item' => $item,
+                                'idEpisodeOfCare' => $item['idEpisodeOfCare'],
+                                'context' => $item['patient'],
+                            ]) ?>
+                        <?php endif; ?>
                     </li>
                 <?php endforeach; ?>
             </ul>
@@ -224,7 +212,13 @@ $careButtons = static function (array $item, int $idEpisodeOfCare, string $who) 
                                                     $who = mb_strtoupper($patient['lastName']) . ' '
                                                         . $patient['firstName'];
                                                     ?>
-                                                    <?= $careButtons($item, $patient['idEpisodeOfCare'], $who) ?>
+                                                    <?php if ($validationEnabled) : ?>
+                                                        <?= View::render('components/care_buttons', [
+                                                            'item' => $item,
+                                                            'idEpisodeOfCare' => $patient['idEpisodeOfCare'],
+                                                            'context' => $who,
+                                                        ]) ?>
+                                                    <?php endif; ?>
                                                 </li>
                                             <?php endforeach; ?>
                                         </ul>

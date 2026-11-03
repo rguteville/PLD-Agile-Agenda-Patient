@@ -64,22 +64,10 @@ $idEpisodeOfCare = $idEpisodeOfCare ?? null;
                     </td>
                     <?php if ($validationEnabled) : ?>
                         <td class="col-action">
-                            <?php
-                            $attributes = ' data-appointment="' . View::e($item['id']) . '"'
-                                . ' data-episode="' . View::e($idEpisodeOfCare) . '"'
-                                . ' data-label="' . View::e($item['time'] . ' · ' . $item['label']) . '"';
-                            ?>
-                            <span class="care-buttons">
-                                <?php if (in_array($item['status'], ['planned', 'late'], true)) : ?>
-                                    <button type="button" class="button" data-care-action="done"<?= $attributes ?>>
-                                        Valider
-                                    </button>
-                                    <button type="button" class="button button--secondary"
-                                            data-care-action="not_done"<?= $attributes ?>>Non effectué</button>
-                                <?php endif; ?>
-                                <button type="button" class="button button--secondary"
-                                        data-care-action="note"<?= $attributes ?>>Note</button>
-                            </span>
+                            <?= View::render('components/care_buttons', [
+                                'item' => $item,
+                                'idEpisodeOfCare' => $idEpisodeOfCare,
+                            ]) ?>
                         </td>
                     <?php endif; ?>
                 </tr>
