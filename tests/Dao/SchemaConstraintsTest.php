@@ -297,7 +297,9 @@ final class SchemaConstraintsTest extends TestCase
                 "INSERT INTO PlanDefinitionAction (idPlanDefinitionAction, idPlanDefinition, kind, idActivityDefinition)
                  VALUES ('ZZPA1', 'PLD01', 'ZZ', 'TYP02')",
                 self::CHECK,
-                'chk_plandefinitionaction_kind',
+                // Refusée par chk_plandefinitionaction_kind et par chk_plandefinitionaction_medication (aucune
+                // des deux natures) : MariaDB nomme la première qu'il évalue, l'ordre n'est pas garanti.
+                'chk_plandefinitionaction_',
             ],
             'Ligne de protocole : médicament sans dose' => [
                 [],

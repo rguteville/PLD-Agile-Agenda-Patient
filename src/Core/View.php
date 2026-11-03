@@ -20,9 +20,18 @@ class View
     public static function render(string $template, array $data = []): string
     {
         extract($data, EXTR_SKIP);
+        $level = ob_get_level();
         ob_start();
-        require self::BASE_PATH . $template . '.php';
-        return (string) ob_get_clean();
+        try {
+            require self::BASE_PATH . $template . '.php';
+
+            return (string) ob_get_clean();
+        } finally {
+            // Gabarit en échec : le HTML partiel est jeté, il ne s'affichera pas devant la page d'erreur.
+            while (ob_get_level() > $level) {
+                ob_end_clean();
+            }
+        }
     }
 
     /** Affiche une page complète : son contenu inséré dans le layout */

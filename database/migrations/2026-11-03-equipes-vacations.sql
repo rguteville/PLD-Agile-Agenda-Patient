@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS CareTeam(
     removedAt DATETIME,
     activeKey TINYINT AS (IF(removedAt IS NULL, 1, NULL)) STORED,
 
-    CONSTRAINT chk_careteam_shift CHECK (shift IN ('JOUR', 'NUIT')),
+    CONSTRAINT chk_careteam_shift CHECK (BINARY shift IN ('JOUR', 'NUIT')),
     CONSTRAINT uq_careteam_name UNIQUE (idHealthcareService, shiftDate, shift, name, activeKey),
     CONSTRAINT fk_healthcareservice_careteam FOREIGN KEY (idHealthcareService)
         REFERENCES HealthcareService(idHealthcareService)

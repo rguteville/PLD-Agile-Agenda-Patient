@@ -243,7 +243,7 @@ CREATE TABLE PlanDefinitionAction( -- LigneProtocole
     frequencyHours SMALLINT,
     timeConstraint VARCHAR(200),
 
-    CONSTRAINT chk_plandefinitionaction_kind CHECK (kind IN ('MEDICATION', 'CARE')),
+    CONSTRAINT chk_plandefinitionaction_kind CHECK (BINARY kind IN ('MEDICATION', 'CARE')),
     CONSTRAINT chk_plandefinitionaction_medication CHECK (
         (kind = 'MEDICATION' AND idMedication IS NOT NULL AND dose IS NOT NULL AND route IS NOT NULL)
         OR (kind = 'CARE' AND idMedication IS NULL AND dose IS NULL AND route IS NULL)
@@ -276,7 +276,7 @@ CREATE TABLE CarePlan( -- Prescription
     -- Longueur bornée par CarePlanService::NOTE_MAX_LENGTH.
     note TEXT,
 
-    CONSTRAINT chk_careplan_mode CHECK (mode IN ('MEDICAL', 'PARAMEDICAL', 'EMERGENCY')),
+    CONSTRAINT chk_careplan_mode CHECK (BINARY mode IN ('MEDICAL', 'PARAMEDICAL', 'EMERGENCY')),
     CONSTRAINT chk_careplan_validation CHECK ((idValidator IS NULL) = (validatedAt IS NULL)),
 
     CONSTRAINT fk_episodeofcare_careplan FOREIGN KEY (idEpisodeOfCare) REFERENCES EpisodeOfCare(idEpisodeOfCare),
@@ -406,7 +406,7 @@ CREATE TABLE CareTeam( -- Équipe d'une vacation
     removedAt DATETIME,
     activeKey TINYINT AS (IF(removedAt IS NULL, 1, NULL)) STORED,
 
-    CONSTRAINT chk_careteam_shift CHECK (shift IN ('JOUR', 'NUIT')),
+    CONSTRAINT chk_careteam_shift CHECK (BINARY shift IN ('JOUR', 'NUIT')),
     CONSTRAINT uq_careteam_name UNIQUE (idHealthcareService, shiftDate, shift, name, activeKey),
     CONSTRAINT fk_healthcareservice_careteam FOREIGN KEY (idHealthcareService)
         REFERENCES HealthcareService(idHealthcareService)
