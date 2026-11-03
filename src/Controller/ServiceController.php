@@ -8,7 +8,6 @@ use Aura\Core\View;
 use Aura\Service\AgendaService;
 use DateTimeImmutable;
 
-
 final class ServiceController
 {
 
@@ -21,7 +20,7 @@ final class ServiceController
     public function getAgenda(): void
     {
         $id = $_GET['idHealthcareService'] ?? null;
-       
+
         if ($id === null) {
             View::erreur(404, 'Identifiant manquant.');
             return;
@@ -40,6 +39,4 @@ final class ServiceController
             'validationEnabled' => false,
         ]);
     }
-
-    
 }

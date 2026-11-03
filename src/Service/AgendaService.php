@@ -51,9 +51,9 @@ final class AgendaService
     }
 
     public function getAgendaService(string $idHealthServiceId): void
-    {
+    { // TODO
         $episodesOfCare = $this->sejourDao->findByHealthcareService($idHealthServiceId);
-
+        
     }
 
     public function getAgenda(int $idEpisodeOfCare): array
