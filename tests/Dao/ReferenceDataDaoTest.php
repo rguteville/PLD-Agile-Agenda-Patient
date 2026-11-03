@@ -130,7 +130,14 @@ final class ReferenceDataDaoTest extends TestCase
     {
         $practitioners = $this->dao->practitioners();
 
-        self::assertSame(['PRA02', 'PRA03', 'PRA04', 'PRA01', 'PRA06', 'PRA05'], array_keys($practitioners));
+        // Les 15 praticiens de database/test.sql, triés par nom puis prénom.
+        self::assertSame(
+            [
+                'PRA02', 'PRA09', 'PRA15', 'PRA11', 'PRA03', 'PRA13', 'PRA04', 'PRA08',
+                'PRA07', 'PRA12', 'PRA01', 'PRA06', 'PRA14', 'PRA05', 'PRA10',
+            ],
+            array_keys($practitioners)
+        );
         self::assertContainsOnlyInstancesOf(Practitioner::class, $practitioners);
 
         $morel = $practitioners['PRA01'];
@@ -174,7 +181,13 @@ final class ReferenceDataDaoTest extends TestCase
     public function testDoctorsAreOnlyPractitionersAllowedToValidate(): void
     {
         self::assertSame(
-            ['PRA02' => 'Dr Karim Benali', 'PRA01' => 'Dr Claire Morel'],
+            [
+                'PRA02' => 'Dr Karim Benali',
+                'PRA09' => 'Dr John Carter',
+                'PRA08' => 'Dr Meredith Grey',
+                'PRA07' => 'Dr Gregory House',
+                'PRA01' => 'Dr Claire Morel',
+            ],
             $this->dao->doctors()
         );
     }

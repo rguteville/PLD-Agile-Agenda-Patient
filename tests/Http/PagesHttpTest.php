@@ -30,7 +30,7 @@ final class PagesHttpTest extends HttpTestCase
         yield 'agenda du patient' => ['/agenda-patient?id=1&date=2026-10-14', 200, 'Paracétamol'];
         yield 'agenda du patient, semaine' => ['/agenda-patient?id=1&date=2026-10-14&vue=semaine', 200, 'Semaine du'];
         yield 'agenda du service par défaut' => ['/agenda-service', 200, 'Agenda du service'];
-        yield 'agenda du service, jour de démo' => ['/agenda-service?date=2026-10-14', 200, 'soin en retard'];
+        yield 'agenda du service, jour de démo' => ['/agenda-service?date=2026-10-14', 200, 'soins en retard'];
         yield 'service inconnu' => ['/agenda-service?idHealthcareService=ZZZ', 404, 'Service inconnu'];
         yield 'équipes de la vacation' => ['/equipes?date=2026-10-14&vacation=jour', 200, 'Équipe A'];
         yield 'mon planning sans soignant' => ['/mon-planning', 200, 'Choisissez votre nom'];
