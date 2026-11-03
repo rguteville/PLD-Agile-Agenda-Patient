@@ -9,10 +9,17 @@ use Aura\Domain\RecordFields;
 use Aura\Service\ModificationPatientService;
 use Aura\Service\AdmissionService;
 use Aura\Service\ListePatientsService;
+use Aura\Service\PatientSearchService;
 use Aura\Service\RechercheIppService;
 use InvalidArgumentException;
 use LogicException;
 
+/**
+ * Écrans et endpoints autour du patient : admission (formulaire, création), liste, modification
+ * de l'identité, recherche par IPP (AURA-15) et par nom / prénom, fiche pour pré-remplissage.
+ * Le contrôleur lit la requête, mappe les champs du formulaire vers les clés du domaine, appelle
+ * le service et répond (HTML ou JSON) ; il ne valide rien lui-même.
+ */
 class PatientController
 {
     /**
@@ -30,6 +37,9 @@ class PatientController
         'poids' => 'poids',
         'precautions' => 'precautions',
         'idHealthcareService' => 'idService',
+        // Patient sélectionné dans la recherche (champ caché posé par admission-search.js) et mode de recherche.
+        'idPatient' => 'idPatient',
+        'searchMode' => 'searchMode',
     ];
 
     /**
@@ -47,7 +57,7 @@ class PatientController
      * Scripts du formulaire d'admission : envoi AJAX (AURA-10.2), recherche par IPP (AURA-15),
      * sections repliables avec compteur de champs renseignés (form-sections.js).
      */
-    public const SCRIPTS_ADMISSION = ['/js/form.js', '/js/admission-ipp.js', '/js/form-sections.js'];
+    public const SCRIPTS_ADMISSION = ['/js/form.js', '/js/admission-search.js', '/js/form-sections.js'];
 
     /** Message renvoyé quand aucun patient ne porte l'IPP recherché (AURA-15). */
     public const MESSAGE_IPP_INCONNU = 'IPP inconnu, saisie manuelle.';
@@ -68,8 +78,79 @@ class PatientController
         private ?ListePatientsService $listePatientsService = null,
         private ?ModificationPatientService $modificationPatientService = null,
         private ?RechercheIppService $rechercheIppService = null,
-        private array $referentiels = []
+        private array $referentiels = [],
+        private ?PatientSearchService $patientSearchService = null
     ) {
+    }
+
+    /** Message affiché sous le champ de recherche quand la saisie est trop courte. */
+    public const MESSAGE_RECHERCHE_COURTE = 'Saisissez au moins 2 caractères.';
+
+    /**
+     * GET /patients/recherche?q=… : patients existants correspondant à un IPP (résultat unique) ou à
+     * des mots du nom / prénom, en JSON, pour la liste de suggestions de l'admission. Jamais de
+     * sélection automatique, jamais de donnée médicale dans la réponse (identitovigilance).
+     * 422 si la saisie fait moins de 2 caractères ; 200 avec `resultats` (éventuellement vide) sinon.
+     */
+    public function search(): void
+    {
+        if ($this->patientSearchService === null) {
+            throw new LogicException('PatientController::search() requiert un PatientSearchService.');
+        }
+        $saisie = $_GET['q'] ?? '';
+        $q = is_string($saisie) ? trim($saisie) : '';
+        if (mb_strlen($q) < PatientSearchService::MIN_LENGTH) {
+            $this->repondreJson(422, ['ok' => false, 'erreurs' => ['patientSearch' => self::MESSAGE_RECHERCHE_COURTE]]);
+            return;
+        }
+
+        $resultat = $this->patientSearchService->search($q);
+        $this->repondreJson(200, [
+            'ok' => true,
+            'mode' => $resultat['mode'],
+            'resultats' => $resultat['results'],
+            'total' => count($resultat['results']),
+            'tronque' => $resultat['truncated'],
+            'homonymes' => $resultat['homonyms'],
+        ]);
+    }
+
+    /**
+     * GET /patients/fiche?id=… : fiche d'un patient, lue seulement après confirmation de la sélection,
+     * avec les noms de champs du formulaire d'admission pour le pré-remplir. 404 si inconnu.
+     */
+    public function record(): void
+    {
+        if ($this->patientSearchService === null) {
+            throw new LogicException('PatientController::record() requiert un PatientSearchService.');
+        }
+        $id = $this->lireIdPatient();
+        if ($id === null) {
+            $this->repondreJson(400, ['ok' => false, 'message' => 'Identifiant de patient manquant ou invalide.']);
+            return;
+        }
+        $fiche = $this->patientSearchService->record($id);
+        if ($fiche === null) {
+            $this->repondreJson(404, ['ok' => false, 'message' => 'Aucun patient ne porte cet identifiant.']);
+            return;
+        }
+
+        $patient = [];
+        foreach (self::CHAMPS_FORMULAIRE as $champ => $cle) {
+            if (array_key_exists($cle, $fiche['identite'])) {
+                $patient[$champ] = $fiche['identite'][$cle] ?? '';
+            }
+        }
+        foreach ($fiche['details'] as $champ => $valeur) {
+            $patient[$champ] = $valeur ?? '';
+        }
+
+        $this->repondreJson(200, [
+            'ok' => true,
+            'patient' => $patient,
+            'allergies' => array_column($fiche['allergies'], 'idSubstance'),
+            'allergiesLibelles' => array_column($fiche['allergies'], 'libelle'),
+        ]);
     }
 
     /** GET / : formulaire d'admission vide, avec les référentiels (services, allergènes) s'ils sont disponibles. */
@@ -113,7 +194,7 @@ class PatientController
         // Identité indexée par nom de champ du formulaire (même correspondance que la saisie).
         $patient = [];
         foreach (self::CHAMPS_FORMULAIRE as $champ => $cle) {
-            if (array_key_exists($cle, $resultat)) {
+            if (array_key_exists($cle, $resultat) && !in_array($champ, ['idPatient', 'searchMode'], true)) {
                 $patient[$champ] = $resultat[$cle] ?? '';
             }
         }
@@ -183,6 +264,7 @@ class PatientController
         header('Location: ' . $destination, true, 303);
     }
 
+    /** GET /patients/modifier?id=… (AURA-12.2) : formulaire pré-rempli avec l'identité du patient ; 400 / 404 sinon. */
     public function edit(): void
     {
         $service = $this->modificationPatientService();
@@ -207,6 +289,10 @@ class PatientController
         ], []);
     }
 
+    /**
+     * POST /patients/modifier?id=… : enregistre l'identité modifiée puis redirige vers la liste (303) ;
+     * réaffiche le formulaire en 422 avec les erreurs par champ en cas de refus.
+     */
     public function update(): void
     {
         $service = $this->modificationPatientService();
@@ -286,9 +372,17 @@ class PatientController
     private function lireSaisie(array $post): array
     {
         $saisie = [];
-        foreach (array_keys(self::champs()) as $champ) {
+        foreach (array_keys(self::CHAMPS_FORMULAIRE) as $champ) {
             $valeur = $post[$champ] ?? '';
             $saisie[$champ] = is_string($valeur) ? trim($valeur) : '';
+        }
+        // Champs du catalogue : seulement ceux présents dans la requête. Un champ absent n'est pas
+        // « vidé » : pour un patient existant, il reste tel quel (un formulaire tronqué n'efface rien).
+        foreach (array_merge(RecordFields::patientColumns(), RecordFields::episodeColumns()) as $champ) {
+            if (array_key_exists($champ, $post)) {
+                $valeur = $post[$champ];
+                $saisie[$champ] = is_string($valeur) ? trim($valeur) : '';
+            }
         }
 
         $allergies = $post[self::CHAMP_ALLERGIES] ?? [];
@@ -308,7 +402,9 @@ class PatientController
     {
         $donnees = [];
         foreach (self::champs() as $champ => $cle) {
-            $donnees[$cle] = $saisie[$champ];
+            if (array_key_exists($champ, $saisie)) {
+                $donnees[$cle] = $saisie[$champ];
+            }
         }
         $donnees[self::CHAMP_ALLERGIES] = $saisie[self::CHAMP_ALLERGIES] ?? [];
         // Une valeur de sexe inconnue est transmise telle quelle : le service la refusera.

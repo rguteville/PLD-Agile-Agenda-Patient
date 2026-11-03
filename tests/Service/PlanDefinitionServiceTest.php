@@ -10,6 +10,7 @@ use Aura\Dao\PatientDao;
 use Aura\Dao\PlanDefinitionDao;
 use Aura\Dao\ReferenceDataDao;
 use Aura\Dao\SejourDao;
+use Aura\Dao\SubstanceDao;
 use Aura\Domain\PlanDefinition;
 use Aura\Domain\PlanDefinitionAction;
 use Aura\Service\CarePlanService;
@@ -95,6 +96,7 @@ final class PlanDefinitionServiceTest extends TestCase
                 $this->createStub(SejourDao::class),
                 $this->createStub(PatientDao::class),
                 $this->createStub(AllergieDao::class),
+                $this->createStub(SubstanceDao::class),
                 new DateTimeImmutable(self::APPLIED_AT)
             )
         );

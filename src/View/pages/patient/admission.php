@@ -53,17 +53,45 @@ $champsSection = static function (string $section) use ($champCatalogue): array 
 };
 
 $essentiels = [
-    ['name' => 'lastname', 'label' => 'Nom', 'required' => true],
-    ['name' => 'firstname', 'label' => 'Prénom', 'required' => true],
+    // Recherche d'un patient existant (identitovigilance) : par IPP (AURA-15, prioritaire) ou par
+    // nom / prénom (un seul champ : l'ordre des mots est libre, « dupont jean » = « jean dupont »).
+    // Les suggestions s'affichent dans la liste sous les deux champs ; la sélection demande une
+    // confirmation, puis la fiche pré-remplit le formulaire (public/js/admission-search.js).
+    [
+        'name' => 'recherche-patient',
+        'label' => 'Rechercher un patient existant',
+        'type' => 'heading',
+        'help' => 'Un patient déjà venu dans le service est rattaché à son dossier au lieu d\'être recréé. '
+            . 'Vérifiez la date de naissance et l\'IPP avant de sélectionner un homonyme.',
+    ],
     [
         'name' => 'ipp',
         'label' => 'IPP (identifiant permanent du patient)',
-        // AURA-15 : un patient déjà connu est retrouvé par son IPP et son identité est reprise
-        // en lecture seule (public/js/admission-ipp.js) ; sinon la saisie reste manuelle.
         'button' => ['id' => 'ipp-rechercher', 'label' => 'Rechercher'],
         'status' => 'ipp-statut',
-        'attributes' => ['inputmode' => 'numeric', 'autocomplete' => 'off'],
+        'attributes' => [
+            'inputmode' => 'numeric', 'autocomplete' => 'off',
+            'role' => 'combobox', 'aria-autocomplete' => 'list', 'aria-expanded' => 'false',
+            'aria-controls' => 'patient-suggestions',
+        ],
     ],
+    [
+        'name' => 'patientSearch',
+        'label' => 'Nom ou prénom',
+        'help' => 'Au moins 2 lettres ; casse, accents, tirets et ordre des mots indifférents.',
+        'status' => 'patient-search-status',
+        'listbox' => 'patient-suggestions',
+        'attributes' => [
+            'autocomplete' => 'off', 'maxlength' => '100',
+            'role' => 'combobox', 'aria-autocomplete' => 'list', 'aria-expanded' => 'false',
+            'aria-controls' => 'patient-suggestions',
+        ],
+    ],
+    ['name' => 'idPatient', 'type' => 'hidden'],
+    ['name' => 'searchMode', 'type' => 'hidden'],
+    ['name' => 'identite', 'label' => 'Identité', 'type' => 'heading'],
+    ['name' => 'lastname', 'label' => 'Nom', 'required' => true],
+    ['name' => 'firstname', 'label' => 'Prénom', 'required' => true],
     ['name' => 'birthDate', 'label' => 'Date de naissance', 'type' => 'date'],
     [
         'name' => 'gender',

@@ -64,6 +64,25 @@ final class DossierPatientServiceTest extends TestCase
         self::assertSame([], $bandeau['allergies'], 'liste vide = « Aucune allergie connue » dans la vue');
     }
 
+    public function testBandeauPorteLEtatDesAllergies(): void
+    {
+        $sans = DossierPatientService::presenterBandeau(
+            $this->patient(null),
+            $this->sejour(),
+            [],
+            new DateTimeImmutable(self::AUJOURDHUI)
+        );
+        $avec = DossierPatientService::presenterBandeau(
+            $this->patient(null),
+            $this->sejour(),
+            [new Allergie(1, 9, 'PENI', 'Pénicilline', 'Élevée')],
+            new DateTimeImmutable(self::AUJOURDHUI)
+        );
+
+        self::assertSame('none', $sans['allergiesStatus']);
+        self::assertSame('known', $avec['allergiesStatus']);
+    }
+
     public function testBandeauAffichePoidsEtTailleDuSejour(): void
     {
         $bandeau = DossierPatientService::presenterBandeau(
