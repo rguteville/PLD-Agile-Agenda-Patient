@@ -353,12 +353,14 @@ try {
                 $recordEditService(),
                 new AuditEventDao($pdo),
                 new Transaction($pdo),
-                new ReferenceDataDao($pdo)
+                new ReferenceDataDao($pdo),
+                appointmentDao: new AppointmentDao($pdo)
             )
         );
     };
     $router->post('/sejour/partie/modifier', static fn () => $recordController()->updatePart());
     $router->post('/sejour/cloturer', static fn () => $recordController()->endStay());
+    $router->post('/sejour/deces', static fn () => $recordController()->declareDeath());
     $router->get('/care-plans', static fn () => $carePlans()->list());
     $router->get('/care-plans/new', static fn () => $carePlans()->newForm());
     $router->post('/care-plans/create', static fn () => $carePlans()->create());

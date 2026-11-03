@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Aura\Service;
 
 use Aura\Core\DateInput;
+use Aura\Dao\AppointmentDao;
 use Aura\Dao\AuditEventDao;
 use Aura\Dao\PatientDao;
 use Aura\Dao\ReferenceDataDao;
@@ -70,7 +71,8 @@ class RecordSectionService
         private AuditEventDao $auditEventDao,
         private Transaction $transaction,
         private ReferenceDataDao $referenceDataDao,
-        private AdmissionService $admissionService = new AdmissionService()
+        private AdmissionService $admissionService = new AdmissionService(),
+        private ?AppointmentDao $appointmentDao = null
     ) {
     }
 
@@ -238,7 +240,8 @@ class RecordSectionService
         array $values,
         array $oldValues,
         string $idValidator,
-        string $password
+        string $password,
+        ?DateTimeImmutable $deathTime = null
     ): array {
         $author = $this->authenticate($idValidator, $password);
         if ($author === null) {
@@ -275,7 +278,7 @@ class RecordSectionService
         }
 
         try {
-            $this->transaction->run(function () use ($changes, $patient, $episodeOfCare, $author): void {
+            $this->transaction->run(function () use ($changes, $patient, $episodeOfCare, $author, $deathTime): void {
                 $errors = [];
                 $conflict = false;
                 $this->applyIdentity($changes, $patient, $author, $errors, $conflict);
@@ -309,6 +312,10 @@ class RecordSectionService
                 if ($errors !== []) {
                     // Annule toute la partie (rien n'est écrit), puis renvoie les erreurs par champ.
                     throw new PartRejected($errors, $conflict);
+                }
+                // Retours du 2026-11-04 : déclarer le décès met fin au séjour en cours, dans la même transaction.
+                if (($changes['deceased']['new'] ?? null) === '1' && $episodeOfCare->isOngoing()) {
+                    $this->endStayAfterDeath((int) $episodeOfCare->getIdEpisodeOfCare(), $deathTime, $author);
                 }
             });
         } catch (PartRejected $e) {
@@ -345,20 +352,11 @@ class RecordSectionService
             return self::result(self::STATUS_NOT_FOUND, [], 'Séjour introuvable.');
         }
 
-        $date = trim($date);
-        $time = trim($time);
-        $dischargeDate = null;
-        if ($date !== '' || $time !== '') {
-            $parsed = DateTimeImmutable::createFromFormat(
-                '!Y-m-d H:i',
-                DateInput::toIso($date) . ' ' . ($time !== '' ? $time : '00:00')
-            );
-            if ($parsed === false || $parsed->format('d/m/Y') !== $date) {
-                return self::result(self::STATUS_INVALID, [
-                    'dischargeDate' => 'Date ou heure de sortie invalide (JJ/MM/AAAA et HH:MM).',
-                ]);
-            }
-            $dischargeDate = $parsed;
+        $dischargeDate = self::parseDischarge($date, $time);
+        if ($dischargeDate === false) {
+            return self::result(self::STATUS_INVALID, [
+                'dischargeDate' => 'Date ou heure de sortie invalide (JJ/MM/AAAA et HH:MM).',
+            ]);
         }
 
         try {
@@ -380,6 +378,104 @@ class RecordSectionService
         }
 
         return self::result(self::STATUS_SAVED);
+    }
+
+    /**
+     * Déclaration du décès (retours du 2026-11-04), validée par un médecin (authentification factice) et
+     * tracée : le patient est déclaré décédé et, si le séjour est en cours, il se termine à l'heure du décès
+     * (JJ/MM/AAAA, HH:MM ; maintenant si vides), ses soins prévus après cette heure sont annulés. Tout ou rien.
+     *
+     * @return array{status: string, errors: array<string, string>, message: ?string}
+     */
+    public function declareDeath(
+        int $idEpisodeOfCare,
+        string $date,
+        string $time,
+        string $oldDeceased,
+        string $idValidator,
+        string $password
+    ): array {
+        $deathTime = self::parseDischarge($date, $time);
+        if ($deathTime === false) {
+            return self::result(self::STATUS_INVALID, [
+                'dischargeDate' => 'Date ou heure du décès invalide (JJ/MM/AAAA et HH:MM).',
+            ]);
+        }
+        // Contrôlé avant toute écriture (la fin de séjour le refuserait aussi, après coup).
+        $episodeOfCare = $this->episodeOfCareDao->findById($idEpisodeOfCare);
+        if ($deathTime !== null && $deathTime > new DateTimeImmutable()) {
+            return self::result(self::STATUS_INVALID, [
+                'dischargeDate' => 'L\'heure du décès ne peut pas être dans le futur.',
+            ]);
+        }
+        if (
+            $deathTime !== null && $episodeOfCare !== null && $episodeOfCare->isOngoing()
+            && $deathTime < $episodeOfCare->getAdmissionDate()
+        ) {
+            return self::result(self::STATUS_INVALID, [
+                'dischargeDate' => 'L\'heure du décès ne peut pas précéder l\'admission.',
+            ]);
+        }
+
+        return $this->updatePart(
+            $idEpisodeOfCare,
+            'admin',
+            ['deceased' => '1'],
+            ['deceased' => $oldDeceased],
+            $idValidator,
+            $password,
+            $deathTime ?? new DateTimeImmutable()
+        );
+    }
+
+    /**
+     * Fin du séjour consécutive au décès, dans la transaction de la déclaration : sortie à l'heure du décès
+     * (maintenant à défaut), tracée, puis annulation des soins encore prévus après cette heure.
+     */
+    private function endStayAfterDeath(int $idEpisodeOfCare, ?DateTimeImmutable $deathTime, string $author): void
+    {
+        try {
+            $closed = $this->episodeOfCareService->closeEpisodeOfCare($idEpisodeOfCare, $deathTime);
+        } catch (InvalidArgumentException $e) {
+            throw new PartRejected(['dischargeDate' => $e->getMessage()], false);
+        }
+        $discharge = $closed->getDischargeDate() ?? new DateTimeImmutable();
+        $cancelled = $this->appointmentDao?->cancelPlannedForEpisode(
+            $idEpisodeOfCare,
+            $discharge,
+            'Séjour terminé : décès'
+        ) ?? 0;
+        $plural = $cancelled > 1 ? 's' : '';
+        $this->auditEventDao->insert(new AuditEvent(
+            null,
+            AuditEvent::ENTITY_EPISODE,
+            $idEpisodeOfCare,
+            'dischargeDate',
+            null,
+            $discharge->format('d/m/Y H:i'),
+            $author,
+            detail: 'fin du séjour : décès déclaré' . ($cancelled > 0
+                ? sprintf(', %d soin%s prévu%3$s annulé%3$s', $cancelled, $plural, $plural)
+                : '')
+        ));
+    }
+
+    /**
+     * Date et heure saisies (JJ/MM/AAAA, HH:MM) : null si les deux sont vides (maintenant), false si invalides.
+     */
+    private static function parseDischarge(string $date, string $time): DateTimeImmutable|false|null
+    {
+        $date = trim($date);
+        $time = trim($time);
+        if ($date === '' && $time === '') {
+            return null;
+        }
+        $parsed = DateTimeImmutable::createFromFormat(
+            '!Y-m-d H:i',
+            DateInput::toIso($date) . ' ' . ($time !== '' ? $time : '00:00')
+        );
+
+        return $parsed === false || $parsed->format('d/m/Y') !== $date ? false : $parsed;
     }
 
     private const AUTH_ERROR = 'Choisissez le médecin qui valide et saisissez son mot de passe.';

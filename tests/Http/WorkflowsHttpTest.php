@@ -201,6 +201,37 @@ final class WorkflowsHttpTest extends HttpTestCase
         }
     }
 
+    /** Retours du 2026-11-04 : déclarer le décès (CSRF, médecin) met fin au séjour ; le dossier l'affiche. */
+    public function testDeclaringDeathNeedsCsrfAndEndsTheStay(): void
+    {
+        $admitted = $this->postForm('/patients/create', [
+            'lastname' => 'Zzhttpdeces', 'firstname' => 'Test', 'gender' => 'M', 'idHealthcareService' => 'SRV03',
+        ], ['Accept: application/json']);
+        try {
+            $record = (string) ($admitted->json()['redirect'] ?? '');
+            self::assertMatchesRegularExpression('#^/sejour\?id=(\d+)$#', $record, $admitted->body);
+            $id = (string) substr($record, strlen('/sejour?id='));
+            $page = $this->get($record);
+            self::assertStringContainsString('data-declare-death', $page->body);
+            $body = ['episodeOfCare' => $id, 'oldDeceased' => '', 'validator' => 'PRA01', 'password' => 'x'];
+
+            self::assertSame(403, $this->postJson('/sejour/deces', $body)->status, 'sans jeton CSRF');
+            $declared = $this->postJson('/sejour/deces', $body, $this->csrfFrom($page));
+            self::assertSame(200, $declared->status, $declared->body);
+
+            $after = $this->get($record)->body;
+            self::assertStringContainsString('Clos', $after, 'séjour terminé');
+            self::assertStringNotContainsString('data-declare-death', $after);
+            self::assertSame(
+                '1',
+                (string) $this->pdo()->query("SELECT deceased + 0 FROM Patient WHERE lastName = 'Zzhttpdeces'")
+                    ->fetchColumn()
+            );
+        } finally {
+            $this->deletePatients('Zzhttpdeces');
+        }
+    }
+
     /** Supprime physiquement les patients de test d'un nom donné et ce qui en dépend (nettoyage). */
     private function deletePatients(string $lastName): void
     {
