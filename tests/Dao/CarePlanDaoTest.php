@@ -87,4 +87,27 @@ final class CarePlanDaoTest extends TestCase
         );
         self::assertNull($medicationAppointments[0]->getIdServiceRequest());
     }
+
+    public function testStoppingALineCancelsItsFutureScheduledCareOnly(): void
+    {
+        // Ligne de médicament 1 (séjour 1) : un soin passé prévu, un futur prévu, un futur déjà réalisé.
+        $this->pdo->exec(
+            "INSERT INTO Appointment (idAppointment, idServiceRequest, idMedicationRequest, plannedTime, status) VALUES
+                ('ZZ_PAST', NULL, '1', NOW() - INTERVAL 1 HOUR, 'PLANIFIE'),
+                ('ZZ_NEXT', NULL, '1', NOW() + INTERVAL 1 HOUR, 'PLANIFIE'),
+                ('ZZ_DONE', NULL, '1', NOW() + INTERVAL 2 HOUR, 'REALISE')"
+        );
+
+        self::assertTrue((new CarePlanDao($this->pdo))->markStopped(true, 1, 'PRA01'));
+
+        $status = $this->pdo->query(
+            "SELECT idAppointment, status FROM Appointment WHERE idAppointment LIKE 'ZZ\\_%' ORDER BY idAppointment"
+        )->fetchAll(PDO::FETCH_KEY_PAIR);
+        self::assertSame(
+            ['ZZ_DONE' => 'REALISE', 'ZZ_NEXT' => 'ANNULE', 'ZZ_PAST' => 'PLANIFIE'],
+            $status,
+            'seul le soin futur encore prévu est annulé ; le passé reste visible en retard, le réalisé intact'
+        );
+        self::assertFalse((new CarePlanDao($this->pdo))->markStopped(true, 1, 'PRA01'), 'déjà arrêtée');
+    }
 }

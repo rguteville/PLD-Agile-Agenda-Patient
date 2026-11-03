@@ -86,6 +86,22 @@ final class AppointmentServiceTest extends TestCase
         self::assertStringNotContainsString('secret', implode(' ', $errors));
     }
 
+    /** @return iterable<string, array{?string, bool, bool}> */
+    public static function categories(): iterable
+    {
+        yield 'IDE, médicament' => ['Infirmier(e) diplômé(e) d\'État', true, true];
+        yield 'médecin, médicament' => ['Médecin réanimateur', true, true];
+        yield 'aide-soignant, soin' => ['Aide-soignant(e)', false, true];
+        yield 'aide-soignant, médicament' => ['Aide-soignant(e)', true, false];
+        yield 'rôle inconnu, médicament' => [null, true, true];
+    }
+
+    #[DataProvider('categories')]
+    public function testOnlyQualifiedCategoriesValidateMedication(?string $role, bool $isMedication, bool $can): void
+    {
+        self::assertSame($can, AppointmentService::canPerform($role, $isMedication));
+    }
+
     private function now(): DateTimeImmutable
     {
         return new DateTimeImmutable(self::NOW);

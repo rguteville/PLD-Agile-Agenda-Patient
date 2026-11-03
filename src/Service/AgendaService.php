@@ -262,12 +262,15 @@ final class AgendaService
             }
         }
         $authors = $this->auditEventDao->appointmentAuthors($ids);
+        $noteAuthors = $this->auditEventDao->appointmentNoteAuthors($ids);
         foreach ($carePlans as &$plan) {
             foreach (['serviceRequests', 'medicationRequests'] as $kind) {
                 foreach ($plan[$kind] ?? [] as $l => $line) {
                     foreach ($line['appointments'] ?? [] as $a => $appointment) {
                         $plan[$kind][$l]['appointments'][$a]['performedBy'] =
                             $authors[(string) $appointment['idAppointment']] ?? null;
+                        $plan[$kind][$l]['appointments'][$a]['noteBy'] =
+                            $noteAuthors[(string) $appointment['idAppointment']] ?? null;
                     }
                 }
             }
@@ -667,6 +670,8 @@ final class AgendaService
             'comment' => $comment !== '' ? $comment : null,
             // Qui a validé ou marqué non effectué (historique, AURA-26) ; null tant que personne.
             'performedBy' => isset($appointment['performedBy']) ? (string) $appointment['performedBy'] : null,
+            // Auteur de la note (AURA-28) ; null pour une note sans trace (données de démo).
+            'noteBy' => isset($appointment['noteBy']) ? (string) $appointment['noteBy'] : null,
         ];
     }
 

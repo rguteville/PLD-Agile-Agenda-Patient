@@ -110,6 +110,19 @@ $slotLabel = static function (string $slot): string {
             'title' => 'Aucun patient dans le service ce jour.',
         ]) ?>
     <?php else : ?>
+        <?php
+        // AURA-29 : filtre par type de soin, sur les soins affichés ce jour.
+        $careLabels = [];
+        foreach ($service['patients'] as $patient) {
+            foreach ($patient['items'] ?? [] as $slotItems) {
+                foreach ($slotItems as $item) {
+                    $careLabels[$item['label']] = true;
+                }
+            }
+        }
+        $careLabels = array_keys($careLabels);
+        sort($careLabels);
+        ?>
         <div class="agenda-filters" role="group" aria-label="Filtrer les soins" data-agenda-filters hidden>
             <?php foreach (
             ['all' => 'Tous', 'late' => 'En retard', 'planned' => 'À faire',
@@ -118,6 +131,15 @@ $slotLabel = static function (string $slot): string {
                 <button type="button" class="button button--secondary" data-filter="<?= View::e($filter) ?>"
                         aria-pressed="<?= $filter === 'all' ? 'true' : 'false' ?>"><?= View::e($label) ?></button>
             <?php endforeach; ?>
+            <?php if (count($careLabels) > 1) : ?>
+                <label for="care-type-filter" class="sr-only">Type de soin</label>
+                <select id="care-type-filter" data-type-filter>
+                    <option value="">Tous les types de soin</option>
+                    <?php foreach ($careLabels as $careLabel) : ?>
+                        <option value="<?= View::e($careLabel) ?>"><?= View::e($careLabel) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            <?php endif; ?>
         </div>
 
         <div class="table-scroll">
@@ -190,7 +212,8 @@ $slotLabel = static function (string $slot): string {
                                         <ul class="slot-items">
                                             <?php foreach ($items as $item) : ?>
                                                 <li class="slot-item is-<?= View::e($item['status']) ?>"
-                                                    data-appointment-row data-status="<?= View::e($item['status']) ?>">
+                                                    data-appointment-row data-status="<?= View::e($item['status']) ?>"
+                                                    data-care-label="<?= View::e($item['label']) ?>">
                                                     <span class="slot-item__head">
                                                         <time datetime="<?= View::e($item['datetime']) ?>">
                                                             <?= View::e($item['time']) ?>

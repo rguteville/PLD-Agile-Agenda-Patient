@@ -398,8 +398,14 @@ Scénarios manuels avec les données de démo (`database/test.sql`), serveur lan
    « Valider », choisir un soignant, un mot de passe quelconque (authentification factice), Enregistrer → statut
    « Effectué », « par … » et heure de réalisation ; « Non effectué » exige un motif ; « Note » sur tout soin.
    Valider deux fois le même soin est refusé. « Semaine » affiche lundi → dimanche, un clic sur un jour y revient.
+   Hypothèse « catégorie habilitée » : un(e) aide-soignant(e) valide un soin, pas un médicament. Une note se
+   modifie par son auteur seulement. Arrêter une prescription annule ses soins encore prévus après l'arrêt.
 6. **Agenda du service (AURA-29, AURA-32)** : onglet « Agenda service », jour 14/10/2026 → créneaux de 2 h en
-   lignes, un patient par colonne avec ses allergies, retards du service en tête ; mêmes actions et filtres.
+   lignes, un patient par colonne avec ses allergies et son référent, retards du service en tête ; mêmes actions
+   et filtres, plus un filtre par type de soin.
+7. **Équipes et « Mon planning » (AURA-30, AURA-31)** : onglet « Équipes », 14/10/2026, vacation Jour → équipes
+   A et B de démo ; composer une équipe (un patient n'a qu'une équipe par vacation). « Mon planning », Thomas
+   Girard → soins de Simpson et Skywalker pendant la vacation, avec les mêmes actions.
 5. **IPP automatique** : admettre un nouveau patient sans IPP → le bandeau du séjour créé affiche un IPP attribué.
 6. **Menu du dossier** : sur `/sejour?id=1`, le menu de gauche reste visible au défilement ; « Scores et état
    antérieur » ouvre la section et y descend ; « Agenda du jour » est en tête du menu ; dans l'agenda,

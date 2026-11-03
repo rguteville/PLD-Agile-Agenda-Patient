@@ -39,7 +39,8 @@ final class AppointmentIntegrationTest extends TestCase
             new AppointmentDao($this->pdo),
             new AuditEventDao($this->pdo),
             new Transaction($this->pdo),
-            ['PRA04' => 'Zzsoignant Test (IDE)']
+            ['PRA04' => 'Zzsoignant Test (IDE)', 'PRA06' => 'Zzaide Test (AS)'],
+            ['PRA04' => 'Infirmier(e) diplômé(e) d\'État', 'PRA06' => 'Aide-soignant(e)']
         );
     }
 
@@ -101,5 +102,32 @@ final class AppointmentIntegrationTest extends TestCase
         $row = $this->pdo->query("SELECT status, comment FROM Appointment WHERE idAppointment = 'ZZ_SOI'")
             ->fetch(PDO::FETCH_ASSOC);
         self::assertSame(['status' => 'PLANIFIE', 'comment' => 'Zz à jeun'], $row);
+    }
+
+    public function testCareAssistantCannotValidateAMedication(): void
+    {
+        $result = $this->service->apply(
+            1,
+            'ZZ_SOI',
+            ['action' => 'done', 'idPerformer' => 'PRA06', 'password' => 'x', 'completedAt' => '2026-10-14T08:10'],
+            new DateTimeImmutable('2026-10-14 08:20:00')
+        );
+
+        self::assertSame(AppointmentService::STATUS_INVALID, $result['status']);
+        self::assertArrayHasKey('auth', $result['errors']);
+    }
+
+    public function testOnlyTheAuthorOfANoteCanChangeIt(): void
+    {
+        $note = static fn (string $who, string $text): array => [
+            'action' => 'note', 'idPerformer' => $who, 'password' => 'x', 'comment' => $text,
+        ];
+        $now = new DateTimeImmutable('2026-10-14 07:00:00');
+
+        self::assertSame('saved', $this->service->apply(1, 'ZZ_SOI', $note('PRA04', 'Zz v1'), $now)['status']);
+        self::assertSame('saved', $this->service->apply(1, 'ZZ_SOI', $note('PRA04', 'Zz v2'), $now)['status']);
+        $other = $this->service->apply(1, 'ZZ_SOI', $note('PRA06', 'Zz v3'), $now);
+        self::assertSame('invalid', $other['status'], 'note signée : un autre soignant ne la réécrit pas');
+        self::assertArrayHasKey('comment', $other['errors']);
     }
 }

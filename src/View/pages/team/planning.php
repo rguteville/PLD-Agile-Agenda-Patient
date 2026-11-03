@@ -179,7 +179,8 @@ $url = static fn (string $date, string $shift): string => '/mon-planning?idPract
                             <tbody>
                                 <?php foreach ($planning['items'] as $item) : ?>
                                     <tr class="is-<?= View::e($item['status']) ?>" data-appointment-row
-                                        data-status="<?= View::e($item['status']) ?>">
+                                        data-status="<?= View::e($item['status']) ?>"
+                                        data-care-label="<?= View::e($item['label']) ?>">
                                         <td class="col-time">
                                             <time datetime="<?= View::e($item['datetime']) ?>">
                                                 <?= View::e($item['time']) ?>

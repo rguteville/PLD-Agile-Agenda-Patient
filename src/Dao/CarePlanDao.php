@@ -180,8 +180,21 @@ class CarePlanDao
              WHERE $column = :idLine AND stoppedAt IS NULL"
         );
         $stmt->execute(['idStoppedBy' => $idStoppedBy, 'idLine' => (string) $idLine]);
+        if ($stmt->rowCount() !== 1) {
+            return false;
+        }
 
-        return $stmt->rowCount() === 1;
+        // Critère AURA-22 et sécurité du patient : après l'arrêt, plus aucun soin de la ligne n'est
+        // prévu. Les soins encore planifiés à une heure future passent à ANNULE (jamais supprimés,
+        // RG10), avec l'heure de saisie et le motif ; les soins passés gardent leur statut.
+        $this->pdo->prepare(
+            "UPDATE Appointment
+             SET status = 'ANNULE', timeRecorded = CURRENT_TIMESTAMP,
+                 comment = COALESCE(comment, 'Prescription arrêtée')
+             WHERE $column = :idLine AND status = 'PLANIFIE' AND plannedTime > CURRENT_TIMESTAMP"
+        )->execute(['idLine' => (string) $idLine]);
+
+        return true;
     }
 
     /** @return int identifiant de la ligne enregistrée */

@@ -6,27 +6,40 @@ if (printButton) {
     printButton.addEventListener('click', () => window.print());
 }
 
-// ---- Filtres : « Tous », « En retard », « À faire », « Réalisés », « Non effectués » ----
+// ---- Filtres : statut (« Tous », « En retard »…) et, dans l'agenda du service, type de soin ----
 const filters = document.querySelector('[data-agenda-filters]');
 if (filters) {
     filters.hidden = false;
     const rows = document.querySelectorAll('[data-appointment-row]');
+    const typeFilter = filters.querySelector('[data-type-filter]');
+    let status = 'all';
+
+    function apply() {
+        const type = typeFilter ? typeFilter.value : '';
+        rows.forEach(row => {
+            row.hidden = (status !== 'all' && row.dataset.status !== status)
+                || (type !== '' && row.dataset.careLabel !== type);
+        });
+        // Une rotation ou un créneau dont tous les soins sont filtrés se replie sur son titre.
+        const filtering = status !== 'all' || type !== '';
+        document.querySelectorAll('.agenda-section, .service-slot').forEach(section => {
+            const visible = section.querySelectorAll('[data-appointment-row]:not([hidden])').length;
+            section.classList.toggle('is-filtered-out', filtering && visible === 0);
+        });
+    }
+
     filters.querySelectorAll('[data-filter]').forEach(button => {
         button.addEventListener('click', () => {
-            const filter = button.dataset.filter;
+            status = button.dataset.filter;
             filters.querySelectorAll('[data-filter]').forEach(other => {
                 other.setAttribute('aria-pressed', other === button ? 'true' : 'false');
             });
-            rows.forEach(row => {
-                row.hidden = filter !== 'all' && row.dataset.status !== filter;
-            });
-            // Une rotation dont tous les soins sont filtrés se replie sur son titre.
-            document.querySelectorAll('.agenda-section, .service-slot').forEach(section => {
-                const visible = section.querySelectorAll('[data-appointment-row]:not([hidden])').length;
-                section.classList.toggle('is-filtered-out', filter !== 'all' && visible === 0);
-            });
+            apply();
         });
     });
+    if (typeFilter) {
+        typeFilter.addEventListener('change', apply);
+    }
 }
 
 // ---- Dialogue d'action sur un soin ----

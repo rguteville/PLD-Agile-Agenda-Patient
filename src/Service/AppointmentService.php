@@ -43,14 +43,38 @@ final class AppointmentService
     private const AUTH_ERROR = 'Choisissez le soignant et saisissez son mot de passe.';
 
     /**
+     * AURA-26, catégorie habilitée (HYPOTHÈSE à valider avec le service, documentée dans le README) :
+     * l'administration d'un médicament est un acte infirmier ou médical ; un(e) aide-soignant(e) peut
+     * valider un soin, pas un médicament. Le rôle est reconnu par son libellé (PractitionerRole.title).
+     */
+    private const NOT_FOR_MEDICATION = ['aide-soignant'];
+
+    /**
      * @param array<string, string> $performers soignants pouvant agir : idPractitioner => « Prénom Nom (rôle) »
+     * @param array<string, ?string> $roles rôle de chaque soignant (PractitionerRole.title)
      */
     public function __construct(
         private ?AppointmentDao $appointmentDao = null,
         private ?AuditEventDao $auditEventDao = null,
         private ?Transaction $transaction = null,
         private array $performers = [],
+        private array $roles = [],
     ) {
+    }
+
+    /** Catégorie habilitée (AURA-26) : ce rôle peut-il valider ou déclarer non fait ce soin ? PURE. */
+    public static function canPerform(?string $role, bool $isMedication): bool
+    {
+        if (!$isMedication || $role === null) {
+            return true;
+        }
+        foreach (self::NOT_FOR_MEDICATION as $forbidden) {
+            if (str_contains(mb_strtolower($role), $forbidden)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /** @return array<string, string> */
@@ -146,6 +170,15 @@ final class AppointmentService
         $author = mb_substr($this->performers[(string) $input['idPerformer']] . ', authentification factice', 0, 100);
 
         if ($action === self::ACTION_NOTE) {
+            // AURA-28 : une note se modifie par son auteur seulement (une note sans trace reste libre).
+            $noteBy = $this->auditEventDao->appointmentNoteAuthors([$appointment->getIdAppointment()])
+                [$appointment->getIdAppointment()] ?? null;
+            if ($appointment->getComment() !== null && $noteBy !== null && !str_starts_with($noteBy, $author)) {
+                return [
+                    'status' => self::STATUS_INVALID,
+                    'errors' => ['comment' => 'Seul l\'auteur de la note peut la modifier (' . $noteBy . ').'],
+                ];
+            }
             $this->transaction->run(function () use ($appointment, $comment, $author): void {
                 $this->appointmentDao->updateComment($appointment->getIdAppointment(), $comment);
                 $this->auditEventDao->insert(new AuditEvent(
@@ -162,6 +195,14 @@ final class AppointmentService
             return ['status' => self::STATUS_SAVED, 'message' => 'Note enregistrée.'];
         }
 
+        $idPerformer = (string) $input['idPerformer'];
+        if (!self::canPerform($this->roles[$idPerformer] ?? null, $appointment->getIdMedicationRequest() !== null)) {
+            return [
+                'status' => self::STATUS_INVALID,
+                'errors' => ['auth' => 'Catégorie non habilitée : un(e) aide-soignant(e) ne valide pas '
+                    . 'l\'administration d\'un médicament.'],
+            ];
+        }
         if ($appointment->getStatus() !== Appointment::STATUS_PLANNED) {
             return [
                 'status' => self::STATUS_CONFLICT,

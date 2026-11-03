@@ -92,6 +92,35 @@ class AuditEventDao
         return $authors;
     }
 
+    /**
+     * Auteur de la note actuelle de chaque soin (AURA-28 : note « signée par son auteur ») : dernière
+     * écriture de la note, seule (champ comment) ou avec une validation (statut avec détail).
+     *
+     * @param list<string> $idAppointments
+     * @return array<string, string> idAppointment => auteur
+     */
+    public function appointmentNoteAuthors(array $idAppointments): array
+    {
+        if ($idAppointments === []) {
+            return [];
+        }
+        $placeholders = implode(', ', array_fill(0, count($idAppointments), '?'));
+        $stmt = $this->pdo->prepare(
+            'SELECT entityId, author FROM AuditEvent
+             WHERE entity = ? AND entityId IN (' . $placeholders . ')
+               AND (field = ? OR (field = ? AND detail IS NOT NULL))
+             ORDER BY recordedAt, idAuditEvent'
+        );
+        $stmt->execute([AuditEvent::ENTITY_APPOINTMENT, ...array_values($idAppointments), 'comment', 'status']);
+
+        $authors = [];
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            $authors[(string) $r['entityId']] = (string) $r['author'];
+        }
+
+        return $authors;
+    }
+
     private function mapToEntity(array $r): AuditEvent
     {
         return new AuditEvent(

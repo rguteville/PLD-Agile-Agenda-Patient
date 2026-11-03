@@ -240,16 +240,19 @@ try {
     // Valider un soin (AURA-26) : tous les praticiens peuvent le faire, affichés « Prénom Nom (rôle) ».
     $appointmentService = static function (PDO $pdo): AppointmentService {
         $performers = [];
+        $roles = [];
         foreach ((new ReferenceDataDao($pdo))->practitioners() as $id => $practitioner) {
             $role = $practitioner->getRole();
             $performers[$id] = $practitioner->getFullName() . ($role !== null ? ' (' . $role . ')' : '');
+            $roles[$id] = $role;
         }
 
         return new AppointmentService(
             new AppointmentDao($pdo),
             new AuditEventDao($pdo),
             new Transaction($pdo),
-            $performers
+            $performers,
+            $roles
         );
     };
 

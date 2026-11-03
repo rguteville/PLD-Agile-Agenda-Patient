@@ -33,7 +33,7 @@ $idEpisodeOfCare = $idEpisodeOfCare ?? null;
         <tbody>
             <?php foreach ($items as $item) : ?>
                 <tr class="is-<?= View::e($item['status']) ?>" data-appointment-row
-                    data-status="<?= View::e($item['status']) ?>">
+                    data-status="<?= View::e($item['status']) ?>" data-care-label="<?= View::e($item['label']) ?>">
                     <td class="col-time">
                         <time datetime="<?= View::e($item['datetime']) ?>"><?= View::e($item['time']) ?></time>
                     </td>
@@ -58,6 +58,9 @@ $idEpisodeOfCare = $idEpisodeOfCare ?? null;
                     <td>
                         <?php if ($item['comment'] !== null) : ?>
                             <span class="note"><?= View::e($item['comment']) ?></span>
+                            <?php if (($item['noteBy'] ?? null) !== null) : ?>
+                                <span class="trace">— <?= View::e($item['noteBy']) ?></span>
+                            <?php endif; ?>
                         <?php else : ?>
                             <span class="sr-only">Aucune note</span>
                         <?php endif; ?>
