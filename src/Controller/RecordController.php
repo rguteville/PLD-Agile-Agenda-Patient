@@ -112,6 +112,37 @@ final class RecordController
         $this->respondPart($result, (int) $idEpisodeOfCare, '#dossier-resume');
     }
 
+    /**
+     * POST /sejour/deces (retours du 2026-11-04) : déclaration du décès, qui met fin au séjour en cours à
+     * l'heure du décès. Corps JSON {episodeOfCare, date (JJ/MM/AAAA), time (HH:MM), oldDeceased, validator,
+     * password}, en-tête X-CSRF-Token. Mêmes réponses que updatePart().
+     */
+    public function declareDeath(): void
+    {
+        $body = $this->readBody();
+        if (!$this->checkToken($body)) {
+            return;
+        }
+        $idEpisodeOfCare = $body['episodeOfCare'] ?? null;
+        if (
+            !is_string($idEpisodeOfCare) && !is_int($idEpisodeOfCare)
+            || preg_match(self::ID_PATTERN, (string) $idEpisodeOfCare) !== 1
+        ) {
+            $this->respond(400, ['ok' => false, 'message' => 'Requête incomplète.']);
+            return;
+        }
+
+        $result = $this->sectionService()->declareDeath(
+            (int) $idEpisodeOfCare,
+            self::text($body['date'] ?? null),
+            self::text($body['time'] ?? null),
+            self::text($body['oldDeceased'] ?? null),
+            self::text($body['validator'] ?? null),
+            self::text($body['password'] ?? null)
+        );
+        $this->respondPart($result, (int) $idEpisodeOfCare, '#dossier-resume');
+    }
+
     /** @param array{status: string, errors: array<string, string>, message: ?string} $result */
     private function respondPart(array $result, int $idEpisodeOfCare, string $anchor): void
     {

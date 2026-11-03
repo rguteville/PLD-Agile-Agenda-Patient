@@ -123,6 +123,34 @@ class AppointmentDao
         return $stmt->rowCount() === 1;
     }
 
+    /**
+     * Annule les soins encore prévus d'un séjour après $after (décès : retours du 2026-11-04). Suppression
+     * logique : statut ANNULE, motif en commentaire s'il n'y en a pas, heure d'enregistrement $after.
+     * Appelée dans la transaction de la déclaration de décès.
+     *
+     * @return int nombre de soins annulés
+     */
+    public function cancelPlannedForEpisode(int $idEpisodeOfCare, DateTimeInterface $after, string $reason): int
+    {
+        $at = $after->format('Y-m-d H:i:s');
+        $statement = $this->pdo->prepare(
+            "UPDATE Appointment a
+             LEFT JOIN ServiceRequest sr ON sr.idServiceRequest = a.idServiceRequest
+             LEFT JOIN MedicationRequest mr ON mr.idMedicationRequest = a.idMedicationRequest
+             JOIN CarePlan cp ON cp.idCarePlan = COALESCE(sr.idCarePlan, mr.idCarePlan)
+             SET a.status = 'ANNULE', a.timeRecorded = :at, a.comment = COALESCE(a.comment, :reason)
+             WHERE cp.idEpisodeOfCare = :idEpisodeOfCare AND a.status = 'PLANIFIE' AND a.plannedTime > :after"
+        );
+        $statement->execute([
+            'at' => $at,
+            'reason' => $reason,
+            'idEpisodeOfCare' => (string) $idEpisodeOfCare,
+            'after' => $at,
+        ]);
+
+        return $statement->rowCount();
+    }
+
     /** Remplace la note d'un soin (AURA-28), quel que soit son statut. */
     public function updateComment(string $idAppointment, ?string $comment): void
     {

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Aura\Tests\Service;
 
 use Aura\Core\Database;
+use Aura\Dao\AppointmentDao;
 use Aura\Dao\AuditEventDao;
 use Aura\Dao\PatientDao;
 use Aura\Dao\ReferenceDataDao;
@@ -76,7 +77,8 @@ final class RecordSectionServiceTest extends TestCase
             ),
             new AuditEventDao($this->pdo),
             new Transaction($this->pdo),
-            $references
+            $references,
+            appointmentDao: new AppointmentDao($this->pdo)
         );
         $validators = $this->service->validators();
         self::assertNotEmpty($validators, 'test.sql fournit au moins un médecin habilité');
@@ -301,9 +303,94 @@ final class RecordSectionServiceTest extends TestCase
         self::assertSame(RecordSectionService::STATUS_SAVED, $result['status']);
         self::assertSame('1', (new PatientDao($this->pdo))->findById($this->idPatient)?->getDetail('deceased'));
         $traces = $this->traces();
-        self::assertSame(['deceased'], $this->fields($traces));
-        self::assertSame('1', $traces[0]->getNewValue());
-        self::assertStringContainsString('authentification factice', $traces[0]->getAuthor());
+        self::assertSame(['deceased', 'dischargeDate'], $this->fields($traces), 'le décès termine le séjour');
+        $death = $this->trace('deceased');
+        self::assertSame('1', $death->getNewValue());
+        self::assertStringContainsString('authentification factice', $death->getAuthor());
+        self::assertFalse(
+            (new EpisodeOfCareDao($this->pdo))->findById($this->idEpisodeOfCare)?->isOngoing(),
+            'séjour terminé'
+        );
+    }
+
+    /**
+     * Retours du 2026-11-04 : déclarer le décès met fin au séjour à l'heure du décès et annule les soins
+     * prévus après ; ceux d'avant restent (à tracer s'ils ont été faits). Tout est tracé au nom du médecin.
+     */
+    public function testDeclaringDeathEndsTheStayAtTheTimeOfDeathAndCancelsLaterCares(): void
+    {
+        $this->plannedCares(['ZZ_AVANT' => '2026-10-02 09:00:00', 'ZZ_APRES' => '2026-10-02 12:00:00']);
+
+        $result = $this->service->declareDeath($this->idEpisodeOfCare, '02/10/2026', '10:00', '', $this->idDoctor, 'x');
+
+        self::assertSame(RecordSectionService::STATUS_SAVED, $result['status'], json_encode($result['errors']));
+        self::assertSame('1', (new PatientDao($this->pdo))->findById($this->idPatient)?->getDetail('deceased'));
+        $episode = (new EpisodeOfCareDao($this->pdo))->findById($this->idEpisodeOfCare);
+        self::assertSame('2026-10-02 10:00', $episode?->getDischargeDate()?->format('Y-m-d H:i'), 'sortie = décès');
+        self::assertSame(
+            ['ZZ_APRES' => 'ANNULE|Séjour terminé : décès', 'ZZ_AVANT' => 'PLANIFIE|'],
+            $this->pdo->query(
+                "SELECT idAppointment, CONCAT(status, '|', COALESCE(comment, '')) FROM Appointment
+                 WHERE idAppointment LIKE 'ZZ\\_%' ORDER BY idAppointment"
+            )->fetchAll(PDO::FETCH_KEY_PAIR)
+        );
+        $end = $this->trace('dischargeDate');
+        self::assertSame('02/10/2026 10:00', $end->getNewValue());
+        self::assertSame('fin du séjour : décès déclaré, 1 soin prévu annulé', $end->getDetail());
+        self::assertStringContainsString('authentification factice', $end->getAuthor());
+    }
+
+    /** Heure du décès dans le futur ou invalide : rien n'est écrit (ni décès, ni fin de séjour). */
+    public function testDeathWithInvalidTimeWritesNothing(): void
+    {
+        $future = $this->service->declareDeath(
+            $this->idEpisodeOfCare,
+            (new DateTimeImmutable('+2 days'))->format('d/m/Y'),
+            '10:00',
+            '',
+            $this->idDoctor,
+            'x'
+        );
+        $garbled = $this->service
+            ->declareDeath($this->idEpisodeOfCare, '31/02/2026', '10:00', '', $this->idDoctor, 'x');
+
+        foreach (['futur' => $future, 'date impossible' => $garbled] as $case => $result) {
+            self::assertSame(RecordSectionService::STATUS_INVALID, $result['status'], $case);
+            self::assertArrayHasKey('dischargeDate', $result['errors'], $case);
+        }
+        self::assertNull((new PatientDao($this->pdo))->findById($this->idPatient)?->getDetail('deceased'));
+        self::assertTrue((new EpisodeOfCareDao($this->pdo))->findById($this->idEpisodeOfCare)?->isOngoing());
+        self::assertSame([], $this->traces());
+    }
+
+    /** @param array<string, string> $cares idAppointment => heure prévue, sur une ligne de soin du séjour */
+    private function plannedCares(array $cares): void
+    {
+        $this->pdo->prepare(
+            "INSERT INTO CarePlan (idCarePlan, idEpisodeOfCare, idPrescriber, mode, idValidator, validatedAt)
+             VALUES ('ZZCP1', ?, 'PRA01', 'MEDICAL', 'PRA01', '2026-10-01 09:00:00')"
+        )->execute([(string) $this->idEpisodeOfCare]);
+        $this->pdo->exec(
+            "INSERT INTO ServiceRequest (idServiceRequest, idCarePlan, idActivityDefinition, startDate, frequencyHours)
+             VALUES ('ZZSR1', 'ZZCP1', 'TYP04', '2026-10-01 09:00:00', 3)"
+        );
+        $insert = $this->pdo->prepare(
+            "INSERT INTO Appointment (idAppointment, idServiceRequest, plannedTime, status)
+             VALUES (?, 'ZZSR1', ?, 'PLANIFIE')"
+        );
+        foreach ($cares as $id => $at) {
+            $insert->execute([$id, $at]);
+        }
+    }
+
+    private function trace(string $field): AuditEvent
+    {
+        foreach ($this->traces() as $event) {
+            if ($event->getField() === $field) {
+                return $event;
+            }
+        }
+        self::fail('Aucune trace sur ' . $field . '.');
     }
 
     /** @return list<AuditEvent> */

@@ -136,6 +136,10 @@
         authError.hidden = true;
         authSummary.textContent = request.summary;
         discharge.hidden = !request.discharge;
+        // Mêmes champs pour la sortie et le décès (qui termine le séjour) : seuls les libellés changent.
+        const labels = request.dischargeLabels || ['Date de sortie', 'Heure de sortie'];
+        dialog.querySelector('label[for="auth-discharge-date"]').textContent = labels[0];
+        dialog.querySelector('label[for="auth-discharge-time"]').textContent = labels[1];
         if (request.discharge) {
             const now = new Date();
             const pad = n => String(n).padStart(2, '0');
@@ -249,15 +253,17 @@
     // ── Déclaration du décès : seul le champ deceased de la partie « admin » est envoyé ──
     const death = document.querySelector('[data-declare-death]');
     if (death) {
+        // Retours du 2026-11-04 : le décès met fin au séjour à l'heure saisie ; les soins prévus après sont annulés.
         death.addEventListener('click', () => openDialog({
-            url: '/sejour/partie/modifier',
+            url: '/sejour/deces',
             form: null,
-            summary: 'Déclarer le décès du patient : il sera signalé sur tous les écrans de soins.',
+            discharge: true,
+            dischargeLabels: ['Date du décès', 'Heure du décès'],
+            summary: 'Déclarer le décès du patient : il sera signalé sur tous les écrans de soins, le séjour '
+                + 'se terminera à l\'heure du décès et les soins prévus après seront annulés.',
             payload: {
                 episodeOfCare: idEpisodeOfCare,
-                part: 'admin',
-                values: { deceased: '1' },
-                oldValues: { deceased: death.dataset.current || '' },
+                oldDeceased: death.dataset.current || '',
             },
         }));
     }
