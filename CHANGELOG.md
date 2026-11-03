@@ -4,6 +4,26 @@ Format : une entrée par pull request, de la plus récente à la plus ancienne.
 
 ## 2026-11-03
 
+### Suite de tests complète (`test/suite-complete`, AURA-35)
+- PHPUnit en deux suites : `aura` (métier, rendu, contrôleurs, DAO et intégration sur la base du CI) et `http`
+  (bout en bout : serveur `php -S`, pages, parcours qui écrivent, CSRF, refus). La suite `http` remplace le
+  smoke shell local, que le CI GitHub ne lançait pas. `composer test:fast`, `test:http`, `test:coverage`.
+- Nouveaux tests : DAO manquants (Appointment, ReferenceData, Medication, ActivityDefinition), `Csrf`, `View`,
+  `Transaction`, contraintes du schéma (cas repris de `database/test_contraintes.sql`, Didac Espin).
+- CI GitHub : couverture pcov (résumé dans le journal, rapport HTML en artefact).
+- `docs/TESTS.md` : matrice des règles de gestion RG1–RG10 vers leurs tests.
+- Défauts trouvés et corrigés : `View::render()` laissait un tampon ouvert sur un gabarit en échec ; les CHECK
+  sur valeurs codées acceptaient d'autres casses et des espaces finales (migration `2026-11-03-check-binaire.sql`).
+- Relecture : ordonnance d'un médecin signée par son mot de passe, confirmation d'allergie liée aux médicaments
+  exacts, CSRF sur l'arrêt d'une ligne et sur les allergies, décès visible dans tous les agendas.
+
+### Retours des médecins sur l'admission et l'agenda (`feat/admission-agenda-retours`)
+- Admission : plus de « Corriger l'identité », groupe sanguin sur la carte du patient connu, avertissement si
+  le patient est déclaré décédé, erreur hors champ à côté du bouton « Admettre ».
+- Agendas, équipes, planning : calendrier à droite, affichage dès le choix d'une date (sans bouton « Afficher »).
+- Agenda : un « + » sur chaque soin déplie la carte de sa prescription (dose, voie, fréquence, période,
+  consigne, mode, prescripteur, validation, note, arrêt).
+
 ### Retours des médecins sur la vue Prescription (`feat/prescription-retours`)
 - Écran B3 : les listes « 1. », « 2. », « 3. » deviennent « Catégorie », « Médicament (DCI) » / « Soin » /
   « Protocole » (selon la catégorie) et « Forme galénique » ; « Mode » et « Prescripteur » sans deux-points.
