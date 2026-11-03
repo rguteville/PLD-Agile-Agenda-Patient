@@ -49,9 +49,9 @@ final class ServiceController
         );
 
         // Refonte du 2026-11-04 : tableau des lits (vue=lits, par défaut) ou liste de travail (vue=liste) ;
-        // patient= choisit le lit détaillé dans le panneau (lien, sans JavaScript).
+        // sejour= (idEpisodeOfCare) choisit le lit détaillé dans le panneau (lien, sans JavaScript).
         $view = ($_GET['vue'] ?? '') === 'liste' ? 'liste' : 'lits';
-        $selected = filter_var($_GET['patient'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+        $selected = filter_var($_GET['sejour'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
         $board = AgendaService::presentBoard($service, $now, $selected === false ? null : $selected);
 
         // Valider un soin depuis la vue du service (AURA-26), même dialogue que l'agenda du patient.

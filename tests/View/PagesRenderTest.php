@@ -639,7 +639,7 @@ final class PagesRenderTest extends TestCase
         self::assertStringContainsString('1 soin en retard', $html, 'AURA-32 : retards du service');
         self::assertStringContainsString('board-row is-selected', $html, 'premier lit détaillé par défaut');
         self::assertStringContainsString('href="/agenda-service?idHealthcareService=SRV01&amp;date=2026-10-14'
-            . '&amp;patient=1#detail-lit"', $html);
+            . '&amp;sejour=1#detail-lit"', $html);
         self::assertStringContainsString('id="detail-lit"', $html);
         self::assertStringContainsString('allergy-tag--high', $html, 'RG2 : allergies dans le panneau');
         self::assertStringContainsString('Latex &lt;x&gt;', $html);
@@ -667,7 +667,22 @@ final class PagesRenderTest extends TestCase
             'la vue reste choisie'
         );
         self::assertStringContainsString('name="back" value="/agenda-service?idHealthcareService=SRV01&amp;'
-            . 'date=2026-10-14&amp;vue=liste&amp;patient=1"', $html);
+            . 'date=2026-10-14&amp;vue=liste&amp;sejour=1"', $html);
+    }
+
+    /** Relecture du 2026-11-04 : RG2 sur chaque soin de la liste, retards montrés sur un jour passé. */
+    public function testServiceWorklistShowsAllergiesAndLateCaresOfAPastDay(): void
+    {
+        $model = self::serviceAgendaModel('liste');
+        $model['service']['isToday'] = false;
+        $model['board'] = AgendaService::presentBoard($model['service'], new DateTimeImmutable('2026-10-15 10:30'));
+
+        $html = View::render('pages/service/consolidated-view', $model);
+
+        self::assertStringContainsString('class="worklist worklist--late" open', $html);
+        self::assertStringContainsString('Soin &lt;A&gt;', $html, 'le retard d\'un jour passé reste visible');
+        self::assertMatchesRegularExpression('/care-line__patient.*?allergy-tag--high/s', $html, 'RG2 sur le soin');
+        self::assertStringContainsString('Latex &lt;x&gt;', $html);
     }
 
     public function testConsolidatedViewWithoutPatient(): void

@@ -5073,7 +5073,7 @@ form.form--columns .form-lead > .form-row {
     flex-wrap: nowrap;
 }
 
-/* ===== Refonte de l'agenda du service (2026-11-04) : tableau des lits + panneau, liste de travail ===== */
+/* ===== AURA-29 : refonte de l'agenda du service (2026-11-04), tableau des lits et liste de travail ===== */
 .view-tabs {
     display: flex;
     gap: var(--sp-1);
@@ -5356,4 +5356,49 @@ form.form--columns .form-lead > .form-row {
     .care-line__care {
         flex-basis: 100%;
     }
+}
+
+/* AURA-29 (relecture) : chevron ouvert / replié des sections, allergies compactes sur les lignes. */
+.worklist > summary {
+    list-style: none;
+}
+
+.worklist > summary::-webkit-details-marker {
+    display: none;
+}
+
+.worklist > summary::before {
+    content: "▸";
+    display: inline-block;
+    width: 1em;
+    transition: transform .15s;
+}
+
+.worklist[open] > summary::before {
+    transform: rotate(90deg);
+}
+
+.allergy-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-1);
+}
+
+.allergy-tags--compact {
+    margin-top: 2px;
+}
+
+.allergy-tags--compact .allergy-tag {
+    padding: 0 var(--sp-1);
+    font-size: var(--fs-1);
+}
+
+.care-line__patient {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.care-line__patient a {
+    font-weight: 600;
 }

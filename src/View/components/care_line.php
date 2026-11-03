@@ -22,7 +22,17 @@ $who = ($item['bed'] !== null ? 'Lit ' . $item['bed'] . ' · ' : '') . $item['pa
     data-status="<?= View::e($item['status']) ?>" data-care-label="<?= View::e($item['label']) ?>">
     <time class="care-line__time" datetime="<?= View::e($item['datetime']) ?>"><?= View::e($item['time']) ?></time>
     <?php if ($showPatient) : ?>
-        <a class="care-line__patient" href="<?= View::e($agendaUrl) ?>"><?= View::e($who) ?></a>
+        <span class="care-line__patient">
+            <a href="<?= View::e($agendaUrl) ?>"><?= View::e($who) ?></a>
+            <?php if (($item['deceased'] ?? null) !== null) : ?>
+                <?= View::render('components/deceased_tag', ['label' => $item['deceased']]) ?>
+            <?php endif; ?>
+            <?php /* RG2 : les allergies du patient sous son nom, sur chaque soin de la liste de travail. */ ?>
+            <?= View::render('components/allergy_tags', [
+                'allergies' => $item['allergies'] ?? null,
+                'compact' => true,
+            ]) ?>
+        </span>
     <?php endif; ?>
     <span class="care-line__care">
         <span class="item-label"><?= View::e($item['label']) ?></span>

@@ -102,8 +102,10 @@ Une valeur inconnue en base s'affiche telle quelle, en neutre, avec l'icône `ci
   donnée en base. Toute la logique est dans `AgendaService::presentDay()` (pur, testé).
 - **Prescriptions** (`pages/careplan/list.php`) : badge `to_validate` = « petit stylo » du SI réel (RG5).
 - **Vue du service** (`pages/service/consolidated-view.php`, refonte du 2026-11-04) : onglet « Lits » (une ligne par
-  patient, triée par urgence : retards, à faire dans la rotation, prochain soin ; panneau de détail du lit choisi,
-  `?patient=`) et onglet « Liste de travail » (`?vue=liste` : en retard, maintenant, plus tard, réalisés).
+  patient, triée par urgence : nombre de retards, plus ancien retard, à faire dans la rotation, prochain soin, lit ;
+  panneau de détail du lit choisi, `?sejour=`) et onglet « Liste de travail » (`?vue=liste` : en retard, doses de
+  lignes arrêtées, maintenant, plus tard, réalisés). Allergies (RG2) sur chaque ligne. La rotation est bornée au
+  jour affiché (la nuit : « 22 h – 24 h » puis « 0 h – 6 h » le lendemain).
   Vue-modèle pur `AgendaService::presentBoard()`, ligne de soin partagée `components/care_line`.
   **Balisage seul**, sans route : le contrat du vue-modèle est documenté en tête du fichier et couvert par un test.
 

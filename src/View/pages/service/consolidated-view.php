@@ -4,14 +4,14 @@ use Aura\Core\View;
 
 /**
  * Agenda du service (AURA-29, route GET /agenda-service). Refonte du 2026-11-04 (maquettes A + B
- * choisies par Raphaël : https://claude.ai/artifact/CmNLWFne8QUYcPzGyUeUDn), l'ancienne grille
- * créneaux × patients montrant trop d'informations à la fois :
+ * choisies par Raphaël), l'ancienne grille créneaux × patients montrant trop d'informations à la fois :
  *  - « Lits » (par défaut) : une ligne par patient, du plus urgent au moins urgent (retards, à faire dans
- *    la rotation, prochain soin), et un panneau de détail du lit choisi (?patient=…) avec ses soins de la
+ *    la rotation, prochain soin), et un panneau de détail du lit choisi (?sejour=…) avec ses soins de la
  *    rotation et les actions (valider, note : AURA-26, AURA-28) ;
- *  - « Liste de travail » (?vue=liste) : les soins de la rotation de tout le service, en retard (AURA-32),
- *    maintenant (deux heures), plus tard (replié), réalisés (replié).
- * RG2 : allergies sur chaque ligne et dans le panneau. Vue-modèle : AgendaService::presentBoard().
+ *  - « Liste de travail » (?vue=liste) : les soins de tout le service, en retard (AURA-32, quel que soit le
+ *    jour), doses de lignes arrêtées à tracer, maintenant (deux heures), plus tard (replié), réalisés (replié).
+ * RG2 : allergies (ou « Aucune allergie connue ») sur chaque ligne du tableau, dans le panneau et sur chaque
+ * soin de la liste de travail. Vue-modèle : AgendaService::presentBoard().
  *
  * @var array<string, mixed> $service vue-modèle de AgendaService::presentService() (jour, navigation)
  * @var array<string, mixed> $board vue-modèle de AgendaService::presentBoard()
@@ -29,7 +29,7 @@ $validators = $validators ?? [];
 $view = $view ?? 'lits';
 $dayUrl = static fn (string $date, ?string $mode = null, ?int $patient = null): string
     => '/agenda-service?idHealthcareService=' . rawurlencode((string) $idHealthcareService) . '&date=' . $date
-    . (($mode ?? $view) === 'liste' ? '&vue=liste' : '') . ($patient !== null ? '&patient=' . $patient : '');
+    . (($mode ?? $view) === 'liste' ? '&vue=liste' : '') . ($patient !== null ? '&sejour=' . $patient : '');
 $agendaUrl = static fn (int $idEpisodeOfCare): string => '/agenda-patient?id=' . $idEpisodeOfCare
     . '&date=' . $service['date'];
 ?>
@@ -99,7 +99,7 @@ $agendaUrl = static fn (int $idEpisodeOfCare): string => '/agenda-patient?id=' .
             'title' => 'Aucun patient en cours dans ce service.',
         ]) ?>
     <?php else : ?>
-        <p class="board-summary" aria-live="polite">
+        <p class="board-summary">
             <?= View::e($plural($totals['patients'], 'patient')) ?>
             <?php if ($totals['late'] > 0) : ?>
                 · <strong class="board-summary__late"><?= View::e($plural($totals['late'], 'soin') . ' en retard')
@@ -143,12 +143,10 @@ $agendaUrl = static fn (int $idEpisodeOfCare): string => '/agenda-patient?id=' .
                                                 'label' => $row['deceased'],
                                             ]) ?>
                                         <?php endif; ?>
-                                        <?php if (is_array($row['allergies']) && $row['allergies'] !== []) : ?>
-                                            <span class="board-row__allergies">
-                                                <span class="sr-only">Allergies :</span>
-                                                <?= View::e(implode(', ', array_column($row['allergies'], 'label'))) ?>
-                                            </span>
-                                        <?php endif; ?>
+                                        <?= View::render('components/allergy_tags', [
+                                            'allergies' => $row['allergies'],
+                                            'compact' => true,
+                                        ]) ?>
                                         <?php if ($row['referent'] === null && $row['referentKnown']) : ?>
                                             <span class="board-row__referent">référent à désigner</span>
                                         <?php endif; ?>
@@ -178,6 +176,12 @@ $agendaUrl = static fn (int $idEpisodeOfCare): string => '/agenda-patient?id=' .
                 </div>
 
                 <?php $selected = $board['selected']; ?>
+                <?php if ($board['selectionMissing'] ?? false) : ?>
+                    <aside class="board-panel" id="detail-lit" role="alert">
+                        <p class="board-panel__empty">Ce séjour n'est pas en cours dans ce service (clos ou
+                            transféré) : choisissez un patient dans le tableau.</p>
+                    </aside>
+                <?php endif; ?>
                 <?php if ($selected !== null) : ?>
                     <aside class="board-panel" id="detail-lit" aria-labelledby="detail-lit-title">
                         <div class="board-panel__header">
@@ -200,20 +204,7 @@ $agendaUrl = static fn (int $idEpisodeOfCare): string => '/agenda-patient?id=' .
                             <?php if ($selected['deceased'] !== null) : ?>
                                 <?= View::render('components/deceased_tag', ['label' => $selected['deceased']]) ?>
                             <?php endif; ?>
-                            <?php if (is_array($selected['allergies'])) : ?>
-                                <p class="board-panel__allergies service-patient__allergies">
-                                    <?php if ($selected['allergies'] === []) : ?>
-                                        <span class="allergy-tag allergy-tag--none">Aucune allergie connue</span>
-                                    <?php else : ?>
-                                        <span class="sr-only">Allergies :</span>
-                                        <?php foreach ($selected['allergies'] as $allergy) : ?>
-                                            <span class="allergy-tag allergy-tag--<?= View::e($allergy['level']) ?>">
-                                                <?= View::e($allergy['label']) ?>
-                                            </span>
-                                        <?php endforeach; ?>
-                                    <?php endif; ?>
-                                </p>
-                            <?php endif; ?>
+                            <?= View::render('components/allergy_tags', ['allergies' => $selected['allergies']]) ?>
                         </div>
                         <?php if ($selected['items'] === []) : ?>
                             <p class="board-panel__empty">Aucun soin <?= $rotation !== null
@@ -239,19 +230,28 @@ $agendaUrl = static fn (int $idEpisodeOfCare): string => '/agenda-patient?id=' .
         <?php else : ?>
             <?php
             $worklist = $board['worklist'];
-            $sections = $rotation !== null ? [
+            // Les retards et les doses de lignes arrêtées sont toujours montrés, quel que soit le jour
+            // (relecture du 2026-11-04) ; une section vide autre que « En retard » est omise.
+            $sections = [
                 ['key' => 'late', 'title' => 'En retard', 'open' => true],
-                ['key' => 'now', 'title' => 'Maintenant, jusqu\'à ' . $rotation['until'], 'open' => true],
-                ['key' => 'later', 'title' => 'Plus tard dans la rotation (jusqu\'à la fin, '
-                    . $rotation['label'] . ')', 'open' => false],
-                ['key' => 'done', 'title' => 'Réalisés ou non effectués pendant la rotation', 'open' => false],
-            ] : [
-                ['key' => 'later', 'title' => 'Soins prévus', 'open' => true],
-                ['key' => 'done', 'title' => 'Réalisés ou non effectués', 'open' => false],
+                ['key' => 'stopped', 'title' => 'Lignes arrêtées : doses à tracer si faites avant l\'arrêt',
+                    'open' => true],
+                ...($rotation !== null ? [
+                    ['key' => 'now', 'title' => 'Maintenant, jusqu\'à ' . $rotation['until'], 'open' => true],
+                    ['key' => 'later', 'title' => 'Plus tard dans la rotation (' . $rotation['label'] . ')',
+                        'open' => false],
+                    ['key' => 'done', 'title' => 'Réalisés ou non effectués pendant la rotation', 'open' => false],
+                ] : [
+                    ['key' => 'later', 'title' => 'Soins prévus', 'open' => true],
+                    ['key' => 'done', 'title' => 'Réalisés ou non effectués', 'open' => false],
+                ]),
             ];
             ?>
             <?php foreach ($sections as $section) : ?>
                 <?php $items = $worklist[$section['key']]; ?>
+                <?php if ($items === [] && in_array($section['key'], ['stopped'], true)) : ?>
+                    <?php continue; ?>
+                <?php endif; ?>
                 <?php $open = $section['open'] ? ' open' : ''; ?>
                 <details class="worklist worklist--<?= View::e($section['key']) ?>"<?= $open ?>>
                     <summary>
