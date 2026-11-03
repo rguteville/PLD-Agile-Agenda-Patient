@@ -43,6 +43,12 @@ final class RecordFields
         'AB+' => 'AB+', 'AB-' => 'AB−', 'O+' => 'O+', 'O-' => 'O−',
     ];
 
+    /**
+     * Décès du patient (colonne existante Patient.deceased BOOLEAN, retours des médecins du 2026-11-03).
+     * '0' / '1' tels que relus en base ; null = non renseigné (patients admis avant ce champ).
+     */
+    public const DECEASED_OPTIONS = ['0' => 'Non', '1' => 'Oui'];
+
     public const PATIENT = [
         'bloodType' => [
             'label' => 'Groupe sanguin',
@@ -201,6 +207,17 @@ final class RecordFields
             'section' => 'admin',
             'max' => self::TEXT_MAX,
         ],
+        // Absent du formulaire d'admission ('admission' => false) et jamais modifiable champ par champ :
+        // seulement par « Modifier » sur la partie, validé par un médecin et tracé ('validatedByDoctor').
+        'deceased' => [
+            'label' => 'Patient(e) décédé(e)',
+            'type' => 'select',
+            'section' => 'admin',
+            'options' => self::DECEASED_OPTIONS,
+            'admission' => false,
+            'validatedByDoctor' => true,
+            'help' => 'Modification validée par un médecin et tracée dans l\'historique.',
+        ],
     ];
 
     /**
@@ -324,6 +341,17 @@ final class RecordFields
             'max' => 100,
         ],
     ];
+
+    /**
+     * Champs du patient proposés à l'admission : le catalogue sans ceux marqués 'admission' => false
+     * (le décès ne se déclare pas en admettant un patient). Liste blanche de l'admission.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    public static function admissionPatientFields(): array
+    {
+        return array_filter(self::PATIENT, static fn (array $spec): bool => ($spec['admission'] ?? true) !== false);
+    }
 
     /** @return list<string> noms de colonnes des champs complémentaires du patient */
     public static function patientColumns(): array

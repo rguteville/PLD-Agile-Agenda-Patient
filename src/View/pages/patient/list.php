@@ -3,10 +3,11 @@
 use Aura\Core\View;
 
 /**
- * Liste des patients avec leur séjour en cours (AURA-12.1).
+ * Liste des patients (AURA-12.1). Retours des médecins du 2026-11-03 : séjour en cours mis en avant,
+ * dossier toujours accessible (séjour en cours, sinon dernier séjour), historique des séjours dépliable,
+ * décès affiché (icône + texte).
  *
- * @var list<array{idPatient: int, lastName: string, firstName: string, ipp: ?string,
- *                 birthDate: ?string, idEpisodeOfCare: ?int, episodeNumber: ?string}> $patients
+ * @var list<array<string, mixed>> $patients vue-modèle de PatientListService::presentLine()
  * @var ?string $search terme saisi, null si aucun
  * @var bool $deleted vrai juste après une suppression (AURA-12.3)
  */
@@ -56,33 +57,75 @@ $deleted = $deleted ?? false;
                 <th scope="col">Né(e) le</th>
                 <th scope="col">Séjour en cours</th>
                 <th scope="col">Dossier</th>
+                <th scope="col">Séjours</th>
                 <th scope="col"><span class="sr-only">Actions</span></th>
             </tr>
         </thead>
         <tbody>
             <?php foreach ($patients as $p) : ?>
-                <tr>
-                    <td><?= View::e($p['lastName']) ?></td>
+                <?php $name = $p['lastName'] . ' ' . $p['firstName']; ?>
+                <tr<?= $p['current'] !== null ? ' class="patient-list__row--current"' : '' ?>>
+                    <td><?= View::e($p['lastName']) ?><?= $p['deceased']
+                        ? View::render('components/deceased_tag', ['label' => $p['deceasedLabel']])
+                        : '' ?></td>
                     <td><?= View::e($p['firstName']) ?></td>
                     <td><?= View::e($p['ipp'] ?? 'sans IPP') ?></td>
                     <td><?= View::e($p['birthDate'] ?? 'non renseignée') ?></td>
                     <td>
-                        <?php if ($p['episodeNumber'] !== null) : ?>
-                            n° <?= View::e($p['episodeNumber']) ?>
+                        <?php if ($p['current'] !== null) : ?>
+                            <?php $current = $p['current']; ?>
+                            <div class="current-episode">
+                                <?= View::render('components/status_badge', [
+                                    'status' => 'planned',
+                                    'label' => 'En cours',
+                                ]) ?>
+                                <span class="current-episode__number">
+                                    n° <?= View::e($current['episodeNumber']) ?>
+                                </span>
+                                <span>Lit <?= View::e($current['bed'] ?? 'non attribué') ?>,
+                                    <?= View::e($current['service'] ?? 'service non renseigné') ?></span>
+                                <span>depuis le <?= View::e($current['since']) ?></span>
+                            </div>
                         <?php else : ?>
                             <span class="no-service">aucun</span>
                         <?php endif; ?>
                     </td>
                     <td>
-                        <?php if ($p['idEpisodeOfCare'] !== null) : ?>
-                            <a href="/sejour?id=<?= View::e($p['idEpisodeOfCare']) ?>"
-                               aria-label="Dossier de <?= View::e($p['lastName'] . ' '
-                                                      . $p['firstName']) ?>">Dossier</a>
+                        <?php /* Dossier toujours accessible : séjour en cours, sinon le dernier séjour (clos). */ ?>
+                        <?php if ($p['record'] === null) : ?>
+                            <span class="no-service">Aucun séjour : pas de dossier</span>
+                        <?php elseif ($p['record']['ongoing']) : ?>
+                            <a href="/sejour?id=<?= View::e($p['record']['idEpisodeOfCare']) ?>"
+                               aria-label="Dossier du séjour en cours de <?= View::e($name) ?>">Dossier</a>
+                        <?php else : ?>
+                            <?php $closedOn = $p['record']['dischargeDate'] ?? '?'; ?>
+                            <?php $recordLabel = 'Dossier du dernier séjour de ' . $name . ', clos le ' . $closedOn; ?>
+                            <a href="/sejour?id=<?= View::e($p['record']['idEpisodeOfCare']) ?>"
+                               aria-label="<?= View::e($recordLabel) ?>">Dernier dossier</a>
+                            <small class="patient-list__closed">clos le <?= View::e($closedOn) ?></small>
+                        <?php endif; ?>
+                    </td>
+                    <td>
+                        <?php if ($p['history'] === []) : ?>
+                            <span class="no-service">aucun</span>
+                        <?php else : ?>
+                            <?php $count = count($p['history']); ?>
+                            <details class="episode-history-toggle">
+                                <summary>
+                                    <?= View::render('components/icon', ['name' => 'history']) ?>
+                                    <?= $count ?> séjour<?= $count > 1 ? 's' : '' ?>
+                                    <span class="sr-only">de <?= View::e($name) ?></span>
+                                </summary>
+                                <?= View::render('components/episode_history', [
+                                    'episodes' => $p['history'],
+                                    'label' => 'Séjours de ' . $name . ', du plus récent au plus ancien',
+                                ]) ?>
+                            </details>
                         <?php endif; ?>
                     </td>
                     <td>
                         <a class="patient-list__delete" href="/patients/supprimer?id=<?= View::e($p['idPatient']) ?>"
-                           aria-label="Supprimer <?= View::e($p['lastName'] . ' ' . $p['firstName']) ?>">Supprimer</a>
+                           aria-label="Supprimer <?= View::e($name) ?>">Supprimer</a>
                     </td>
                 </tr>
             <?php endforeach; ?>

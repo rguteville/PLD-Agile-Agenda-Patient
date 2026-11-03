@@ -501,6 +501,86 @@ final class PatientRecordServiceTest extends TestCase
         self::assertSame(0, $byId['measures']['filled']);
     }
 
+    /** Retours des médecins du 2026-11-03 : décès dans le bandeau (texte accordé, jamais la couleur seule). */
+    public function testBannerShowsDeceasedPatient(): void
+    {
+        $today = new DateTimeImmutable(self::TODAY);
+        $deceased = new Patient(5, null, 'Fletcher', 'Jessica', null, 'F', details: ['deceased' => '1']);
+
+        $banner = PatientRecordService::presentBanner($deceased, $this->episodeOfCare(), [], $today);
+        $alive = PatientRecordService::presentBanner($this->patient(ipp: null), $this->episodeOfCare(), [], $today);
+
+        self::assertTrue($banner['deceased']);
+        self::assertSame('Décédée', $banner['deceasedLabel']);
+        self::assertFalse($alive['deceased'], 'deceased non renseigné : pas de mention');
+        self::assertNull($alive['deceasedLabel']);
+    }
+
+    /** Ligne « Patient(e) décédé(e) » du dossier complet : réservée à la modification validée par un médecin. */
+    public function testDeceasedRowIsInAdminSectionAndNotEditableInline(): void
+    {
+        $patient = new Patient(5, null, 'Fletcher', 'Jessica', null, 'F', details: ['deceased' => '1']);
+
+        $sections = PatientRecordService::presentSections($patient, $this->episodeOfCare());
+        $admin = array_values(array_filter($sections, static fn (array $s): bool => $s['id'] === 'admin'))[0];
+        $rows = array_column($admin['rows'], null, 'field');
+
+        self::assertSame('Oui', $rows['deceased']['value']);
+        self::assertTrue($rows['deceased']['validatedByDoctor']);
+        self::assertFalse($rows['medicalHistory']['validatedByDoctor'] ?? false);
+    }
+
+    /**
+     * Dossier d'un séjour clos d'un patient hospitalisé : historique complet (le séjour affiché signalé) et
+     * séjour en cours mis en avant ; depuis le séjour en cours lui-même, pas d'encart.
+     */
+    public function testRecordCarriesEpisodeHistoryAndCurrentEpisode(): void
+    {
+        $closed = new EpisodeOfCare(
+            7,
+            9,
+            '2026-000107',
+            new DateTimeImmutable('2026-06-02 10:00'),
+            new DateTimeImmutable('2026-06-05 16:00')
+        );
+        $ongoing = new EpisodeOfCare(
+            1,
+            9,
+            '2026-000101',
+            new DateTimeImmutable('2026-10-10 08:15'),
+            bedNumber: 'L01',
+            idService: 'SRV01'
+        );
+        $episodesOfCare = $this->createMock(EpisodeOfCareDao::class);
+        $episodesOfCare->method('findById')->willReturnMap([[7, $closed], [1, $ongoing]]);
+        $episodesOfCare->method('findByPatient')->with(9)->willReturn([$ongoing, $closed]);
+        $patients = $this->createMock(PatientDao::class);
+        $patients->method('findById')->willReturn($this->patient(ipp: null));
+        $references = $this->createMock(ReferenceDataDao::class);
+        $references->method('healthcareServices')->willReturn(['SRV01' => 'Réanimation médicale']);
+        $service = new PatientRecordService(
+            $episodesOfCare,
+            $patients,
+            $this->createMock(AllergyIntoleranceDao::class),
+            $this->createMock(SubstanceDao::class),
+            new DateTimeImmutable(self::TODAY),
+            $references
+        );
+
+        $old = $service->record(7);
+        $current = $service->record(1);
+
+        self::assertNotNull($old);
+        self::assertSame([1, 7], array_column($old['episodeHistory'], 'idEpisodeOfCare'));
+        self::assertSame([false, true], array_column($old['episodeHistory'], 'displayed'));
+        self::assertSame(1, $old['currentEpisode']['idEpisodeOfCare'] ?? null);
+        self::assertSame('L01', $old['currentEpisode']['bed'] ?? null);
+        self::assertSame('Réanimation médicale', $old['currentEpisode']['service'] ?? null);
+        self::assertNotNull($current);
+        self::assertNull($current['currentEpisode'], 'séjour en cours affiché : pas d\'encart vers lui-même');
+        self::assertSame([true, false], array_column($current['episodeHistory'], 'displayed'));
+    }
+
     private function patient(?string $ipp): Patient
     {
         return new Patient(9, $ipp, ' Durand ', 'Alice', new DateTimeImmutable('1990-06-15'), 'F');

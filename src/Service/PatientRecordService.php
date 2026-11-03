@@ -71,9 +71,18 @@ final class PatientRecordService
             $doctors[$idReferent] = self::referent($episodeOfCare) ?? $idReferent;
         }
 
+        // Tous les séjours du patient (retours des médecins du 2026-11-03) : historique dans le dossier et,
+        // si le séjour affiché est clos alors qu'un autre est en cours, encart qui mène au séjour en cours.
+        $episodes = $this->episodeOfCareDao->findByPatient($episodeOfCare->getIdPatient());
+        $ongoing = EpisodeHistoryService::ongoing($episodes);
+
         return [
             'banner' => self::presentBanner($patient, $episodeOfCare, $allergies, $this->today),
             'episodeOfCare' => self::presentEpisodeOfCare($episodeOfCare, $patient, $services),
+            'episodeHistory' => EpisodeHistoryService::present($episodes, $services, $idEpisodeOfCare),
+            'currentEpisode' => $ongoing !== null && $ongoing->getIdEpisodeOfCare() !== $idEpisodeOfCare
+                ? EpisodeHistoryService::presentCurrent($ongoing, $services)
+                : null,
             'allergies' => self::presentAllergies($allergies),
             // Allergènes du patient (idSubstance => libellé) : alerte allergie des prescriptions (B3).
             'allergens' => self::allergens($allergies),
@@ -100,6 +109,22 @@ final class PatientRecordService
         return $name === null ? null : Practitioner::doctorTitle($name);
     }
 
+    /** Patient déclaré décédé (Patient.deceased = 1) ; null ou 0 = non. Pure. */
+    public static function isDeceased(Patient $patient): bool
+    {
+        return self::textOrNull($patient->getDetail('deceased')) === '1';
+    }
+
+    /** « Décédée », « Décédé » ou « Décédé(e) » selon le sexe renseigné. Pure. */
+    public static function deceasedLabel(?string $sex): string
+    {
+        return match (self::textOrNull($sex)) {
+            'F' => 'Décédée',
+            'M' => 'Décédé',
+            default => 'Décédé(e)',
+        };
+    }
+
     /**
      * Vue-modèle du bandeau : identité (nom, prénom, date de naissance, IPP) et allergies
      * connues (RG2). Composant src/View/components/patient_banner.php.
@@ -115,10 +140,15 @@ final class PatientRecordService
     ): array {
         $birth = $patient->getBirthDate();
 
+        $deceased = self::isDeceased($patient);
+
         return [
             'lastName' => trim($patient->getLastName()),
             'firstName' => trim($patient->getFirstName()),
             'sex' => self::textOrNull($patient->getSex()),
+            // Décès (retours des médecins du 2026-11-03) : texte + icône dans le bandeau, jamais la couleur seule.
+            'deceased' => $deceased,
+            'deceasedLabel' => $deceased ? self::deceasedLabel($patient->getSex()) : null,
             'birthDate' => $birth?->format('d/m/Y'),
             'age' => $birth === null ? null : self::age($birth, $today),
             'ipp' => self::textOrNull($patient->getIpp()),
@@ -380,6 +410,8 @@ final class PatientRecordService
             'type' => $spec['type'],
             'options' => $spec['options'] ?? null,
             'computed' => false,
+            // Champ réservé à la modification d'une partie validée par un médecin (décès) : pas d'édition en ligne.
+            'validatedByDoctor' => $spec['validatedByDoctor'] ?? false,
             'help' => $spec['help'] ?? null,
             'placeholder' => $spec['placeholder'] ?? null,
             'raw' => $raw,

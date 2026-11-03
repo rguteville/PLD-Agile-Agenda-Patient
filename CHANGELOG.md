@@ -18,6 +18,17 @@ Format : une entrée par pull request, de la plus récente à la plus ancienne.
 - Proposition de schéma : `CarePlan.note TEXT NULL` (migration additive `2026-11-03-note-ordonnance.sql`) ;
   données de démo : amoxicilline → pénicilline, céfotaxime → céphalosporines.
 
+### Liste des patients et dossier : retours des médecins (`feat/patients-retours`)
+- Dossier toujours accessible depuis la liste : séjour en cours, sinon dernier séjour (« Dernier dossier, clos
+  le … ») ; « Aucun séjour : pas de dossier » sans lien mort.
+- Historique des séjours (numéro, statut, admission, sortie, service, motif), du plus récent au plus ancien,
+  dépliable dans la liste et en section « Séjours du patient » du dossier, le séjour affiché signalé.
+- Séjour en cours mis en avant dans la liste (numéro, lit, service, depuis le …) et encart en tête du dossier
+  d'un séjour antérieur qui mène au séjour en cours.
+- Décès (`Patient.deceased`, colonne existante) : « Décédé(e) » icône + texte dans le bandeau, le dossier et la
+  liste ; déclaré dans la partie « Administratif complémentaire », validé par un médecin et tracé ; absent de
+  l'admission et refusé par l'édition en ligne.
+
 ### Génération de l'agenda et suppression d'un patient (`feat/agenda-generation-suppression`)
 - AURA-24.2 / 24.3 : `bin/generate-agenda.php` (cron quotidien) crée les soins planifiés manquants des lignes
   actives des séjours en cours jusqu'à J + 7, sans doublon, sans modifier l'existant ni créer de soin passé (RG9).

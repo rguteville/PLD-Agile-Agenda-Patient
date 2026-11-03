@@ -46,7 +46,7 @@ $catalogField = static function (string $name, array $spec): array {
 // Champs du catalogue appartenant à une section, patient puis séjour.
 $sectionFields = static function (string $section) use ($catalogField): array {
     $formFields = [];
-    foreach ([RecordFields::PATIENT, RecordFields::EPISODE] as $catalogue) {
+    foreach ([RecordFields::admissionPatientFields(), RecordFields::EPISODE] as $catalogue) {
         foreach ($catalogue as $name => $spec) {
             if ($spec['section'] === $section) {
                 $formFields[] = $catalogField($name, $spec);

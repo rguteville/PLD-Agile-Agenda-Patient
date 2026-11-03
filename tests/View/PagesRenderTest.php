@@ -458,12 +458,13 @@ final class PagesRenderTest extends TestCase
         $empty = View::render('pages/patient/list', ['patients' => [], 'search' => 'zz<q>']);
         self::assertStringContainsString('Aucun patient ne correspond à « zz&lt;q&gt; »', $empty);
 
-        $full = View::render('pages/patient/list', ['patients' => [[
-            'idPatient' => 1, 'lastName' => 'DUPONT', 'firstName' => 'Test', 'ipp' => null, 'birthDate' => null,
-            'idEpisodeOfCare' => 7, 'episodeNumber' => '2026-000007',
-        ]], 'search' => null]);
+        $full = View::render('pages/patient/list', ['patients' => [self::listLine(
+            current: self::current(7),
+            record: ['idEpisodeOfCare' => 7, 'episodeNumber' => '2026-000007', 'ongoing' => true,
+                'dischargeDate' => null],
+        )], 'search' => null]);
         self::assertStringContainsString('href="/sejour?id=7"', $full);
-        self::assertStringContainsString('aria-label="Dossier de DUPONT Test"', $full);
+        self::assertStringContainsString('aria-label="Dossier du séjour en cours de DUPONT Test"', $full);
         self::assertStringNotContainsString('/patients/modifier', $full, 'modification depuis le dossier seulement');
         self::assertStringContainsString('<th scope="col">', $full);
         // AURA-12.3 : suppression depuis la liste, nommée pour les lecteurs d'écran.
@@ -474,6 +475,130 @@ final class PagesRenderTest extends TestCase
         $afterDeletion = View::render('pages/patient/list', ['patients' => [], 'search' => null, 'deleted' => true]);
         self::assertStringContainsString('role="status"', $afterDeletion);
         self::assertStringContainsString('Patient supprimé', $afterDeletion);
+    }
+
+    /**
+     * Retours des médecins du 2026-11-03 : séjour en cours mis en avant, dossier du dernier séjour (clos) ou
+     * « aucun séjour » sans lien mort, historique dépliable, décès en icône + texte.
+     */
+    public function testPatientListHighlightsCurrentEpisodeAndKeepsEveryRecordReachable(): void
+    {
+        $history = [
+            self::historyItem(1, true, null),
+            self::historyItem(7, false, '05/06/2026', 'Motif <grave>'),
+        ];
+        $html = View::render('pages/patient/list', ['patients' => [
+            self::listLine(
+                current: self::current(1),
+                record: ['idEpisodeOfCare' => 1, 'episodeNumber' => '2026-000001', 'ongoing' => true,
+                    'dischargeDate' => null],
+                history: $history
+            ),
+            self::listLine(
+                idPatient: 5,
+                lastName: 'FLETCHER',
+                deceased: true,
+                record: ['idEpisodeOfCare' => 5, 'episodeNumber' => '2026-000005', 'ongoing' => false,
+                    'dischargeDate' => '27/09/2026'],
+                history: [self::historyItem(5, false, '27/09/2026')]
+            ),
+            self::listLine(idPatient: 9, lastName: 'NOUVEAU'),
+        ], 'search' => null]);
+
+        // Séjour en cours : badge, numéro, lit, service, depuis le …
+        self::assertStringContainsString('patient-list__row--current', $html);
+        self::assertMatchesRegularExpression('/n° 2026-000001\s*<\/span>/', $html);
+        self::assertStringContainsString('Lit L01,', $html);
+        self::assertStringContainsString('Réa &lt;médicale&gt;', $html);
+        self::assertStringContainsString('depuis le 10/10/2026', $html);
+        // Dernier séjour clos : lien explicite ; aucun séjour : texte, pas de lien.
+        self::assertStringContainsString(
+            'aria-label="Dossier du dernier séjour de FLETCHER Test, clos le 27/09/2026">Dernier dossier</a>',
+            $html
+        );
+        self::assertStringContainsString('Aucun séjour : pas de dossier', $html);
+        self::assertStringNotContainsString('href="/sejour?id="', $html, 'jamais de lien mort');
+        // Historique dépliable, du plus récent au plus ancien, chaque séjour mène à son dossier.
+        self::assertStringContainsString('<details class="episode-history-toggle">', $html);
+        self::assertStringContainsString('2 séjours', $html);
+        self::assertStringContainsString('aria-label="Séjours de DUPONT Test, du plus récent au plus ancien"', $html);
+        self::assertLessThan(
+            strpos($html, 'href="/sejour?id=7">Séjour n° 2026-000007'),
+            strpos($html, 'href="/sejour?id=1">Séjour n° 2026-000001')
+        );
+        self::assertStringContainsString('Motif : Motif &lt;grave&gt;', $html);
+        self::assertStringContainsString('sortie le 05/06/2026', $html);
+        // Décès : icône + texte.
+        self::assertMatchesRegularExpression(
+            '/<span class="deceased-tag">\s*<svg class="icon icon-heart-off"[^>]*aria-hidden="true"[^>]*>.*?<\/svg>'
+            . '\s*<span>Décédée<\/span>/s',
+            $html
+        );
+        self::assertSame(1, substr_count($html, 'class="deceased-tag"'), 'seul le patient décédé est marqué');
+    }
+
+    /** Dossier d'un séjour clos d'un patient hospitalisé : encart vers le séjour en cours, historique signalé. */
+    public function testRecordOfOldEpisodeLinksCurrentEpisodeAndListsHistory(): void
+    {
+        $html = View::render('pages/episode/record', [
+            'banner' => ['deceased' => true, 'deceasedLabel' => 'Décédée'] + ComponentsRenderTest::banner(),
+            'episodeOfCare' => [
+                'ongoing' => false, 'dischargeDate' => '05/06/2026 16:00', 'service' => null, 'bed' => null,
+                'box' => null, 'precautions' => null, 'phone' => null, 'email' => null, 'idPatient' => 1,
+            ],
+            'idEpisodeOfCare' => 7, 'prescriptions' => [], 'doctors' => [], 'allergies' => [], 'substances' => [],
+            'criticalities' => [],
+            'currentEpisode' => self::current(1),
+            'episodeHistory' => [
+                self::historyItem(1, true, null),
+                self::historyItem(7, false, '05/06/2026', null, true),
+            ],
+            'editable' => true,
+            'sections' => [[
+                'id' => 'admin', 'title' => 'Administratif', 'filled' => 1, 'total' => 1, 'rows' => [[
+                    'entity' => 'patient', 'field' => 'deceased', 'label' => 'Patient(e) décédé(e)',
+                    'type' => 'select', 'options' => ['0' => 'Non', '1' => 'Oui'], 'computed' => false,
+                    'validatedByDoctor' => true, 'help' => null, 'raw' => '1', 'value' => 'Oui',
+                ]],
+            ]],
+        ]);
+
+        self::assertStringContainsString(
+            'Vous consultez un séjour antérieur : ce patient a un séjour en cours.',
+            $html
+        );
+        self::assertStringContainsString('href="/sejour?id=1">', $html);
+        self::assertStringContainsString('Ouvrir le séjour en cours', $html);
+        self::assertStringContainsString('lit L01', $html);
+        self::assertStringContainsString('href="#titre-sejours"', $html, 'entrée du menu du dossier');
+        self::assertStringContainsString('id="titre-sejours"', $html);
+        self::assertStringContainsString('aria-current="page">Séjour n° 2026-000007', $html);
+        self::assertStringContainsString('Séjour affiché', $html);
+        self::assertGreaterThanOrEqual(2, substr_count($html, '<span>Décédée</span>'), 'bandeau et résumé');
+        self::assertDoesNotMatchRegularExpression(
+            '/class="inline-edit"[^>]*data-field="deceased"/',
+            $html,
+            'décès : pas d\'édition en ligne, seulement par la partie validée'
+        );
+        self::assertMatchesRegularExpression('/data-field="deceased">Oui<\/dd>/', $html);
+    }
+
+    public function testRecordOfCurrentEpisodeHasNoNotice(): void
+    {
+        $html = View::render('pages/episode/record', [
+            'banner' => ComponentsRenderTest::banner(),
+            'episodeOfCare' => [
+                'ongoing' => true, 'dischargeDate' => null, 'service' => null, 'bed' => null, 'box' => null,
+                'precautions' => null, 'phone' => null, 'email' => null,
+            ],
+            'idEpisodeOfCare' => 1, 'prescriptions' => [], 'doctors' => [], 'allergies' => [], 'substances' => [],
+            'criticalities' => [],
+            'episodeHistory' => [self::historyItem(1, true, null, null, true)],
+        ]);
+
+        self::assertStringNotContainsString('current-episode-notice', $html);
+        self::assertStringNotContainsString('deceased-tag', $html);
+        self::assertStringContainsString('aria-current="page">Séjour n° 2026-000001', $html);
     }
 
     /** AURA-12.3 : confirmation de suppression, identité échappée ; motif du refus sans bouton de confirmation. */
@@ -564,6 +689,46 @@ final class PagesRenderTest extends TestCase
     // ---- Fabriques ----
 
     /** @return array<string, mixed> */
+    /** @return array<string, mixed> ligne de PatientListService::presentLine() */
+    private static function listLine(
+        int $idPatient = 1,
+        string $lastName = 'DUPONT',
+        bool $deceased = false,
+        ?array $current = null,
+        ?array $record = null,
+        array $history = []
+    ): array {
+        return [
+            'idPatient' => $idPatient, 'lastName' => $lastName, 'firstName' => 'Test', 'ipp' => null,
+            'birthDate' => null, 'deceased' => $deceased, 'deceasedLabel' => $deceased ? 'Décédée' : null,
+            'current' => $current, 'record' => $record, 'history' => $history,
+        ];
+    }
+
+    /** @return array<string, mixed> séjour en cours, EpisodeHistoryService::presentCurrent() */
+    private static function current(int $id): array
+    {
+        return [
+            'idEpisodeOfCare' => $id, 'episodeNumber' => sprintf('2026-%06d', $id), 'bed' => 'L01', 'box' => null,
+            'service' => 'Réa <médicale>', 'since' => '10/10/2026',
+        ];
+    }
+
+    /** @return array<string, mixed> séjour de EpisodeHistoryService::present() */
+    private static function historyItem(
+        int $id,
+        bool $ongoing,
+        ?string $discharge,
+        ?string $reason = null,
+        bool $displayed = false
+    ): array {
+        return [
+            'idEpisodeOfCare' => $id, 'episodeNumber' => sprintf('2026-%06d', $id), 'admissionDate' => '02/06/2026',
+            'dischargeDate' => $discharge, 'ongoing' => $ongoing, 'service' => 'Soins continus',
+            'admissionReason' => $reason, 'displayed' => $displayed,
+        ];
+    }
+
     private static function agenda(array $late = [], array $shiftItems = [], ?array $counts = null): array
     {
         $shifts = [];

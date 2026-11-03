@@ -6,14 +6,18 @@ namespace Aura\Service;
 
 use Aura\Dao\PatientDao;
 use Aura\Dao\EpisodeOfCareDao;
+use Aura\Dao\ReferenceDataDao;
 use Aura\Domain\Patient;
 use Aura\Domain\EpisodeOfCare;
 
 /**
- * Liste des patients du service avec leur séjour en cours (AURA-12.1).
+ * Liste des patients du service (AURA-12.1), avec, depuis les retours des médecins du 2026-11-03 :
+ * le séjour en cours mis en avant (numéro, lit, service, depuis le …), un lien vers le dossier pour
+ * chaque patient (séjour en cours, sinon dernier séjour), l'historique de ses séjours et le décès.
  *
- * Tous les patients de la base apparaissent, avec ou sans séjour en cours ; la
- * recherche (nom, prénom ou IPP) est faite en base par PatientDao::search().
+ * Tous les patients actifs apparaissent, avec ou sans séjour ; la recherche (nom, prénom ou IPP) est
+ * faite en base par PatientDao::search(). Les séjours de tous les patients affichés sont lus en une
+ * requête (EpisodeOfCareDao::findByPatients()).
  */
 final class PatientListService
 {
@@ -22,41 +26,42 @@ final class PatientListService
 
     public function __construct(
         private PatientDao $patientDao,
-        private EpisodeOfCareDao $episodeOfCareDao
+        private EpisodeOfCareDao $episodeOfCareDao,
+        private ?ReferenceDataDao $referenceDataDao = null
     ) {
     }
 
     /**
-     * Lignes prêtes pour la vue, triées par nom puis prénom.
+     * Lignes prêtes pour la vue, triées par nom puis prénom (ordre du DAO).
      *
-     * @return list<array{
-     *     idPatient: int,
-     *     nom: string,
-     *     prenom: string,
-     *     ipp: ?string,
-     *     dateNaissance: ?string,
-     *     idSejour: ?int,
-     *     numeroSejour: ?string
-     * }>
+     * @return list<array<string, mixed>> voir presentLine()
      */
     public function listAll(?string $search = null): array
     {
         $search = self::cleanSearch($search);
         $patients = $search === null ? $this->patientDao->findAll() : $this->patientDao->search($search);
-
-        $ongoing = [];
-        foreach ($this->episodeOfCareDao->findOngoing() as $episodeOfCare) {
-            // Un patient ne devrait avoir qu'un séjour en cours ; on garde le premier.
-            $ongoing[$episodeOfCare->getIdPatient()] ??= $episodeOfCare;
+        if ($patients === []) {
+            return [];
         }
 
-        return array_map(
-            fn(Patient $p) => self::presentLine($p, $ongoing[$p->getIdPatient()] ?? null),
+        $episodesByPatient = [];
+        $ids = array_map(static fn (Patient $p): int => (int) $p->getIdPatient(), $patients);
+        foreach ($this->episodeOfCareDao->findByPatients($ids) as $episodeOfCare) {
+            $episodesByPatient[$episodeOfCare->getIdPatient()][] = $episodeOfCare;
+        }
+        $services = $this->referenceDataDao?->healthcareServices() ?? [];
+
+        return array_values(array_map(
+            static fn (Patient $p): array => self::presentLine(
+                $p,
+                $episodesByPatient[(int) $p->getIdPatient()] ?? [],
+                $services
+            ),
             $patients
-        );
+        ));
     }
 
-    /** Terme de recherche nettoyé : null si vide, tronqué à LONGUEUR_MAX_RECHERCHE. */
+    /** Terme de recherche nettoyé : null si vide, tronqué à SEARCH_MAX_LENGTH. */
     public static function cleanSearch(?string $search): ?string
     {
         $search = trim((string) $search);
@@ -68,26 +73,42 @@ final class PatientListService
     }
 
     /**
-     * @return array{
-     *     idPatient: int,
-     *     nom: string,
-     *     prenom: string,
-     *     ipp: ?string,
-     *     dateNaissance: ?string,
-     *     idSejour: ?int,
-     *     numeroSejour: ?string
-     * }
+     * Ligne d'un patient. Pure : testable avec des entités construites à la main.
+     *  - `current` : séjour en cours mis en avant, null s'il n'y en a pas ;
+     *  - `record` : séjour dont le dossier s'ouvre (en cours, sinon le dernier), null sans aucun séjour ;
+     *  - `history` : tous les séjours, du plus récent au plus ancien ;
+     *  - `deceased` / `deceasedLabel` : décès (Patient.deceased), libellé accordé au sexe.
+     *
+     * @param EpisodeOfCare[] $episodes séjours du patient
+     * @param array<string, string> $services référentiel des services (id => nom)
+     * @return array{idPatient: int, lastName: string, firstName: string, ipp: ?string, birthDate: ?string,
+     *               deceased: bool, deceasedLabel: ?string, current: ?array<string, mixed>,
+     *               record: ?array{idEpisodeOfCare: int, episodeNumber: string, ongoing: bool,
+     *                              dischargeDate: ?string},
+     *               history: list<array<string, mixed>>}
      */
-    private static function presentLine(Patient $patient, ?EpisodeOfCare $ongoingEpisodeOfCare): array
+    public static function presentLine(Patient $patient, array $episodes, array $services = []): array
     {
+        $ongoing = EpisodeHistoryService::ongoing($episodes);
+        $recordEpisode = EpisodeHistoryService::recordEpisode($episodes);
+        $deceased = PatientRecordService::isDeceased($patient);
+
         return [
             'idPatient' => (int) $patient->getIdPatient(),
             'lastName' => $patient->getLastName(),
             'firstName' => $patient->getFirstName(),
             'ipp' => $patient->getIpp(),
             'birthDate' => $patient->getBirthDate()?->format('d/m/Y'),
-            'idEpisodeOfCare' => $ongoingEpisodeOfCare?->getIdEpisodeOfCare(),
-            'episodeNumber' => $ongoingEpisodeOfCare?->getEpisodeNumber(),
+            'deceased' => $deceased,
+            'deceasedLabel' => $deceased ? PatientRecordService::deceasedLabel($patient->getSex()) : null,
+            'current' => $ongoing === null ? null : EpisodeHistoryService::presentCurrent($ongoing, $services),
+            'record' => $recordEpisode === null ? null : [
+                'idEpisodeOfCare' => (int) $recordEpisode->getIdEpisodeOfCare(),
+                'episodeNumber' => EpisodeHistoryService::present([$recordEpisode])[0]['episodeNumber'],
+                'ongoing' => $recordEpisode->isOngoing(),
+                'dischargeDate' => $recordEpisode->getDischargeDate()?->format('d/m/Y'),
+            ],
+            'history' => EpisodeHistoryService::present($episodes, $services),
         ];
     }
 }

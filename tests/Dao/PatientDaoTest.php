@@ -48,6 +48,30 @@ final class PatientDaoTest extends TestCase
         }
     }
 
+    /** Retours des médecins du 2026-11-03 : la liste et la recherche lisent le décès (Patient.deceased). */
+    public function testListAndSearchReadDeceased(): void
+    {
+        $id = $this->dao->insert(new Patient(
+            null,
+            null,
+            'Zzdecede',
+            'Diane',
+            new DateTimeImmutable('1940-01-01'),
+            'F',
+            details: ['deceased' => '1']
+        ));
+
+        $found = $this->dao->search('Zzdecede');
+        $all = array_values(array_filter(
+            $this->dao->findAll(),
+            static fn (Patient $p): bool => $p->getIdPatient() === $id
+        ));
+
+        $this->assertSame('1', $found[0]->getDetail('deceased'));
+        $this->assertSame('1', $all[0]->getDetail('deceased'));
+        $this->assertNull($this->dao->search('Zzduprecherche')[0]->getDetail('deceased'), 'non renseigné : null');
+    }
+
     public function testSearchByNameFragmentCaseInsensitive(): void
     {
         $names = array_map(fn(Patient $p) => $p->getLastName(), $this->dao->search('DUPRECHERCHE'));

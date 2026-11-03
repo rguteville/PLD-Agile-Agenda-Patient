@@ -116,7 +116,7 @@ class AdmissionService
             throw new InvalidArgumentException(implode(' ', $errors));
         }
 
-        $patientDetails = $this->fields->normalize(RecordFields::PATIENT, $data);
+        $patientDetails = $this->fields->normalize(RecordFields::admissionPatientFields(), $data);
         $patient = $this->buildPatient($data, $patientDetails);
         $weight = $this->measure($data['weight'] ?? null);
         $height = $this->measure($data['height'] ?? null);
@@ -614,7 +614,7 @@ class AdmissionService
     public function validate(array $data, array $referenceDataSets = []): array
     {
         $errors = $this->validatePatientIdentity($data);
-        $errors += $this->fields->validate(RecordFields::PATIENT, $data);
+        $errors += $this->fields->validate(RecordFields::admissionPatientFields(), $data);
         $errors += $this->fields->validate(RecordFields::EPISODE, $data);
 
         $idService = $this->text($data['idService'] ?? null);

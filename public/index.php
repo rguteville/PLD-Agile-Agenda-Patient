@@ -172,7 +172,11 @@ try {
     $listPatients = static function (): void {
         $pdo = Database::get();
         $controller = new PatientController(
-            patientListService: new PatientListService(new PatientDao($pdo), new EpisodeOfCareDao($pdo))
+            patientListService: new PatientListService(
+                new PatientDao($pdo),
+                new EpisodeOfCareDao($pdo),
+                new ReferenceDataDao($pdo)
+            )
         );
         $controller->list();
     };

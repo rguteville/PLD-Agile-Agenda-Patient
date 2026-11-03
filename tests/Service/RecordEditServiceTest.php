@@ -62,6 +62,34 @@ final class RecordEditServiceTest extends TestCase
         self::assertSame(RecordEditService::STATUS_FORBIDDEN_FIELD, $r['status'], 'entité inconnue');
     }
 
+    /** Décès : refusé sans médecin identifié (édition en ligne, admission), sans même lire la base. */
+    public function testDeceasedIsRefusedWithoutIdentifiedDoctor(): void
+    {
+        $this->patients->expects($this->never())->method('findById');
+        $this->patients->expects($this->never())->method('updateDetailIfUnchanged');
+        $this->audit->expects($this->never())->method('insert');
+
+        $r = $this->service->update('patient', 9, 'deceased', '1', '0');
+
+        self::assertSame(RecordEditService::STATUS_FORBIDDEN_FIELD, $r['status']);
+        self::assertStringContainsString('médecin', (string) $r['message']);
+    }
+
+    public function testDeceasedIsWrittenAndTracedForIdentifiedDoctor(): void
+    {
+        $this->patients->method('findById')->with(9)->willReturn($this->patient(['deceased' => '0']));
+        $this->patients->expects($this->once())->method('updateDetailIfUnchanged')
+            ->with(9, 'deceased', '1', '0')->willReturn(true);
+        $this->audit->expects($this->once())->method('insert')->willReturn(1);
+
+        $r = $this->service->update('patient', 9, 'deceased', '1', '0', 'Claire Morel (médecin)');
+
+        self::assertSame(RecordEditService::STATUS_SAVED, $r['status']);
+        self::assertSame('Oui', $r['display']);
+        $invalid = $this->service->update('patient', 9, 'deceased', 'peut-être', '0', 'Claire Morel (médecin)');
+        self::assertSame(RecordEditService::STATUS_INVALID, $invalid['status'], 'seulement Oui / Non');
+    }
+
     public function testNonexistentRecord(): void
     {
         $this->patients->method('findById')->willReturn(null);

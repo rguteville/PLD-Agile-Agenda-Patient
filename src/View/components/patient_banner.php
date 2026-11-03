@@ -18,6 +18,10 @@ use Aura\Core\View;
         <?php if ($banner['sex'] !== null) : ?>
             <span class="sex">(<?= View::e($banner['sex']) ?>)</span>
         <?php endif; ?>
+        <?php /* Décès (Patient.deceased) : icône + texte, en tête de toute page liée au séjour. */ ?>
+        <?php if (!empty($banner['deceased'])) : ?>
+            <?= View::render('components/deceased_tag', ['label' => $banner['deceasedLabel'] ?? null]) ?>
+        <?php endif; ?>
     </div>
     <dl>
         <div>

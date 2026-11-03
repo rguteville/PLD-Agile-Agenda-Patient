@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Aura\Tests\Service;
 
+use Aura\Domain\RecordFields;
 use Aura\Service\AdmissionService;
 use DateTimeImmutable;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -69,6 +70,14 @@ final class AdmissionServiceTest extends TestCase
         $data['firstName'] = 'Paul';
 
         $this->assertSame([], $this->service->validate($data));
+    }
+
+    /** Le décès n'est pas un champ d'admission : une valeur envoyée (formulaire forgé) est ignorée. */
+    public function testDeceasedIsNotAnAdmissionField(): void
+    {
+        self::assertArrayNotHasKey('deceased', RecordFields::admissionPatientFields());
+        self::assertArrayHasKey('bloodType', RecordFields::admissionPatientFields());
+        self::assertSame([], $this->service->validate(self::VALID_DATA + ['deceased' => 'n\'importe quoi']));
     }
 
     public function testIppIsOptional(): void
