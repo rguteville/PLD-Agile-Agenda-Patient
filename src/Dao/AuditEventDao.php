@@ -64,12 +64,40 @@ class AuditEventDao
         return array_map(fn(array $r) => $this->mapToEntity($r), $stmt->fetchAll(PDO::FETCH_ASSOC));
     }
 
+    /**
+     * Dernier auteur d'un changement de statut, par soin planifié (AURA-26 : « réalisé par … »).
+     *
+     * @param list<string> $idAppointments
+     * @return array<string, string> idAppointment => auteur
+     */
+    public function appointmentAuthors(array $idAppointments): array
+    {
+        if ($idAppointments === []) {
+            return [];
+        }
+        $placeholders = implode(', ', array_fill(0, count($idAppointments), '?'));
+        $stmt = $this->pdo->prepare(
+            'SELECT entityId, author FROM AuditEvent
+             WHERE entity = ? AND field = ? AND entityId IN (' . $placeholders . ')
+             ORDER BY recordedAt, idAuditEvent'
+        );
+        $stmt->execute([AuditEvent::ENTITY_APPOINTMENT, 'status', ...array_values($idAppointments)]);
+
+        $authors = [];
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            // Lignes triées de la plus ancienne à la plus récente : la dernière l'emporte.
+            $authors[(string) $r['entityId']] = (string) $r['author'];
+        }
+
+        return $authors;
+    }
+
     private function mapToEntity(array $r): AuditEvent
     {
         return new AuditEvent(
             idAuditEvent: (int) $r['idAuditEvent'],
             entity: (string) $r['entity'],
-            entityId: (int) $r['entityId'],
+            entityId: ctype_digit((string) $r['entityId']) ? (int) $r['entityId'] : (string) $r['entityId'],
             field: (string) $r['field'],
             oldValue: $r['oldValue'],
             newValue: $r['newValue'],

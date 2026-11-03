@@ -14,6 +14,8 @@ final class AuditEvent
 {
     public const ENTITY_PATIENT = 'Patient';
     public const ENTITY_EPISODE = 'EpisodeOfCare';
+    /** Soin planifié (AURA-26) : identifiant texte (« SOI01 »), d'où un entityId entier ou texte. */
+    public const ENTITY_APPOINTMENT = 'Appointment';
 
     /** Auteur enregistré tant qu'il n'y a pas d'identification du praticien (AURA-18). */
     public const AUTHOR_UNKNOWN = 'non identifié';
@@ -21,7 +23,7 @@ final class AuditEvent
     public function __construct(
         private ?int $idAuditEvent,
         private string $entity,
-        private int $entityId,
+        private int|string $entityId,
         private string $field,
         private ?string $oldValue,
         private ?string $newValue,
@@ -36,13 +38,13 @@ final class AuditEvent
         return $this->idAuditEvent;
     }
 
-    /** ENTITY_PATIENT ou ENTITY_EPISODE. */
+    /** ENTITY_PATIENT, ENTITY_EPISODE ou ENTITY_APPOINTMENT. */
     public function getEntity(): string
     {
         return $this->entity;
     }
 
-    public function getEntityId(): int
+    public function getEntityId(): int|string
     {
         return $this->entityId;
     }

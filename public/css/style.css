@@ -4006,3 +4006,283 @@ form.form--columns .form-lead > .form-row {
     border: 1px solid var(--line-strong);
     border-radius: var(--radius);
 }
+
+/* ===== AURA-25 / AURA-26 / AURA-28 : actions sur un soin, filtres, vue Semaine ===== */
+.care-buttons {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: var(--sp-1);
+}
+
+.care-buttons .button {
+    min-height: 32px;
+    padding: var(--sp-1) var(--sp-2);
+    font-size: var(--fs-1);
+}
+
+.care-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-3);
+    border: 0;
+    padding: 0;
+}
+
+.care-actions legend {
+    width: 100%;
+    margin-bottom: var(--sp-1);
+    font-weight: 600;
+}
+
+.care-actions label {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-1);
+}
+
+.view-switch {
+    display: inline-flex;
+    gap: var(--sp-1);
+}
+
+.agenda-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-2);
+    margin: var(--sp-3) 0;
+}
+
+.agenda-filters [aria-pressed="true"] {
+    color: var(--accent-fg);
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+.agenda-section.is-filtered-out .table-scroll,
+.service-slot.is-filtered-out .cell-slot ul {
+    display: none;
+}
+
+.week-grid,
+.service-timeline {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--bg-raised);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+}
+
+.week-grid th,
+.week-grid td,
+.service-timeline th,
+.service-timeline td {
+    padding: var(--sp-2);
+    border: 1px solid var(--line);
+    vertical-align: top;
+}
+
+.week-grid thead th,
+.service-timeline thead th {
+    background: var(--bg-muted);
+    text-align: left;
+}
+
+.week-grid tbody th {
+    text-align: left;
+    min-width: 200px;
+}
+
+.week-grid td {
+    min-width: 96px;
+}
+
+.week-grid td .badge {
+    margin: 0 2px 2px 0;
+}
+
+.week-grid .is-today {
+    background: var(--accent-soft);
+}
+
+.week-grid .item-label,
+.week-grid .item-details {
+    display: block;
+}
+
+/* ===== AURA-29 / AURA-32 : agenda du service vertical (créneaux en lignes, patients en colonnes) ===== */
+.service-alert {
+    margin: var(--sp-4) 0;
+    padding: var(--sp-3) var(--sp-4);
+    color: var(--st-late-fg);
+    background: var(--st-late-bg);
+    border: 2px solid var(--st-late-line);
+    border-radius: var(--radius-lg);
+}
+
+.service-alert h2 {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    margin: 0 0 var(--sp-2);
+    font-size: var(--fs-3);
+}
+
+.service-alert__list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.service-alert__list li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-2) var(--sp-3);
+    padding: var(--sp-1) 0;
+    border-top: 1px solid var(--st-late-line);
+}
+
+.service-alert__list a {
+    color: inherit;
+    font-weight: 600;
+}
+
+.service-timeline .col-time {
+    width: 96px;
+    white-space: nowrap;
+    color: var(--fg-muted);
+    font-weight: 600;
+}
+
+.service-timeline .service-patient {
+    min-width: 220px;
+}
+
+.service-timeline .service-patient a {
+    display: block;
+    margin: 2px 0;
+}
+
+.service-timeline .patient-name {
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.service-timeline .patient-bed {
+    display: block;
+    color: var(--fg-muted);
+    font-size: var(--fs-1);
+}
+
+.service-patient__allergies {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    margin: var(--sp-1) 0;
+}
+
+.service-slot.is-now th,
+.service-slot.is-now td {
+    background: var(--accent-soft);
+}
+
+.now-marker {
+    display: block;
+    color: var(--accent);
+    font-size: var(--fs-0);
+    text-transform: uppercase;
+}
+
+.service-timeline .slot-items {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.slot-item {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    padding: var(--sp-2);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--st-planned-line);
+    border-radius: var(--radius);
+}
+
+.slot-item.is-late {
+    border-left-color: var(--st-late-line);
+    background: var(--st-late-bg);
+}
+
+.slot-item.is-done {
+    border-left-color: var(--st-done-line);
+}
+
+.slot-item.is-not_done {
+    border-left-color: var(--st-alert-line);
+}
+
+.slot-item__head {
+    display: flex;
+    gap: var(--sp-2);
+    font-weight: 600;
+}
+
+.slot-item .item-details,
+.slot-item .trace {
+    color: var(--fg-muted);
+    font-size: var(--fs-1);
+}
+
+@media print {
+    .care-buttons,
+    .agenda-filters,
+    .view-switch {
+        display: none;
+    }
+}
+
+/* AURA-29 : allergies en tête de chaque colonne patient (RG2), mêmes étiquettes que la carte patient. */
+.service-patient__allergies .allergy-tag {
+    padding: 1px var(--sp-2);
+    font-size: var(--fs-1);
+}
+
+.service-patient__allergies .allergy-tag--high {
+    border: 1px solid var(--st-alert-fg);
+    background: var(--st-alert-fg);
+    color: #ffffff;
+}
+
+.service-patient__allergies .allergy-tag--low {
+    border: 1px solid var(--st-warn-line);
+    background: var(--st-warn-bg);
+    color: var(--st-warn-fg);
+}
+
+.service-patient__allergies .allergy-tag--unknown {
+    border: 1px solid var(--st-alert-line);
+    background: var(--bg-raised);
+    color: var(--st-alert-fg);
+}
+
+.service-patient__allergies .allergy-tag--none {
+    border: 1px solid var(--st-done-line);
+    background: var(--st-done-bg);
+    color: var(--st-done-fg);
+    font-weight: 400;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .service-patient__allergies .allergy-tag--high {
+        color: #1c0a0a;
+    }
+}
+
+:root[data-theme="dark"] .service-patient__allergies .allergy-tag--high {
+    color: #1c0a0a;
+}

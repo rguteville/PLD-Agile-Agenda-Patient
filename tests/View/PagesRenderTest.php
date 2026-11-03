@@ -67,14 +67,18 @@ final class PagesRenderTest extends TestCase
         ]);
 
         self::assertStringContainsString('agenda-section--late', $html);
-        self::assertSame(1, substr_count($html, 'data-appointment="S1"'), 'le retard n\'apparaît qu\'une fois');
+        self::assertSame(
+            1,
+            substr_count($html, 'data-care-action="done" data-appointment="S1"'),
+            'le retard n\'apparaît qu\'une fois'
+        );
         self::assertStringContainsString('badge--late', $html);
         self::assertStringContainsString('badge--done', $html);
         self::assertStringContainsString('à 09:10', $html, 'traçabilité : heure de réalisation');
         self::assertStringContainsString('Note &lt;test&gt;', $html);
         self::assertStringContainsString('<dialog id="validation-dialog"', $html);
         self::assertStringContainsString('Soignant Test (IDE)', $html);
-        self::assertStringContainsString('data-validate', $html);
+        self::assertStringContainsString('action="/agenda-patient/soin"', $html, 'le dialogue enregistre');
         self::assertStringContainsString('<time datetime="2026-10-14T08:00">08:00</time>', $html);
     }
 
@@ -363,23 +367,53 @@ final class PagesRenderTest extends TestCase
         self::assertStringContainsString('<th scope="col">', $full);
     }
 
-    public function testConsolidatedServiceViewShowsPatientsSlotsAndLateCare(): void
+    public function testServiceAgendaIsVerticalWithLateAlertAllergiesAndActions(): void
     {
-        $html = View::render('pages/service/consolidated-view', ['service' => [
-            'date' => '2026-10-14',
-            'dateLabel' => 'mercredi 14 octobre 2026',
-            'slots' => ['06:00', '08:00'],
-            'patients' => [[
-                'idEpisodeOfCare' => 1, 'lastName' => 'DUPONT', 'firstName' => 'Test', 'bed' => 'L01',
-                'episodeNumber' => '2026-000001', 'late' => 2,
-                'cells' => ['06:00' => ['done' => 1, 'late' => 2]],
-            ]],
-        ]]);
+        $late = [
+            'id' => 'S1', 'time' => '06:30', 'datetime' => '2026-10-14T06:30', 'hour' => 6, 'label' => 'Soin <A>',
+            'details' => null, 'status' => 'late', 'performedBy' => null,
+        ];
+        $done = ['id' => 'S2', 'time' => '07:00', 'datetime' => '2026-10-14T07:00', 'status' => 'done',
+            'performedBy' => 'Soignant <Test>'] + $late;
+        $html = View::render('pages/service/consolidated-view', [
+            'service' => [
+                'date' => '2026-10-14',
+                'dateLabel' => 'mercredi 14 octobre 2026',
+                'isToday' => true,
+                'previous' => '2026-10-13',
+                'next' => '2026-10-15',
+                'slots' => ['06:00', '08:00'],
+                'currentSlot' => '06:00',
+                'late' => 1,
+                'lateItems' => [$late + ['idEpisodeOfCare' => 1, 'patient' => 'DUPONT Test', 'bed' => 'L01']],
+                'patients' => [[
+                    'idEpisodeOfCare' => 1, 'lastName' => 'DUPONT', 'firstName' => 'Test', 'bed' => 'L01',
+                    'episodeNumber' => '2026-000001', 'referent' => 'Dr <Ref>', 'late' => 1, 'total' => 2,
+                    'allergies' => [['label' => 'Latex <x>', 'level' => 'high']],
+                    'cells' => ['06:00' => ['late' => 1, 'done' => 1]],
+                    'items' => ['06:00' => [$late, $done]],
+                ]],
+            ],
+            'services' => ['SRV01' => 'Réanimation'],
+            'idHealthcareService' => 'SRV01',
+            'validationEnabled' => true,
+            'validators' => ['PRA01' => 'Soignant Test (IDE)'],
+            'csrfToken' => 'jeton',
+        ]);
 
-        self::assertStringContainsString('<th scope="row" class="col-patient">', $html);
+        self::assertStringContainsString('<table class="service-timeline">', $html);
+        self::assertStringContainsString('<th scope="col" class="service-patient">', $html, 'un patient par colonne');
+        self::assertStringContainsString('6 h – 8 h', $html, 'un créneau par ligne');
+        self::assertStringContainsString('class="service-slot is-now"', $html);
+        self::assertStringContainsString('1 soin en retard', $html, 'alerte du service (AURA-32)');
+        self::assertStringContainsString('allergy-tag--high', $html, 'RG2 : allergies du patient en colonne');
+        self::assertStringContainsString('Latex &lt;x&gt;', $html);
+        self::assertStringContainsString('Réf. Dr &lt;Ref&gt;', $html);
+        self::assertStringContainsString('par Soignant &lt;Test&gt;', $html);
         self::assertStringContainsString('href="/agenda-patient?id=1&amp;date=2026-10-14"', $html);
-        self::assertStringContainsString('2 en retard', $html);
+        self::assertStringContainsString('data-care-action="done" data-appointment="S1"', $html);
         self::assertStringContainsString('Rien de prévu', $html, 'créneau vide annoncé aux lecteurs d\'écran');
+        self::assertStringContainsString('action="/agenda-patient/soin"', $html);
         self::assertStringContainsString('aria-label="Légende"', $html);
     }
 

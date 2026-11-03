@@ -3,23 +3,39 @@
 use Aura\Core\View;
 
 /**
- * Dialogue de validation d'un soin : qui valide, quand, note facultative (balisage et accessibilité
- * seulement). L'enregistrement en base n'existe pas encore : il demande une route POST, une règle
- * métier et une colonne « validé par » sur Appointment (diff de schéma à proposer au responsable
- * BDD). D'ici là, le formulaire est en method="dialog" : « Valider » ferme la fenêtre sans rien
- * envoyer, et le dialogue n'est rendu que si le contrôleur passe validationEnabled = true.
+ * Dialogue d'action sur un soin (AURA-26, AURA-28) : « Réalisé » (qui, quand), « Non effectué »
+ * (motif obligatoire) ou simple note. Ouvert par les boutons de l'agenda (data-care-action) ;
+ * public/js/agenda.js l'envoie en JSON à POST /agenda-patient/soin et recharge la page. Sans
+ * JavaScript, le formulaire part en POST classique et le serveur renvoie à la page d'origine.
  *
- * @var array<string, string> $validators idPractitioner => « nom (rôle) »
+ * Authentification FACTICE (comme les parties du dossier) : soignant + mot de passe non vérifié.
+ *
+ * @var array<string, string> $validators idPractitioner => « Prénom Nom (rôle) »
+ * @var string $csrfToken jeton de session de l'endpoint
+ * @var string $back page d'origine, pour le retour sans JavaScript
  */
+$back = $back ?? '';
 ?>
 <dialog id="validation-dialog" class="dialog" aria-labelledby="validation-dialog-title">
-    <form method="dialog" class="dialog-form">
-        <h2 id="validation-dialog-title">Valider un soin</h2>
+    <form method="post" action="/agenda-patient/soin" class="dialog-form" data-care-form
+          data-csrf="<?= View::e($csrfToken) ?>">
+        <h2 id="validation-dialog-title">Soin</h2>
         <p class="dialog-context" data-dialog-context aria-live="polite"></p>
+        <input type="hidden" name="csrf" value="<?= View::e($csrfToken) ?>">
+        <input type="hidden" name="episodeOfCare" value="">
+        <input type="hidden" name="appointment" value="">
+        <input type="hidden" name="back" value="<?= View::e($back) ?>">
+
+        <fieldset class="dialog-field care-actions">
+            <legend>Action</legend>
+            <label><input type="radio" name="action" value="done" checked> Réalisé</label>
+            <label><input type="radio" name="action" value="not_done"> Non effectué</label>
+            <label><input type="radio" name="action" value="note"> Note seulement</label>
+        </fieldset>
 
         <div class="dialog-field">
-            <label for="validation-validator">Validé par</label>
-            <select id="validation-validator" name="idValidator" required>
+            <label for="validation-performer">Soignant</label>
+            <select id="validation-performer" name="idPerformer" required aria-describedby="validation-auth-error">
                 <option value="">— soignant —</option>
                 <?php foreach ($validators as $value => $label) : ?>
                     <option value="<?= View::e($value) ?>"><?= View::e($label) ?></option>
@@ -28,24 +44,37 @@ use Aura\Core\View;
         </div>
 
         <div class="dialog-field">
+            <label for="validation-password">Mot de passe</label>
+            <input type="password" id="validation-password" name="password" autocomplete="off" required
+                   aria-describedby="validation-auth-error">
+            <p class="form-error" role="alert" id="validation-auth-error" data-error="auth" hidden></p>
+        </div>
+
+        <div class="dialog-field" data-only-action="done">
             <label for="validation-time">Réalisé le</label>
-            <input type="datetime-local" id="validation-time" name="completedAt" required>
+            <input type="datetime-local" id="validation-time" name="completedAt"
+                   aria-describedby="validation-time-error">
+            <p class="form-error" role="alert" id="validation-time-error" data-error="completedAt" hidden></p>
         </div>
 
         <div class="dialog-field">
-            <label for="validation-note">Note (facultative)</label>
+            <label for="validation-note" data-note-label>Note</label>
             <textarea id="validation-note" name="comment" rows="2" maxlength="100"
-                      placeholder="Retard, refus, particularité…"></textarea>
+                      placeholder="patient au scanner, refus, conditions particulières"
+                      aria-describedby="validation-note-error"></textarea>
+            <p class="form-error" role="alert" id="validation-note-error" data-error="comment" hidden></p>
         </div>
 
+        <p class="form-error" role="alert" data-error="message" hidden></p>
         <p class="dialog-hint">
             <?= View::render('components/icon', ['name' => 'info']) ?>
-            <span>La validation restera visible dans l'agenda : « validé par …, à hh:mm ».</span>
+            <span>Authentification de démonstration : le mot de passe n'est pas vérifié. L'agenda affichera
+                « par … » avec l'heure de réalisation.</span>
         </p>
 
         <div class="dialog-actions">
             <button type="button" class="button button--secondary" data-dialog-close>Annuler</button>
-            <button type="submit" class="button">Valider</button>
+            <button type="submit" class="button">Enregistrer</button>
         </div>
     </form>
 </dialog>

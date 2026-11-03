@@ -182,6 +182,10 @@ mariadb -u aura -p -e "DROP DATABASE aura; CREATE DATABASE aura CHARACTER SET ut
 
 puis rechargez `schema.sql` et `test.sql` comme ci-dessus.
 
+**Pour une démonstration**, recalez les données de démo sur le jour courant (le 14 octobre 2026 du jeu de démo
+devient aujourd'hui ; rejouable sans effet) : `mariadb -u aura -p aura < database/demo-today.sql`. Ne le faites pas
+sur la base du CI : les tests s'appuient sur les dates fixes de `test.sql`.
+
 ### 4. Configurer l'application
 
 ```bash
@@ -363,6 +367,12 @@ Scénarios manuels avec les données de démo (`database/test.sql`), serveur lan
 4. **Allergies** : `/sejour?id=8` → « Aucune allergie connue » (vert) ; `/sejour?id=1` → Pénicilline (Élevée) en
    rouge plein et Latex (Faible) en orange dans le bandeau ; ajout et retrait depuis la section « Allergies
    connues ». À l'admission, filtrer la liste (« pén »), cocher, choisir la criticité.
+5. **Valider un soin (AURA-26, AURA-28)** : `/agenda-patient?id=1&date=2026-10-14`, soin de 18:00 en retard →
+   « Valider », choisir un soignant, un mot de passe quelconque (authentification factice), Enregistrer → statut
+   « Effectué », « par … » et heure de réalisation ; « Non effectué » exige un motif ; « Note » sur tout soin.
+   Valider deux fois le même soin est refusé. « Semaine » affiche lundi → dimanche, un clic sur un jour y revient.
+6. **Agenda du service (AURA-29, AURA-32)** : onglet « Agenda service », jour 14/10/2026 → créneaux de 2 h en
+   lignes, un patient par colonne avec ses allergies, retards du service en tête ; mêmes actions et filtres.
 5. **IPP automatique** : admettre un nouveau patient sans IPP → le bandeau du séjour créé affiche un IPP attribué.
 6. **Menu du dossier** : sur `/sejour?id=1`, le menu de gauche reste visible au défilement ; « Scores et état
    antérieur » ouvre la section et y descend ; « Agenda du jour » est en tête du menu ; dans l'agenda,

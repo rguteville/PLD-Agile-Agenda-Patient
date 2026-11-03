@@ -8,9 +8,11 @@ use Aura\Core\View;
  *
  * @var list<array<string, mixed>> $items lignes de AgendaService::presentDay()
  * @var string $caption titre lu par les lecteurs d'écran (visuellement masqué)
- * @var bool $validationEnabled affiche la colonne d'action (dialogue components/validation_dialog)
+ * @var bool $validationEnabled affiche la colonne d'actions (dialogue components/validation_dialog)
+ * @var int|null $idEpisodeOfCare séjour des soins (envoyé avec l'action)
  */
 $validationEnabled = $validationEnabled ?? false;
+$idEpisodeOfCare = $idEpisodeOfCare ?? null;
 ?>
 <div class="table-scroll">
     <table class="agenda-table">
@@ -24,13 +26,14 @@ $validationEnabled = $validationEnabled ?? false;
                 <th scope="col" class="col-status">Statut</th>
                 <th scope="col">Notes</th>
                 <?php if ($validationEnabled) : ?>
-                    <th scope="col" class="col-action"><span class="sr-only">Action</span></th>
+                    <th scope="col" class="col-action"><span class="sr-only">Actions</span></th>
                 <?php endif; ?>
             </tr>
         </thead>
         <tbody>
             <?php foreach ($items as $item) : ?>
-                <tr class="is-<?= View::e($item['status']) ?>" data-appointment="<?= View::e($item['id']) ?>">
+                <tr class="is-<?= View::e($item['status']) ?>" data-appointment-row
+                    data-status="<?= View::e($item['status']) ?>">
                     <td class="col-time">
                         <time datetime="<?= View::e($item['datetime']) ?>"><?= View::e($item['time']) ?></time>
                     </td>
@@ -45,8 +48,11 @@ $validationEnabled = $validationEnabled ?? false;
                     <td class="col-status">
                         <?= View::render('components/status_badge', ['status' => $item['status']]) ?>
                         <?php if ($item['completedAt'] !== null) : ?>
-                            <?php /* Traçabilité : heure de réalisation. Le « qui » viendra avec AURA-18. */ ?>
                             <span class="trace">à <?= View::e($item['completedAt']) ?></span>
+                        <?php endif; ?>
+                        <?php if (($item['performedBy'] ?? null) !== null) : ?>
+                            <?php /* Traçabilité (RG10) : qui a validé, lu dans l'historique. */ ?>
+                            <span class="trace">par <?= View::e($item['performedBy']) ?></span>
                         <?php endif; ?>
                     </td>
                     <td>
@@ -58,12 +64,22 @@ $validationEnabled = $validationEnabled ?? false;
                     </td>
                     <?php if ($validationEnabled) : ?>
                         <td class="col-action">
-                            <?php if (in_array($item['status'], ['planned', 'late'], true)) : ?>
-                                <button type="button" class="button button--secondary" data-validate
-                                        data-label="<?= View::e($item['time'] . ' · ' . $item['label']) ?>">
-                                    Valider
-                                </button>
-                            <?php endif; ?>
+                            <?php
+                            $attributes = ' data-appointment="' . View::e($item['id']) . '"'
+                                . ' data-episode="' . View::e($idEpisodeOfCare) . '"'
+                                . ' data-label="' . View::e($item['time'] . ' · ' . $item['label']) . '"';
+                            ?>
+                            <span class="care-buttons">
+                                <?php if (in_array($item['status'], ['planned', 'late'], true)) : ?>
+                                    <button type="button" class="button" data-care-action="done"<?= $attributes ?>>
+                                        Valider
+                                    </button>
+                                    <button type="button" class="button button--secondary"
+                                            data-care-action="not_done"<?= $attributes ?>>Non effectué</button>
+                                <?php endif; ?>
+                                <button type="button" class="button button--secondary"
+                                        data-care-action="note"<?= $attributes ?>>Note</button>
+                            </span>
                         </td>
                     <?php endif; ?>
                 </tr>

@@ -39,6 +39,73 @@ class AppointmentDao
         return array_map(fn(array $r) => $this->mapToEntity($r), $stmt->fetchAll(PDO::FETCH_ASSOC));
     }
 
+    /**
+     * Soin planifié avec le séjour auquel il appartient (par sa ligne puis son ordonnance), pour
+     * vérifier qu'une action vise bien un soin du séjour affiché ; null s'il n'existe pas.
+     *
+     * @return array{appointment: Appointment, idEpisodeOfCare: int, ongoing: bool}|null
+     */
+    public function findWithEpisode(string $idAppointment): ?array
+    {
+        $stmt = $this->pdo->prepare(
+            'SELECT a.idAppointment, a.idServiceRequest, a.idMedicationRequest, a.plannedTime, a.status,
+                    a.timeOfCompletion, a.timeRecorded, a.comment,
+                    e.idEpisodeOfCare, e.dischargeDate
+             FROM Appointment a
+             LEFT JOIN ServiceRequest s ON s.idServiceRequest = a.idServiceRequest
+             LEFT JOIN MedicationRequest m ON m.idMedicationRequest = a.idMedicationRequest
+             JOIN CarePlan c ON c.idCarePlan = COALESCE(s.idCarePlan, m.idCarePlan)
+             JOIN EpisodeOfCare e ON e.idEpisodeOfCare = c.idEpisodeOfCare
+             WHERE a.idAppointment = :id'
+        );
+        $stmt->execute(['id' => $idAppointment]);
+        $r = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($r === false) {
+            return null;
+        }
+
+        return [
+            'appointment' => $this->mapToEntity($r),
+            'idEpisodeOfCare' => (int) $r['idEpisodeOfCare'],
+            'ongoing' => $r['dischargeDate'] === null,
+        ];
+    }
+
+    /**
+     * Clôt un soin encore prévu (REALISE ou NON_FAIT). Écriture conditionnelle : false si le soin
+     * n'est plus PLANIFIE (validé entre-temps par quelqu'un d'autre), et rien n'est écrit.
+     */
+    public function close(
+        string $idAppointment,
+        string $status,
+        ?DateTimeInterface $timeOfCompletion,
+        DateTimeInterface $timeRecorded,
+        ?string $comment
+    ): bool {
+        $stmt = $this->pdo->prepare(
+            'UPDATE Appointment
+             SET status = :status, timeOfCompletion = :completion, timeRecorded = :recorded,
+                 comment = COALESCE(:comment, comment)
+             WHERE idAppointment = :id AND status = :planned'
+        );
+        $stmt->execute([
+            'status' => $status,
+            'completion' => $timeOfCompletion?->format('Y-m-d H:i:s'),
+            'recorded' => $timeRecorded->format('Y-m-d H:i:s'),
+            'comment' => $comment,
+            'id' => $idAppointment,
+            'planned' => Appointment::STATUS_PLANNED,
+        ]);
+
+        return $stmt->rowCount() === 1;
+    }
+
+    /** Remplace la note d'un soin (AURA-28), quel que soit son statut. */
+    public function updateComment(string $idAppointment, ?string $comment): void
+    {
+        $stmt = $this->pdo->prepare('UPDATE Appointment SET comment = :comment WHERE idAppointment = :id');
+        $stmt->execute(['comment' => $comment, 'id' => $idAppointment]);
+    }
 
     private function mapToEntity(array $r): Appointment
     {

@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Aura\Controller;
 
+use Aura\Core\Csrf;
 use Aura\Core\View;
 use Aura\Service\AgendaService;
+use Aura\Service\AppointmentService;
 use DateTimeImmutable;
 
 /**
@@ -21,6 +23,7 @@ final class ServiceController
     public function __construct(
         private AgendaService $agendaService,
         private array $services = [],
+        private ?AppointmentService $appointmentService = null,
     ) {
     }
 
@@ -44,10 +47,15 @@ final class ServiceController
             $now
         );
 
+        // Valider un soin depuis la vue du service (AURA-26), même dialogue que l'agenda du patient.
+        $validationEnabled = $this->appointmentService !== null;
         View::page('service/consolidated-view', [
             'service' => $service,
             'services' => $this->services,
             'idHealthcareService' => $id,
-        ], 'AURA - Agenda du service');
+            'validationEnabled' => $validationEnabled,
+            'validators' => $this->appointmentService?->performers() ?? [],
+            'csrfToken' => $validationEnabled ? Csrf::token() : null,
+        ], 'AURA - Agenda du service', ['/js/agenda.js']);
     }
 }

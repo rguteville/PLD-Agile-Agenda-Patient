@@ -7,6 +7,7 @@ namespace Aura\Controller;
 use Aura\Core\Csrf;
 use Aura\Core\View;
 use Aura\Service\AgendaService;
+use Aura\Service\AppointmentService;
 use Aura\Service\AllergyIntoleranceService;
 use Aura\Service\CarePlanService;
 use Aura\Service\PatientRecordService;
@@ -52,7 +53,8 @@ final class EpisodeOfCareController
         private ?AgendaService $agendaService = null,
         private ?EpisodeOfCareService $episodeOfCareService = null,
         private ?AllergyIntoleranceService $allergyIntoleranceService = null,
-        private ?RecordEditService $recordEditService = null
+        private ?RecordEditService $recordEditService = null,
+        private ?AppointmentService $appointmentService = null
     ) {
     }
 
@@ -149,26 +151,28 @@ final class EpisodeOfCareController
         }
 
         // Jour demandé (?date=AAAA-MM-JJ), aujourd'hui sinon ; le retard se calcule à l'heure courante.
+        // ?vue=semaine affiche la semaine (lundi → dimanche) qui contient ce jour.
         $now = new DateTimeImmutable('now');
-        $agenda = AgendaService::presentDay(
-            $this->agendaService->getAgenda($idEpisodeOfCare),
-            AgendaService::parseDay($_GET['date'] ?? null, $now),
-            $now
-        );
+        $carePlans = $this->agendaService->getAgenda($idEpisodeOfCare);
+        $day = AgendaService::parseDay($_GET['date'] ?? null, $now);
+        $isWeek = ($_GET['vue'] ?? '') === 'semaine';
         $title = sprintf(
             'AURA - Agenda de %s %s, séjour %s',
             $record['banner']['lastName'],
             $record['banner']['firstName'],
             $record['banner']['episodeNumber']
         );
-        //$validators = récupérer la liste des practiciens
+        // Valider un soin (AURA-26) : seulement pour un séjour en cours et si le service est câblé.
+        $validationEnabled = $this->appointmentService !== null && ($record['episodeOfCare']['ongoing'] ?? false);
         View::page('episode/patient-agenda', [
             'banner' => $record['banner'],
             'idEpisodeOfCare' => $idEpisodeOfCare,
-            'agenda' => $agenda,
-            //'validators' => $validators,
-            // La validation d'un soin n'a pas encore de route : colonne et dialogue restent masqués.
-            'validationEnabled' => true,
+            'view' => $isWeek ? 'week' : 'day',
+            'agenda' => AgendaService::presentDay($carePlans, $day, $now),
+            'week' => $isWeek ? AgendaService::presentWeek($carePlans, $day, $now) : null,
+            'validators' => $this->appointmentService?->performers() ?? [],
+            'csrfToken' => $validationEnabled ? Csrf::token() : null,
+            'validationEnabled' => $validationEnabled,
         ], $title, self::AGENDA_SCRIPTS);
     }
 

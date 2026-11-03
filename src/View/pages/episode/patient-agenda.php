@@ -3,19 +3,29 @@
 use Aura\Core\View;
 
 /**
- * Agenda du séjour (AURA-24) : bandeau identité + allergies en tête (RG2), puis la chronologie
- * du jour choisi : retards épinglés en tête, puis les soins par rotation. Toute la logique
- * (filtre, tri, retard, rotations) est dans AgendaService::presentDay(), testée sans base.
+ * Agenda du séjour (AURA-24, AURA-25) : bandeau identité + allergies en tête (RG2), puis
+ * - vue Jour : retards épinglés en tête, puis les soins par rotation, avec filtres par statut et
+ *   actions sur chaque soin (valider, non effectué, note : AURA-26, AURA-28) ;
+ * - vue Semaine : une ligne par soin prescrit, une colonne par jour (lundi → dimanche).
+ * Toute la logique (filtre du jour, tri, retard, rotations, semaine) est dans AgendaService,
+ * testée sans base.
  *
  * @var array<string, mixed> $banner vue-modèle de PatientRecordService::presentBanner()
  * @var int $idEpisodeOfCare
+ * @var string $view 'day' ou 'week'
  * @var array<string, mixed> $agenda vue-modèle de AgendaService::presentDay()
- * @var bool $validationEnabled colonne « Valider » + dialogue (balisage seul, cf. validation_dialog.php)
+ * @var array<string, mixed>|null $week vue-modèle de AgendaService::presentWeek() (vue Semaine)
+ * @var bool $validationEnabled boutons d'action + dialogue (séjour en cours)
  * @var array<string, string> $validators soignants proposés par le dialogue
+ * @var string|null $csrfToken jeton de POST /agenda-patient/soin
  */
+$view = $view ?? 'day';
+$week = $week ?? null;
 $validationEnabled = $validationEnabled ?? false;
 $validators = $validators ?? [];
+$isWeek = $view === 'week' && $week !== null;
 $dayUrl = static fn (string $date): string => '/agenda-patient?id=' . $idEpisodeOfCare . '&date=' . $date;
+$weekUrl = static fn (string $date): string => $dayUrl($date) . '&vue=semaine';
 ?>
 
 <?= View::render('components/patient_banner', ['banner' => $banner]) ?>
@@ -45,46 +55,130 @@ $recordUrl = '/sejour?id=' . $idEpisodeOfCare;
     <div class="page-header">
         <h1 class="form-title">Agenda du séjour n° <?= View::e($banner['episodeNumber']) ?></h1>
         <p class="page-actions">
+            <span class="view-switch" role="group" aria-label="Affichage">
+                <a class="button<?= $isWeek ? ' button--secondary' : '' ?>"
+                   href="<?= View::e($dayUrl($agenda['date'])) ?>"<?= $isWeek ? '' : ' aria-current="page"' ?>>Jour</a>
+                <a class="button<?= $isWeek ? '' : ' button--secondary' ?>"
+                   href="<?= View::e($weekUrl($agenda['date'])) ?>"<?= $isWeek
+                        ? ' aria-current="page"' : '' ?>>Semaine</a>
+            </span>
             <button type="button" id="print-page" class="button button--secondary">
                 <?= View::render('components/icon', ['name' => 'printer']) ?>
-                Imprimer la journée
+                Imprimer
             </button>
         </p>
     </div>
 
-    <form class="agenda-nav" method="get" action="/agenda-patient" aria-label="Choisir le jour affiché">
+    <form class="agenda-nav" method="get" action="/agenda-patient"
+          aria-label="<?= $isWeek ? 'Choisir la semaine affichée' : 'Choisir le jour affiché' ?>">
         <input type="hidden" name="id" value="<?= View::e($idEpisodeOfCare) ?>">
-        <a class="nav-day" href="<?= View::e($dayUrl($agenda['previous'])) ?>" aria-label="Jour précédent">
-            <?= View::render('components/icon', ['name' => 'chevron-left']) ?>
-        </a>
-        <span class="agenda-day">
-            <?= View::render('components/icon', ['name' => 'calendar']) ?>
-            <label for="date"><?= View::e(ucfirst($agenda['dateLabel'])) ?></label>
-        </span>
-        <a class="nav-day" href="<?= View::e($dayUrl($agenda['next'])) ?>" aria-label="Jour suivant">
-            <?= View::render('components/icon', ['name' => 'chevron-right']) ?>
-        </a>
+        <?php if ($isWeek) : ?>
+            <input type="hidden" name="vue" value="semaine">
+            <a class="nav-day" href="<?= View::e($weekUrl($week['previous'])) ?>" aria-label="Semaine précédente">
+                <?= View::render('components/icon', ['name' => 'chevron-left']) ?>
+            </a>
+            <span class="agenda-day">
+                <?= View::render('components/icon', ['name' => 'calendar']) ?>
+                <label for="date">Semaine <?= View::e($week['label']) ?></label>
+            </span>
+            <a class="nav-day" href="<?= View::e($weekUrl($week['next'])) ?>" aria-label="Semaine suivante">
+                <?= View::render('components/icon', ['name' => 'chevron-right']) ?>
+            </a>
+        <?php else : ?>
+            <a class="nav-day" href="<?= View::e($dayUrl($agenda['previous'])) ?>" aria-label="Jour précédent">
+                <?= View::render('components/icon', ['name' => 'chevron-left']) ?>
+            </a>
+            <span class="agenda-day">
+                <?= View::render('components/icon', ['name' => 'calendar']) ?>
+                <label for="date"><?= View::e(ucfirst($agenda['dateLabel'])) ?></label>
+            </span>
+            <a class="nav-day" href="<?= View::e($dayUrl($agenda['next'])) ?>" aria-label="Jour suivant">
+                <?= View::render('components/icon', ['name' => 'chevron-right']) ?>
+            </a>
+        <?php endif; ?>
         <input type="date" id="date" name="date" value="<?= View::e($agenda['date']) ?>">
         <button type="submit" class="button button--secondary">Afficher</button>
         <?php if (!$agenda['isToday']) : ?>
-            <a href="/agenda-patient?id=<?= View::e($idEpisodeOfCare) ?>">Aujourd'hui</a>
+            <a href="<?= View::e($isWeek ? $weekUrl('') : '/agenda-patient?id=' . $idEpisodeOfCare) ?>">Aujourd'hui</a>
         <?php endif; ?>
     </form>
 
-    <ul class="stats" aria-label="Résumé de la journée">
-        <li><span class="stat-value"><?= View::e($agenda['counts']['total']) ?></span> au total</li>
-        <li class="stat--late"><span class="stat-value"><?= View::e($agenda['counts']['late']) ?></span> en retard</li>
-        <li><span class="stat-value"><?= View::e($agenda['counts']['done']) ?></span> effectués</li>
-        <li><span class="stat-value"><?= View::e($agenda['counts']['planned']) ?></span> à venir</li>
+    <?php $counts = $isWeek ? $week['counts'] : $agenda['counts']; ?>
+    <ul class="stats" aria-label="<?= $isWeek ? 'Résumé de la semaine' : 'Résumé de la journée' ?>">
+        <li><span class="stat-value"><?= View::e($counts['total']) ?></span> au total</li>
+        <li class="stat--late"><span class="stat-value"><?= View::e($counts['late']) ?></span> en retard</li>
+        <li><span class="stat-value"><?= View::e($counts['done']) ?></span> effectués</li>
+        <li><span class="stat-value"><?= View::e($counts['planned']) ?></span> à venir</li>
     </ul>
 
-    <?php if ($agenda['counts']['total'] === 0) : ?>
+    <?php if ($isWeek) : ?>
+        <?php if ($week['rows'] === []) : ?>
+            <?= View::render('components/empty_state', [
+                'icon' => 'calendar',
+                'title' => 'Aucun soin ni médicament prévu cette semaine.',
+            ]) ?>
+        <?php else : ?>
+            <div class="table-scroll">
+                <table class="week-grid">
+                    <caption class="sr-only">Soins de la semaine <?= View::e($week['label']) ?>, par jour</caption>
+                    <thead>
+                        <tr>
+                            <th scope="col">Soin / médicament</th>
+                            <?php foreach ($week['days'] as $day) : ?>
+                                <th scope="col"<?= $day['isToday'] ? ' class="is-today"' : '' ?>>
+                                    <a href="<?= View::e($dayUrl($day['date'])) ?>"
+                                       aria-label="Voir le <?= View::e($day['label']) ?> en vue Jour">
+                                        <?= View::e(ucfirst($day['label'])) ?>
+                                    </a>
+                                </th>
+                            <?php endforeach; ?>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($week['rows'] as $row) : ?>
+                            <tr>
+                                <th scope="row">
+                                    <span class="item-label"><?= View::e($row['label']) ?></span>
+                                    <span class="item-details">
+                                        <?= View::e($row['kindLabel']) ?><?= $row['details'] !== null
+                                            ? ' · ' . View::e($row['details']) : '' ?>
+                                    </span>
+                                </th>
+                                <?php foreach ($week['days'] as $day) : ?>
+                                    <td<?= $day['isToday'] ? ' class="is-today"' : '' ?>>
+                                        <?php foreach ($row['cells'][$day['date']] ?? [] as $item) : ?>
+                                            <?= View::render('components/status_badge', [
+                                                'status' => $item['status'],
+                                                'label' => $item['time'],
+                                            ]) ?>
+                                        <?php endforeach; ?>
+                                    </td>
+                                <?php endforeach; ?>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <p class="agenda-empty">Chaque horaire porte son statut (icône et couleur). Cliquez un jour pour
+                valider ses soins.</p>
+        <?php endif; ?>
+    <?php elseif ($agenda['counts']['total'] === 0) : ?>
         <?= View::render('components/empty_state', [
             'icon' => 'calendar',
             'title' => 'Aucun soin ni médicament prévu ce jour.',
             'text' => 'Les soins apparaissent ici dès qu\'une prescription validée les planifie.',
         ]) ?>
     <?php else : ?>
+        <div class="agenda-filters" role="group" aria-label="Filtrer les soins" data-agenda-filters hidden>
+            <?php foreach (
+            ['all' => 'Tous', 'late' => 'En retard', 'planned' => 'À faire',
+                'done' => 'Réalisés', 'not_done' => 'Non effectués'] as $filter => $label
+) : ?>
+                <button type="button" class="button button--secondary" data-filter="<?= View::e($filter) ?>"
+                        aria-pressed="<?= $filter === 'all' ? 'true' : 'false' ?>"><?= View::e($label) ?></button>
+            <?php endforeach; ?>
+        </div>
+
         <?php if ($agenda['late'] !== []) : ?>
             <?php /* Figure 4 du cahier des charges : les retards restent en tête, quelle que soit la rotation. */ ?>
             <section class="agenda-section agenda-section--late" aria-labelledby="agenda-late-title">
@@ -97,6 +191,7 @@ $recordUrl = '/sejour?id=' . $idEpisodeOfCare;
                     'items' => $agenda['late'],
                     'caption' => 'Soins en retard',
                     'validationEnabled' => $validationEnabled,
+                    'idEpisodeOfCare' => $idEpisodeOfCare,
                 ]) ?>
             </section>
         <?php endif; ?>
@@ -114,6 +209,7 @@ $recordUrl = '/sejour?id=' . $idEpisodeOfCare;
                         'items' => $shift['items'],
                         'caption' => 'Rotation ' . $shift['label'] . ', ' . $shift['hours'],
                         'validationEnabled' => $validationEnabled,
+                        'idEpisodeOfCare' => $idEpisodeOfCare,
                     ]) ?>
                 <?php endif; ?>
             </section>
@@ -121,7 +217,11 @@ $recordUrl = '/sejour?id=' . $idEpisodeOfCare;
     <?php endif; ?>
 
     <?php if ($validationEnabled) : ?>
-        <?= View::render('components/validation_dialog', ['validators' => $validators]) ?>
+        <?= View::render('components/validation_dialog', [
+            'validators' => $validators,
+            'csrfToken' => $csrfToken ?? '',
+            'back' => $dayUrl($agenda['date']),
+        ]) ?>
     <?php endif; ?>
 </section>
 </div>

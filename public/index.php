@@ -13,6 +13,7 @@ require dirname(__DIR__) . '/vendor/autoload.php';
 date_default_timezone_set('Europe/Paris');
 
 use Aura\Controller\CarePlanController;
+use Aura\Controller\CareController;
 use Aura\Controller\PatientController;
 use Aura\Controller\RecordController;
 use Aura\Controller\EpisodeOfCareController;
@@ -46,6 +47,7 @@ use Aura\Service\RecordEditService;
 use Aura\Service\RecordSectionService;
 use Aura\Service\EpisodeOfCareService;
 use Aura\Service\AgendaService;
+use Aura\Service\AppointmentService;
 
 // Récupération de l'url
 $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?: '/';
@@ -204,8 +206,36 @@ try {
         $controller->searchByIpp();
     };
 
+    // Agenda (AURA-24 à 29) : même service pour l'agenda d'un séjour et celui du service, avec
+    // l'identité des patients et l'auteur des validations (historique).
+    $agendaService = static fn (PDO $pdo): AgendaService => new AgendaService(
+        new CarePlanDao($pdo),
+        new AppointmentDao($pdo),
+        new ActivityDefinitionDao($pdo),
+        new EpisodeOfCareDao($pdo),
+        new MedicationDao($pdo),
+        new PatientDao($pdo),
+        new AuditEventDao($pdo),
+        new AllergyIntoleranceDao($pdo)
+    );
+    // Valider un soin (AURA-26) : tous les praticiens peuvent le faire, affichés « Prénom Nom (rôle) ».
+    $appointmentService = static function (PDO $pdo): AppointmentService {
+        $performers = [];
+        foreach ((new ReferenceDataDao($pdo))->practitioners() as $id => $practitioner) {
+            $role = $practitioner->getRole();
+            $performers[$id] = $practitioner->getFullName() . ($role !== null ? ' (' . $role . ')' : '');
+        }
+
+        return new AppointmentService(
+            new AppointmentDao($pdo),
+            new AuditEventDao($pdo),
+            new Transaction($pdo),
+            $performers
+        );
+    };
+
     // AURA-24 : agenda d'un séjour, bandeau identité + allergies en tête (RG2).
-    $getAgenda = static function (): void {
+    $getAgenda = static function () use ($agendaService, $appointmentService): void {
         $pdo = Database::get();
         $controller = new EpisodeOfCareController(
             patientRecordService: new PatientRecordService(
@@ -215,34 +245,28 @@ try {
                 new SubstanceDao($pdo),
                 new DateTimeImmutable('today')
             ),
-            agendaService: new AgendaService(
-                new CarePlanDao($pdo),
-                new AppointmentDao($pdo),
-                new ActivityDefinitionDao($pdo),
-                new EpisodeOfCareDao($pdo),
-                new MedicationDao($pdo)
-            ),
+            agendaService: $agendaService($pdo),
             episodeOfCareService: new EpisodeOfCareService(
                 new EpisodeOfCareDao($pdo),
             ),
+            appointmentService: $appointmentService($pdo),
         );
         $controller->getAgenda();
     };
 
-    $getAgendaService = static function (): void {
+    $getAgendaService = static function () use ($agendaService, $appointmentService): void {
         $pdo = Database::get();
         $controller = new ServiceController(
-            new AgendaService(
-                new CarePlanDao($pdo),
-                new AppointmentDao($pdo),
-                new ActivityDefinitionDao($pdo),
-                new EpisodeOfCareDao($pdo),
-                new MedicationDao($pdo),
-                new PatientDao($pdo)
-            ),
-            (new ReferenceDataDao($pdo))->healthcareServices()
+            $agendaService($pdo),
+            (new ReferenceDataDao($pdo))->healthcareServices(),
+            $appointmentService($pdo)
         );
         $controller->getAgenda();
+    };
+
+    // AURA-26 / AURA-28 : valider un soin, le marquer non effectué, ou y ajouter une note.
+    $careAction = static function () use ($appointmentService): void {
+        (new CareController($appointmentService(Database::get())))->act();
     };
 
     // Le Router traite les requetes HTTP
@@ -285,6 +309,7 @@ try {
     $router->post('/care-plans/stop', static fn () => $carePlans()->stop());
     $router->get('/care-plans/protocol-lines', static fn () => $carePlans()->protocolLines());
     $router->get('/agenda-patient', $getAgenda);
+    $router->post('/agenda-patient/soin', $careAction);
     $router->get('/agenda-service', $getAgendaService);
 
 
