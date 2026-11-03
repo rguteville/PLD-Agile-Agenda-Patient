@@ -47,12 +47,29 @@ final class CarePlanServiceSafetyTest extends TestCase
         return [
             'allergène sans confirmation : refus' => [[$paracetamol, $amoxicillin], '', true],
             'allergène, case non cochée (valeur forgée) : refus' => [[$amoxicillin], 'oui', true],
-            'allergène avec confirmation : accepté' => [[$amoxicillin], '1', false],
+            'allergène avec confirmation : accepté' => [[$amoxicillin], 'MED04', false],
+            'confirmation ancienne (« 1 ») : refus' => [[$amoxicillin], '1', true],
             'aucun allergène du patient : accepté' => [[$paracetamol, $cefotaxime], '', false],
-            'aucun allergène, case cochée quand même : sans effet' => [[$paracetamol], '1', false],
+            'aucun allergène, case cochée quand même : sans effet' => [[$paracetamol], 'MED04', false],
             'soin : jamais d\'allergène' => [[$care], '', false],
             'ordonnance vide : rien à signaler' => [[], '', false],
         ];
+    }
+
+    public function testConfirmationCoversOnlyTheMedicationsSeenWhenTicked(): void
+    {
+        $conflict = static fn (string $id, int $line): array => [
+            'line' => $line, 'idMedication' => $id, 'medication' => $id, 'allergen' => 'Pénicilline',
+        ];
+        $two = [$conflict('MED07', 1), $conflict('MED04', 2), $conflict('MED04', 3)];
+
+        self::assertSame('MED04,MED07', CarePlanService::allergySignature($two), 'triée, sans doublon');
+        self::assertSame([], CarePlanService::checkAllergies($two, 'MED04,MED07'));
+        self::assertArrayHasKey(
+            CarePlanService::ALLERGY_OVERRIDE,
+            CarePlanService::checkAllergies($two, 'MED04'),
+            'un allergène ajouté après la confirmation la rend caduque'
+        );
     }
 
     /** @param list<array<string, string>> $lines */

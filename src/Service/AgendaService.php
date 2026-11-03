@@ -97,6 +97,9 @@ final class AgendaService
                 'firstName' => $patient?->getFirstName() ?? '',
                 'bed' => $episodeOfCare->getBedNumber(),
                 'episodeNumber' => $episodeOfCare->getEpisodeNumber(),
+                // Décès déclaré (retours du 2026-11-03) : visible sur tous les écrans de soins, comme le bandeau.
+                'deceased' => $patient !== null && PatientRecordService::isDeceased($patient)
+                    ? PatientRecordService::deceasedLabel($patient->getSex()) : null,
                 // null = allergies non lues (pas de DAO), [] = aucune allergie connue.
                 'allergies' => $this->allergyIntoleranceDao === null ? null : array_map(
                     static fn (AllergyIntolerance $a): array => [
@@ -175,6 +178,7 @@ final class AgendaService
                 'bed' => $episode['bed'] ?? null,
                 'episodeNumber' => (string) $episode['episodeNumber'],
                 'referent' => $episode['referent'] ?? null,
+                'deceased' => $episode['deceased'] ?? null,
                 // Le référent est-il connu de cette source ? (sinon la vue ne dit pas « à désigner » à tort)
                 'referentKnown' => array_key_exists('referent', $episode),
                 'allergies' => $episode['allergies'] ?? null,
@@ -303,6 +307,8 @@ final class AgendaService
             'recordedAt' => $carePlan->getRecordedAt(),
             'idValidator' => $carePlan->getIdValidator(),
             'validatedAt' => $carePlan->getValidatedAt(),
+            // Note du prescripteur (CarePlan.note) : affichée dans la carte « + » de chaque soin.
+            'note' => $carePlan->getNote(),
             'prescriberName' => $this->practitionerNames[(string) $carePlan->getIdPrescriber()] ?? null,
             'validatorName' => $carePlan->getIdValidator() !== null
                 ? ($this->practitionerNames[(string) $carePlan->getIdValidator()] ?? null) : null,
@@ -500,6 +506,7 @@ final class AgendaService
                 'name' => $name,
                 'bed' => $episode['bed'] ?? null,
                 'allergies' => $episode['allergies'] ?? null,
+                'deceased' => $episode['deceased'] ?? null,
                 'late' => count(array_filter($own, static fn (array $i): bool => $i['status'] === 'late')),
                 'planned' => count(array_filter($own, static fn (array $i): bool => $i['status'] === 'planned')),
                 'done' => count(array_filter($own, static fn (array $i): bool => $i['status'] === 'done')),

@@ -122,6 +122,9 @@ $url = static fn (string $date, string $shift): string => '/mon-planning?idPract
                                     <?= View::e($patient['name']) ?>
                                 </strong>
                             </a>
+                            <?php if (($patient['deceased'] ?? null) !== null) : ?>
+                                <?= View::render('components/deceased_tag', ['label' => $patient['deceased']]) ?>
+                            <?php endif; ?>
                             <?php if (is_array($patient['allergies'])) : ?>
                                 <span class="service-patient__allergies">
                                     <?php if ($patient['allergies'] === []) : ?>

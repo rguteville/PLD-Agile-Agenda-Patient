@@ -78,6 +78,11 @@ final class EpisodeOfCareController
      */
     public function addAllergy(): void
     {
+        // Une allergie retirée à l'insu du soignant désactiverait le refus d'un allergène prescrit : CSRF.
+        if (!Csrf::check(is_string($_POST['csrf'] ?? null) ? $_POST['csrf'] : null)) {
+            View::error(403, 'Session expirée : rechargez la page puis réessayez.');
+            return;
+        }
         $idEpisodeOfCare = self::readId($_POST['idEpisodeOfCare'] ?? null);
         if ($idEpisodeOfCare === null) {
             View::error(400, 'Identifiant de séjour manquant ou invalide.');
@@ -101,6 +106,11 @@ final class EpisodeOfCareController
     /** POST /sejour/allergies/retirer (AURA-13.2) : champs idSejour, idAllergy. Même schéma que l'ajout. */
     public function removeAllergy(): void
     {
+        // Une allergie retirée à l'insu du soignant désactiverait le refus d'un allergène prescrit : CSRF.
+        if (!Csrf::check(is_string($_POST['csrf'] ?? null) ? $_POST['csrf'] : null)) {
+            View::error(403, 'Session expirée : rechargez la page puis réessayez.');
+            return;
+        }
         $idEpisodeOfCare = self::readId($_POST['idEpisodeOfCare'] ?? null);
         if ($idEpisodeOfCare === null) {
             View::error(400, 'Identifiant de séjour manquant ou invalide.');
@@ -205,7 +215,7 @@ final class EpisodeOfCareController
             'editable' => true,
             'csrfToken' => Csrf::token(),
             'history' => $this->recordEditService->history($idPatient, $idEpisodeOfCare),
-        ] : ['editable' => false, 'csrfToken' => null, 'history' => []];
+        ] : ['editable' => false, 'csrfToken' => Csrf::token(), 'history' => []];
 
         View::page(self::RECORD_VIEW, $record + $editing + [
             // idSejour : lien du bouton « Prescription » vers l'écran B3 (AURA-20) et formulaires d'allergie.

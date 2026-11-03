@@ -84,7 +84,7 @@ final class CarePlanSafetyIntegrationTest extends TestCase
 
     public function testAllergenAcceptedWithConfirmationWhichIsTraced(): void
     {
-        $idCarePlan = $this->service->prescribe(self::EPISODE, self::amoxicillinOrder('PRA01', '1'));
+        $idCarePlan = $this->service->prescribe(self::EPISODE, self::amoxicillinOrder('PRA01', 'MED04'));
 
         $events = (new AuditEventDao($this->pdo))->findByEntity(AuditEvent::ENTITY_CARE_PLAN, (string) $idCarePlan);
         self::assertCount(1, $events);
@@ -141,11 +141,25 @@ final class CarePlanSafetyIntegrationTest extends TestCase
     }
 
     /** @return array<string, mixed> ordonnance d'une ligne d'amoxicilline (MED04), note comprise */
+    public function testDoctorPrescriptionValidatedOnRecordNeedsThePassword(): void
+    {
+        $order = ['prescriberPassword' => ''] + self::amoxicillinOrder('PRA01', 'MED04');
+        $before = $this->carePlanCount();
+        try {
+            $this->service->prescribe(self::EPISODE, $order);
+            self::fail('une ordonnance validée d\'office sans mot de passe doit être refusée');
+        } catch (PrescriptionRejected $e) {
+            self::assertArrayHasKey('prescriberPassword', $e->errors);
+        }
+        self::assertSame($before, $this->carePlanCount(), 'rien n\'est écrit');
+    }
+
     private static function amoxicillinOrder(string $idPrescriber, string $override): array
     {
         return [
             'mode' => 'MEDICAL',
             'idPrescriber' => $idPrescriber,
+            'prescriberPassword' => 'x',
             'note' => 'Zz note : réévaluer à J3',
             CarePlanService::ALLERGY_OVERRIDE => $override,
             'lines' => [[

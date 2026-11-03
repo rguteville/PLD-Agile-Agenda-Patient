@@ -25,10 +25,25 @@ abstract class HttpTestCase extends TestCase
     private static $server = null;
     private static int $port = 0;
     private string $cookieJar = '';
+    /** Motif du refus de lancer la suite (base qui n'est pas une base de test), vide sinon. */
+    private static string $unsafe = '';
 
     public static function setUpBeforeClass(): void
     {
         if (!self::databaseConfigured()) {
+            return;
+        }
+        // Garde-fou : ces tests écrivent et effacent pour de vrai (pas de transaction côté serveur). La base
+        // réellement ouverte doit être celle de DB_NAME et une base de test : Database lit d'abord
+        // config/config.php, qui, dans un dépôt de développeur, désigne la base de travail (« aura »).
+        $database = (string) Database::get()->query('SELECT DATABASE()')->fetchColumn();
+        if ($database !== getenv('DB_NAME') || !str_contains($database, 'test')) {
+            self::$unsafe = sprintf(
+                'Base ouverte « %s » (DB_NAME = « %s ») : les tests HTTP ne tournent que sur une base de test '
+                . '(config/config.php prend-il le pas sur DB_* ?).',
+                $database,
+                (string) getenv('DB_NAME')
+            );
             return;
         }
         // Port libre choisi par le système, pour lancer la suite en parallèle d'un serveur de dev.
@@ -42,7 +57,12 @@ abstract class HttpTestCase extends TestCase
         $root = dirname(__DIR__, 2);
         $null = PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null';
         self::$server = proc_open(
-            [PHP_BINARY, '-S', '127.0.0.1:' . self::$port, '-t', $root . '/public', $root . '/public/index.php'],
+            // Toutes les erreurs affichées dans la page, quel que soit le php.ini (production sur le CI) :
+            // PagesHttpTest y cherche « Warning: », « Notice: »…
+            [
+                PHP_BINARY, '-d', 'display_errors=1', '-d', 'error_reporting=-1',
+                '-S', '127.0.0.1:' . self::$port, '-t', $root . '/public', $root . '/public/index.php',
+            ],
             [0 => ['pipe', 'r'], 1 => ['file', $null, 'w'], 2 => ['file', $null, 'w']],
             $pipes,
             $root,
@@ -72,6 +92,9 @@ abstract class HttpTestCase extends TestCase
     {
         if (!self::databaseConfigured()) {
             $this->markTestSkipped('DB_HOST et DB_NAME non définis : test HTTP ignoré (hors CI).');
+        }
+        if (self::$unsafe !== '') {
+            $this->markTestSkipped(self::$unsafe);
         }
         // Même fuseau que l'application (public/index.php) pour les heures écrites par les tests.
         date_default_timezone_set('Europe/Paris');

@@ -39,9 +39,10 @@ final class WorkflowsHttpTest extends HttpTestCase
     public function testAllergyIsAddedThenRemovedFromTheRecord(): void
     {
         // Ripley (séjour 8) n'a aucune allergie dans les données de démo.
-        $added = $this->postForm('/sejour/allergies/ajouter', [
-            'idEpisodeOfCare' => '8', 'idSubstance' => 'ALG01', 'criticality' => 'Élevée',
-        ]);
+        $csrf = $this->csrfFrom($this->get('/sejour?id=8'));
+        $allergy = ['idEpisodeOfCare' => '8', 'idSubstance' => 'ALG01', 'criticality' => 'Élevée'];
+        self::assertSame(403, $this->postForm('/sejour/allergies/ajouter', $allergy)->status, 'sans jeton CSRF');
+        $added = $this->postForm('/sejour/allergies/ajouter', ['csrf' => $csrf] + $allergy);
         try {
             self::assertSame(303, $added->status);
             self::assertSame('/sejour?id=8', $added->header('Location'));
@@ -52,7 +53,7 @@ final class WorkflowsHttpTest extends HttpTestCase
             )->fetchColumn();
             $removed = $this->postForm(
                 '/sejour/allergies/retirer',
-                ['idEpisodeOfCare' => '8', 'idAllergy' => (string) $id]
+                ['csrf' => $csrf, 'idEpisodeOfCare' => '8', 'idAllergy' => (string) $id]
             );
             self::assertSame(303, $removed->status);
             self::assertStringContainsString('Aucune allergie connue', $this->get('/sejour?id=8')->body);

@@ -287,6 +287,9 @@
         if (bloodType) {
             name.append(` · groupe ${bloodType}`);
         }
+        // Identitovigilance : un patient déclaré décédé ne devrait pas être réadmis ; on le signale sans
+        // bloquer (erreur d'identité possible), le serveur et le dossier gardent la trace du décès.
+        const deceased = (patientRecord.patient || {}).deceased === '1';
 
         const ids = document.createElement('p');
         ids.className = 'patient-card__ids';
@@ -326,7 +329,15 @@
         detach.addEventListener('click', resetPatient);
         actions.appendChild(detach);
 
-        card.append(title, name, ids, allergies, actions);
+        const parts = [title, name, ids, allergies, actions];
+        if (deceased) {
+            const warning = document.createElement('p');
+            warning.className = 'form-error';
+            warning.setAttribute('role', 'alert');
+            warning.textContent = 'Patient déclaré décédé dans son dossier : vérifiez l\'identité avant d\'admettre.';
+            parts.splice(2, 0, warning);
+        }
+        card.append(...parts);
         const heading = document.getElementById('identity');
         (heading ? heading.parentElement : listbox).insertAdjacentElement('afterend', card);
         showIdentityFields(false);

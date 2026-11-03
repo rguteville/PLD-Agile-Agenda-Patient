@@ -156,7 +156,7 @@ final class PagesRenderTest extends TestCase
         }
         self::assertDoesNotMatchRegularExpression('/<label for="(category|item|dosage-form)">\s*[123]\./', $html);
         self::assertStringContainsString('name="note" form="care-plan-form"', $html);
-        self::assertStringContainsString('name="allergyOverride" value="1" form="care-plan-form"', $html);
+        self::assertStringContainsString('name="allergyOverride" value="" form="care-plan-form"', $html);
         self::assertStringContainsString('Je prescris malgré l\'allergie', $html);
         // Correspondance médicament → allergène transmise au JS (data-lists).
         self::assertStringContainsString('&quot;MED04&quot;:&quot;Pénicilline&quot;', $html);

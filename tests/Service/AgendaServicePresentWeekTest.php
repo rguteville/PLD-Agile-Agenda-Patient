@@ -145,6 +145,7 @@ final class AgendaServicePresentWeekTest extends TestCase
             'idCarePlan' => '1', 'mode' => 'MEDICAL', 'idPrescriber' => 'PRA03',
             'prescriberName' => 'Léa Fontaine (Interne)',
             'recordedAt' => new DateTimeImmutable('2026-10-10 09:00'), 'validatedAt' => null, 'idValidator' => null,
+            'note' => 'Prévenir si fièvre > 38,5 °C',
             'serviceRequests' => [],
             'medicationRequests' => [[
                 'idActivityDefinition' => 'Paracétamol', 'dose' => '1 g', 'route' => 'IV', 'frequencyHours' => 6,
@@ -163,7 +164,20 @@ final class AgendaServicePresentWeekTest extends TestCase
         self::assertSame('du 10/10/2026 12:00, sans date de fin', $card['Période']);
         self::assertSame('Léa Fontaine (Interne)', $card['Prescrit par']);
         self::assertSame('en attente de validation par un médecin', $card['Validation']);
+        self::assertSame('Prévenir si fièvre > 38,5 °C', $card['Note'], 'la note du prescripteur parvient à l\'IDE');
         self::assertArrayNotHasKey('Arrêtée le', $card);
+    }
+
+    public function testDeathIsRelayedToServiceAndShiftViews(): void
+    {
+        $episode = $this->episode(1, 'Fletcher', []) + ['deceased' => 'Décédée'];
+        $day = new DateTimeImmutable('2026-10-14');
+
+        $service = AgendaService::presentService([$episode], $day, $this->now());
+        $shift = AgendaService::presentShift([$episode], $day->setTime(8, 0), $day->setTime(20, 0), $this->now());
+
+        self::assertSame('Décédée', $service['patients'][0]['deceased']);
+        self::assertSame('Décédée', $shift['patients'][0]['deceased']);
     }
 
     /** @return array<string, mixed> */

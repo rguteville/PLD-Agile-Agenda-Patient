@@ -236,6 +236,7 @@ if ($editable) {
                               'Retirer l\'allergie « %s » du dossier de ce patient ? Elle disparaîtra du bandeau.',
                               $allergy['label']
                           )) ?>">
+                        <input type="hidden" name="csrf" value="<?= View::e($csrfToken ?? '') ?>">
                         <input type="hidden" name="idEpisodeOfCare" value="<?= View::e($idEpisodeOfCare) ?>">
                         <input type="hidden" name="idAllergy" value="<?= View::e($allergy['idAllergy']) ?>">
                         <button type="submit" aria-label="Retirer l'allergie <?= View::e($allergy['label']) ?>">
@@ -251,6 +252,7 @@ if ($editable) {
         <p class="reference-exhausted">Tous les allergènes du référentiel sont déjà enregistrés pour ce patient.</p>
     <?php else : ?>
         <form method="post" action="/sejour/allergies/ajouter" class="add-allergy">
+            <input type="hidden" name="csrf" value="<?= View::e($csrfToken ?? '') ?>">
             <input type="hidden" name="idEpisodeOfCare" value="<?= View::e($idEpisodeOfCare) ?>">
             <div class="inline-field">
                 <label for="idSubstance">Allergène</label>

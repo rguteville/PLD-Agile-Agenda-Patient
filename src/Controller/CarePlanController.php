@@ -311,8 +311,8 @@ final class CarePlanController
      * textuelle compte comme vide.
      *
      * @param array<string, mixed> $post
-     * @return array{mode: string, idPrescriber: string, note: string, allergyOverride: string,
-     *               lines: list<array<string, string>>}
+     * @return array{mode: string, idPrescriber: string, prescriberPassword: string, note: string,
+     *               allergyOverride: string, lines: list<array<string, string>>}
      */
     private static function readInput(array $post): array
     {
@@ -329,6 +329,8 @@ final class CarePlanController
         return [
             'mode' => self::text($post['mode'] ?? null),
             'idPrescriber' => self::text($post['idPrescriber'] ?? null),
+            // Authentification FACTICE du médecin prescripteur (non vérifiée, jamais tracée ni réaffichée).
+            'prescriberPassword' => is_string($post['prescriberPassword'] ?? null) ? $post['prescriberPassword'] : '',
             'note' => self::text($post['note'] ?? null),
             CarePlanService::ALLERGY_OVERRIDE => self::text($post[CarePlanService::ALLERGY_OVERRIDE] ?? null),
             'lines' => $lines,

@@ -161,6 +161,9 @@ $slotLabel = static function (string $slot): string {
                                     <?= View::e($patient['firstName']) ?>
                                 </a>
                                 <span class="patient-bed">séjour n° <?= View::e($patient['episodeNumber']) ?></span>
+                                <?php if (($patient['deceased'] ?? null) !== null) : ?>
+                                    <?= View::render('components/deceased_tag', ['label' => $patient['deceased']]) ?>
+                                <?php endif; ?>
                                 <?php if (($patient['referent'] ?? null) !== null) : ?>
                                     <span class="patient-bed">Réf. <?= View::e($patient['referent']) ?></span>
                                 <?php elseif ($patient['referentKnown'] ?? false) : ?>

@@ -124,6 +124,12 @@ $medicationParams = [
                     <?php endforeach; ?>
                 </select>
             </div>
+            <?php /* RG5 : l'ordonnance d'un médecin est validée d'office, donc signée par son mot de passe
+                     (authentification FACTICE, non vérifié). Ignoré pour un prescripteur non médecin. */ ?>
+            <div class="b3-row">
+                <label for="prescriberPassword">Mot de passe (médecin)</label>
+                <input type="password" id="prescriberPassword" name="prescriberPassword" autocomplete="off">
+            </div>
 
             <?php /* Listes en cascade (retours du 2026-11-03 : « 1. 2. 3. » remplacés par leur rôle).
                      Le libellé de la deuxième suit la catégorie choisie (care-plan.js). */ ?>
@@ -319,7 +325,7 @@ $medicationParams = [
                 <ul id="b3-allergy-list"></ul>
                 <label class="b3-allergy-confirm__check">
                     <input type="checkbox" id="allergyOverride"
-                           name="<?= View::e(CarePlanService::ALLERGY_OVERRIDE) ?>" value="1" form="care-plan-form">
+                           name="<?= View::e(CarePlanService::ALLERGY_OVERRIDE) ?>" value="" form="care-plan-form">
                     Je prescris malgré l'allergie
                 </label>
             </div>

@@ -399,6 +399,19 @@ final class CarePlanService
         if ($prescriber === null) {
             throw new InvalidArgumentException('Ce prescripteur n\'existe pas.');
         }
+        // RG5 : l'ordonnance d'un médecin est validée d'office ; elle l'engage donc comme une validation :
+        // même authentification (factice) que /care-plans/validate. Sans elle, n'importe qui choisissant un
+        // médecin dans la liste produirait une ordonnance validée à son nom.
+        if ($prescriber->canValidate()) {
+            $authError = self::checkValidatorAuth(
+                $prescriber->getIdPractitioner(),
+                self::text($input['prescriberPassword'] ?? null),
+                $this->doctors()
+            );
+            if ($authError !== null) {
+                throw new PrescriptionRejected(['prescriberPassword' => $authError]);
+            }
+        }
         $mode = self::text($input['mode']);
         if ($mode === 'MEDICAL' && !$prescriber->canValidate()) {
             throw new InvalidArgumentException(
@@ -533,16 +546,32 @@ final class CarePlanService
     }
 
     /**
+     * Signature d'une confirmation d'allergie : identifiants des médicaments allergènes de l'ordonnance,
+     * triés, séparés par des virgules. La case « Je prescris malgré l'allergie » porte cette valeur
+     * (care-plan.js) : une confirmation ne vaut que pour les médicaments qu'on voyait en la cochant.
+     *
+     * @param list<array{idMedication: string}> $conflicts
+     */
+    public static function allergySignature(array $conflicts): string
+    {
+        $ids = array_values(array_unique(array_map(static fn(array $c): string => $c['idMedication'], $conflicts)));
+        sort($ids);
+
+        return implode(',', $ids);
+    }
+
+    /**
      * Règle d'allergie, pure : des lignes en conflit sans la case « Je prescris malgré l'allergie »
-     * cochée (valeur « 1 ») donnent une erreur sur allergyOverride, qui nomme chaque médicament et son
-     * allergène. Sans conflit, la case est sans effet.
+     * cochée pour exactement ces médicaments (allergySignature()) donnent une erreur sur allergyOverride,
+     * qui nomme chaque médicament et son allergène. Un allergène ajouté après la confirmation la rend
+     * caduque. Sans conflit, la case est sans effet.
      *
      * @param list<array{line: int, idMedication: string, medication: string, allergen: string}> $conflicts
      * @return array<string, string> [] ou [ALLERGY_OVERRIDE => message]
      */
     public static function checkAllergies(array $conflicts, string $override): array
     {
-        if ($conflicts === [] || $override === '1') {
+        if ($conflicts === [] || $override === self::allergySignature($conflicts)) {
             return [];
         }
 
@@ -592,6 +621,11 @@ final class CarePlanService
         $authError = self::checkValidatorAuth($idValidator, $password, $this->doctors());
         if ($authError !== null) {
             throw new PrescriptionRejected(['auth' => $authError]);
+        }
+        // Comme prescrire et arrêter : un séjour clos ne change plus (une requête forgée est refusée aussi).
+        $record = $this->patientRecordService->record($idEpisodeOfCare);
+        if ($record === null || !$record['episodeOfCare']['ongoing']) {
+            throw new InvalidArgumentException('Ce séjour est clos : ses prescriptions ne peuvent plus changer.');
         }
 
         $carePlan = null;

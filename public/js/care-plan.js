@@ -393,9 +393,16 @@ if (carePlanForm) {
     }
 
     // Case « Je prescris malgré l'allergie » : visible tant qu'une ligne de l'ordonnance contient un
-    // allergène du patient, décochée dès qu'il n'y en a plus (une confirmation ne vaut que pour ce qu'on voit).
+    // allergène du patient. Sa valeur est la liste des médicaments allergènes (CarePlanService::
+    // allergySignature()) ; elle se décoche dès que cette liste change : une confirmation ne vaut que pour
+    // ce qu'on voyait en la cochant, le serveur le vérifie.
     function refreshAllergyConfirm() {
         const blocks = [...hiddenLines.children].filter(block => block.dataset.allergen);
+        const signature = [...new Set(blocks.map(block => block.dataset.medication))].sort().join(',');
+        if (signature !== allergyOverride.value) {
+            allergyOverride.checked = false;
+            allergyOverride.value = signature;
+        }
         allergyList.replaceChildren(...blocks.map(block => {
             const li = document.createElement('li');
             const [inn, form] = medicationNames[block.dataset.medication] ?? [block.dataset.medication, ''];
