@@ -188,7 +188,7 @@ class PatientController
     public function searchByIpp(): void
     {
         if ($this->ippSearchService === null) {
-            throw new LogicException('PatientController::rechercherParIpp() requiert un IppSearchService.');
+            throw new LogicException('PatientController::searchByIpp() requiert un IppSearchService.');
         }
 
         $input = $_GET['ipp'] ?? '';

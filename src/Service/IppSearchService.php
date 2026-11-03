@@ -26,7 +26,7 @@ class IppSearchService
 
     /**
      * Patient portant cet IPP, avec ses allergies connues ; null si l'IPP est inconnu.
-     * L'IPP est supposé déjà contrôlé (AdmissionService::validerIpp()).
+     * L'IPP est supposé déjà contrôlé (AdmissionService::validateIpp()).
      *
      * @return array<string, mixed>|null vue-modèle de present()
      */

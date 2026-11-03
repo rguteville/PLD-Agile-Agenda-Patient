@@ -59,7 +59,7 @@ journée »).
 | `icon` | Icône Lucide (1.66.0, licence ISC) en SVG inline. | `name` ; `label` (texte alternatif, sinon décorative) ; `class` (`icon--lg`). |
 | `status_badge` | Icône + texte + couleur d'un statut. | `status` (clé, voir ci-dessous) ; `label` facultatif pour remplacer le texte. |
 | `empty_state` | Écran ou section sans donnée, avec explication. | `title` ; `text` ; `icon`. |
-| `patient_banner` | Identité, IPP, séjour, poids, taille, allergies (RG2). Collant, jamais replié. | `bandeau` (vue-modèle de `PatientRecordService::presenterBandeau()`). |
+| `patient_banner` | Identité, IPP, séjour, poids, taille, allergies (RG2). Collant, jamais replié. | `bandeau` (vue-modèle de `PatientRecordService::presentBanner()`). |
 | `agenda_table` | Tableau d'une tranche de l'agenda. | `items`, `caption`, `validationEnabled`. |
 | `validation_dialog` | `<dialog>` « Valider un soin » : qui, quand, note. **Balisage seul** (voir « Hors périmètre »). | `validators`. |
 | `form` + `field` | Formulaires (inchangés) : label associé, `aria-invalid`, `aria-describedby`, `role="alert"`. | voir `.claude/rules/views-ui.md`. |

@@ -315,7 +315,7 @@ modifications (sans clé étrangère). Régénérer le diagramme : parser les `C
   d'**authentification factice** (médecin habilité + mot de passe non vérifié) ; la trace porte le nom du
   médecin suivi de « authentification factice ». Jeton CSRF limité aux écritures du dossier.
 - **Heure** : l'application fixe son fuseau à Europe/Paris (`public/index.php`), quel que soit `date.timezone`.
-- **Formulaires** : validation côté serveur d'abord (`AdmissionService::valider()`, `FieldValidationService`),
+- **Formulaires** : validation côté serveur d'abord (`AdmissionService::validate()`, `FieldValidationService`),
   l'HTML (`required`, `min`…) n'est qu'un confort ; envoi AJAX par `form.js` avec repli sans JavaScript.
 - **Champs complémentaires** : catalogue déclaratif `RecordFields` (champ = colonne = clé de domaine), liste blanche
   pour l'admission et l'édition en ligne ; échelles cliniques sourcées (`ClinicalScales`), formules sourcées

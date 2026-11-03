@@ -63,7 +63,7 @@ class EpisodeOfCareService
     /**
      * Ouvre un séjour : la date de prise en charge est celle du moment, le numéro est généré.
      * Poids (kg), taille (cm) et précautions sont les mesures relevées à l'admission (AURA-10.1),
-     * déjà validées par l'appelant (AdmissionService::valider()), comme le service hospitalier
+     * déjà validées par l'appelant (AdmissionService::validate()), comme le service hospitalier
      * et les champs complémentaires ($details, clés de RecordFields::EPISODE).
      *
      * @param array<string, ?string> $details

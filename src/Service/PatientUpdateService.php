@@ -11,7 +11,7 @@ use InvalidArgumentException;
 
 /**
  * Modification de l'identité d'un patient (AURA-12.2) : mêmes règles que l'admission
- * (AdmissionService::validerPatientIdentite()), plus l'unicité de l'IPP entre patients.
+ * (AdmissionService::validatePatientIdentity()), plus l'unicité de l'IPP entre patients.
  * Les mesures (taille, poids, précautions) appartiennent au séjour et ne sont pas touchées.
  */
 final class PatientUpdateService

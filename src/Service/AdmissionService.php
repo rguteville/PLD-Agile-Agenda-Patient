@@ -121,7 +121,7 @@ class AdmissionService
         $criticalities = $this->criticalities($data['allergyCriticalities'] ?? null);
         if ($allergies !== [] && $this->allergyIntoleranceDao === null) {
             throw new LogicException(
-                'AdmissionService::admettre() requiert AllergyIntoleranceDao pour enregistrer des allergies.'
+                'AdmissionService::admit() requiert AllergyIntoleranceDao pour enregistrer des allergies.'
             );
         }
         $selectedId = $this->text($data['idPatient'] ?? null);

@@ -121,7 +121,7 @@ $essentials = [
 ];
 
 // Mesures à l'admission (AURA-10.1), enregistrées sur le séjour. Bornes = colonnes DECIMAL(5,2) ;
-// le contrôle serveur (AdmissionService::valider()) reste la garantie.
+// le contrôle serveur (AdmissionService::validate()) reste la garantie.
 $measures = [
     [
         'name' => 'height',
