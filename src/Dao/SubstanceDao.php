@@ -13,7 +13,7 @@ use PDO;
  */
 class SubstanceDao
 {
-    private const COLUMNS = 'idSubstance, description';
+    private const COLUMNS = 'idSubstance, name';
 
     public function __construct(private PDO $pdo)
     {
@@ -27,7 +27,7 @@ class SubstanceDao
     public function findAll(): array
     {
         $rows = $this->pdo
-            ->query('SELECT ' . self::COLUMNS . ' FROM Substance ORDER BY description')
+            ->query('SELECT ' . self::COLUMNS . ' FROM Substance ORDER BY name')
             ->fetchAll(PDO::FETCH_ASSOC);
 
         return array_map(fn(array $r) => $this->mapToEntity($r), $rows);
@@ -45,6 +45,6 @@ class SubstanceDao
 
     private function mapToEntity(array $r): Substance
     {
-        return new Substance((string) $r['idSubstance'], (string) $r['description']);
+        return new Substance((string) $r['idSubstance'], (string) $r['name']);
     }
 }

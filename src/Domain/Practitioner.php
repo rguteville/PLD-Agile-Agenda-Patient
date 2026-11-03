@@ -33,7 +33,7 @@ class Practitioner
         return $this->firstName;
     }
 
-    /** Libellé du rôle (PractitionerRole.description) : « Médecin réanimateur », « Interne »… */
+    /** Libellé du rôle (PractitionerRole.title) : « Médecin réanimateur », « Interne »… */
     public function getRole(): ?string
     {
         return $this->role;

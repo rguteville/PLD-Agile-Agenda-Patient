@@ -52,7 +52,7 @@ final class AllergyIntoleranceDaoTest extends TestCase
             new Patient(null, null, 'Testallergie', 'Bob', new DateTimeImmutable('1970-05-05'), 'M')
         );
         $this->pdo->exec(
-            "INSERT INTO Substance (idSubstance, description) VALUES ('T_ZZ', 'Zinc test'), ('T_AA', 'Arachide test')"
+            "INSERT INTO Substance (idSubstance, name) VALUES ('T_ZZ', 'Zinc test'), ('T_AA', 'Arachide test')"
         );
         $stmt = $this->pdo->prepare(
             'INSERT INTO AllergyIntolerance (idAllergy, idPatient, idSubstance, criticality)
@@ -77,7 +77,7 @@ final class AllergyIntoleranceDaoTest extends TestCase
     public function testRecordedAtFilledByDatabaseAndRead(): void
     {
         $idPatient = $this->insertPatient('Ana');
-        $this->pdo->exec("INSERT INTO Substance (idSubstance, description) VALUES ('T_DA', 'Date test')");
+        $this->pdo->exec("INSERT INTO Substance (idSubstance, name) VALUES ('T_DA', 'Date test')");
         $before = $this->nowInDatabase();
         $this->insertAllergy('9001', $idPatient, 'T_DA');
 
@@ -92,7 +92,7 @@ final class AllergyIntoleranceDaoTest extends TestCase
     public function testSamePairTwiceRejectedByDatabase(): void
     {
         $idPatient = $this->insertPatient('Doublon');
-        $this->pdo->exec("INSERT INTO Substance (idSubstance, description) VALUES ('T_DB', 'Doublon test')");
+        $this->pdo->exec("INSERT INTO Substance (idSubstance, name) VALUES ('T_DB', 'Doublon test')");
         $this->insertAllergy('9001', $idPatient, 'T_DB');
 
         $this->assertMariaDbError(1062, fn() => $this->insertAllergy('9002', $idPatient, 'T_DB'));
@@ -103,7 +103,7 @@ final class AllergyIntoleranceDaoTest extends TestCase
     {
         $idPatient1 = $this->insertPatient('Un');
         $idPatient2 = $this->insertPatient('Deux');
-        $this->pdo->exec("INSERT INTO Substance (idSubstance, description) VALUES ('T_PA', 'Partage test')");
+        $this->pdo->exec("INSERT INTO Substance (idSubstance, name) VALUES ('T_PA', 'Partage test')");
         $this->insertAllergy('9001', $idPatient1, 'T_PA');
         $this->insertAllergy('9002', $idPatient2, 'T_PA');
 
@@ -112,12 +112,12 @@ final class AllergyIntoleranceDaoTest extends TestCase
 
     public function testDuplicateSubstanceRejectedByDatabase(): void
     {
-        $this->pdo->exec("INSERT INTO Substance (idSubstance, description) VALUES ('T_S1', 'Substance test')");
+        $this->pdo->exec("INSERT INTO Substance (idSubstance, name) VALUES ('T_S1', 'Substance test')");
 
         $this->assertMariaDbError(
             1062,
             fn() => $this->pdo->exec(
-                "INSERT INTO Substance (idSubstance, description) VALUES ('T_S2', 'Substance test')"
+                "INSERT INTO Substance (idSubstance, name) VALUES ('T_S2', 'Substance test')"
             )
         );
     }
@@ -125,7 +125,7 @@ final class AllergyIntoleranceDaoTest extends TestCase
     public function testPatientWithAllergyCannotBeDeleted(): void
     {
         $idPatient = $this->insertPatient('Restrict');
-        $this->pdo->exec("INSERT INTO Substance (idSubstance, description) VALUES ('T_RE', 'Restrict test')");
+        $this->pdo->exec("INSERT INTO Substance (idSubstance, name) VALUES ('T_RE', 'Restrict test')");
         $this->insertAllergy('9001', $idPatient, 'T_RE');
 
         $this->assertMariaDbError(
@@ -151,7 +151,7 @@ final class AllergyIntoleranceDaoTest extends TestCase
     public function testInsertComputesIdAndLeavesDateToDatabase(): void
     {
         $idPatient = $this->insertPatient('Insert');
-        $this->pdo->exec("INSERT INTO Substance (idSubstance, description) VALUES ('T_IN', 'Insert test')");
+        $this->pdo->exec("INSERT INTO Substance (idSubstance, name) VALUES ('T_IN', 'Insert test')");
         $dao = new AllergyIntoleranceDao($this->pdo);
         $expectedId = (int) $this->pdo
             ->query('SELECT COALESCE(MAX(CAST(idAllergy AS UNSIGNED)), 0) + 1 FROM AllergyIntolerance')
@@ -173,7 +173,7 @@ final class AllergyIntoleranceDaoTest extends TestCase
     public function testInsertWithoutCriticality(): void
     {
         $idPatient = $this->insertPatient('SansCrit');
-        $this->pdo->exec("INSERT INTO Substance (idSubstance, description) VALUES ('T_NC', 'Sans criticité test')");
+        $this->pdo->exec("INSERT INTO Substance (idSubstance, name) VALUES ('T_NC', 'Sans criticité test')");
         $dao = new AllergyIntoleranceDao($this->pdo);
 
         $dao->insert(new AllergyIntolerance(null, $idPatient, 'T_NC', 'Sans criticité test'));
@@ -184,7 +184,7 @@ final class AllergyIntoleranceDaoTest extends TestCase
     public function testInsertSameAllergenTwiceRejectedByDatabase(): void
     {
         $idPatient = $this->insertPatient('DuplicateDao');
-        $this->pdo->exec("INSERT INTO Substance (idSubstance, description) VALUES ('T_DD', 'Doublon dao test')");
+        $this->pdo->exec("INSERT INTO Substance (idSubstance, name) VALUES ('T_DD', 'Doublon dao test')");
         $dao = new AllergyIntoleranceDao($this->pdo);
         $dao->insert(new AllergyIntolerance(null, $idPatient, 'T_DD', 'Doublon dao test'));
 
@@ -211,7 +211,7 @@ final class AllergyIntoleranceDaoTest extends TestCase
     {
         $idPatient = $this->insertPatient('Delete');
         $this->pdo->exec(
-            "INSERT INTO Substance (idSubstance, description)
+            "INSERT INTO Substance (idSubstance, name)
              VALUES ('T_D1', 'Delete un test'), ('T_D2', 'Delete deux test')"
         );
         $dao = new AllergyIntoleranceDao($this->pdo);
@@ -230,7 +230,7 @@ final class AllergyIntoleranceDaoTest extends TestCase
     {
         $idPatient = $this->insertPatient('Proprietaire');
         $otherId = $this->insertPatient('Autre');
-        $this->pdo->exec("INSERT INTO Substance (idSubstance, description) VALUES ('T_AP', 'Autre patient test')");
+        $this->pdo->exec("INSERT INTO Substance (idSubstance, name) VALUES ('T_AP', 'Autre patient test')");
         $dao = new AllergyIntoleranceDao($this->pdo);
         $id = $dao->insert(new AllergyIntolerance(null, $idPatient, 'T_AP', 'Autre patient test'));
 
