@@ -15,6 +15,9 @@ class Appointment
     /** Statut d'un soin planifié pas encore réalisé (valeur de database/test.sql). */
     public const STATUS_PLANNED = 'PLANIFIE';
 
+    /** Statut d'un soin réalisé (valeur stockée en base, cf. database/test.sql). */
+    public const STATUS_COMPLETED = 'REALISE';
+
     public function __construct(
         private string $idAppointment,
         private ?string $idServiceRequest = null,

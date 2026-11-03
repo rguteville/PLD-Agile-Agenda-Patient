@@ -426,8 +426,9 @@ class RecordSectionService
             $errors['email'] = 'L\'adresse e-mail est invalide.';
         }
         if ($next['ipp'] !== null && $next['ipp'] !== $current['ipp']) {
-            $owner = $this->patientDao->findByIpp($next['ipp']);
-            if ($owner !== null && $owner->getIdPatient() !== $patient->getIdPatient()) {
+            // Patients supprimés compris (AURA-12.3) : leur IPP reste réservé.
+            $owner = $this->patientDao->ippOwnerId($next['ipp']);
+            if ($owner !== null && $owner !== $patient->getIdPatient()) {
                 $errors['ipp'] = 'Cet IPP est déjà utilisé par un autre patient.';
             }
         }

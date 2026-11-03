@@ -43,4 +43,7 @@ unset($formField);
     'fields' => $formFields,
 ]);?>
 
-<p><a href="/patients">Annuler</a></p>
+<p class="page-actions">
+    <a href="/patients">Annuler</a>
+    <a class="patient-edit__delete" href="/patients/supprimer?id=<?= View::e($idPatient) ?>">Supprimer le patient</a>
+</p>

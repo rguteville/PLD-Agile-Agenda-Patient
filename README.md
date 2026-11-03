@@ -400,7 +400,14 @@ Scénarios manuels avec les données de démo (`database/test.sql`), serveur lan
 7. **Agenda et prescriptions** : `/agenda-patient?id=1&date=2026-10-14`, `/care-plans?idEpisodeOfCare=1`
    (colonne « Période »), nouvelle prescription (« Du / Au ») ; prescrire à nouveau le paracétamol déjà en cours
    affiche un avertissement sans bloquer ; catégorie « Protocoles » ; validation par un médecin réanimateur.
-8. **Accessibilité** : parcourir le formulaire d'admission et le dossier au clavier seul (Tab, Entrée, Échap,
+8. **Suppression d'un patient (AURA-12.3)** : `/patients`, « Supprimer » sur la ligne de Peter Parker (séjour clos,
+   aucun soin réalisé) → page de confirmation avec son identité → « Confirmer la suppression » → retour à la liste,
+   message « Patient supprimé », Parker n'apparaît plus ni dans la liste, ni dans la recherche de l'admission, ni
+   par son IPP `100000004` (qui reste réservé). « Supprimer » sur Marge Simpson (séjour en cours) affiche le motif du
+   refus, sans bouton de confirmation ; un patient dont un soin a été réalisé est refusé de la même façon. Aussi accessible depuis `/patients/modifier?id=`.
+9. **Génération de l'agenda (AURA-24.2 / 24.3)** : `php bin/generate-agenda.php` deux fois de suite → la seconde
+   exécution affiche « 0 soin créé » ; l'agenda des séjours en cours est rempli jusqu'à J + 7.
+10. **Accessibilité** : parcourir le formulaire d'admission et le dossier au clavier seul (Tab, Entrée, Échap,
    flèches dans la liste de suggestions) ; `?theme=light` ou `?theme=dark` pour forcer le thème.
 
 ## Zone dépannage rapide

@@ -39,6 +39,26 @@ class AppointmentDao
         return array_map(fn(array $r) => $this->mapToEntity($r), $stmt->fetchAll(PDO::FETCH_ASSOC));
     }
 
+    /**
+     * AURA-12.3 : nombre de soins d'un statut donné dans tous les séjours d'un patient, qu'ils viennent
+     * d'une ligne de soin ou d'une ligne de médicament (ex. Appointment::STATUS_COMPLETED : un soin
+     * réalisé interdit la suppression du patient, RG10).
+     */
+    public function countByPatientAndStatus(int $idPatient, string $status): int
+    {
+        $stmt = $this->pdo->prepare(
+            'SELECT COUNT(*) FROM Appointment a
+             LEFT JOIN ServiceRequest sr ON sr.idServiceRequest = a.idServiceRequest
+             LEFT JOIN MedicationRequest mr ON mr.idMedicationRequest = a.idMedicationRequest
+             JOIN CarePlan c ON c.idCarePlan = COALESCE(sr.idCarePlan, mr.idCarePlan)
+             JOIN EpisodeOfCare e ON e.idEpisodeOfCare = c.idEpisodeOfCare
+             WHERE e.idPatient = :idPatient AND a.status = :status'
+        );
+        $stmt->execute(['idPatient' => (string) $idPatient, 'status' => $status]);
+
+        return (int) $stmt->fetchColumn();
+    }
+
 
     private function mapToEntity(array $r): Appointment
     {

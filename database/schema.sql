@@ -64,6 +64,10 @@ CREATE TABLE Patient( -- Patient
     foreignTravel TEXT,
     comorbidities TEXT,
     currentTreatment TEXT,
+    -- AURA-12.3 : suppression logique (règle n° 8). NULL = patient actif ; sinon date de la suppression.
+    -- Un patient supprimé n'apparaît plus dans la liste ni dans les recherches (les DAO filtrent
+    -- removedAt IS NULL) ; sa ligne, ses séjours et son IPP restent en base (traçabilité, RG10).
+    removedAt DATETIME NULL,
 
     -- Recherche d'un patient existant à l'admission (PR « admission-recherche-patient ») : index pour le tri
     -- (ORDER BY lastName, firstName), l'égalité « nom exact » et findByIdentite() ; le filtre par début de mot

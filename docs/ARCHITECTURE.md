@@ -36,6 +36,7 @@ modules, le trajet d'une requête, le modèle de données réel et les décision
 | `POST /patients/create` | Admission : validation, création ou rattachement du patient, ouverture du séjour, allergies, traces ; JSON ou HTML. |
 | `GET /patients` | Liste des patients avec séjour en cours, recherche `?q=`. |
 | `GET /patients/modifier?id=`, `POST /patients/modifier?id=` | Modification de l'identité d'un patient. |
+| `GET /patients/supprimer?id=`, `POST /patients/supprimer?id=` | Confirmation puis suppression logique d'un patient (AURA-12.3) ; 409 si refusée (séjour en cours ou soin réalisé). |
 | `GET /patients/recherche-ipp?ipp=` | Identité d'un patient par IPP (JSON, AURA-15, conservé). |
 | `GET /patients/recherche?q=` | Recherche par IPP ou mots du nom / prénom (JSON, identité seulement, 20 max). |
 | `GET /patients/fiche?id=` | Fiche complète d'un patient pour pré-remplir l'admission (JSON, à la sélection d'un résultat). |

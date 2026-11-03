@@ -2,6 +2,17 @@
 
 Format : une entrée par pull request, de la plus récente à la plus ancienne.
 
+## 2026-11-03
+
+### Génération de l'agenda et suppression d'un patient (`feat/agenda-generation-suppression`)
+- AURA-24.2 / 24.3 : `bin/generate-agenda.php` (cron quotidien) crée les soins planifiés manquants des lignes
+  actives des séjours en cours jusqu'à J + 7, sans doublon, sans modifier l'existant ni créer de soin passé (RG9).
+  Un seul algorithme d'occurrences (`RequestLine::plannedTimesBetween()`).
+- AURA-12.3 : suppression logique d'un patient depuis la liste ou la page de modification, avec page de
+  confirmation ; refusée si séjour en cours ou soin réalisé (RG10) ; tracée dans l'historique (AuditEvent).
+- Proposition de schéma : `Patient.removedAt`, clés uniques (ligne, `plannedTime`) sur `Appointment` ; migrations
+  additives du 2026-11-03.
+
 ## 2026-11-02
 
 ### Retours d'usage du 2 novembre (`feat/retours-2026-11-02`)
