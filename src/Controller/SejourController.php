@@ -161,12 +161,14 @@ final class SejourController
             $dossier['bandeau']['prenom'],
             $dossier['bandeau']['numeroSejour']
         );
+        //$validators = récupérer la liste des practiciens
         View::page('sejour/agenda-patient', [
             'bandeau' => $dossier['bandeau'],
             'idEpisodeOfCare' => $idSejour,
             'agenda' => $agenda,
+            //'validators' => $validators,
             // La validation d'un soin n'a pas encore de route : colonne et dialogue restent masqués.
-            'validationEnabled' => false,
+            'validationEnabled' => true,
         ], $titre, self::AGENDA_SCRIPTS);
     }
 

@@ -7,6 +7,7 @@ namespace Aura\Service;
 use Aura\Dao\ActivityDefinitionDao;
 use Aura\Dao\AppointmentDao;
 use Aura\Dao\CarePlanDao;
+use Aura\Dao\MedicationDao;
 use Aura\Dao\SejourDao;
 use Aura\Domain\CarePlan;
 use Aura\Domain\MedicationRequest;
@@ -47,6 +48,7 @@ final class AgendaService
         private AppointmentDao $appointmentDao,
         private ActivityDefinitionDao $activityDefinitionDao,
         private SejourDao $sejourDao,
+        private MedicationDao $medicationDao,
     ) {
     }
 
@@ -69,8 +71,10 @@ final class AgendaService
         // Pour chaque prescription :
         foreach ($carePlans as $carePlan) {
             $idCarePlan = (int) $carePlan->getIdCarePlan();
+            // on initialise la liste des soins et des medicaments
             $serviceAppointments = [];
             $medicationAppointments = [];
+
             // D'une part, on récupère les Soins associés
             $serviceRequests = $this->carePlanDao->findServiceByCarePlan($idCarePlan);
             foreach ($serviceRequests as $serviceRequest) {
@@ -81,6 +85,7 @@ final class AgendaService
                 $activity = $this->activityDefinitionDao->findById($serviceRequest->getIdActivityDefinition());
                 $serviceRequest->setIdActivityDefinition($activity->getName());
             }
+
             // D'autre part, on récupère les Médicaments associés
             $medicationRequests = $this->carePlanDao->findMedicationByCarePlan($idCarePlan);
             foreach ($medicationRequests as $medicationRequest) {
@@ -88,10 +93,13 @@ final class AgendaService
                 $medicationAppointments[$medicationRequest->getIdMedicationRequest()] = $this->appointmentDao
                     ->findByRequest((string) $medicationRequest->getIdMedicationRequest(), true);
 
-                //ActivityDefinition
-                $activity = $this->activityDefinitionDao->findById($medicationRequest->getIdActivityDefinition());
-                $medicationRequest->setIdActivityDefinition($activity->getName());
+                //Medication
+                // $activity = $this->activityDefinitionDao->findById($medicationRequest->getIdActivityDefinition());
+                $medication = $this->medicationDao->findById($medicationRequest->getIdMedication());
+                $medicationRequest->setIdActivityDefinition($medication->getInn());
             }
+
+
             // Assemblage de la réponse HTTP
             $response[] = $this->serializeCarePlan(
                 $carePlan,
@@ -106,9 +114,9 @@ final class AgendaService
 
     public function serializeCarePlan(
         CarePlan $carePlan,
-        array $services,
+        array $serviceRequests,
         array $serviceAppointments,
-        array $medication,
+        array $medicationRequests,
         array $medicationAppointments
     ): array {
         return [
@@ -119,50 +127,52 @@ final class AgendaService
             'recordedAt' => $carePlan->getRecordedAt(),
             'idValidator' => $carePlan->getIdValidator(),
             'validatedAt' => $carePlan->getValidatedAt(),
-            'serviceRequests' => $this->serializeService($services, $serviceAppointments),
-            'medicationRequests' => $this->serializeMedication($medication, $medicationAppointments),
+            'serviceRequests' => $this->serializeService($serviceRequests, $serviceAppointments),
+            'medicationRequests' => $this->serializeMedication($medicationRequests, $medicationAppointments),
         ];
     }
 
-    public function serializeService(array $services, array $appointments): ?array
+    public function serializeService(array $requests, array $appointments): ?array
     {
         $res = [];
-        foreach ($services as $service) {
+        foreach ($requests as $request) {
             $res[] = [
-                'idServiceRequest' => $service->getIdServiceRequest(),
-                'idCarePlan' => $service->getIdCarePlan(),
-                'idActivityDefinition' => $service->getIdActivityDefinition(),
-                'startDate' => $service->getStartDate(),
-                'endDate' => $service->getEndDate(),
-                'frequencyHours' => $service->getFrequencyHours(),
-                'timeConstraint' => $service->getTimeConstraint(),
-                'idStoppedBy' => $service->getIdStoppedBy(),
-                'stoppedAt' => $service->getStoppedAt(),
-                'appointments' => $this->serializeAppointment($appointments[$service->getIdServiceRequest()] ?? []),
+                'idServiceRequest' => $request->getIdServiceRequest(),
+                'idCarePlan' => $request->getIdCarePlan(),
+                'idActivityDefinition' => $request->getIdActivityDefinition(),
+                'startDate' => $request->getStartDate(),
+                'endDate' => $request->getEndDate(),
+                'frequencyHours' => $request->getFrequencyHours(),
+                'timeConstraint' => $request->getTimeConstraint(),
+                'idStoppedBy' => $request->getIdStoppedBy(),
+                'stoppedAt' => $request->getStoppedAt(),
+                'appointments' => $this->serializeAppointment($appointments[$request->getIdServiceRequest()] ?? []),
             ];
         }
         return $res;
     }
 
-    public function serializeMedication(array $medications, array $appointments): ?array
+    public function serializeMedication(array $requests, array $appointments): ?array
     {
         $res = [];
-        foreach ($medications as $medication) {
+        foreach ($requests as $request) {
             $res[] = [
-                'idMedicationRequest' => $medication->getIdMedicationRequest(),
-                'idCarePlan' => $medication->getIdCarePlan(),
-                'idActivityDefinition' => $medication->getIdActivityDefinition(),
-                'dose' => $medication->getDose(),
-                'route' => $medication->getRoute(),
-                'startDate' => $medication->getStartDate(),
-                'endDate' => $medication->getEndDate(),
-                'frequencyHours' => $medication->getFrequencyHours(),
-                'timeConstraint' => $medication->getTimeConstraint(),
-                'idStoppedBy' => $medication->getIdStoppedBy(),
-                'stoppedAt' => $medication->getStoppedAt(),
+                'idMedicationRequest' => $request->getIdMedicationRequest(),
+                'idCarePlan' => $request->getIdCarePlan(),
+                'idActivityDefinition' => $request->getIdActivityDefinition(),
+                'idMedication'=>$request->getIdMedication(),
+                'dose' => $request->getDose(),
+                'route' => $request->getRoute(),
+                'startDate' => $request->getStartDate(),
+                'endDate' => $request->getEndDate(),
+                'frequencyHours' => $request->getFrequencyHours(),
+                'timeConstraint' => $request->getTimeConstraint(),
+                'idStoppedBy' => $request->getIdStoppedBy(),
+                'stoppedAt' => $request->getStoppedAt(),
                 'appointments' => $this->serializeAppointment(
-                    $appointments[$medication->getIdMedicationRequest()] ?? []
+                    $appointments[$request->getIdMedicationRequest()] ?? []
                 ),
+                
             ];
         }
         return $res;
@@ -345,8 +355,8 @@ final class AgendaService
         ];
     }
 
-
-    // {
+// format des données renvoyées à la page web
+// {
 //     careplans: [
 //         {
 //             idCarePlan: 1;
