@@ -3995,3 +3995,14 @@ form.form--columns .form-lead > .form-row {
     gap: var(--sp-2);
     margin: var(--sp-3) 0 0;
 }
+
+/* ===== AURA-29 : choix du service dans l'agenda du service ===== */
+.agenda-nav select {
+    min-height: var(--tap);
+    padding: var(--sp-2) var(--sp-3);
+    font: inherit;
+    color: var(--fg);
+    background: var(--bg-raised);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+}

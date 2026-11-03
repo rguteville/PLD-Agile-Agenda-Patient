@@ -11,7 +11,7 @@ $current = static fn (string $href): string => $href === $path ? ' aria-current=
     <nav aria-label="Navigation principale">
         <a class="nav-link" href="/patients"<?= $current('/patients') ?>>Patients</a>
         <a class="nav-link" href="/"<?= $current('/') ?>>Admission</a>
-        <a class="nav-link" href="/agenda-service"<?= $current('/agenda-service') ?>>Services</a>
+        <a class="nav-link" href="/agenda-service"<?= $current('/agenda-service') ?>>Agenda service</a>
     </nav>
     <button type="button" id="theme-toggle" class="theme-toggle" aria-pressed="false"
             title="Basculer le mode sombre">

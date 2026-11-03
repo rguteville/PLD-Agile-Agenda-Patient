@@ -8,36 +8,46 @@ use Aura\Core\View;
 use Aura\Service\AgendaService;
 use DateTimeImmutable;
 
+/**
+ * GET /agenda-service (AURA-29) : soins de tous les patients en cours d'un service, pour un jour.
+ * Sans identifiant, le premier service du référentiel (par identifiant) est affiché, pour que
+ * l'onglet « Agenda service » de la barre du haut mène toujours quelque part.
+ */
 final class ServiceController
 {
+    /**
+     * @param array<string, string> $services référentiel des services, identifiant => nom
+     */
     public function __construct(
-        private AgendaService $agendaService
+        private AgendaService $agendaService,
+        private array $services = [],
     ) {
     }
-
 
     public function getAgenda(): void
     {
         $id = $_GET['idHealthcareService'] ?? null;
-
-        if ($id === null) {
-            View::error(404, 'Identifiant manquant.');
+        if ($id === null || $id === '') {
+            $ids = array_map('strval', array_keys($this->services));
+            sort($ids);
+            $id = $ids[0] ?? null;
+        }
+        if (!is_string($id) || !array_key_exists($id, $this->services)) {
+            View::error(404, 'Service inconnu.');
             return;
         }
 
-        // A adapter à la vue service !!!
-        // Attention à la fonction presentDay qui était utilisée pour l'agenda-patient et qui devrait être
-        // réutilisée pour l'agenda-service
         $now = new DateTimeImmutable('now');
-        $agenda = AgendaService::presentDay(
+        $service = AgendaService::presentService(
             $this->agendaService->getAgendaService($id),
             AgendaService::parseDay($_GET['date'] ?? null, $now),
             $now
         );
 
-        // Créer la sérialisation suivant le modèle de agenda-service
-        View::page('service/service-agenda', [
-            'agenda' => $agenda,
-        ]);
+        View::page('service/consolidated-view', [
+            'service' => $service,
+            'services' => $this->services,
+            'idHealthcareService' => $id,
+        ], 'AURA - Agenda du service');
     }
 }

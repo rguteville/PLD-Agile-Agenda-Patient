@@ -237,8 +237,10 @@ try {
                 new AppointmentDao($pdo),
                 new ActivityDefinitionDao($pdo),
                 new EpisodeOfCareDao($pdo),
-                new MedicationDao($pdo)
-            )
+                new MedicationDao($pdo),
+                new PatientDao($pdo)
+            ),
+            (new ReferenceDataDao($pdo))->healthcareServices()
         );
         $controller->getAgenda();
     };

@@ -3,23 +3,67 @@
 use Aura\Core\View;
 
 /**
- * Vue consolidée du service : tous les patients × créneaux horaires d'une journée, avec le nombre de
- * retards par patient. BALISAGE SEUL : aucune route ni requête « tous patients » n'existe encore
- * (logique métier à créer dans son ticket) ; ce gabarit fixe le contrat du vue-modèle et est couvert
- * par un test de rendu. Les cellules montrent un badge par statut avec son effectif : jamais la
- * couleur seule.
+ * Agenda du service (AURA-29, route GET /agenda-service) : tous les patients en cours × créneaux
+ * horaires d'une journée, avec le nombre de retards par patient. Vue-modèle construit par
+ * AgendaService::presentService(). Les cellules montrent un badge par statut avec son effectif :
+ * jamais la couleur seule.
  *
- * @var array{date: string, dateLabel: string, slots: list<string>,
- *            patients: list<array{idSejour: int, nom: string, prenom: string, lit: ?string,
- *                                 numeroSejour: string, late: int,
+ * @var array{date: string, dateLabel: string, isToday?: bool, previous?: string, next?: string,
+ *            slots: list<string>, late?: int,
+ *            patients: list<array{idEpisodeOfCare: int, lastName: string, firstName: string, bed: ?string,
+ *                                 episodeNumber: string, late: int,
  *                                 cells: array<string, array<string, int>>}>} $service
  *      cells : créneau => [clé de statut => nombre de soins]
+ * @var array<string, string> $services référentiel des services (choix du service affiché)
+ * @var string|null $idHealthcareService service affiché
  */
+$services = $services ?? [];
+$idHealthcareService = $idHealthcareService ?? null;
+$dayUrl = static fn (string $date): string => '/agenda-service?idHealthcareService='
+    . rawurlencode((string) $idHealthcareService) . '&date=' . $date;
 ?>
 <section class="service-view">
     <div class="page-header">
-        <h1 class="form-title">Vue du service · <?= View::e(ucfirst($service['dateLabel'])) ?></h1>
+        <h1 class="form-title">
+            Agenda du service<?= $idHealthcareService !== null && isset($services[$idHealthcareService])
+                ? ' · ' . View::e($services[$idHealthcareService]) : '' ?>
+        </h1>
     </div>
+
+    <?php if ($services !== [] && isset($service['previous'], $service['next'])) : ?>
+        <form class="agenda-nav" method="get" action="/agenda-service" aria-label="Choisir le service et le jour">
+            <label for="service-select" class="sr-only">Service</label>
+            <select id="service-select" name="idHealthcareService">
+                <?php foreach ($services as $id => $name) : ?>
+                    <option value="<?= View::e($id) ?>"<?= (string) $id === $idHealthcareService
+                        ? ' selected' : '' ?>><?= View::e($name) ?></option>
+                <?php endforeach; ?>
+            </select>
+            <a class="nav-day" href="<?= View::e($dayUrl($service['previous'])) ?>" aria-label="Jour précédent">
+                <?= View::render('components/icon', ['name' => 'chevron-left']) ?>
+            </a>
+            <span class="agenda-day">
+                <?= View::render('components/icon', ['name' => 'calendar']) ?>
+                <label for="date"><?= View::e(ucfirst($service['dateLabel'])) ?></label>
+            </span>
+            <a class="nav-day" href="<?= View::e($dayUrl($service['next'])) ?>" aria-label="Jour suivant">
+                <?= View::render('components/icon', ['name' => 'chevron-right']) ?>
+            </a>
+            <input type="date" id="date" name="date" value="<?= View::e($service['date']) ?>">
+            <button type="submit" class="button button--secondary">Afficher</button>
+            <?php if (!($service['isToday'] ?? true)) : ?>
+                <a class="button button--secondary" href="<?= View::e($dayUrl('')) ?>">Aujourd'hui</a>
+            <?php endif; ?>
+        </form>
+    <?php else : ?>
+        <p class="agenda-day"><?= View::e(ucfirst($service['dateLabel'])) ?></p>
+    <?php endif; ?>
+
+    <?php if (($service['late'] ?? 0) > 0) : ?>
+        <p class="form-error" role="status">
+            <?= View::e($service['late']) ?> soin<?= $service['late'] > 1 ? 's' : '' ?> en retard dans le service.
+        </p>
+    <?php endif; ?>
 
     <?php if ($service['patients'] === []) : ?>
         <?= View::render('components/empty_state', [

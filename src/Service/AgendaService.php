@@ -9,11 +9,13 @@ use Aura\Dao\AppointmentDao;
 use Aura\Dao\CarePlanDao;
 use Aura\Dao\MedicationDao;
 use Aura\Dao\EpisodeOfCareDao;
+use Aura\Dao\PatientDao;
 use Aura\Domain\CarePlan;
 use Aura\Domain\MedicationRequest;
 use Aura\Domain\ServiceRequest;
 use DateTimeImmutable;
 use DateTimeInterface;
+use LogicException;
 
 final class AgendaService
 {
@@ -37,6 +39,9 @@ final class AgendaService
         'NON_FAIT' => 'not_done',
     ];
 
+    /** Durée d'un créneau de la vue du service, en heures (0 h, 2 h… 22 h). */
+    public const SERVICE_SLOT_HOURS = 2;
+
     private const DAYS_FR = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
     private const MONTHS_FR = [
         1 => 'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
@@ -49,19 +54,98 @@ final class AgendaService
         private ActivityDefinitionDao $activityDefinitionDao,
         private EpisodeOfCareDao $episodeOfCareDao,
         private MedicationDao $medicationDao,
+        private ?PatientDao $patientDao = null,
     ) {
     }
 
+    /**
+     * Agenda du service (AURA-29) : un élément par séjour en cours du service, avec l'identité du
+     * patient (vue du service) et ses prescriptions au format de getAgenda(). Requiert le PatientDao.
+     *
+     * @return list<array{idEpisodeOfCare: int, lastName: string, firstName: string, bed: ?string,
+     *                    episodeNumber: string, carePlans: list<array<string, mixed>>}>
+     */
     public function getAgendaService(string $idHealthServiceId): array
     {
- // TODO
+        if ($this->patientDao === null) {
+            throw new LogicException('AgendaService::getAgendaService() requiert un PatientDao.');
+        }
         $response = [];
 
         $episodesOfCare = $this->episodeOfCareDao->findByHealthcareService($idHealthServiceId);
         foreach ($episodesOfCare as $episodeOfCare) {
-            $response[] = $this->getAgenda($episodeOfCare->getIdEpisodeOfCare());
+            $idEpisodeOfCare = (int) $episodeOfCare->getIdEpisodeOfCare();
+            $patient = $this->patientDao->findById($episodeOfCare->getIdPatient());
+            $response[] = [
+                'idEpisodeOfCare' => $idEpisodeOfCare,
+                'lastName' => $patient?->getLastName() ?? '',
+                'firstName' => $patient?->getFirstName() ?? '',
+                'bed' => $episodeOfCare->getBedNumber(),
+                'episodeNumber' => $episodeOfCare->getEpisodeNumber(),
+                'carePlans' => $this->getAgenda($idEpisodeOfCare),
+            ];
         }
         return $response;
+    }
+
+    /**
+     * Vue-modèle de la vue du service (src/View/pages/service/consolidated-view.php) : un patient
+     * par ligne, un créneau de SERVICE_SLOT_HOURS heures par colonne, et dans chaque cellule le
+     * nombre de soins par statut. Mêmes règles que presentDay() (retard = calcul d'affichage).
+     * Pure : le jour affiché et l'heure courante sont injectés.
+     *
+     * @param list<array<string, mixed>> $episodes sortie de getAgendaService()
+     * @return array{date: string, dateLabel: string, isToday: bool, previous: string, next: string,
+     *               slots: list<string>, late: int, patients: list<array<string, mixed>>}
+     */
+    public static function presentService(array $episodes, DateTimeImmutable $day, DateTimeImmutable $now): array
+    {
+        $day = $day->setTime(0, 0);
+        $slots = [];
+        for ($hour = 0; $hour < 24; $hour += self::SERVICE_SLOT_HOURS) {
+            $slots[] = sprintf('%02d:00', $hour);
+        }
+
+        $patients = [];
+        $late = 0;
+        foreach ($episodes as $episode) {
+            $agenda = self::presentDay($episode['carePlans'] ?? [], $day, $now);
+            $items = $agenda['late'];
+            foreach ($agenda['shifts'] as $shift) {
+                $items = [...$items, ...$shift['items']];
+            }
+            $cells = [];
+            foreach ($items as $item) {
+                $slot = $slots[intdiv((int) $item['hour'], self::SERVICE_SLOT_HOURS)];
+                $cells[$slot][$item['status']] = ($cells[$slot][$item['status']] ?? 0) + 1;
+            }
+            // Ordre stable dans une cellule : ce qui demande une action d'abord.
+            foreach ($cells as &$cell) {
+                uksort($cell, static fn (string $a, string $b): int => self::cellRank($a) <=> self::cellRank($b));
+            }
+            unset($cell);
+            $late += $agenda['counts']['late'];
+            $patients[] = [
+                'idEpisodeOfCare' => (int) $episode['idEpisodeOfCare'],
+                'lastName' => (string) $episode['lastName'],
+                'firstName' => (string) $episode['firstName'],
+                'bed' => $episode['bed'] ?? null,
+                'episodeNumber' => (string) $episode['episodeNumber'],
+                'late' => $agenda['counts']['late'],
+                'cells' => $cells,
+            ];
+        }
+
+        return [
+            'date' => $day->format('Y-m-d'),
+            'dateLabel' => self::dayLabel($day),
+            'isToday' => $day->format('Y-m-d') === $now->format('Y-m-d'),
+            'previous' => $day->modify('-1 day')->format('Y-m-d'),
+            'next' => $day->modify('+1 day')->format('Y-m-d'),
+            'slots' => $slots,
+            'late' => $late,
+            'patients' => $patients,
+        ];
     }
 
     public function getAgenda(int $idEpisodeOfCare): array
@@ -278,6 +362,14 @@ final class AgendaService
             'late' => $late,
             'shifts' => $shifts,
         ];
+    }
+
+    /** Rang d'un statut dans une cellule de la vue du service ; un statut inconnu passe en dernier. */
+    private static function cellRank(string $status): int
+    {
+        $rank = array_search($status, ['late', 'planned', 'done', 'not_done', 'cancelled'], true);
+
+        return $rank === false ? 99 : $rank;
     }
 
     /** « mardi 14 octobre 2026 », sans dépendre de l'extension intl. */
