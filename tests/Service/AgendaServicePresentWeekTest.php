@@ -139,6 +139,33 @@ final class AgendaServicePresentWeekTest extends TestCase
         self::assertTrue($items['LATER']['notValidated'], 'RG5 : ordonnance non validée signalée');
     }
 
+    public function testEachCareCarriesItsPrescriptionCard(): void
+    {
+        $plans = [[
+            'idCarePlan' => '1', 'mode' => 'MEDICAL', 'idPrescriber' => 'PRA03',
+            'prescriberName' => 'Léa Fontaine (Interne)',
+            'recordedAt' => new DateTimeImmutable('2026-10-10 09:00'), 'validatedAt' => null, 'idValidator' => null,
+            'serviceRequests' => [],
+            'medicationRequests' => [[
+                'idActivityDefinition' => 'Paracétamol', 'dose' => '1 g', 'route' => 'IV', 'frequencyHours' => 6,
+                'startDate' => new DateTimeImmutable('2026-10-10 12:00'), 'endDate' => null,
+                'timeConstraint' => null, 'stoppedAt' => null,
+                'appointments' => [$this->appointment('M', '2026-10-14 12:00:00', 'PLANIFIE')],
+            ]],
+        ]];
+
+        $agenda = AgendaService::presentDay($plans, new DateTimeImmutable('2026-10-14'), $this->now());
+        $card = array_column($agenda['shifts'][1]['items'][0]['prescription'], 'value', 'label');
+
+        self::assertSame('1 g', $card['Dose']);
+        self::assertSame('IV', $card['Voie']);
+        self::assertSame('Toutes les 6 h', $card['Fréquence']);
+        self::assertSame('du 10/10/2026 12:00, sans date de fin', $card['Période']);
+        self::assertSame('Léa Fontaine (Interne)', $card['Prescrit par']);
+        self::assertSame('en attente de validation par un médecin', $card['Validation']);
+        self::assertArrayNotHasKey('Arrêtée le', $card);
+    }
+
     /** @return array<string, mixed> */
     private function episode(int $id, string $lastName, array $appointments): array
     {

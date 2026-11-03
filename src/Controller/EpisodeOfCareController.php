@@ -37,7 +37,7 @@ final class EpisodeOfCareController
         '/js/part-edit.js',
     ];
     /** agenda.js : impression de la journée et dialogue de validation. */
-    private const AGENDA_SCRIPTS = ['/js/agenda.js'];
+    private const AGENDA_SCRIPTS = ['/js/agenda.js', '/js/auto-submit.js'];
 
     /** Identifiant numérique tel que stocké (VARCHAR contenant un entier, sans zéro de tête). */
     private const ID_PATTERN = '/^[1-9][0-9]{0,17}$/';

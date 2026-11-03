@@ -56,6 +56,6 @@ final class ServiceController
             'validationEnabled' => $validationEnabled,
             'validators' => $this->appointmentService?->performers() ?? [],
             'csrfToken' => $validationEnabled ? Csrf::token() : null,
-        ], 'AURA - Agenda du service', ['/js/agenda.js']);
+        ], 'AURA - Agenda du service', ['/js/agenda.js', '/js/auto-submit.js']);
     }
 }

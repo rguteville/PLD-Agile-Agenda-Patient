@@ -69,7 +69,7 @@ $recordUrl = '/sejour?id=' . $idEpisodeOfCare;
         </p>
     </div>
 
-    <form class="agenda-nav" method="get" action="/agenda-patient"
+    <form class="agenda-nav" data-auto-submit-form method="get" action="/agenda-patient"
           aria-label="<?= $isWeek ? 'Choisir la semaine affichée' : 'Choisir le jour affiché' ?>">
         <input type="hidden" name="id" value="<?= View::e($idEpisodeOfCare) ?>">
         <?php if ($isWeek) : ?>
@@ -97,7 +97,7 @@ $recordUrl = '/sejour?id=' . $idEpisodeOfCare;
             </a>
         <?php endif; ?>
         <input type="date" id="date" name="date" value="<?= View::e($agenda['date']) ?>">
-        <button type="submit" class="button button--secondary">Afficher</button>
+        <button type="submit" class="button button--secondary" data-submit-fallback>Afficher</button>
         <?php if (!$agenda['isToday']) : ?>
             <a href="<?= View::e($isWeek ? $weekUrl('') : '/agenda-patient?id=' . $idEpisodeOfCare) ?>">Aujourd'hui</a>
         <?php endif; ?>

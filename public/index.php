@@ -227,16 +227,26 @@ try {
 
     // Agenda (AURA-24 à 29) : même service pour l'agenda d'un séjour et celui du service, avec
     // l'identité des patients et l'auteur des validations (historique).
-    $agendaService = static fn (PDO $pdo): AgendaService => new AgendaService(
-        new CarePlanDao($pdo),
-        new AppointmentDao($pdo),
-        new ActivityDefinitionDao($pdo),
-        new EpisodeOfCareDao($pdo),
-        new MedicationDao($pdo),
-        new PatientDao($pdo),
-        new AuditEventDao($pdo),
-        new AllergyIntoleranceDao($pdo)
-    );
+    $agendaService = static function (PDO $pdo): AgendaService {
+        // Noms des praticiens pour la carte de prescription (« Prescrit par », « Validation »).
+        $names = [];
+        foreach ((new ReferenceDataDao($pdo))->practitioners() as $id => $practitioner) {
+            $role = $practitioner->getRole();
+            $names[$id] = $practitioner->getFullName() . ($role !== null ? ' (' . $role . ')' : '');
+        }
+
+        return new AgendaService(
+            new CarePlanDao($pdo),
+            new AppointmentDao($pdo),
+            new ActivityDefinitionDao($pdo),
+            new EpisodeOfCareDao($pdo),
+            new MedicationDao($pdo),
+            new PatientDao($pdo),
+            new AuditEventDao($pdo),
+            new AllergyIntoleranceDao($pdo),
+            $names
+        );
+    };
     // Valider un soin (AURA-26) : tous les praticiens peuvent le faire, affichés « Prénom Nom (rôle) ».
     $appointmentService = static function (PDO $pdo): AppointmentService {
         $performers = [];

@@ -47,7 +47,8 @@ $slotLabel = static function (string $slot): string {
     </div>
 
     <?php if ($services !== [] && isset($service['previous'], $service['next'])) : ?>
-        <form class="agenda-nav" method="get" action="/agenda-service" aria-label="Choisir le service et le jour">
+        <form class="agenda-nav" data-auto-submit-form
+              method="get" action="/agenda-service" aria-label="Choisir le service et le jour">
             <label for="service-select" class="sr-only">Service</label>
             <select id="service-select" name="idHealthcareService">
                 <?php foreach ($services as $id => $name) : ?>
@@ -66,7 +67,7 @@ $slotLabel = static function (string $slot): string {
                 <?= View::render('components/icon', ['name' => 'chevron-right']) ?>
             </a>
             <input type="date" id="date" name="date" value="<?= View::e($service['date']) ?>">
-            <button type="submit" class="button button--secondary">Afficher</button>
+            <button type="submit" class="button button--secondary" data-submit-fallback>Afficher</button>
             <?php if (!($service['isToday'] ?? true)) : ?>
                 <a class="button button--secondary" href="<?= View::e($dayUrl('')) ?>">Aujourd'hui</a>
             <?php endif; ?>
@@ -224,6 +225,9 @@ $slotLabel = static function (string $slot): string {
                                                         <span class="item-details"><?=
                                                             View::e($item['details']) ?></span>
                                                     <?php endif; ?>
+                                                    <?= View::render('components/prescription_details', [
+                                                        'item' => $item,
+                                                    ]) ?>
                                                     <?= View::render('components/status_badge', [
                                                         'status' => $item['status'],
                                                     ]) ?>

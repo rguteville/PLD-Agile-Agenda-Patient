@@ -287,4 +287,28 @@ final class ComponentsRenderTest extends TestCase
             'allergies' => $allergies,
         ];
     }
+
+    public function testFormLevelErrorSitsNextToTheSubmitButton(): void
+    {
+        $html = View::render('components/form', [
+            'action' => '/x', 'fields' => [], 'submit' => 'Admettre', 'error' => 'Déjà hospitalisé <x>',
+        ]);
+
+        self::assertMatchesRegularExpression(
+            '#<div class="form-actions">\s*<button type="submit">Admettre</button>.*Déjà hospitalisé &lt;x&gt;#s',
+            $html
+        );
+    }
+
+    public function testPrescriptionCardUnfoldsItsRows(): void
+    {
+        $html = View::render('components/prescription_details', ['item' => [
+            'label' => 'Soin <A>', 'prescription' => [['label' => 'Dose', 'value' => '1 g <x>']],
+        ]]);
+
+        self::assertStringContainsString('<details class="prescription-details">', $html);
+        self::assertStringContainsString('Prescription de Soin &lt;A&gt;', $html);
+        self::assertStringContainsString('<dd>1 g &lt;x&gt;</dd>', $html);
+        self::assertSame('', trim(View::render('components/prescription_details', ['item' => ['label' => 'x']])));
+    }
 }

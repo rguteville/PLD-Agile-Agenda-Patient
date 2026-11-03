@@ -42,7 +42,6 @@
         homonyms: 'Plusieurs patients portent ce nom — vérifiez la date de naissance et l\'IPP avant de sélectionner.',
         results: n => `${n} résultat${n > 1 ? 's' : ''}`,
         cardTitle: 'Patient existant',
-        correct: 'Corriger l\'identité',
         detach: 'Ce n\'est pas ce patient',
         noAllergy: 'Aucune allergie connue',
         loadFailure: 'Impossible de charger la fiche du patient. Réessayez.',
@@ -234,7 +233,8 @@
 
     // ---- Carte du patient existant (retours du 2026-11-02) ----
     // L'identité d'un patient retrouvé s'affiche en lecture seule, comme le bandeau : on ne la modifie
-    // plus par mégarde. « Corriger l'identité » rouvre les champs ; « Ce n'est pas ce patient » détache.
+    // pas depuis l'admission (retours du 2026-11-03 : plus de « Corriger l'identité », la correction se
+    // fait dans le dossier, tracée). « Ce n'est pas ce patient » détache.
 
     const IDENTITY_FIELDS = ['lastname', 'firstname', 'birthDate', 'gender', 'ipp'];
 
@@ -282,6 +282,11 @@
             ? ` · né(e) le ${p.birthDate}${p.age !== null ? ` (${p.age} ans)` : ''}`
             : ' · date de naissance inconnue';
         name.append(birth);
+        // Groupe sanguin du patient connu (retours du 2026-11-03), comme dans le bandeau.
+        const bloodType = (patientRecord.patient || {}).bloodType;
+        if (bloodType) {
+            name.append(` · groupe ${bloodType}`);
+        }
 
         const ids = document.createElement('p');
         ids.className = 'patient-card__ids';
@@ -314,24 +319,11 @@
 
         const actions = document.createElement('p');
         actions.className = 'patient-card__actions';
-        const correct = document.createElement('button');
-        correct.type = 'button';
-        correct.className = 'button button--secondary';
-        correct.textContent = MESSAGES.correct;
-        correct.addEventListener('click', () => {
-            showIdentityFields(true);
-            correct.remove();
-            const first = form.querySelector('input[name="lastname"]');
-            if (first) {
-                first.focus();
-            }
-        });
         const detach = document.createElement('button');
         detach.type = 'button';
         detach.className = 'button button--secondary';
         detach.textContent = MESSAGES.detach;
         detach.addEventListener('click', resetPatient);
-        actions.appendChild(correct);
         actions.appendChild(detach);
 
         card.append(title, name, ids, allergies, actions);

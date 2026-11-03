@@ -36,12 +36,19 @@ function showFieldError(form, fieldName, message) {
     });
 }
 
+// Erreur hors champ (ex. « patient déjà hospitalisé ») : à côté du bouton d'envoi, là où l'on regarde
+// au moment d'admettre (retours du 2026-11-03) ; en tête du formulaire s'il n'a pas de zone d'actions.
 function showFormError(form, message) {
     const p = document.createElement('p');
     p.className = 'form-error';
     p.setAttribute('role', 'alert');
     p.textContent = message;
-    form.prepend(p);
+    const actions = form.querySelector('.form-actions');
+    if (actions) {
+        actions.appendChild(p);
+    } else {
+        form.prepend(p);
+    }
 }
 
 document.querySelectorAll('form[data-ajax]').forEach(form => {

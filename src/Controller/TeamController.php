@@ -25,7 +25,7 @@ use DateTimeImmutable;
  */
 final class TeamController
 {
-    private const SCRIPTS = ['/js/agenda.js'];
+    private const SCRIPTS = ['/js/agenda.js', '/js/auto-submit.js'];
 
     /**
      * @param array<string, string> $services référentiel des services : id => nom
@@ -149,7 +149,7 @@ final class TeamController
             'errors' => $errors,
             'values' => $values,
             'csrfToken' => Csrf::token(),
-        ], 'AURA - Équipes de la vacation', ['/js/confirm.js']);
+        ], 'AURA - Équipes de la vacation', ['/js/confirm.js', '/js/auto-submit.js']);
     }
 
     /**

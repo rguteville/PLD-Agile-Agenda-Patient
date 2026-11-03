@@ -4498,3 +4498,67 @@ form.form--columns .form-lead > .form-row {
     border: 1px solid var(--line-strong);
     border-radius: var(--radius);
 }
+
+/* ===== Retours du 2026-11-03 : calendrier à droite, erreur à côté du bouton d'envoi ===== */
+.agenda-nav input[type="date"] {
+    margin-left: auto;
+}
+
+.form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-3);
+}
+
+.form-actions .form-error {
+    margin: 0;
+}
+
+/* ===== Retours du 2026-11-03 : carte de la prescription d'un soin (« + ») ===== */
+.prescription-details {
+    margin-top: var(--sp-1);
+}
+
+.prescription-details summary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    min-height: 28px;
+    color: var(--accent);
+    font-weight: 700;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    cursor: pointer;
+    list-style: none;
+}
+
+.prescription-details summary::-webkit-details-marker {
+    display: none;
+}
+
+.prescription-details[open] summary span[aria-hidden="true"] {
+    display: inline-block;
+    transform: rotate(45deg);
+}
+
+.prescription-details__card {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 2px var(--sp-3);
+    margin: var(--sp-2) 0 0;
+    padding: var(--sp-2) var(--sp-3);
+    font-size: var(--fs-1);
+    background: var(--bg-muted);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+}
+
+.prescription-details__card dt {
+    color: var(--fg-muted);
+}
+
+.prescription-details__card dd {
+    margin: 0;
+}

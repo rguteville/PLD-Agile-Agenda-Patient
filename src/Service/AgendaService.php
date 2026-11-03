@@ -66,6 +66,8 @@ final class AgendaService
         private ?PatientDao $patientDao = null,
         private ?AuditEventDao $auditEventDao = null,
         private ?AllergyIntoleranceDao $allergyIntoleranceDao = null,
+        /** Noms des praticiens (idPractitioner => « Prénom Nom (rôle) ») pour la carte de prescription. */
+        private array $practitionerNames = [],
     ) {
     }
 
@@ -301,6 +303,9 @@ final class AgendaService
             'recordedAt' => $carePlan->getRecordedAt(),
             'idValidator' => $carePlan->getIdValidator(),
             'validatedAt' => $carePlan->getValidatedAt(),
+            'prescriberName' => $this->practitionerNames[(string) $carePlan->getIdPrescriber()] ?? null,
+            'validatorName' => $carePlan->getIdValidator() !== null
+                ? ($this->practitionerNames[(string) $carePlan->getIdValidator()] ?? null) : null,
             'serviceRequests' => $this->serializeService($serviceRequests, $serviceAppointments),
             'medicationRequests' => $this->serializeMedication($medicationRequests, $medicationAppointments),
         ];
@@ -521,6 +526,50 @@ final class AgendaService
         ];
     }
 
+    /**
+     * Éléments de la prescription d'un soin, pour sa carte dans l'agenda : qui a prescrit, dans quel
+     * mode, validée ou non, fréquence, période, dose et voie, consignes, arrêt.
+     *
+     * @param array<string, mixed> $line ServiceRequest ou MedicationRequest sérialisé
+     * @param array<string, mixed> $plan ordonnance sérialisée (serializeCarePlan())
+     * @return list<array{label: string, value: string}>
+     */
+    private static function presentPrescription(array $line, array $plan, bool $isMedication): array
+    {
+        $date = static fn (mixed $d): ?string => $d instanceof DateTimeInterface ? $d->format('d/m/Y H:i') : null;
+        $rows = [];
+        $add = static function (string $label, mixed $value) use (&$rows): void {
+            $value = is_string($value) ? trim($value) : $value;
+            if ($value !== null && $value !== '') {
+                $rows[] = ['label' => $label, 'value' => (string) $value];
+            }
+        };
+        if ($isMedication) {
+            $add('Dose', $line['dose'] ?? null);
+            $add('Voie', $line['route'] ?? null);
+        }
+        $add('Fréquence', CarePlanService::frequencyLabel(
+            isset($line['frequencyHours']) ? (int) $line['frequencyHours'] : null
+        ));
+        $start = $date($line['startDate'] ?? null);
+        if ($start !== null) {
+            $add('Période', CarePlanService::period($start, $date($line['endDate'] ?? null)));
+        }
+        $add('Consigne', $line['timeConstraint'] ?? null);
+        $add('Mode', CarePlanService::MODE_LABELS[$plan['mode'] ?? ''] ?? null);
+        $add('Prescrit par', $plan['prescriberName'] ?? $plan['idPrescriber'] ?? null);
+        $add('Prescrit le', $date($plan['recordedAt'] ?? null));
+        if (array_key_exists('validatedAt', $plan)) {
+            $validated = $date($plan['validatedAt']);
+            $add('Validation', $validated === null ? 'en attente de validation par un médecin'
+                : 'par ' . ($plan['validatorName'] ?? $plan['idValidator'] ?? 'un médecin') . ', le ' . $validated);
+        }
+        $add('Note', $plan['note'] ?? null);
+        $add('Arrêtée le', $date($line['stoppedAt'] ?? null));
+
+        return $rows;
+    }
+
     /** Rang d'un statut dans une cellule de la vue du service ; un statut inconnu passe en dernier. */
     private static function cellRank(string $status): int
     {
@@ -684,6 +733,8 @@ final class AgendaService
             'performedBy' => isset($appointment['performedBy']) ? (string) $appointment['performedBy'] : null,
             // Auteur de la note (AURA-28) ; null pour une note sans trace (données de démo).
             'noteBy' => isset($appointment['noteBy']) ? (string) $appointment['noteBy'] : null,
+            // Carte de la prescription (retours du 2026-11-03 : « + » sur chaque soin de l'agenda).
+            'prescription' => self::presentPrescription($line, $plan, $isMedication),
             // RG5 / AURA-23 : ordonnance pas encore validée par un médecin (urgence, paramédicale) :
             // ses soins entrent dans l'agenda avec un marqueur visible.
             'notValidated' => $plan !== [] && array_key_exists('validatedAt', $plan) && $plan['validatedAt'] === null,

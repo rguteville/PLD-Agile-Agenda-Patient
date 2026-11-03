@@ -18,10 +18,6 @@ $lead = $lead ?? [];
     <?php if (!empty($title)) : ?>
         <h1 class="form-title"><?= View::e($title) ?></h1>
     <?php endif; ?>
-    <?php if (!empty($error)) : ?>
-        <p class="form-error" role="alert"><?= View::e($error) ?></p>
-    <?php endif; ?>
-
     <?php if ($lead !== []) : ?>
         <?php /* Bloc de tête (recherche du patient) : sur grand écran, ses champs sont côte à côte. */ ?>
     <div class="form-lead">
@@ -69,5 +65,9 @@ $lead = $lead ?? [];
 
     <div class="form-actions">
         <button type="submit"><?= View::e($submit ?? 'Enregistrer') ?></button>
+        <?php /* Erreur hors champ à côté du bouton (retours du 2026-11-03), comme form.js. */ ?>
+        <?php if (!empty($error)) : ?>
+            <p class="form-error" role="alert"><?= View::e($error) ?></p>
+        <?php endif; ?>
     </div>
 </form>

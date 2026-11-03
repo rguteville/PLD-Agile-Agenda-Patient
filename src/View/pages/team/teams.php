@@ -47,7 +47,8 @@ $contextFields = '<input type="hidden" name="csrf" value="' . View::e($csrfToken
         <h1 class="form-title">Équipes · <?= View::e($services[$idHealthcareService] ?? '') ?></h1>
     </div>
 
-    <form class="agenda-nav" method="get" action="/equipes" aria-label="Choisir le service et la vacation">
+    <form class="agenda-nav" data-auto-submit-form
+          method="get" action="/equipes" aria-label="Choisir le service et la vacation">
         <label for="service-select" class="sr-only">Service</label>
         <select id="service-select" name="idHealthcareService">
             <?php foreach ($services as $id => $name) : ?>
@@ -78,7 +79,7 @@ $contextFields = '<input type="hidden" name="csrf" value="' . View::e($csrfToken
                 </option>
             <?php endforeach; ?>
         </select>
-        <button type="submit" class="button button--secondary">Afficher</button>
+        <button type="submit" class="button button--secondary" data-submit-fallback>Afficher</button>
     </form>
 
     <?php if ($unassigned !== []) : ?>

@@ -43,6 +43,7 @@ $idEpisodeOfCare = $idEpisodeOfCare ?? null;
                         <?php if ($item['details'] !== null) : ?>
                             <span class="item-details"><?= View::e($item['details']) ?></span>
                         <?php endif; ?>
+                        <?= View::render('components/prescription_details', ['item' => $item]) ?>
                     </td>
                     <td><?= View::e($item['responsible']) ?></td>
                     <td class="col-status">

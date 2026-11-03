@@ -35,7 +35,8 @@ $url = static fn (string $date, string $shift): string => '/mon-planning?idPract
         </p>
     </div>
 
-    <form class="agenda-nav" method="get" action="/mon-planning" aria-label="Choisir le soignant et la vacation">
+    <form class="agenda-nav" data-auto-submit-form
+          method="get" action="/mon-planning" aria-label="Choisir le soignant et la vacation">
         <label for="planning-practitioner">Soignant</label>
         <select id="planning-practitioner" name="idPractitioner">
             <option value="">— choisir —</option>
@@ -71,7 +72,7 @@ $url = static fn (string $date, string $shift): string => '/mon-planning?idPract
                 </option>
             <?php endforeach; ?>
         </select>
-        <button type="submit" class="button button--secondary">Afficher</button>
+        <button type="submit" class="button button--secondary" data-submit-fallback>Afficher</button>
     </form>
 
     <?php if ($idPractitioner === null) : ?>
@@ -197,6 +198,7 @@ $url = static fn (string $date, string $shift): string => '/mon-planning?idPract
                                             <?php if ($item['details'] !== null) : ?>
                                                 <span class="item-details"><?= View::e($item['details']) ?></span>
                                             <?php endif; ?>
+                                            <?= View::render('components/prescription_details', ['item' => $item]) ?>
                                         </td>
                                         <td class="col-status">
                                             <?= View::render('components/status_badge', [
