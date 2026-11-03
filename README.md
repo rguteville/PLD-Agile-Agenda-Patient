@@ -42,6 +42,7 @@ Il est préférable d'utiliser de **les mêmes versions que la VM de démo**, po
 
 ```text
 .github/workflows/  CI (GitHub Actions) : validate, php -l, PSR-12, schéma + données, PHPUnit
+bin/                scripts en ligne de commande : generate-agenda.php (génération quotidienne de l'agenda, cron)
 config/             config.example.php versionné ; config.php local, jamais commité
 database/           schema.sql (structure complète), test.sql (données fictives), migrations/ (ALTER additifs)
 docs/               ARCHITECTURE.md, TESTS.md, UI-GUIDE.md, ui.md (système de design initial)
@@ -234,7 +235,33 @@ Aucun accès internet n'est nécessaire à l'exécution : police, icônes et scr
 **Base existante** après une mise à jour qui ajoute des colonnes : rejouer les fichiers de `database/migrations/`
 dans l'ordre des dates (`mariadb -u aura -p aura < database/migrations/<fichier>.sql`), ou recréer la base.
 
-### 7. Lancer les tests
+### 7. Génération quotidienne de l'agenda (cron)
+
+À l'enregistrement d'une prescription, AURA planifie ses soins sur 7 jours. Chaque jour, `bin/generate-agenda.php`
+prolonge l'agenda de tous les séjours en cours : pour chaque ligne de prescription active (non arrêtée), il crée les
+soins planifiés manquants de maintenant jusqu'à la fin du jour J + 7 (AURA-24.2 / 24.3). Il est **idempotent** :
+une heure déjà planifiée n'est jamais recréée, un soin existant n'est jamais modifié et rien n'est créé dans le
+passé (RG9). Relancé deux fois de suite, le second passage affiche « 0 soin créé ».
+
+```bash
+php bin/generate-agenda.php
+# Exemple sur les données de démo le 03/11/2026 au soir :
+# 11 soins créés pour 2 séjours (3 séjours en cours avec une prescription active, 5 lignes examinées).
+# Relancé aussitôt : 0 soin créé pour 0 séjour (...).
+```
+
+Même configuration que le site (`config/config.php`, ou variables `DB_*`). Code de sortie 0 si tout va bien, 1 en
+cas d'erreur (message sur la sortie d'erreur, rien n'est enregistré). Sur la VM, tous les jours à 0 h 05
+(`crontab -e` avec l'utilisateur qui exécute le site, par exemple `www-data`) :
+
+```cron
+5 0 * * * cd /var/www/aura && php bin/generate-agenda.php >> /var/log/aura/generate-agenda.log 2>&1
+```
+
+Le dossier du journal doit exister et être accessible en écriture (`sudo mkdir -p /var/log/aura && sudo chown
+www-data /var/log/aura`). Le script fixe lui-même le fuseau Europe/Paris, comme le site.
+
+### 8. Lancer les tests
 
 ```bash
 composer test                        # unitaires (les tests avec base sont sautés)

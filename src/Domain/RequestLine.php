@@ -96,15 +96,35 @@ abstract class RequestLine
      */
     public function plannedTimes(): array
     {
+        $until = $this->frequencyHours === null
+            ? $this->startDate
+            : $this->endDate ?? $this->startDate->modify(sprintf('+%d days', self::PLANNING_HORIZON_DAYS));
+
+        return $this->plannedTimesBetween($this->startDate, $until);
+    }
+
+    /**
+     * AURA-24.2 : heures prévues de la ligne comprises entre $from et $until (bornes incluses), sans
+     * dépasser endDate. C'est le seul algorithme d'occurrences d'AURA : plannedTimes() (enregistrement
+     * de la prescription) et la génération quotidienne de l'agenda (AgendaGenerationService) l'utilisent
+     * tous les deux, si bien qu'une même ligne donne toujours les mêmes heures (aucun décalage, donc
+     * aucun doublon). Les heures sont toujours comptées depuis startDate, jamais depuis $from.
+     *
+     * @return DateTimeImmutable[]
+     */
+    public function plannedTimesBetween(DateTimeImmutable $from, DateTimeImmutable $until): array
+    {
         if ($this->frequencyHours === null) {
-            return [$this->startDate];
+            return $this->startDate >= $from && $this->startDate <= $until ? [$this->startDate] : [];
         }
 
-        $end = $this->endDate ?? $this->startDate->modify(sprintf('+%d days', self::PLANNING_HORIZON_DAYS));
+        $last = $this->endDate !== null && $this->endDate < $until ? $this->endDate : $until;
         $step = sprintf('+%d hours', $this->frequencyHours);
         $times = [];
-        for ($time = $this->startDate; $time <= $end; $time = $time->modify($step)) {
-            $times[] = $time;
+        for ($time = $this->startDate; $time <= $last; $time = $time->modify($step)) {
+            if ($time >= $from) {
+                $times[] = $time;
+            }
         }
 
         return $times;
