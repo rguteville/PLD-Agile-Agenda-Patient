@@ -19,6 +19,7 @@ use Aura\Service\RecordSectionService;
  * @var bool $editable édition champ par champ active (inline-edit.js, endpoint /sejour/champ/modifier)
  * @var ?string $csrfToken jeton de session envoyé par le script dans X-CSRF-Token
  * @var list<array<string, mixed>> $history dernières modifications, vue-modèle de RecordEditService::history()
+ * @var array<string, string> $referringDoctors médecins pouvant être référents : idPractitioner => « Dr Prénom Nom »
  */
 $allergyError = $allergyError ?? null;
 $sections = $sections ?? [];
@@ -27,6 +28,7 @@ $csrfToken = $csrfToken ?? null;
 $history = $history ?? [];
 $partValues = $partValues ?? [];
 $services = $services ?? [];
+$referringDoctors = $referringDoctors ?? [];
 // Crayon « Modifier » d'une partie entière (retours du 2026-11-02), à côté du titre de la partie.
 $partEditButton = static fn (string $part, string $title): string =>
     '<button type="button" class="part-edit" data-part-edit="' . View::e($part) . '" aria-label="Modifier la partie : '
@@ -37,7 +39,8 @@ $lineValue = static function (array $row): string {
     if ($row['value'] !== null) {
         $html = View::e($row['value']);
     } else {
-        $html = '<span class="not-recorded">' . ($row['computed'] ? 'Non calculable' : 'Non renseigné') . '</span>';
+        $empty = $row['computed'] ? 'Non calculable' : ($row['emptyLabel'] ?? 'Non renseigné');
+        $html = '<span class="not-recorded">' . View::e($empty) . '</span>';
     }
     if ($row['computed'] && $row['help'] !== null) {
         $html .= ' <small>' . View::e($row['help']) . '</small>';
@@ -126,6 +129,18 @@ if ($editable) {
         <dd><?= View::e($banner['admissionDate'] ?? 'non renseignée') ?></dd>
         <dt>Service</dt>
         <dd><?= View::e($episodeOfCare['service'] ?? 'non renseigné') ?></dd>
+        <dt>Médecin référent</dt>
+        <dd>
+            <?php if (($episodeOfCare['referent'] ?? null) !== null) : ?>
+                <?= View::e($episodeOfCare['referent']) ?>
+            <?php else : ?>
+                <?php /* Mis en évidence par l'icône, le texte et le cadre, pas par la couleur seule. */ ?>
+                <span class="referent-missing">
+                    <?= View::render('components/icon', ['name' => 'circle-alert']) ?>
+                    Référent à désigner
+                </span>
+            <?php endif; ?>
+        </dd>
         <dt>Motif d'admission</dt>
         <dd><?= isset($episodeOfCare['admissionReason'])
             ? nl2br(View::e($episodeOfCare['admissionReason']))
@@ -148,7 +163,11 @@ if ($editable) {
         <?= View::render('components/part_form', [
             'part' => RecordSectionService::PART_SUMMARY,
             'title' => 'Dossier',
-            'fields' => RecordSectionService::partFields(RecordSectionService::PART_SUMMARY, $services),
+            'fields' => RecordSectionService::partFields(
+                RecordSectionService::PART_SUMMARY,
+                $services,
+                $referringDoctors
+            ),
             'values' => $partValues[RecordSectionService::PART_SUMMARY] ?? [],
         ]) ?>
     <?php endif; ?>
@@ -288,7 +307,7 @@ if ($editable) {
                 <?= View::render('components/part_form', [
                     'part' => $section['id'],
                     'title' => $section['title'],
-                    'fields' => RecordSectionService::partFields($section['id'], $services),
+                    'fields' => RecordSectionService::partFields($section['id'], $services, $referringDoctors),
                     'values' => $partValues[$section['id']] ?? [],
                 ]) ?>
             <?php endif; ?>

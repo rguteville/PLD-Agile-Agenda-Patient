@@ -13,13 +13,14 @@ use Aura\Service\AdmissionService;
  * @var array<string, mixed> $values valeurs saisies après un refus serveur (vide à l'affichage initial)
  * @var array<string, string> $errors erreurs indexées par nom de champ
  * @var string $formError message hors champ (admission refusée)
- * @var array<string, array<string, string>> $referenceDataSets 'services' et 'substances' (vides sans base)
+ * @var array<string, array<string, string>> $referenceDataSets 'services', 'doctors' et 'substances' (vides sans base)
  */
 $values = $values ?? [];
 $errors = $errors ?? [];
 $formError = $formError ?? '';
 $referenceDataSets = $referenceDataSets ?? [];
 $services = $referenceDataSets['services'] ?? [];
+$doctors = $referenceDataSets['doctors'] ?? [];
 $substances = $referenceDataSets['substances'] ?? [];
 
 // Champ du catalogue → champ du composant field (même nom des deux côtés).
@@ -104,6 +105,18 @@ $essentials = [
         'type' => 'select',
         'options' => $services,
         'empty' => $services === [] ? 'Référentiel indisponible' : 'Non renseigné',
+    ],
+    // Médecin référent (responsable de soin, retours des médecins du 2026-11-03) : le médecin de jour qui
+    // admet le patient. Facultatif : admis pendant une garde, le patient reste « à désigner » et un médecin
+    // de jour se désigne ensuite depuis le dossier. Le serveur vérifie que c'est un médecin de la liste.
+    [
+        'name' => 'idReferringPractitioner',
+        'label' => 'Médecin référent',
+        'type' => 'select',
+        'options' => $doctors,
+        'empty' => 'À désigner',
+        'help' => 'Le médecin de jour qui prend le patient en charge. Admission pendant une garde : laissez '
+            . '« À désigner », un médecin de jour le reprendra depuis le dossier du séjour.',
     ],
     [
         'name' => 'allergies',

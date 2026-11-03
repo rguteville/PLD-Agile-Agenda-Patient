@@ -20,7 +20,9 @@ class EpisodeOfCare
         private ?float $weight = null,
         private ?float $height = null,
         private ?string $precautions = null,
-        private array $details = []
+        private array $details = [],
+        private ?string $idReferringPractitioner = null,
+        private ?string $referringPractitionerName = null
     ) {
     }
 
@@ -97,6 +99,24 @@ class EpisodeOfCare
     public function getDetail(string $field): ?string
     {
         return $this->details[$field] ?? null;
+    }
+
+    /**
+     * Médecin référent du séjour (responsable de soin) : le médecin de jour qui fait l'admission ou
+     * reprend le patient. null = « à désigner » (admission pendant une garde).
+     */
+    public function getIdReferringPractitioner(): ?string
+    {
+        return $this->idReferringPractitioner;
+    }
+
+    /**
+     * « Prénom Nom » du médecin référent, lu par EpisodeOfCareDao (jointure sur Practitioner) pour
+     * l'affichage ; null s'il n'y en a pas. Jamais écrit en base.
+     */
+    public function getReferringPractitionerName(): ?string
+    {
+        return $this->referringPractitionerName;
     }
 
     public function isOngoing(): bool

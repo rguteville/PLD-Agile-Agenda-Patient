@@ -142,6 +142,71 @@ final class EpisodeOfCareDaoTest extends TestCase
         }
     }
 
+    /** Retours du 2026-11-03 : médecin référent écrit à l'ouverture, relu avec son nom (jointure). */
+    public function testReferringPractitionerIsWrittenAndRereadWithName(): void
+    {
+        $this->insertPractitioner('ZZREF1', 'Zzclaire', 'Zzreferente');
+        $with = $this->dao->insert(new EpisodeOfCare(
+            idEpisodeOfCare: null,
+            idPatient: $this->idPatient,
+            episodeNumber: '',
+            admissionDate: new DateTimeImmutable(),
+            idReferringPractitioner: 'ZZREF1'
+        ));
+
+        $reread = $this->dao->findById((int) $with->getIdEpisodeOfCare());
+        self::assertSame('ZZREF1', $reread?->getIdReferringPractitioner());
+        self::assertSame('Zzclaire Zzreferente', $reread?->getReferringPractitionerName());
+        $ongoing = array_filter(
+            $this->dao->findOngoing(),
+            fn (EpisodeOfCare $e): bool => $e->getIdEpisodeOfCare() === $with->getIdEpisodeOfCare()
+        );
+        self::assertSame('Zzclaire Zzreferente', array_values($ongoing)[0]->getReferringPractitionerName());
+    }
+
+    public function testEpisodeWithoutReferringPractitionerHasNone(): void
+    {
+        $episodeOfCare = $this->dao->insert($this->newEpisodeOfCare('L5'));
+
+        $reread = $this->dao->findById((int) $episodeOfCare->getIdEpisodeOfCare());
+        self::assertNull($reread?->getIdReferringPractitioner(), 'à désigner');
+        self::assertNull($reread?->getReferringPractitionerName());
+    }
+
+    public function testReferringPractitionerChangedOnlyIfUnchangedInDatabase(): void
+    {
+        $this->insertPractitioner('ZZREF1', 'Zzclaire', 'Zzreferente');
+        $id = (int) $this->dao->insert($this->newEpisodeOfCare('L6'))->getIdEpisodeOfCare();
+
+        self::assertTrue($this->dao->updateDetailIfUnchanged($id, 'idReferringPractitioner', 'ZZREF1', null));
+        self::assertFalse(
+            $this->dao->updateDetailIfUnchanged($id, 'idReferringPractitioner', null, null),
+            'la valeur attendue (à désigner) n\'est plus celle en base'
+        );
+        self::assertSame('ZZREF1', $this->dao->findById($id)?->getIdReferringPractitioner());
+    }
+
+    public function testUnknownReferringPractitionerIsRefusedByForeignKey(): void
+    {
+        $this->expectException(PDOException::class);
+
+        $this->dao->insert(new EpisodeOfCare(
+            idEpisodeOfCare: null,
+            idPatient: $this->idPatient,
+            episodeNumber: '',
+            admissionDate: new DateTimeImmutable(),
+            idReferringPractitioner: 'ZZ-INCONNU'
+        ));
+    }
+
+    /** Praticien de test sans rôle, annulé avec la transaction du test. */
+    private function insertPractitioner(string $id, string $firstName, string $lastName): void
+    {
+        $this->pdo->prepare(
+            'INSERT INTO Practitioner (idPractitioner, firstName, lastName) VALUES (:id, :firstName, :lastName)'
+        )->execute(['id' => $id, 'firstName' => $firstName, 'lastName' => $lastName]);
+    }
+
     /** Partie NNNNNN du numéro AAAA-NNNNNN. */
     private function counter(EpisodeOfCare $s): int
     {

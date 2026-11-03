@@ -122,7 +122,7 @@ INSERT INTO Patient (idPatient, ipp, firstName, lastName, phoneNumber, email, se
     ('7', NULL,      'Ellen',    'Ripley',    NULL,         NULL,                        'F', '1967-04-21', FALSE, NULL,         NULL,                                              NULL);
 
 -- ---------------------------------------------------------------------------
--- Séjours (dépend de Patient et HealthcareService)
+-- Séjours (dépend de Patient, HealthcareService et Practitioner)
 -- dischargeDate NULL = patient encore hospitalisé.
 -- Mesures à l'admission (AURA-10.1) : seuls certains séjours en ont (« non renseigné » sinon).
 -- ---------------------------------------------------------------------------
@@ -136,6 +136,12 @@ INSERT INTO EpisodeOfCare (idEpisodeOfCare, idPatient, idHealthcareService, epis
     ('6', '6', 'SRV03', '2026-000106', '2026-10-13 09:00:00', NULL,                  'L09', 'B09', 'Surveillance après intoxication',                NULL,  NULL,   NULL),
     ('7', '1', 'SRV03', '2026-000107', '2026-06-02 10:00:00', '2026-06-05 16:00:00', 'L08', 'B08', 'Séjour antérieur : décompensation respiratoire', NULL,  NULL,   NULL),
     ('8', '7', 'SRV01', '2026-000108', '2026-10-14 02:30:00', NULL,                  'L04', 'B04', 'Arrêt cardio-respiratoire récupéré',             NULL,  NULL,   NULL);
+
+-- Médecin référent (responsable de soin, retours du 2026-11-03) : un médecin réanimateur (PRA01, PRA02) pour
+-- la plupart des séjours. Le séjour 8 (Ellen Ripley, admise à 02 h 30 pendant une garde) reste « à désigner »
+-- (NULL) : un médecin de jour le reprendra depuis le dossier.
+UPDATE EpisodeOfCare SET idReferringPractitioner = 'PRA01' WHERE idEpisodeOfCare IN ('1', '3', '5', '7');
+UPDATE EpisodeOfCare SET idReferringPractitioner = 'PRA02' WHERE idEpisodeOfCare IN ('2', '4', '6');
 
 -- Champs complémentaires (PR « admission-champs-complets ») : quelques valeurs sur le patient 1 et son
 -- séjour en cours pour que le dossier montre des sections renseignées ; les autres restent « Non renseigné ».

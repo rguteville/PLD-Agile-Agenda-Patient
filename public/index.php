@@ -61,7 +61,7 @@ if (PHP_SAPI === 'cli-server' && is_file(__DIR__ . $path)) {
 // qui l'utilisent peuvent lever ConfigurationException, les autres fonctionnent
 // sans config/config.php.
 try {
-    // Listes de l'admission lues en base (service hospitalier, allergènes du référentiel).
+    // Listes de l'admission lues en base (service hospitalier, médecins référents, allergènes du référentiel).
     // Sans config.php ni base, la page d'accueil reste affichable : listes vides, le reste du
     // formulaire fonctionne (la saisie sera refusée à l'envoi, qui a besoin de la base).
     $admissionReferenceData = static function (): array {
@@ -70,6 +70,7 @@ try {
 
             return [
                 'services' => (new ReferenceDataDao($pdo))->healthcareServices(),
+                'doctors' => (new ReferenceDataDao($pdo))->doctors(),
                 'substances' => PatientRecordService::availableSubstances((new SubstanceDao($pdo))->findAll(), []),
             ];
         } catch (ConfigurationException | \PDOException) {

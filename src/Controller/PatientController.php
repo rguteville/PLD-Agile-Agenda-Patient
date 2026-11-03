@@ -38,6 +38,8 @@ class PatientController
         'weight' => 'weight',
         'precautions' => 'precautions',
         'idHealthcareService' => 'idService',
+        // Médecin référent du séjour (retours du 2026-11-03), facultatif : vide = « à désigner ».
+        'idReferringPractitioner' => 'idReferringPractitioner',
         // Patient sélectionné dans la recherche (champ caché posé par admission-search.js) et mode de recherche.
         'idPatient' => 'idPatient',
         'searchMode' => 'searchMode',
@@ -80,7 +82,8 @@ class PatientController
      * (voir public/index.php), pour que l'admission reste utilisable sans connexion.
      *
      * @param array<string, array<string, string>> $referenceDataSets listes de l'admission lues en base :
-     *        'services' (idHealthcareService => nom) et 'substances' (idSubstance => libellé) ;
+     *        'services' (idHealthcareService => nom), 'substances' (idSubstance => libellé) et
+     *        'doctors' (idPractitioner => « Dr Prénom Nom », médecins pouvant être référents) ;
      *        vides si la base est injoignable (le formulaire reste affichable, sans ces listes).
      */
     public function __construct(

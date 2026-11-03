@@ -6,6 +6,7 @@ namespace Aura\Tests\Service;
 
 use Aura\Dao\AllergyIntoleranceDao;
 use Aura\Dao\PatientDao;
+use Aura\Dao\ReferenceDataDao;
 use Aura\Dao\EpisodeOfCareDao;
 use Aura\Dao\SubstanceDao;
 use Aura\Domain\AllergyIntolerance;
@@ -74,6 +75,45 @@ final class PatientRecordServiceTest extends TestCase
 
         self::assertSame('O-', $avec['bloodType']);
         self::assertNull($sans['bloodType'], 'non renseigné');
+    }
+
+    /** Retours du 2026-11-03 : médecin référent dans le bandeau, null = « à désigner » (garde). */
+    public function testBannerShowsReferentOrToBeDesignated(): void
+    {
+        $today = new DateTimeImmutable(self::TODAY);
+
+        $with = PatientRecordService::presentBanner(
+            $this->patient(null),
+            $this->episodeOfCare(idReferringPractitioner: 'PRA01', referringPractitionerName: 'Claire Morel'),
+            [],
+            $today
+        );
+        $without = PatientRecordService::presentBanner($this->patient(null), $this->episodeOfCare(), [], $today);
+
+        self::assertSame('Dr Claire Morel', $with['referent']);
+        self::assertNull($without['referent'], 'la vue affiche « Référent à désigner »');
+    }
+
+    public function testReferentLabelIgnoresBlankName(): void
+    {
+        self::assertNull(PatientRecordService::referent(
+            $this->episodeOfCare(idReferringPractitioner: null, referringPractitionerName: '  ')
+        ));
+        self::assertSame('Dr Karim Benali', PatientRecordService::referent(
+            $this->episodeOfCare(idReferringPractitioner: 'PRA02', referringPractitionerName: ' Karim Benali ')
+        ));
+    }
+
+    public function testEpisodeSummaryCarriesReferent(): void
+    {
+        $episode = PatientRecordService::presentEpisodeOfCare(
+            $this->episodeOfCare(idReferringPractitioner: 'PRA02', referringPractitionerName: 'Karim Benali'),
+            $this->patient(ipp: null)
+        );
+        $toDesignate = PatientRecordService::presentEpisodeOfCare($this->episodeOfCare(), $this->patient(null));
+
+        self::assertSame('Dr Karim Benali', $episode['referent']);
+        self::assertNull($toDesignate['referent']);
     }
 
     public function testBannerCarriesAllergyStatus(): void
@@ -287,6 +327,38 @@ final class PatientRecordServiceTest extends TestCase
         self::assertSame([1, 2], array_column($record['allergies'], 'idAllergy'), 'ids pour le bouton Retirer');
         self::assertSame(['ARACH' => 'Arachide'], $record['substances'], 'les allergènes déjà connus sont retirés');
         self::assertSame(AllergyIntolerance::CRITICALITIES, $record['criticalities']);
+        self::assertSame([], $record['referringDoctors'], 'sans référentiel ni référent : liste vide');
+    }
+
+    /**
+     * Référent actuel qui n'est plus dans la liste des médecins : il reste proposé, sinon la liste
+     * afficherait « À désigner » et l'enregistrement d'un autre champ de la partie l'effacerait.
+     */
+    public function testCurrentReferentKeptInChoicesEvenIfNoLongerADoctor(): void
+    {
+        $episodesOfCare = $this->createMock(EpisodeOfCareDao::class);
+        $episodesOfCare->method('findById')->willReturn(
+            $this->episodeOfCare(idReferringPractitioner: 'PRA09', referringPractitionerName: 'Ancien Médecin')
+        );
+        $patients = $this->createMock(PatientDao::class);
+        $patients->method('findById')->willReturn($this->patient(null));
+        $references = $this->createMock(ReferenceDataDao::class);
+        $references->method('healthcareServices')->willReturn([]);
+        $references->method('doctors')->willReturn(['PRA01' => 'Dr Claire Morel']);
+
+        $record = (new PatientRecordService(
+            $episodesOfCare,
+            $patients,
+            $this->createMock(AllergyIntoleranceDao::class),
+            $this->createMock(SubstanceDao::class),
+            new DateTimeImmutable(self::TODAY),
+            $references
+        ))->record(9);
+
+        self::assertSame(
+            ['PRA01' => 'Dr Claire Morel', 'PRA09' => 'Dr Ancien Médecin'],
+            $record['referringDoctors'] ?? null
+        );
     }
 
     /** AURA-13.2 : section « Allergies connues » du dossier. */
@@ -391,6 +463,31 @@ final class PatientRecordServiceTest extends TestCase
         self::assertSame(6, $byId['measures']['total'], 'les valeurs calculées ne comptent pas');
     }
 
+    /** Section « Admission » : le référent est modifiable comme le service (liste des médecins). */
+    public function testAdmissionSectionHasReferentRowWithDoctorList(): void
+    {
+        $doctors = ['PRA01' => 'Dr Claire Morel'];
+        $patient = $this->patient(null);
+
+        $with = PatientRecordService::presentSections(
+            $patient,
+            $this->episodeOfCare(idReferringPractitioner: 'PRA01', referringPractitionerName: 'Claire Morel'),
+            [],
+            $doctors
+        );
+        $without = PatientRecordService::presentSections($patient, $this->episodeOfCare(), [], $doctors);
+
+        $rows = array_column(array_column($with, null, 'id')['admission']['rows'], null, 'field');
+        $row = $rows['idReferringPractitioner'];
+        self::assertSame('PRA01', $row['raw']);
+        self::assertSame('Dr Claire Morel', $row['value']);
+        self::assertSame($doctors, $row['options']);
+        self::assertSame('select', $row['type']);
+        $empty = array_column(array_column($without, null, 'id')['admission']['rows'], null, 'field');
+        self::assertNull($empty['idReferringPractitioner']['value']);
+        self::assertSame('À désigner', $empty['idReferringPractitioner']['emptyLabel']);
+    }
+
     public function testPresentSectionsWithoutMeasuresExplainsMissingComputations(): void
     {
         $patient = new Patient(9, null, 'Durand', 'Alice', null, null);
@@ -414,7 +511,9 @@ final class PatientRecordServiceTest extends TestCase
         ?DateTimeImmutable $dischargeDate = null,
         ?float $weight = null,
         ?float $height = null,
-        ?string $precautions = null
+        ?string $precautions = null,
+        ?string $idReferringPractitioner = null,
+        ?string $referringPractitionerName = null
     ): EpisodeOfCare {
         return new EpisodeOfCare(
             idEpisodeOfCare: 9,
@@ -427,7 +526,9 @@ final class PatientRecordServiceTest extends TestCase
             idService: 'REA',
             weight: $weight,
             height: $height,
-            precautions: $precautions
+            precautions: $precautions,
+            idReferringPractitioner: $idReferringPractitioner,
+            referringPractitionerName: $referringPractitionerName
         );
     }
 }

@@ -97,6 +97,8 @@ final class AgendaService
                     ],
                     $this->allergyIntoleranceDao->findByPatient($episodeOfCare->getIdPatient())
                 ),
+                // Médecin référent (« Dr Prénom Nom »), null = à désigner (retours du 2026-11-03).
+                'referent' => PatientRecordService::referent($episodeOfCare),
                 'carePlans' => $this->getAgenda($idEpisodeOfCare),
             ];
         }

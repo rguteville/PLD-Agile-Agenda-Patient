@@ -29,6 +29,8 @@ use PDOException;
  * (antécédents, histoire de la maladie, scores, administratif), le service hospitalier et
  * les allergies choisies dans le référentiel sont validés et enregistrés dans la même
  * transaction. Leur règle de validation vit dans FieldValidationService.
+ * Retours des médecins du 2026-11-03 : médecin référent du séjour (responsable de soin), facultatif
+ * (« à désigner » pour une admission de garde), choisi dans la liste des médecins.
  */
 class AdmissionService
 {
@@ -116,6 +118,7 @@ class AdmissionService
         $height = $this->measure($data['height'] ?? null);
         $precautions = $this->precautions($data['precautions'] ?? null);
         $idService = $this->text($data['idService'] ?? null);
+        $idReferringPractitioner = $this->text($data['idReferringPractitioner'] ?? null);
         $episodeDetails = $this->fields->normalize(RecordFields::EPISODE, $data);
         $allergies = $this->allergens($data['allergies'] ?? null);
         $criticalities = $this->criticalities($data['allergyCriticalities'] ?? null);
@@ -150,7 +153,8 @@ class AdmissionService
                     $allergies,
                     $criticalities,
                     $selectedId,
-                    $searchMode
+                    $searchMode,
+                    $idReferringPractitioner
                 );
             } catch (PDOException $e) {
                 $code = (int) ($e->errorInfo[1] ?? 0);
@@ -189,7 +193,8 @@ class AdmissionService
         array $allergies,
         array $criticalities,
         ?int $selectedId,
-        string $searchMode
+        string $searchMode,
+        string $idReferringPractitioner
     ): EpisodeOfCare {
         return $this->transaction->run(
             function () use (
@@ -206,7 +211,8 @@ class AdmissionService
                 $allergies,
                 $criticalities,
                 $selectedId,
-                $searchMode
+                $searchMode,
+                $idReferringPractitioner
             ): EpisodeOfCare {
                 $rattachement = null;
                 if ($selectedId !== null) {
@@ -267,7 +273,8 @@ class AdmissionService
                     height: $height,
                     precautions: $precautions,
                     idService: $idService !== '' ? $idService : null,
-                    details: $episodeDetails
+                    details: $episodeDetails,
+                    idReferringPractitioner: $idReferringPractitioner !== '' ? $idReferringPractitioner : null
                 );
 
                 if ($rattachement !== null) {
@@ -580,14 +587,16 @@ class AdmissionService
      * Valide les données d'admission (RG1 : nom et prénom obligatoires, IPP facultatif).
      *
      * Clés attendues (celles du domaine) : nom, prenom, ipp, dateNaissance, sexe,
-     * taille, poids, precautions, idService, allergies (liste d'identifiants d'allergènes),
+     * taille, poids, precautions, idService, idReferringPractitioner (médecin référent, facultatif),
+     * allergies (liste d'identifiants d'allergènes),
      * allergyCriticalities (idSubstance => criticité de Allergie::CRITICALITIES ou vide)
      * et tous les champs facultatifs de RecordFields::PATIENT et ::EPISODE. Une clé absente
      * est traitée comme vide. Les messages ne reprennent jamais la valeur saisie (données de santé).
      *
      * @param array<string, mixed> $donnees
      * @param array<string, array<string, string>> $referenceDataSets listes autorisées, lues en base par
-     *        l'appelant : 'services' (idHealthcareService => nom) et 'substances' (idSubstance => libellé).
+     *        l'appelant : 'services' (idHealthcareService => nom), 'substances' (idSubstance => libellé) et
+     *        'doctors' (idPractitioner => « Dr Prénom Nom », médecins pouvant être référents).
      *        Une liste absente désactive le contrôle d'appartenance correspondant (tests unitaires).
      * @return array<string, string> erreurs indexées par champ ; [] si les données sont valides
      */
@@ -604,6 +613,17 @@ class AdmissionService
             && !isset($referenceDataSets['services'][$idService])
         ) {
             $errors['idService'] = 'Le service hospitalier choisi est inconnu.';
+        }
+
+        // Médecin référent : facultatif (« à désigner » en garde), mais toujours un médecin de la liste.
+        $idReferringPractitioner = $this->text($data['idReferringPractitioner'] ?? null);
+        if (
+            $idReferringPractitioner !== ''
+            && isset($referenceDataSets['doctors'])
+            && !isset($referenceDataSets['doctors'][$idReferringPractitioner])
+        ) {
+            $errors['idReferringPractitioner'] = 'Le médecin référent choisi ne fait pas partie des médecins '
+                . 'proposés.';
         }
 
         // Patient sélectionné dans la recherche : identifiant interne numérique (existence vérifiée à l'écriture).

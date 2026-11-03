@@ -360,6 +360,55 @@ final class AdmissionServiceTest extends TestCase
         self::assertSame([], $this->service->validate(self::VALID_DATA + ['idService' => 'SRV99']));
     }
 
+    /** Médecins proposés comme référent (retours du 2026-11-03), lus en base par l'appelant. */
+    private const DOCTORS = ['PRA01' => 'Dr Claire Morel', 'PRA02' => 'Dr Karim Benali'];
+
+    /** @return iterable<string, array{mixed}> */
+    public static function acceptedReferringPractitioners(): iterable
+    {
+        yield 'médecin de la liste' => ['PRA02'];
+        yield 'à désigner (vide)' => [''];
+        yield 'à désigner (espaces)' => ['   '];
+        yield 'champ absent' => [null];
+        // Comme les autres champs : une valeur non textuelle (formulaire forgé) vaut « vide ».
+        yield 'non scalaire' => [['PRA01']];
+    }
+
+    #[DataProvider('acceptedReferringPractitioners')]
+    public function testReferringPractitionerFromListOrToBeDesignatedIsAccepted(mixed $value): void
+    {
+        $data = $value === null ? self::VALID_DATA : self::VALID_DATA + ['idReferringPractitioner' => $value];
+
+        self::assertSame([], $this->service->validate($data, ['doctors' => self::DOCTORS]));
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function rejectedReferringPractitioners(): iterable
+    {
+        yield 'interne (praticien, pas médecin de la liste)' => ['PRA03'];
+        yield 'identifiant inconnu' => ['PRA99'];
+        yield 'casse différente' => ['pra01'];
+        yield 'injection' => ["PRA01' OR '1'='1"];
+    }
+
+    #[DataProvider('rejectedReferringPractitioners')]
+    public function testReferringPractitionerOutsideDoctorListIsRejectedOnItsFieldOnly(string $value): void
+    {
+        $errors = $this->service->validate(
+            self::VALID_DATA + ['idReferringPractitioner' => $value],
+            ['doctors' => self::DOCTORS]
+        );
+
+        self::assertSame(['idReferringPractitioner'], array_keys($errors));
+        self::assertStringNotContainsString($value, $errors['idReferringPractitioner'], 'valeur saisie non reprise');
+    }
+
+    public function testWithoutDoctorListReferringPractitionerIsNotChecked(): void
+    {
+        // Comme pour le service : sans référentiel (tests, page sans base), la clé étrangère protège la base.
+        self::assertSame([], $this->service->validate(self::VALID_DATA + ['idReferringPractitioner' => 'PRA99']));
+    }
+
     public function testUnknownAllergyCriticalityIsRejectedUnderAllergyList(): void
     {
         $errors = $this->service->validate(self::VALID_DATA + [

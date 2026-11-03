@@ -137,6 +137,36 @@ final class PagesRenderTest extends TestCase
         self::assertStringContainsString('Aucune prescription validée.', $html);
         self::assertStringContainsString('Aucune allergie connue', $html);
         self::assertStringContainsString('badge--planned', $html, 'statut « En cours »');
+        self::assertStringContainsString('Référent à désigner', $html, 'référent absent : état explicite');
+    }
+
+    /** Résumé du dossier : médecin référent nommé, et proposé dans la partie « Dossier » modifiable. */
+    public function testRecordSummaryShowsReferentAndOffersDoctorList(): void
+    {
+        $html = View::render('pages/episode/record', [
+            'banner' => ['referent' => 'Dr Claire Morel'] + ComponentsRenderTest::banner(),
+            'episodeOfCare' => [
+                'ongoing' => true, 'dischargeDate' => null, 'service' => null, 'referent' => 'Dr Claire Morel',
+                'bed' => null, 'box' => null, 'precautions' => null, 'phone' => null, 'email' => null,
+                'idPatient' => 1,
+            ],
+            'idEpisodeOfCare' => 1,
+            'prescriptions' => [],
+            'doctors' => [],
+            'allergies' => [],
+            'substances' => [],
+            'criticalities' => [],
+            'editable' => true,
+            'referringDoctors' => ['PRA01' => 'Dr Claire Morel', 'PRA02' => 'Dr Karim <Benali>'],
+            'partValues' => ['summary' => ['idReferringPractitioner' => 'PRA01']],
+        ]);
+
+        self::assertMatchesRegularExpression('/<dt>Médecin référent<\/dt>\s*<dd>\s*Dr Claire Morel/', $html);
+        self::assertStringNotContainsString('Référent à désigner', $html);
+        self::assertStringContainsString('name="idReferringPractitioner"', $html, 'modifiable dans la partie');
+        self::assertMatchesRegularExpression('/<option value="PRA01"\s+selected/', $html);
+        self::assertStringContainsString('Dr Karim &lt;Benali&gt;', $html);
+        self::assertStringContainsString('À désigner</option>', $html, 'option vide explicite');
     }
 
     /** Dossier complet : sections présentes même vides, « Non renseigné » explicite, valeurs échappées. */
@@ -188,6 +218,7 @@ final class PagesRenderTest extends TestCase
         $html = View::render('pages/patient/admission', [
             'referenceDataSets' => [
                 'services' => ['SRV01' => 'Réa <1>'],
+                'doctors' => ['PRA01' => 'Dr Claire Morel'],
                 'substances' => ['ALG01' => 'Pénicilline'],
             ],
         ]);
@@ -213,6 +244,11 @@ final class PagesRenderTest extends TestCase
         self::assertStringContainsString('id="patient-search-status" aria-live="polite"', $html);
         self::assertStringContainsString('<option value="SRV01"', $html);
         self::assertStringContainsString('Réa &lt;1&gt;', $html);
+        // Médecin référent : facultatif (« À désigner »), avec l'aide sur l'admission de garde.
+        self::assertStringContainsString('name="idReferringPractitioner"', $html);
+        self::assertStringContainsString('<option value="PRA01"', $html);
+        self::assertStringContainsString('À désigner</option>', $html);
+        self::assertStringContainsString('pendant une garde', $html);
         self::assertStringContainsString('name="allergies[]" value="ALG01"', $html);
         foreach (['history', 'disease', 'scores', 'measures', 'admin'] as $section) {
             self::assertMatchesRegularExpression('/id="section-' . $section . '"\s+data-form-section/', $html);

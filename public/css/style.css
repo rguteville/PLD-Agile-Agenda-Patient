@@ -4286,3 +4286,21 @@ form.form--columns .form-lead > .form-row {
 :root[data-theme="dark"] .service-patient__allergies .allergy-tag--high {
     color: #1c0a0a;
 }
+
+/* ===== AURA-REFERENT : médecin référent du séjour (retours des médecins du 2026-11-03) ===== */
+/* « Référent à désigner » : icône + texte + cadre pointillé, lisible sans la couleur (bandeau et dossier). */
+.referent-missing {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-1);
+    padding: 0 var(--sp-2);
+    font-weight: 600;
+    color: var(--st-warn-fg);
+    background: var(--st-warn-bg);
+    border: 1px dashed var(--st-warn-line);
+    border-radius: var(--radius);
+}
+
+.referent-missing svg {
+    flex: none;
+}
