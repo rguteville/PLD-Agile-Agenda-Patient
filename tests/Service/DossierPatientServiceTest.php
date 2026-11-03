@@ -64,6 +64,37 @@ final class DossierPatientServiceTest extends TestCase
         self::assertSame([], $bandeau['allergies'], 'liste vide = « Aucune allergie connue » dans la vue');
     }
 
+    public function testBandeauAfficheLeGroupeSanguin(): void
+    {
+        $aujourdhui = new DateTimeImmutable(self::AUJOURDHUI);
+        $patient = new Patient(9, null, 'Durand', 'Alice', null, 'F', details: ['bloodType' => 'O-']);
+
+        $avec = DossierPatientService::presenterBandeau($patient, $this->sejour(), [], $aujourdhui);
+        $sans = DossierPatientService::presenterBandeau($this->patient(null), $this->sejour(), [], $aujourdhui);
+
+        self::assertSame('O-', $avec['groupeSanguin']);
+        self::assertNull($sans['groupeSanguin'], 'non renseigné');
+    }
+
+    public function testBandeauPorteLEtatDesAllergies(): void
+    {
+        $sans = DossierPatientService::presenterBandeau(
+            $this->patient(null),
+            $this->sejour(),
+            [],
+            new DateTimeImmutable(self::AUJOURDHUI)
+        );
+        $avec = DossierPatientService::presenterBandeau(
+            $this->patient(null),
+            $this->sejour(),
+            [new Allergie(1, 9, 'PENI', 'Pénicilline', 'Élevée')],
+            new DateTimeImmutable(self::AUJOURDHUI)
+        );
+
+        self::assertSame('none', $sans['allergiesStatus']);
+        self::assertSame('known', $avec['allergiesStatus']);
+    }
+
     public function testBandeauAffichePoidsEtTailleDuSejour(): void
     {
         $bandeau = DossierPatientService::presenterBandeau(
@@ -94,8 +125,8 @@ final class DossierPatientServiceTest extends TestCase
         self::assertSame('100200300', $bandeau['ipp']);
         self::assertSame(
             [
-                ['libelle' => 'Pénicilline', 'criticite' => 'sévère'],
-                ['libelle' => 'Latex', 'criticite' => null],
+                ['libelle' => 'Pénicilline', 'criticite' => 'sévère', 'niveau' => 'unknown'],
+                ['libelle' => 'Latex', 'criticite' => null, 'niveau' => 'unknown'],
             ],
             $bandeau['allergies']
         );
@@ -268,8 +299,14 @@ final class DossierPatientServiceTest extends TestCase
 
         self::assertSame(
             [
-                ['idAllergy' => 1, 'label' => 'Pénicilline', 'criticality' => 'Élevée', 'recordedAt' => '02/06/2026'],
-                ['idAllergy' => 2, 'label' => 'Latex', 'criticality' => null, 'recordedAt' => null],
+                [
+                    'idAllergy' => 1, 'label' => 'Pénicilline', 'criticality' => 'Élevée', 'level' => 'high',
+                    'recordedAt' => '02/06/2026',
+                ],
+                [
+                    'idAllergy' => 2, 'label' => 'Latex', 'criticality' => null, 'level' => 'unknown',
+                    'recordedAt' => null,
+                ],
             ],
             DossierPatientService::presentAllergies($allergies)
         );

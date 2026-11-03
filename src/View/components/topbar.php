@@ -7,14 +7,11 @@ $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 $current = static fn (string $href): string => $href === $path ? ' aria-current="page"' : '';
 ?>
 <header class="topbar">
-    <button type="button" class="menu-toggle" aria-label="Ouvrir le menu" aria-controls="mySidenav"
-            aria-expanded="false">
-        <?= View::render('components/icon', ['name' => 'menu']) ?>
-    </button>
     <a class="brand" href="/patients">AURA</a>
     <nav aria-label="Navigation principale">
         <a class="nav-link" href="/patients"<?= $current('/patients') ?>>Patients</a>
         <a class="nav-link" href="/"<?= $current('/') ?>>Admission</a>
+        <a class="nav-link" href="/agenda-service"<?= $current('/agenda-service') ?>>Services</a>
     </nav>
     <button type="button" id="theme-toggle" class="theme-toggle" aria-pressed="false"
             title="Basculer le mode sombre">

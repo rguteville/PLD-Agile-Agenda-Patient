@@ -43,7 +43,7 @@ final class FieldValidationServiceTest extends TestCase
         yield 'score ASA hors échelle' => [['asaScore' => 'VII'], 'asaScore', 'échelle'];
         yield 'GIR 0 non proposé' => [['girScore' => '0'], 'girScore', 'échelle'];
         yield 'date de chirurgie inexistante' => [['surgeryDate' => '2026-02-30'], 'surgeryDate', 'date invalide'];
-        yield 'date de chirurgie mal formée' => [['surgeryDate' => '30/01/2026'], 'surgeryDate', 'AAAA-MM-JJ'];
+        yield 'date de chirurgie mal formée' => [['surgeryDate' => '30-01-2026'], 'surgeryDate', 'JJ/MM/AAAA'];
         yield 'prothèses trop longues' => [
             ['removableProstheses' => str_repeat('a', 201)], 'removableProstheses', '200',
         ];

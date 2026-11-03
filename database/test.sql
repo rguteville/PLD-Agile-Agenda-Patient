@@ -17,14 +17,14 @@ INSERT INTO HealthcareService (idHealthcareService, serviceName) VALUES
 
 -- canValidate (RG5) : seul le médecin réanimateur valide ; les prescriptions d'un interne
 -- ou d'un infirmier restent « non validées » jusqu'à validation par un médecin.
-INSERT INTO PractitionerRole (idPractitionerRole, description, canValidate) VALUES
+INSERT INTO PractitionerRole (idPractitionerRole, title, canValidate) VALUES
     ('QUA01', 'Médecin réanimateur', TRUE),
     ('QUA02', 'Interne', FALSE),
     ('QUA03', 'Infirmier(e) diplômé(e) d''État', FALSE),
     ('QUA04', 'Aide-soignant(e)', FALSE);
 
--- Référentiel d'allergènes génériques (AURA-13.1). description est UNIQUE.
-INSERT INTO Substance (idSubstance, description) VALUES
+-- Référentiel d'allergènes génériques (AURA-13.1). name est UNIQUE.
+INSERT INTO Substance (idSubstance, name) VALUES
     ('ALG01', 'Pénicilline'),
     ('ALG02', 'Latex'),
     ('ALG03', 'Iode'),

@@ -6,10 +6,13 @@ namespace Aura\Tests\Service;
 
 use Aura\Core\Database;
 use Aura\Dao\AllergieDao;
+use Aura\Dao\AuditEventDao;
 use Aura\Dao\PatientDao;
+use Aura\Dao\ReferenceDataDao;
 use Aura\Dao\SejourDao;
 use Aura\Dao\Transaction;
 use Aura\Service\AdmissionService;
+use Aura\Service\RecordEditService;
 use Aura\Service\SejourService;
 use InvalidArgumentException;
 use PDO;
@@ -213,6 +216,7 @@ final class AdmissionIntegrationTest extends TestCase
             'surgeryDate' => '2026-10-12',
             'completedBy' => 'Dr Zztest',
             'allergies' => [$idSubstance],
+            'allergyCriticalities' => [$idSubstance => 'Élevée'],
         ]);
 
         $reluSejour = (new SejourDao($this->pdo))->findById((int) $sejour->getIdSejour());
@@ -233,6 +237,7 @@ final class AdmissionIntegrationTest extends TestCase
         $allergies = (new AllergieDao($this->pdo))->findByPatient($sejour->getIdPatient());
         self::assertCount(1, $allergies);
         self::assertSame($idSubstance, $allergies[0]->getIdAllergene());
+        self::assertSame('Élevée', $allergies[0]->getCriticite(), 'criticité choisie à l\'admission enregistrée');
     }
 
     /** Un patient connu par son IPP : les champs saisis complètent son dossier, les vides ne l'effacent pas. */
@@ -259,6 +264,210 @@ final class AdmissionIntegrationTest extends TestCase
         self::assertSame('Non fumeur', $relu->getDetail('lifestyle'), 'champ vide : conservé');
     }
 
+    /**
+     * Recherche d'un patient existant (A′) : un séjour créé après sélection pointe vers le patient
+     * existant sans doublon, le rattachement est tracé avec le mode de recherche, et la pré-saisie
+     * modifiée met à jour la fiche existante champ par champ (trace par champ).
+     */
+    public function testLeSejourEstRattacheAuPatientSelectionneEtTrace(): void
+    {
+        $service = $this->serviceComplet();
+        $premier = $service->admettre([
+            'nom' => self::NOM, 'prenom' => 'Alice', 'sexe' => 'F', 'dateNaissance' => '1970-01-01',
+            'medicalHistory' => 'HTA', 'lifestyle' => 'Non fumeur',
+        ]);
+        (new SejourService(new SejourDao($this->pdo)))->cloturerSejour((int) $premier->getIdSejour());
+        $idPatient = $premier->getIdPatient();
+        [$patientsAvant, $sejoursAvant] = $this->compter();
+
+        // Formulaire pré-rempli depuis la fiche, puis modifié : prénom corrigé, ATCD complété, mode de vie vidé.
+        $second = $service->admettre([
+            'idPatient' => (string) $idPatient, 'searchMode' => 'name',
+            'nom' => self::NOM, 'prenom' => 'Alice-Marie', 'sexe' => 'F', 'dateNaissance' => '1970-01-01',
+            'medicalHistory' => 'HTA, diabète', 'lifestyle' => '',
+        ]);
+
+        [$patientsApres, $sejoursApres] = $this->compter();
+        self::assertSame($patientsAvant, $patientsApres, 'aucun doublon de Patient');
+        self::assertSame($sejoursAvant + 1, $sejoursApres);
+        self::assertSame($idPatient, $second->getIdPatient(), 'séjour rattaché au patient sélectionné');
+
+        $relu = (new PatientDao($this->pdo))->findById($idPatient);
+        self::assertNotNull($relu);
+        self::assertSame('Alice-Marie', $relu->getPrenom(), 'identité corrigée');
+        self::assertSame('HTA, diabète', $relu->getDetail('medicalHistory'));
+        self::assertNull($relu->getDetail('lifestyle'), 'un champ vidé après pré-remplissage est effacé (tracé)');
+
+        $trace = (new AuditEventDao($this->pdo))->findForRecord($idPatient, (int) $second->getIdSejour(), 50);
+        $parChamp = [];
+        foreach ($trace as $event) {
+            $parChamp[$event->getEntity() . '.' . $event->getField()] = $event;
+        }
+        self::assertArrayHasKey('EpisodeOfCare.idPatient', $parChamp, 'rattachement tracé');
+        self::assertSame((string) $idPatient, $parChamp['EpisodeOfCare.idPatient']->getNewValue());
+        self::assertSame('rattachement après recherche par nom', $parChamp['EpisodeOfCare.idPatient']->getDetail());
+        self::assertSame('non identifié', $parChamp['EpisodeOfCare.idPatient']->getAuthor());
+        self::assertSame('Alice', $parChamp['Patient.firstName']->getOldValue());
+        self::assertSame('Alice-Marie', $parChamp['Patient.firstName']->getNewValue());
+        self::assertSame('HTA', $parChamp['Patient.medicalHistory']->getOldValue());
+        self::assertSame('Non fumeur', $parChamp['Patient.lifestyle']->getOldValue());
+        self::assertNull($parChamp['Patient.lifestyle']->getNewValue());
+        self::assertArrayNotHasKey('Patient.lastName', $parChamp, 'un champ inchangé n\'est pas tracé');
+    }
+
+    public function testUnPatientSelectionneInexistantEstRefuseSansRienEcrire(): void
+    {
+        $service = $this->serviceComplet();
+        [$patientsAvant, $sejoursAvant] = $this->compter();
+
+        try {
+            $service->admettre(['idPatient' => '999999999', 'nom' => self::NOM, 'prenom' => 'Bob']);
+            self::fail('Le patient sélectionné n\'existe pas : l\'admission aurait dû être refusée.');
+        } catch (InvalidArgumentException $e) {
+            self::assertStringContainsString('introuvable', $e->getMessage());
+        }
+
+        self::assertSame([$patientsAvant, $sejoursAvant], $this->compter(), 'rien n\'a été écrit');
+    }
+
+    public function testLaReadmissionParIppEstTraceeCommeRattachement(): void
+    {
+        $service = $this->serviceComplet();
+        $ipp = '987654317';
+        $premier = $service->admettre(['nom' => self::NOM, 'prenom' => 'Alice', 'ipp' => $ipp]);
+        (new SejourService(new SejourDao($this->pdo)))->cloturerSejour((int) $premier->getIdSejour());
+
+        $second = $service->admettre(['nom' => self::NOM, 'prenom' => 'Alice', 'ipp' => $ipp]);
+
+        $trace = (new AuditEventDao($this->pdo))->findForRecord($premier->getIdPatient(), (int) $second->getIdSejour());
+        self::assertCount(1, $trace);
+        self::assertSame('rattachement par IPP saisi', $trace[0]->getDetail());
+    }
+
+    /** Service d'admission tel que câblé dans public/index.php (allergies, trace, édition tracée). */
+    private function serviceComplet(): AdmissionService
+    {
+        return new AdmissionService(
+            null,
+            new PatientDao($this->pdo),
+            new SejourService(new SejourDao($this->pdo)),
+            new Transaction($this->pdo),
+            new AllergieDao($this->pdo),
+            new AuditEventDao($this->pdo),
+            new RecordEditService(
+                new PatientDao($this->pdo),
+                new SejourDao($this->pdo),
+                new AuditEventDao($this->pdo),
+                new Transaction($this->pdo),
+                new ReferenceDataDao($this->pdo)
+            )
+        );
+    }
+
+    /** Une valeur refusée sur un champ du patient sélectionné annule toute l'admission (rien n'est écrit). */
+    public function testUneValeurRefuseeSurLePatientSelectionneAnnuleLAdmission(): void
+    {
+        $service = $this->serviceComplet();
+        $premier = $service->admettre([
+            'nom' => self::NOM, 'prenom' => 'Alice', 'trustedPersonEmail' => 'a@example.com',
+        ]);
+        (new SejourService(new SejourDao($this->pdo)))->cloturerSejour((int) $premier->getIdSejour());
+        [$patientsAvant, $sejoursAvant] = $this->compter();
+
+        // Le contrôle d'admission accepte la clé idPatient ; la validation du champ est celle de RecordEditService.
+        try {
+            $service->admettre([
+                'idPatient' => (string) $premier->getIdPatient(), 'nom' => self::NOM, 'prenom' => 'Alice',
+                'trustedPersonEmail' => 'pas-un-mail',
+            ]);
+            self::fail('Une adresse invalide aurait dû être refusée.');
+        } catch (InvalidArgumentException $e) {
+            self::assertStringContainsString('e-mail', $e->getMessage());
+        }
+
+        self::assertSame([$patientsAvant, $sejoursAvant], $this->compter(), 'aucun séjour créé');
+        self::assertSame(
+            'a@example.com',
+            (new PatientDao($this->pdo))->findById($premier->getIdPatient())?->getDetail('trustedPersonEmail')
+        );
+    }
+
+    /** Retours du 2026-11-02 : un nouveau patient admis sans IPP reçoit un IPP unique, dans la plage autorisée. */
+    public function testUnNouveauPatientSansIppRecoitUnIppAutomatique(): void
+    {
+        $service = $this->serviceComplet();
+
+        $premier = $service->admettre(['nom' => self::NOM, 'prenom' => 'Alice']);
+        $second = $service->admettre(['nom' => self::NOM, 'prenom' => 'Bob']);
+
+        $dao = new PatientDao($this->pdo);
+        $ippA = $dao->findById($premier->getIdPatient())?->getIpp();
+        $ippB = $dao->findById($second->getIdPatient())?->getIpp();
+        self::assertNotNull($ippA);
+        self::assertNotNull($ippB);
+        self::assertMatchesRegularExpression('/^\d{6,9}$/', $ippA);
+        self::assertNotSame($ippA, $ippB, 'deux admissions, deux IPP');
+        self::assertGreaterThanOrEqual(PatientDao::IPP_MIN, (int) $ippA);
+    }
+
+    /** Un IPP saisi (patient connu de l'hôpital, nouveau dans le service) est conservé tel quel. */
+    public function testUnIppSaisiEstConserve(): void
+    {
+        $sejour = $this->serviceComplet()->admettre(['nom' => self::NOM, 'prenom' => 'Alice', 'ipp' => '987654318']);
+
+        self::assertSame('987654318', (new PatientDao($this->pdo))->findById($sejour->getIdPatient())?->getIpp());
+    }
+
+    /**
+     * Patient retrouvé : la criticité d'une allergie déjà connue, changée à l'admission, est appliquée et
+     * tracée ; laissée vide, elle ne remplace pas la criticité connue.
+     */
+    public function testLaCriticiteDUneAllergieConnueChangeeALAdmissionEstAppliqueeEtTracee(): void
+    {
+        $service = $this->serviceComplet();
+        $substances = (new \Aura\Dao\SubstanceDao($this->pdo))->findAll();
+        [$a, $b] = [$substances[0]->getIdSubstance(), $substances[1]->getIdSubstance()];
+
+        $premier = $service->admettre([
+            'nom' => self::NOM, 'prenom' => 'Alice', 'allergies' => [$a, $b],
+            'allergyCriticalities' => [$a => 'Faible', $b => 'Élevée'],
+        ]);
+        (new SejourService(new SejourDao($this->pdo)))->cloturerSejour((int) $premier->getIdSejour());
+        $idPatient = $premier->getIdPatient();
+
+        $service->admettre([
+            'idPatient' => (string) $idPatient, 'searchMode' => 'name', 'nom' => self::NOM, 'prenom' => 'Alice',
+            'allergies' => [$a, $b], 'allergyCriticalities' => [$a => 'Élevée', $b => ''],
+        ]);
+
+        $criticites = [];
+        foreach ((new AllergieDao($this->pdo))->findByPatient($idPatient) as $allergie) {
+            $criticites[$allergie->getIdAllergene()] = $allergie->getCriticite();
+        }
+        self::assertSame('Élevée', $criticites[$a], 'criticité changée appliquée');
+        self::assertSame('Élevée', $criticites[$b], 'criticité laissée vide : la valeur connue est gardée');
+
+        $traces = array_filter(
+            (new AuditEventDao($this->pdo))->findForRecord($idPatient, 0, 50),
+            static fn ($e): bool => $e->getField() === 'allergyCriticality'
+        );
+        self::assertCount(1, $traces);
+        self::assertStringEndsWith(': Élevée', (string) array_values($traces)[0]->getNewValue());
+    }
+
+    /** L'IPP attribué automatiquement est tracé comme venant d'AURA. */
+    public function testLIppAttribueAutomatiquementEstTrace(): void
+    {
+        $sejour = $this->serviceComplet()->admettre(['nom' => self::NOM, 'prenom' => 'Alice']);
+
+        $traces = array_values(array_filter(
+            (new AuditEventDao($this->pdo))->findForRecord($sejour->getIdPatient(), 0, 50),
+            static fn ($e): bool => $e->getField() === 'ipp'
+        ));
+        self::assertCount(1, $traces);
+        self::assertStringContainsString('attribué automatiquement', (string) $traces[0]->getDetail());
+    }
+
     /** @return array{int, int} */
     private function compter(): array
     {
@@ -270,6 +479,12 @@ final class AdmissionIntegrationTest extends TestCase
 
     private function nettoyer(): void
     {
+        $this->pdo->prepare(
+            'DELETE FROM AuditEvent WHERE (entity = \'Patient\' AND entityId IN
+                (SELECT idPatient FROM Patient WHERE lastName = :nom))
+             OR (entity = \'EpisodeOfCare\' AND entityId IN (SELECT idEpisodeOfCare FROM EpisodeOfCare
+                WHERE idPatient IN (SELECT idPatient FROM Patient WHERE lastName = :nom2)))'
+        )->execute(['nom' => self::NOM, 'nom2' => self::NOM]);
         $this->pdo->prepare(
             'DELETE FROM AllergyIntolerance WHERE idPatient IN (SELECT idPatient FROM Patient WHERE lastName = :nom)'
         )->execute(['nom' => self::NOM]);
