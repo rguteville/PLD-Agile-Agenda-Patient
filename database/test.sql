@@ -41,15 +41,18 @@ INSERT INTO Substance (idSubstance, name) VALUES
     ('ALG14', 'Fruits à coque'),
     ('ALG15', 'Chlorhexidine');
 
-INSERT INTO Medication (idMedication, inn, form) VALUES
-    ('MED01', 'Paracétamol', 'Solution injectable'),
-    ('MED02', 'Noradrénaline', 'Solution pour perfusion'),
-    ('MED03', 'Héparine sodique', 'Solution injectable'),
-    ('MED04', 'Amoxicilline', 'Poudre pour solution injectable'),
-    ('MED05', 'Midazolam', 'Solution injectable'),
-    ('MED06', 'Céfotaxime', 'Poudre pour solution injectable'),
-    ('MED07', 'Chlorure de sodium 0,9 %', 'Solution pour perfusion'),
-    ('MED08', 'Altéplase', 'Poudre et solvant pour solution injectable');
+-- idSubstance : allergène du principe actif (alerte allergie de l'écran B3, retours du 2026-11-03).
+-- Amoxicilline → Pénicilline (classe des pénicillines ; le patient 1 y est allergique : démo de l'alerte),
+-- Céfotaxime → Céphalosporines. Une seule substance par médicament : pas de réactivité croisée.
+INSERT INTO Medication (idMedication, inn, form, idSubstance) VALUES
+    ('MED01', 'Paracétamol', 'Solution injectable', NULL),
+    ('MED02', 'Noradrénaline', 'Solution pour perfusion', NULL),
+    ('MED03', 'Héparine sodique', 'Solution injectable', NULL),
+    ('MED04', 'Amoxicilline', 'Poudre pour solution injectable', 'ALG01'),
+    ('MED05', 'Midazolam', 'Solution injectable', NULL),
+    ('MED06', 'Céfotaxime', 'Poudre pour solution injectable', 'ALG11'),
+    ('MED07', 'Chlorure de sodium 0,9 %', 'Solution pour perfusion', NULL),
+    ('MED08', 'Altéplase', 'Poudre et solvant pour solution injectable', NULL);
 
 INSERT INTO ActivityDefinition (idActivityDefinition, name, description) VALUES
     ('TYP01', 'Administration médicamenteuse', 'Administration d''un traitement prescrit'),
@@ -201,6 +204,13 @@ INSERT INTO CarePlan (idCarePlan, idEpisodeOfCare, idPrescriber, mode, recordedA
     ('6', '5', 'PRA01', 'MEDICAL',     '2026-09-20 18:00:00', 'PRA01', '2026-09-20 18:00:00'),
     ('7', '7', 'PRA02', 'MEDICAL',     '2026-06-02 10:30:00', 'PRA02', '2026-06-02 10:30:00'),
     ('8', '2', 'PRA05', 'EMERGENCY',   '2026-10-16 03:10:00', NULL,    NULL);
+
+-- Note libre de l'ordonnance (retours du 2026-11-03) : affichée dans la liste des prescriptions et dans
+-- « Prescriptions en cours » du dossier. Les autres ordonnances n'en ont pas (NULL).
+UPDATE CarePlan SET note = 'Réévaluer le bilan biologique à J3 ; prévenir le médecin si fièvre > 38,5 °C.'
+    WHERE idCarePlan = '1';
+UPDATE CarePlan SET note = 'Surveillance rapprochée demandée par le chirurgien jusqu''à J7.'
+    WHERE idCarePlan = '4';
 
 -- ---------------------------------------------------------------------------
 -- Lignes de soin (dépend de CarePlan, ActivityDefinition, Practitioner)

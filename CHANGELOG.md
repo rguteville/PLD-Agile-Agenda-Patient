@@ -4,6 +4,20 @@ Format : une entrée par pull request, de la plus récente à la plus ancienne.
 
 ## 2026-11-03
 
+### Retours des médecins sur la vue Prescription (`feat/prescription-retours`)
+- Écran B3 : les listes « 1. », « 2. », « 3. » deviennent « Catégorie », « Médicament (DCI) » / « Soin » /
+  « Protocole » (selon la catégorie) et « Forme galénique » ; « Mode » et « Prescripteur » sans deux-points.
+- Note libre de l'ordonnance (`CarePlan.note`, 1 000 caractères au plus, validée côté serveur), affichée dans la
+  liste des prescriptions, l'attente de validation et « Prescriptions en cours » du dossier.
+- Alerte allergie : dès le choix d'un médicament dont le principe actif (`Medication.idSubstance`) est un
+  allergène du patient (`role="alert"`) ; le serveur refuse l'ordonnance sauf case « Je prescris malgré
+  l'allergie » cochée, et trace la confirmation (`AuditEvent`, entité `CarePlan`). Lignes concernées signalées
+  dans la liste, le dossier et l'attente de validation.
+- Validation d'une ordonnance en attente : médecin + mot de passe (authentification factice, même règle et même
+  message que la fenêtre du dossier) ; jeton CSRF sur l'enregistrement et la validation (403 sinon).
+- Proposition de schéma : `CarePlan.note TEXT NULL` (migration additive `2026-11-03-note-ordonnance.sql`) ;
+  données de démo : amoxicilline → pénicilline, céfotaxime → céphalosporines.
+
 ### Génération de l'agenda et suppression d'un patient (`feat/agenda-generation-suppression`)
 - AURA-24.2 / 24.3 : `bin/generate-agenda.php` (cron quotidien) crée les soins planifiés manquants des lignes
   actives des séjours en cours jusqu'à J + 7, sans doublon, sans modifier l'existant ni créer de soin passé (RG9).

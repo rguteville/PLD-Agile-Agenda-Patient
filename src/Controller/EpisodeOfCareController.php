@@ -210,8 +210,9 @@ final class EpisodeOfCareController
         View::page(self::RECORD_VIEW, $record + $editing + [
             // idSejour : lien du bouton « Prescription » vers l'écran B3 (AURA-20) et formulaires d'allergie.
             'idEpisodeOfCare' => $idEpisodeOfCare,
-            // Prescriptions validées par un médecin (RG5), sans les lignes arrêtées.
-            'prescriptions' => $this->carePlanService?->validatedLines($idEpisodeOfCare) ?? [],
+            // Prescriptions validées par un médecin (RG5), sans les lignes arrêtées ; une ligne qui contient un
+            // allergène du patient est signalée (prescrite malgré l'allergie).
+            'prescriptions' => $this->carePlanService?->validatedLines($idEpisodeOfCare, $record['allergens']) ?? [],
             // Médecins proposés pour le bouton « Arrêter » (AURA-22).
             'doctors' => $this->carePlanService?->doctors() ?? [],
         ], $title, self::RECORD_SCRIPTS);

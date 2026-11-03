@@ -45,7 +45,7 @@ class CarePlanDao
     {
         $stmt = $this->pdo->prepare(
             'SELECT idCarePlan, idEpisodeOfCare, idPrescriber, mode, recordedAt, idValidator, validatedAt,
-                    idPlanDefinition
+                    idPlanDefinition, note
              FROM CarePlan
              WHERE idEpisodeOfCare = :idEpisodeOfCare
              ORDER BY recordedAt DESC, CAST(idCarePlan AS UNSIGNED) DESC'
@@ -117,9 +117,9 @@ class CarePlanDao
 
             $this->pdo->prepare(
                 'INSERT INTO CarePlan (idCarePlan, idEpisodeOfCare, idPrescriber, mode, idValidator, validatedAt,
-                                       idPlanDefinition)
+                                       idPlanDefinition, note)
                  VALUES (:idCarePlan, :idEpisodeOfCare, :idPrescriber, :mode, :idValidator,
-                         IF(:validatedOnRecord, CURRENT_TIMESTAMP, NULL), :idPlanDefinition)'
+                         IF(:validatedOnRecord, CURRENT_TIMESTAMP, NULL), :idPlanDefinition, :note)'
             )->execute([
                 'idCarePlan' => (string) $idCarePlan,
                 'idEpisodeOfCare' => (string) $carePlan->getIdEpisodeOfCare(),
@@ -128,6 +128,7 @@ class CarePlanDao
                 'idValidator' => $carePlan->isValidated() ? $carePlan->getIdValidator() : null,
                 'validatedOnRecord' => $carePlan->isValidated() ? 1 : 0,
                 'idPlanDefinition' => $carePlan->getIdPlanDefinition(),
+                'note' => $carePlan->getNote(),
             ]);
 
             foreach ($carePlan->getLines() as $line) {
@@ -437,7 +438,8 @@ class CarePlanDao
             recordedAt: new DateTimeImmutable($r['recordedAt']),
             idValidator: $r['idValidator'],
             validatedAt: self::date($r['validatedAt']),
-            idPlanDefinition: $r['idPlanDefinition']
+            idPlanDefinition: $r['idPlanDefinition'],
+            note: $r['note']
         );
     }
 

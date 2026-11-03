@@ -65,6 +65,24 @@ class AuditEventDao
     }
 
     /**
+     * Événements tracés sur un objet (ex. ordonnance : AuditEvent::ENTITY_CARE_PLAN et son idCarePlan),
+     * du plus ancien au plus récent.
+     *
+     * @return AuditEvent[]
+     */
+    public function findByEntity(string $entity, string $entityId): array
+    {
+        $stmt = $this->pdo->prepare(
+            'SELECT ' . self::COLUMNS . ' FROM AuditEvent
+             WHERE entity = :entity AND entityId = :entityId
+             ORDER BY recordedAt, idAuditEvent'
+        );
+        $stmt->execute(['entity' => $entity, 'entityId' => $entityId]);
+
+        return array_map(fn(array $r) => $this->mapToEntity($r), $stmt->fetchAll(PDO::FETCH_ASSOC));
+    }
+
+    /**
      * Dernier auteur d'un changement de statut, par soin planifié (AURA-26 : « réalisé par … »).
      *
      * @param list<string> $idAppointments

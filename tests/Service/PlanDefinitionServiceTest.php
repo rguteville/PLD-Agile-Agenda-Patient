@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace Aura\Tests\Service;
 
 use Aura\Dao\AllergyIntoleranceDao;
+use Aura\Dao\AuditEventDao;
 use Aura\Dao\CarePlanDao;
 use Aura\Dao\PatientDao;
 use Aura\Dao\PlanDefinitionDao;
 use Aura\Dao\ReferenceDataDao;
 use Aura\Dao\EpisodeOfCareDao;
 use Aura\Dao\SubstanceDao;
+use Aura\Dao\Transaction;
 use Aura\Domain\PlanDefinition;
 use Aura\Domain\PlanDefinitionAction;
 use Aura\Service\CarePlanService;
@@ -98,7 +100,9 @@ final class PlanDefinitionServiceTest extends TestCase
                 $this->createStub(AllergyIntoleranceDao::class),
                 $this->createStub(SubstanceDao::class),
                 new DateTimeImmutable(self::APPLIED_AT)
-            )
+            ),
+            $this->createStub(Transaction::class),
+            $this->createStub(AuditEventDao::class)
         );
 
         self::assertSame([], $carePlanService->checkInput([

@@ -6,6 +6,7 @@ namespace Aura\Tests\View;
 
 use Aura\Core\View;
 use Aura\Domain\CarePlan;
+use Aura\Service\CarePlanService;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -100,6 +101,70 @@ final class PagesRenderTest extends TestCase
         self::assertStringContainsString('badge--stopped', $html);
         self::assertStringContainsString('Dr Test, le 14/10/2026 09:00', $html);
         self::assertStringContainsString('Nouvelle prescription', $html);
+    }
+
+    /** Retours du 2026-11-03 : note de l'ordonnance et allergène signalés (et échappés) dans la liste. */
+    public function testPrescriptionListShowsCarePlanNoteAndAllergen(): void
+    {
+        $line = self::line(CarePlan::STATUS_VALIDATED, validation: 'Dr Test, le 14/10/2026 09:00');
+        $line['carePlanNote'] = 'Réévaluer <J3>';
+        $line['allergen'] = 'Pénicilline';
+
+        $html = View::render('pages/careplan/list', [
+            'banner' => ComponentsRenderTest::banner(),
+            'idEpisodeOfCare' => 1,
+            'isOpen' => true,
+            'lines' => [$line],
+        ]);
+
+        self::assertStringContainsString('Réévaluer &lt;J3&gt;', $html);
+        self::assertStringContainsString('Contient un allergène du patient :', $html);
+        self::assertStringContainsString('Pénicilline', $html);
+    }
+
+    /** Retours du 2026-11-03 : écran B3 (libellés des listes, note, allergie, validation authentifiée, CSRF). */
+    public function testPrescriptionFormLabelsNoteAllergyAndAuthenticatedValidation(): void
+    {
+        $html = View::render('pages/careplan/form', [
+            'banner' => ComponentsRenderTest::banner(),
+            'idEpisodeOfCare' => 1,
+            'savedCarePlanId' => null,
+            'validatedCarePlanId' => null,
+            'modes' => ['MEDICAL' => 'Prescription médicale'],
+            'prescribers' => ['PRA01' => 'Dr Test'],
+            'validators' => ['PRA01' => 'Dr Test'],
+            'categories' => CarePlanService::CATEGORIES,
+            'careTypes' => ['TYP02' => 'Prise des constantes'],
+            'medications' => ['Amoxicilline' => ['MED04' => 'Poudre']],
+            'planDefinitions' => [],
+            'frequencyTypes' => CarePlanService::FREQUENCY_TYPES,
+            'routes' => CarePlanService::ROUTES,
+            'pendingCarePlans' => [[
+                'idCarePlan' => 4, 'mode' => 'Urgence', 'recordedAt' => '14/10/2026 08:00', 'prescriber' => 'IDE',
+                'note' => 'Note <en attente>', 'lines' => ['[IV] Amoxicilline (Poudre) 1 g (Une fois)'],
+                'allergyAlerts' => ['[IV] Amoxicilline (Poudre) 1 g : allergie à Pénicilline'],
+            ]],
+            'formError' => '',
+            'activeMedications' => [],
+            'medicationAllergens' => ['MED04' => 'Pénicilline'],
+            'noteMaxLength' => CarePlanService::NOTE_MAX_LENGTH,
+            'csrfToken' => 'jeton-<test>',
+        ]);
+
+        foreach (['Catégorie', 'Forme galénique', 'id="item-label"'] as $label) {
+            self::assertStringContainsString($label, $html);
+        }
+        self::assertDoesNotMatchRegularExpression('/<label for="(category|item|dosage-form)">\s*[123]\./', $html);
+        self::assertStringContainsString('name="note" form="care-plan-form"', $html);
+        self::assertStringContainsString('name="allergyOverride" value="1" form="care-plan-form"', $html);
+        self::assertStringContainsString('Je prescris malgré l\'allergie', $html);
+        // Correspondance médicament → allergène transmise au JS (data-lists).
+        self::assertStringContainsString('&quot;MED04&quot;:&quot;Pénicilline&quot;', $html);
+        self::assertStringContainsString('Note &lt;en attente&gt;', $html);
+        self::assertStringContainsString('allergie à Pénicilline', $html);
+        self::assertStringContainsString('<label for="validate-4-password">Mot de passe</label>', $html);
+        self::assertStringContainsString('type="password" id="validate-4-password" name="password"', $html);
+        self::assertSame(2, substr_count($html, 'name="csrf" value="jeton-&lt;test&gt;"'), 'enregistrer et valider');
     }
 
     public function testEmptyPrescriptionListClosedEpisode(): void
