@@ -205,6 +205,57 @@ final class ComponentsRenderTest extends TestCase
         self::assertSame(2, substr_count($html, '<a '), 'la page courante n\'est pas un lien');
     }
 
+    public function testListeDesAllergiesAvecCriticiteParAllergene(): void
+    {
+        $html = View::render('components/field', ['field' => [
+            'name' => 'allergies', 'label' => 'Allergies', 'type' => 'allergy-picker',
+            'options' => ['ALG01' => 'Pénicilline', 'ALG02' => 'Latex <x>'], 'value' => ['ALG01'],
+            'criticalities' => ['ALG01' => 'Élevée'], 'criticalityOptions' => ['Faible', 'Élevée'], 'error' => '',
+        ]]);
+
+        self::assertStringContainsString('data-allergy-picker', $html);
+        self::assertStringContainsString('data-allergy-filter', $html);
+        self::assertMatchesRegularExpression('/value="ALG01"\s+checked/', $html);
+        self::assertStringContainsString('name="allergyCriticality[ALG01]"', $html);
+        self::assertMatchesRegularExpression('/<option value="Élevée"\s+selected>/', $html);
+        self::assertStringContainsString('Latex &lt;x&gt;', $html);
+        self::assertStringContainsString('1 allergène coché', $html);
+    }
+
+    public function testBandeauColoreChaqueAllergieSelonSaCriticite(): void
+    {
+        $html = View::render('components/bandeau_patient', ['bandeau' => self::bandeau([
+            ['libelle' => 'Pénicilline', 'criticite' => 'Élevée', 'niveau' => 'high'],
+            ['libelle' => 'Latex', 'criticite' => null, 'niveau' => 'unknown'],
+        ])]);
+
+        self::assertStringContainsString('allergie--high', $html);
+        self::assertStringContainsString('allergie--unknown', $html);
+        self::assertStringContainsString('(criticité non évaluée)', $html, 'jamais la couleur seule');
+    }
+
+    public function testChampDateEnJjMmAaaaAvecExempleGrise(): void
+    {
+        $html = View::render('components/field', ['field' => [
+            'name' => 'birthDate', 'label' => 'Date de naissance', 'type' => 'date', 'value' => '1958-03-14',
+            'error' => '',
+        ]]);
+
+        self::assertStringContainsString('type="text"', $html, 'le champ date natif n\'accepte pas d\'exemple');
+        self::assertStringContainsString('value="14/03/1958"', $html);
+        self::assertStringContainsString('placeholder="JJ/MM/AAAA"', $html);
+        self::assertStringContainsString('data-date-input', $html);
+    }
+
+    public function testExempleGriseDuChamp(): void
+    {
+        $html = View::render('components/field', ['field' => [
+            'name' => 'lastname', 'label' => 'Nom', 'placeholder' => 'Ex. : <DUPONT>', 'value' => '', 'error' => '',
+        ]]);
+
+        self::assertStringContainsString('placeholder="Ex. : &lt;DUPONT&gt;"', $html);
+    }
+
     public static function bandeau(array $allergies = []): array
     {
         return [

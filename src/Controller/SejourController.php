@@ -25,9 +25,16 @@ final class SejourController
     private const RECORD_VIEW = 'sejour/dossier';
     /**
      * form.js : arrêt d'une ligne de prescription en AJAX ; confirm.js : confirmation du retrait d'une
-     * allergie ; inline-edit.js : édition champ par champ du dossier complet.
+     * allergie ; inline-edit.js : édition champ par champ du dossier complet ; dossier-menu.js : menu figé.
      */
-    private const RECORD_SCRIPTS = ['/js/form.js', '/js/confirm.js', '/js/inline-edit.js'];
+    private const RECORD_SCRIPTS = [
+        '/js/form.js',
+        '/js/confirm.js',
+        '/js/inline-edit.js',
+        '/js/dossier-menu.js',
+        '/js/date-input.js',
+        '/js/part-edit.js',
+    ];
     /** agenda.js : impression de la journée et dialogue de validation. */
     private const AGENDA_SCRIPTS = ['/js/agenda.js'];
 

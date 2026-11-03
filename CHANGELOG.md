@@ -4,6 +4,21 @@ Format : une entrée par pull request, de la plus récente à la plus ancienne.
 
 ## 2026-11-02
 
+### Retours d'usage du 2 novembre (`feat/retours-2026-11-02`)
+- Édition en ligne du dossier : crayon au survol, la saisie remplace la valeur sur place, un seul bouton
+  « Confirmer » (la valeur d'origine restait affichée sous le champ).
+- Prescriptions : « Du / Au (date de fin) », colonne « Période », catégorie « Protocoles » ; un médicament déjà
+  prescrit peut être prescrit à nouveau, avec un avertissement non bloquant.
+- Allergies : couleur selon la criticité (élevée, faible, non évaluée) ; à l'admission, liste filtrable avec
+  une criticité par allergène coché.
+- Admission sur deux colonnes ; IPP attribué automatiquement à un nouveau patient admis sans IPP.
+- Dossier patient : menu figé à gauche (agenda en tête, parties et sous-catégories du dossier).
+- Deuxième série : crayon « Modifier » par partie du dossier (identité et séjour compris), fin de séjour,
+  fenêtre de validation par un médecin (authentification factice) ; prescriptions en cours dans une colonne
+  à droite ; agenda avec le même menu ; groupe sanguin ; exemples grisés et dates en JJ/MM/AAAA ; recherche
+  du patient sur deux colonnes ; allergies en étiquettes seules ; sans menu à trois barres ni lien
+  « Modifier » dans la liste ; fil d'Ariane et fiche de prescription alignés ; fuseau horaire Europe/Paris.
+
 ### Intégration de la pile #43 à #46 dans la branche principale (`chore/integration-pile-2026-11-02`)
 - #43 à #46 avaient été fusionnées chacune dans la branche de la PR précédente, pas dans la branche
   principale : cette PR les y apporte, par-dessus #41 (protocoles).

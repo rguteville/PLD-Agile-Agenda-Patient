@@ -68,6 +68,9 @@ final class DossierPatientService
             // Sections du dossier complet (antécédents, histoire de la maladie, scores, mesures,
             // administratif) : une section vide reste affichée avec « Non renseigné ».
             'sections' => self::presentSections($patient, $sejour, $services),
+            // Valeurs actuelles de chaque partie, pour les formulaires « Modifier » (RecordSectionService).
+            'partValues' => self::partValues($patient, $sejour),
+            'services' => $services,
         ];
     }
 
@@ -100,10 +103,13 @@ final class DossierPatientService
             // Mesures à l'admission, affichées dans le bandeau (dosage, matériel) ; null = non renseigné.
             'poids' => self::mesure($sejour->getPoids(), 'kg'),
             'taille' => self::mesure($sejour->getTaille(), 'cm'),
+            // Groupe sanguin (Patient.bloodType) ; null = non renseigné.
+            'groupeSanguin' => self::texteOuNull($patient->getDetail('bloodType')),
             'allergies' => array_values(array_map(
                 static fn (Allergie $a): array => [
                     'libelle' => trim($a->getSubstance()),
                     'criticite' => self::texteOuNull($a->getCriticite()),
+                    'niveau' => Allergie::criticalityLevel($a->getCriticite()),
                 ],
                 $allergies
             )),
@@ -126,6 +132,7 @@ final class DossierPatientService
         return [
             'idSejour' => $sejour->getIdSejour(),
             'idPatient' => $sejour->getIdPatient(),
+            'dateAdmission' => $sejour->getDateAdmission()->format('d/m/Y H:i'),
             'enCours' => $sortie === null,
             'dateSortie' => $sortie?->format('d/m/Y H:i'),
             // Nom du service si le référentiel le connaît, sinon l'identifiant brut (on ne cache rien).
@@ -148,7 +155,7 @@ final class DossierPatientService
      * antérieur d'une allergie découverte pendant le séjour en cours.
      *
      * @param Allergie[] $allergies
-     * @return list<array{idAllergy: ?int, label: string, criticality: ?string, recordedAt: ?string}>
+     * @return list<array{idAllergy: ?int, label: string, criticality: ?string, level: string, recordedAt: ?string}>
      */
     public static function presentAllergies(array $allergies): array
     {
@@ -157,6 +164,7 @@ final class DossierPatientService
                 'idAllergy' => $a->getIdAllergie(),
                 'label' => trim($a->getSubstance()),
                 'criticality' => self::texteOuNull($a->getCriticite()),
+                'level' => Allergie::criticalityLevel($a->getCriticite()),
                 'recordedAt' => $a->getDateSaisie()?->format('d/m/Y'),
             ],
             $allergies
@@ -312,9 +320,27 @@ final class DossierPatientService
             'options' => $spec['options'] ?? null,
             'computed' => false,
             'help' => $spec['help'] ?? null,
+            'placeholder' => $spec['placeholder'] ?? null,
             'raw' => $raw,
             'value' => $value,
         ];
+    }
+
+    /**
+     * Valeurs actuelles de chaque partie modifiable du dossier (résumé et sections), au format des
+     * formulaires (dates en JJ/MM/AAAA). Pure.
+     *
+     * @return array<string, array<string, string>>
+     */
+    public static function partValues(Patient $patient, Sejour $sejour): array
+    {
+        $parts = [RecordSectionService::PART_SUMMARY, ...array_keys(RecordFields::SECTIONS)];
+        $values = [];
+        foreach ($parts as $part) {
+            $values[$part] = RecordSectionService::currentValues($part, $patient, $sejour);
+        }
+
+        return $values;
     }
 
     /** Âge révolu à la date donnée ; null si la date de naissance est dans le futur. */

@@ -2558,82 +2558,67 @@ h2,
     font-weight: 600;
 }
 
-.confirm-box {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--sp-2);
-    margin: var(--sp-2) 8px var(--sp-3);
-    padding: var(--sp-3) var(--sp-4);
-    border: 1px solid var(--line-strong);
-    border-left: 4px solid var(--accent);
-    border-radius: var(--radius);
-    background: var(--bg-raised);
-}
-
-.confirm-box p {
-    flex: 1 1 100%;
-    margin: 0 0 var(--sp-1);
-    font-weight: 600;
-}
-
-.patient-banner {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--sp-2) var(--sp-4);
-    margin: var(--sp-3) 8px;
-    padding: var(--sp-3) var(--sp-4);
-    border: 1px solid var(--st-late-line);
-    border-radius: var(--radius);
-    background: var(--st-late-bg);
-    color: var(--st-late-fg);
-}
-
-.patient-banner p {
-    flex: 1 1 auto;
-    margin: 0;
-    font-weight: 600;
-}
-
 @media (max-width: 640px) {
     .form-row .suggestions {
         grid-column: 1 / -1;
     }
 }
 
-/* ===== AURA-EDIT : édition champ par champ du dossier, confirmation, historique ===== */
+/* ===== AURA-EDIT : édition champ par champ du dossier (crayon au survol, saisie en place, historique) ===== */
 .dossier-aide {
     margin: 0 0 var(--sp-3);
     color: var(--fg-muted);
     font-size: var(--fs-1);
 }
 
-/* La <dd> éditable contient du balisage : les blancs du gabarit ne doivent pas s'afficher (pre-line sur le bouton). */
+/* La <dd> éditable contient du balisage : les blancs du gabarit ne doivent pas s'afficher. */
 .dossier-section dd.inline-edit {
     white-space: normal;
 }
 
 .inline-edit__value {
-    display: block;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--sp-2);
     width: 100%;
     min-height: 32px;
     margin: 0;
     padding: var(--sp-1) var(--sp-2);
-    border: 1px dashed transparent;
+    border: 1px solid transparent;
     border-radius: var(--radius);
     background: transparent;
     color: var(--fg);
     font: inherit;
     text-align: left;
-    white-space: pre-line;
-    cursor: text;
+    cursor: pointer;
     transition: background var(--transition), border-color var(--transition);
 }
 
-.inline-edit__value:hover {
+.inline-edit__text {
+    flex: 1 1 auto;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+}
+
+/* Crayon : invisible au repos, visible au survol et au focus clavier. */
+.inline-edit__pencil {
+    flex: 0 0 auto;
+    margin-top: 2px;
+    color: var(--accent);
+    opacity: 0;
+    transition: opacity var(--transition);
+}
+
+.inline-edit__value:hover,
+.inline-edit__value:focus-visible {
     background: var(--accent-soft);
-    border-color: var(--line-strong);
+    border-color: var(--line);
+}
+
+.inline-edit__value:hover .inline-edit__pencil,
+.inline-edit__value:focus-visible .inline-edit__pencil {
+    opacity: 1;
 }
 
 .inline-edit__value:focus-visible {
@@ -2641,36 +2626,47 @@ h2,
     outline-offset: var(--focus-offset);
 }
 
-.inline-edit--editing {
-    background: var(--accent-soft);
-    border-radius: var(--radius);
-    padding: var(--sp-2);
+/* Écrans tactiles (pas de survol) : crayon toujours visible, discret. */
+@media (hover: none) {
+    .inline-edit__pencil {
+        opacity: 0.55;
+    }
+}
+
+/* Saisie en place : le champ prend la place de la valeur, « Confirmer » à côté (dessous si étroit). */
+.inline-edit__editor {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: var(--sp-2);
 }
 
 .inline-edit__input {
-    width: 100%;
+    flex: 1 1 240px;
+    min-width: 0;
     box-sizing: border-box;
     padding: var(--sp-2);
-    border: 1px solid var(--line-strong);
+    border: 2px solid var(--accent);
     border-radius: var(--radius);
     background: var(--bg-raised);
     color: var(--fg);
     font: inherit;
 }
 
-/* .confirm-box (bloc AURA-SEARCH) : même composant que la confirmation de rattachement ; ici dans une <dd>. */
-.inline-edit__confirm {
-    margin: var(--sp-2) 0 0;
+.inline-edit__input:focus {
+    outline: var(--focus-ring);
+    outline-offset: 1px;
 }
 
-.inline-edit__confirm p {
-    white-space: pre-line;
+.inline-edit__confirm-button {
+    flex: 0 0 auto;
 }
 
 .inline-edit__error {
     margin: var(--sp-1) 0 0;
     color: var(--st-alert-fg);
     font-size: var(--fs-1);
+    font-weight: 600;
 }
 
 .inline-edit__status {
@@ -3180,13 +3176,10 @@ form[data-ajax] {
 .dossier dl,
 .form-section,
 .dossier-section,
-.empty-state,
-.confirm-box,
-.patient-banner {
+.empty-state {
     box-shadow: var(--shadow-soft);
 }
 
-.patient-banner,
 .suggestions__warning {
     background: var(--st-warn-bg);
     border-color: var(--st-warn-line);
@@ -3227,4 +3220,778 @@ form[data-ajax] {
     .form-row > .suggestions {
         max-width: none;
     }
+}
+
+/* ===== AURA-RETOURS : retours du 2026-11-02 (prescriptions, allergies, admission deux colonnes, menu du dossier) ===== */
+/* Prescriptions : avertissement non bloquant (médicament déjà prescrit) */
+.b3-notice {
+    margin: var(--sp-1) var(--sp-2) var(--sp-2);
+    padding: var(--sp-2) var(--sp-3);
+    border: 1px solid var(--st-warn-line);
+    border-left: 4px solid var(--st-warn-fg);
+    border-radius: var(--radius);
+    background: var(--st-warn-bg);
+    color: var(--st-warn-fg);
+    font-weight: 600;
+}
+
+/* Allergies : couleur selon la criticité (le texte « (Élevée) », « (Faible) », « (criticité non évaluée) »
+   est toujours affiché : jamais la couleur seule). Élevée = rouge plein, Faible = orange,
+   non évaluée = rouge pâle (à traiter avec prudence tant qu'elle n'est pas évaluée). */
+.allergie {
+    border-radius: var(--radius);
+    font-weight: 600;
+}
+
+.bandeau-patient .allergies li.allergie--high,
+.allergies-dossier .libelle.allergie--high {
+    background: var(--st-alert-fg);
+    border: 1px solid var(--st-alert-fg);
+    color: #ffffff;
+}
+
+.bandeau-patient .allergies li.allergie--low,
+.allergies-dossier .libelle.allergie--low {
+    background: var(--st-warn-bg);
+    border: 1px solid var(--st-warn-line);
+    color: var(--st-warn-fg);
+}
+
+.bandeau-patient .allergies li.allergie--unknown,
+.allergies-dossier .libelle.allergie--unknown {
+    background: var(--bg-raised);
+    border: 1px solid var(--st-alert-line);
+    color: var(--st-alert-fg);
+}
+
+.allergies-dossier .libelle.allergie {
+    padding: 2px var(--sp-2);
+}
+
+/* En sombre, le rouge plein garde un texte foncé lisible sur la teinte claire du jeton. */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .bandeau-patient .allergies li.allergie--high,
+    :root:not([data-theme="light"]) .allergies-dossier .libelle.allergie--high {
+        color: #1c0a0a;
+    }
+}
+
+:root[data-theme="dark"] .bandeau-patient .allergies li.allergie--high,
+:root[data-theme="dark"] .allergies-dossier .libelle.allergie--high {
+    color: #1c0a0a;
+}
+
+/* Admission : liste des allergènes filtrable, criticité à côté de chaque allergène coché */
+.form-row > .allergy-picker {
+    flex: 0 0 100%;
+    width: 100%;
+    box-sizing: border-box;
+    order: 2;
+}
+
+.allergy-picker {
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+}
+
+.allergy-picker__toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-2) var(--sp-3);
+    padding: var(--sp-2) var(--sp-3);
+    border-bottom: 1px solid var(--line);
+}
+
+.allergy-picker__filter {
+    flex: 1 1 200px;
+    min-height: 40px;
+    padding: var(--sp-1) var(--sp-3);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    background: var(--bg);
+    color: var(--fg);
+    font: inherit;
+}
+
+.allergy-picker__count {
+    color: var(--fg-muted);
+    font-size: var(--fs-1);
+}
+
+.allergy-picker__list {
+    max-height: 288px;
+    margin: 0;
+    padding: var(--sp-1) 0;
+    overflow-y: auto;
+    list-style: none;
+}
+
+.allergy-option {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-1) var(--sp-3);
+    min-height: var(--tap);
+    padding: 0 var(--sp-3);
+}
+
+.allergy-option:hover {
+    background: var(--accent-soft);
+}
+
+.allergy-option:has(input:checked) {
+    background: var(--st-alert-bg);
+}
+
+.allergy-option__check {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    gap: var(--sp-2);
+    min-height: var(--tap);
+    font-weight: 400;
+    color: var(--fg);
+    cursor: pointer;
+}
+
+.form-row .allergy-option__check {
+    font-weight: 400;
+    color: var(--fg);
+}
+
+.form-row .allergy-option:has(input:checked) .allergy-option__check {
+    font-weight: 700;
+    color: var(--st-alert-fg);
+}
+
+.allergy-option__check input {
+    width: 20px;
+    height: 20px;
+    margin: 0;
+    accent-color: var(--st-alert-fg);
+}
+
+/* La criticité n'apparaît que pour un allergène coché (sans JavaScript aussi, via :has). */
+.allergy-option__criticality {
+    display: none;
+    min-height: 36px;
+    padding: 0 var(--sp-2);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+    color: var(--fg);
+    font: inherit;
+}
+
+.allergy-option:has(input:checked) .allergy-option__criticality {
+    display: inline-block;
+}
+
+/* Les règles historiques des listes du formulaire (.form-row select : largeur 100 %) ne s'appliquent pas ici. */
+.form-row .allergy-option .allergy-option__criticality {
+    flex: 0 0 auto;
+    grid-column: auto;
+    width: auto;
+    min-width: 200px;
+    max-width: none;
+    height: auto;
+}
+
+.allergy-picker__empty {
+    margin: 0;
+    padding: var(--sp-3);
+    color: var(--fg-muted);
+}
+
+/* Admission sur deux colonnes (grand écran) : identité → note sur les allergies à gauche,
+   Antécédents → Administratif complémentaire à droite ; recherche du patient sur toute la largeur. */
+form.form--columns {
+    max-width: 1240px;
+}
+
+form.form--columns .form-heading,
+form.form--columns > .form-row {
+    max-width: 680px;
+}
+
+.form-columns {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0 var(--sp-6);
+    align-items: start;
+}
+
+.form-columns__more .form-section:first-child {
+    margin-top: 0;
+}
+
+.form-columns__more .form-section__body .form-row > * {
+    max-width: none;
+}
+
+@media (min-width: 1100px) {
+    .form-columns {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+
+    /* Les sections commencent à la hauteur du titre « Identité ». */
+    .form-columns__more {
+        padding-top: var(--sp-5);
+    }
+}
+
+/* Dossier patient : menu figé à gauche (agenda en tête, parties du dossier, sous-catégories du dossier complet) */
+.dossier-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--sp-4) var(--sp-5);
+    align-items: start;
+}
+
+.dossier-menu {
+    padding: var(--sp-3);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: var(--bg-raised);
+    box-shadow: var(--shadow-soft);
+}
+
+.dossier-menu__agenda {
+    width: 100%;
+    box-sizing: border-box;
+    margin-bottom: var(--sp-3);
+}
+
+.dossier-menu__list,
+.dossier-menu__sub {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.dossier-menu__sub {
+    margin: 0 0 var(--sp-1) var(--sp-3);
+    border-left: 2px solid var(--line);
+}
+
+.dossier-menu a:not(.button) {
+    display: flex;
+    align-items: center;
+    min-height: 36px;
+    padding: var(--sp-1) var(--sp-2);
+    border-radius: var(--radius);
+    color: var(--fg);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.dossier-menu__sub a:not(.button) {
+    min-height: 32px;
+    font-size: var(--fs-1);
+    font-weight: 400;
+    color: var(--fg-muted);
+}
+
+.dossier-menu a:not(.button):hover {
+    background: var(--accent-soft);
+    color: var(--accent);
+}
+
+.dossier-menu a[aria-current="location"] {
+    background: var(--accent-soft);
+    color: var(--accent);
+    box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.dossier-menu a:focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: var(--focus-offset);
+}
+
+/* Poste fixe et tablette paysage : menu figé à gauche, sous le bandeau patient collant. */
+@media (min-width: 1024px) {
+    .dossier-layout {
+        grid-template-columns: 230px minmax(0, 1fr);
+    }
+
+    .dossier-menu {
+        position: sticky;
+        top: calc(var(--bandeau-height, 0px) + var(--sp-3));
+        max-height: calc(100vh - var(--bandeau-height, 0px) - var(--sp-5));
+        overflow-y: auto;
+    }
+}
+
+/* Petit écran : le menu reste en tête, sous-catégories masquées pour ne pas allonger la page. */
+@media (max-width: 1023px) {
+    .dossier-menu__list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--sp-1);
+    }
+
+    .dossier-menu__sub {
+        display: none;
+    }
+}
+
+/* Valeurs non éditables (calculs) alignées sur le texte des boutons-valeurs éditables voisins. */
+.dossier-section dd[data-field]:not(.inline-edit) {
+    padding: calc(var(--sp-1) + 1px) calc(var(--sp-2) + 1px);
+}
+
+/* Base : l'attribut hidden l'emporte toujours sur un display posé par une classe. Sans cette règle, la
+   valeur d'une cellule éditée restait affichée sous le champ de saisie (bouton en display: flex). */
+[hidden] {
+    display: none !important;
+}
+
+/* Édition en ligne : croix d'annulation discrète à côté de « Confirmer » (utile au doigt, sans Échap). */
+.inline-edit__cancel-button {
+    flex: 0 0 auto;
+    width: var(--tap);
+    min-height: var(--tap);
+    padding: 0;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+    color: var(--fg-muted);
+    font: inherit;
+    font-size: var(--fs-3);
+    cursor: pointer;
+}
+
+.inline-edit__cancel-button:hover {
+    background: var(--bg-muted);
+    color: var(--fg);
+}
+
+.inline-edit__cancel-button:focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: var(--focus-offset);
+}
+
+/* Retours du 2026-11-02 (2) : bandeau patient sans fond coloré autour des allergies, seules les
+   étiquettes portent la couleur (criticité) ; « Aucune allergie connue » et « Allergies non renseignées »
+   deviennent elles aussi des étiquettes. */
+.bandeau-patient .allergies--known,
+.bandeau-patient .allergies--none,
+.bandeau-patient .allergies--unknown {
+    padding: var(--sp-1) 0 0;
+    border: 0;
+    background: transparent;
+}
+
+.bandeau-patient .allergies--none .aucune-allergie,
+.bandeau-patient .allergies--unknown .allergies-inconnues {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-1);
+    padding: 2px var(--sp-2);
+    border-radius: var(--radius);
+    font-weight: 600;
+}
+
+.bandeau-patient .allergies--none .aucune-allergie {
+    border: 1px solid var(--st-done-line);
+    background: var(--st-done-bg);
+    color: var(--st-done-fg);
+}
+
+.bandeau-patient .allergies--unknown .allergies-inconnues {
+    border: 1px solid var(--st-warn-line);
+    background: var(--st-warn-bg);
+}
+
+/* Écran de prescription : les lignes de la fiche de paramètres s'étirent sur toute la hauteur de la
+   rangée, pour que les traits de séparation soient alignés (y compris sous une colonne « * » vide). */
+.b3-grid {
+    align-items: stretch;
+}
+
+.b3-grid > label,
+.b3-grid > .b3-required {
+    display: flex;
+    align-items: center;
+}
+
+.b3-grid > .b3-required {
+    justify-content: center;
+}
+
+/* Fil d'Ariane : chaque élément a la hauteur de la cible des liens (32 px), centré verticalement ;
+   sinon le lien « Patients » descendait plus bas que les éléments sans lien. */
+.breadcrumb ol {
+    align-items: center;
+}
+
+.breadcrumb li {
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+}
+
+/* Exemples grisés dans les champs (retours du 2026-11-02) : gris lisible (contraste ≥ 4,5:1 sur le fond
+   des champs), jamais confondu avec une valeur saisie grâce à l'italique. */
+input::placeholder,
+textarea::placeholder {
+    color: var(--fg-subtle);
+    font-style: italic;
+    opacity: 1;
+}
+
+/* Admission : recherche du patient sur deux colonnes (IPP à gauche, nom ou prénom à droite), titre et
+   aide sur toute la largeur ; une seule colonne sous 1100 px. */
+.form-lead {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0 var(--sp-6);
+    align-items: start;
+}
+
+.form-lead > .form-heading {
+    grid-column: 1 / -1;
+    max-width: none;
+}
+
+form.form--columns .form-lead > .form-row {
+    max-width: none;
+}
+
+@media (min-width: 1100px) {
+    .form-lead {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+}
+
+/* Dossier : trois colonnes sur grand écran (menu figé | dossier | prescriptions en cours) ;
+   sous 1280 px, les prescriptions passent sous le dossier. */
+@media (min-width: 1280px) {
+    .dossier-layout:has(> .dossier-aside) {
+        grid-template-columns: 220px minmax(0, 1fr) minmax(300px, 360px);
+    }
+
+    .dossier-aside {
+        position: sticky;
+        top: calc(var(--bandeau-height, 0px) + var(--sp-3));
+        max-height: calc(100vh - var(--bandeau-height, 0px) - var(--sp-5));
+        overflow-y: auto;
+    }
+
+    /* La page dossier a besoin de toute la largeur utile. */
+    #main:has(.dossier-aside) {
+        max-width: 1600px;
+    }
+}
+
+@media (min-width: 1024px) and (max-width: 1279px) {
+    .dossier-layout:has(> .dossier-aside) > .dossier-aside {
+        grid-column: 2;
+    }
+}
+
+.dossier-aside {
+    padding: var(--sp-3);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: var(--bg-raised);
+    box-shadow: var(--shadow-soft);
+}
+
+.dossier-aside__header .dossier-subtitle {
+    margin: 0 0 var(--sp-2);
+    font-size: var(--fs-3);
+}
+
+.dossier-aside__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-2);
+    margin: 0 0 var(--sp-3);
+}
+
+.prescription-cards {
+    display: grid;
+    gap: var(--sp-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.prescription-card {
+    padding: var(--sp-2) var(--sp-3);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--st-done-line);
+    border-radius: var(--radius);
+    background: var(--bg);
+}
+
+.prescription-card__label {
+    margin: 0 0 var(--sp-1);
+    font-weight: 600;
+}
+
+.prescription-card__note {
+    margin: 0;
+    color: var(--fg-muted);
+    font-size: var(--fs-1);
+}
+
+.prescription-card__meta {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 2px var(--sp-2);
+    margin: var(--sp-2) 0;
+    font-size: var(--fs-1);
+}
+
+.prescription-card__meta dt {
+    color: var(--fg-muted);
+}
+
+.prescription-card__meta dd {
+    margin: 0;
+}
+
+.prescription-card .stop-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-2);
+}
+
+.prescription-card .stop-form select {
+    flex: 1 1 160px;
+    min-height: 40px;
+}
+
+/* Dossier : crayon « Modifier » d'une partie entière, à côté du titre (retours du 2026-11-02). */
+.part-edit {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-1);
+    min-height: 32px;
+    padding: 0 var(--sp-2);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+    color: var(--accent);
+    font: inherit;
+    font-size: var(--fs-1);
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.part-edit:hover {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+}
+
+.part-edit:focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: var(--focus-offset);
+}
+
+.dossier-section > summary .dossier-section__title {
+    flex: 1 1 auto;
+}
+
+.dossier-section > summary .part-edit {
+    margin-right: var(--sp-2);
+}
+
+.page-header .page-actions .button--danger {
+    border: 1px solid var(--st-alert-fg);
+    background: var(--bg-raised);
+    color: var(--st-alert-fg);
+}
+
+.page-header .page-actions .button--danger:hover {
+    background: var(--st-alert-bg);
+}
+
+/* Formulaire d'une partie : une colonne, à la place des valeurs */
+.part-form {
+    padding: var(--sp-3) var(--sp-4);
+    border-top: 1px solid var(--line);
+}
+
+.dossier > .part-form {
+    margin: 0 0 var(--sp-4);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: var(--bg-raised);
+    box-shadow: var(--shadow-soft);
+}
+
+.part-form .form-row > input,
+.part-form .form-row > textarea,
+.part-form .form-row > select {
+    max-width: none;
+}
+
+.part-form__actions {
+    display: flex;
+    gap: var(--sp-2);
+    padding: var(--sp-3) var(--sp-2) 0;
+}
+
+/* Fenêtre de validation par un médecin (authentification factice) */
+.auth-dialog {
+    width: min(520px, calc(100vw - 2 * var(--sp-4)));
+    padding: 0;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-lg);
+    background: var(--bg-raised);
+    color: var(--fg);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+}
+
+.auth-dialog::backdrop {
+    background: rgba(20, 23, 27, 0.45);
+}
+
+.auth-dialog__form {
+    padding: var(--sp-4) var(--sp-4) var(--sp-3);
+}
+
+.auth-dialog__title {
+    margin: 0 0 var(--sp-2);
+    font-size: var(--fs-4);
+}
+
+.auth-dialog__summary {
+    margin: 0 0 var(--sp-3);
+    color: var(--fg-muted);
+}
+
+.auth-dialog__notice {
+    display: flex;
+    gap: var(--sp-2);
+    align-items: flex-start;
+    margin: var(--sp-2) var(--sp-2) var(--sp-3);
+    padding: var(--sp-2) var(--sp-3);
+    border: 1px solid var(--st-warn-line);
+    border-radius: var(--radius);
+    background: var(--st-warn-bg);
+    color: var(--st-warn-fg);
+    font-size: var(--fs-1);
+}
+
+.auth-dialog__actions {
+    display: flex;
+    gap: var(--sp-2);
+    padding: 0 var(--sp-2);
+}
+
+.auth-dialog .form-row > input,
+.auth-dialog .form-row > select {
+    max-width: none;
+}
+
+/* Résumé du dossier : l'identité en tête, lisible sans le bandeau */
+.dossier-resume dt:first-of-type + dd {
+    font-weight: 700;
+}
+
+/* Mêmes dimensions et police pour tous les types de champ texte (téléphone, e-mail, mot de passe, heure). */
+.form-row input[type="tel"],
+.form-row input[type="email"],
+.form-row input[type="password"],
+.form-row input[type="time"] {
+    min-height: var(--tap);
+    box-sizing: border-box;
+    width: 100%;
+    padding: var(--sp-2) var(--sp-3);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+    color: var(--fg);
+    font: inherit;
+}
+
+/* Admission (retours du 2026-11-02, 3) : un seul champ de recherche « IPP, nom ou prénom » sur toute la
+   largeur en tête ; carte en lecture seule du patient existant sélectionné. */
+.form-lead {
+    grid-template-columns: minmax(0, 1fr) !important;
+}
+
+.patient-card {
+    margin: var(--sp-2) var(--sp-2) var(--sp-3);
+    padding: var(--sp-3) var(--sp-4);
+    border: 1px solid var(--line-strong);
+    border-left: 4px solid var(--accent);
+    border-radius: var(--radius-lg);
+    background: var(--bg-raised);
+    box-shadow: var(--shadow-soft);
+}
+
+.patient-card__title {
+    margin: 0 0 var(--sp-1);
+    color: var(--fg-muted);
+    font-size: var(--fs-0);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.patient-card__name {
+    margin: 0;
+    font-size: var(--fs-3);
+}
+
+.patient-card__ids {
+    margin: var(--sp-1) 0 var(--sp-2);
+    color: var(--fg-muted);
+}
+
+.patient-card__allergies {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-1) var(--sp-2);
+}
+
+.patient-card__allergies-label {
+    color: var(--st-alert-fg);
+    font-weight: 700;
+}
+
+.patient-card .allergie {
+    padding: 2px var(--sp-2);
+    border-radius: var(--radius);
+    font-weight: 600;
+}
+
+.patient-card .allergie--high {
+    border: 1px solid var(--st-alert-fg);
+    background: var(--st-alert-fg);
+    color: #ffffff;
+}
+
+.patient-card .allergie--low {
+    border: 1px solid var(--st-warn-line);
+    background: var(--st-warn-bg);
+    color: var(--st-warn-fg);
+}
+
+.patient-card .allergie--unknown {
+    border: 1px solid var(--st-alert-line);
+    background: var(--bg-raised);
+    color: var(--st-alert-fg);
+}
+
+.patient-card .allergie--none {
+    border: 1px solid var(--st-done-line);
+    background: var(--st-done-bg);
+    color: var(--st-done-fg);
+}
+
+.patient-card__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-2);
+    margin: var(--sp-3) 0 0;
 }

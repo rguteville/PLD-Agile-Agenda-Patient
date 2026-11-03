@@ -46,8 +46,7 @@ use Aura\Domain\CarePlan;
                 <tr>
                     <th scope="col">Prescription</th>
                     <th scope="col">Fréquence</th>
-                    <th scope="col">Début</th>
-                    <th scope="col">Fin</th>
+                    <th scope="col">Période</th>
                     <th scope="col">Mode</th>
                     <th scope="col">Prescripteur</th>
                     <th scope="col">Statut</th>
@@ -81,8 +80,7 @@ use Aura\Domain\CarePlan;
                             <?php endforeach; ?>
                         </td>
                         <td><?= View::e($line['frequency']) ?></td>
-                        <td><?= View::e($line['startDate']) ?></td>
-                        <td><?= View::e($line['endDate'] ?? '—') ?></td>
+                        <td><?= View::e($line['period']) ?></td>
                         <td><?= View::e($line['mode']) ?></td>
                         <td><?= View::e($line['prescriber']) ?></td>
                         <td class="col-status">

@@ -148,7 +148,7 @@ class PatientSearchService
      * Null si le patient n'existe pas.
      *
      * @return array{identite: array<string, ?string>, details: array<string, ?string>,
-     *               allergies: list<array{idSubstance: string, libelle: string}>}|null
+     *               allergies: list<array{idSubstance: string, libelle: string, criticite: ?string}>}|null
      */
     public function record(int $idPatient): ?array
     {
@@ -176,6 +176,7 @@ class PatientSearchService
                 static fn (Allergie $a): array => [
                     'idSubstance' => $a->getIdAllergene(),
                     'libelle' => trim($a->getSubstance()),
+                    'criticite' => self::textOrNull($a->getCriticite()),
                 ],
                 $allergies
             )),

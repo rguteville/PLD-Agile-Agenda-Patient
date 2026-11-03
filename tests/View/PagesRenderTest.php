@@ -21,6 +21,7 @@ final class PagesRenderTest extends TestCase
         $html = (string) ob_get_clean();
 
         self::assertStringContainsString('<html lang="fr">', $html);
+        self::assertStringNotContainsString('menu-toggle', $html, 'plus de menu à trois barres');
         self::assertStringContainsString('<title>AURA - &lt;Erreur&gt;</title>', $html);
         self::assertStringContainsString('name="color-scheme" content="light dark"', $html);
         self::assertStringContainsString('<script src="/js/theme.js"></script>', $html);
@@ -41,6 +42,8 @@ final class PagesRenderTest extends TestCase
 
         self::assertStringContainsString('class="bandeau-patient"', $html);
         self::assertStringContainsString('Aucun soin ni médicament prévu ce jour.', $html);
+        // « Dossier du séjour » en tête du menu de gauche, à la place d'« Agenda du jour » dans le dossier.
+        self::assertStringContainsString('class="button dossier-menu__agenda" href="/sejour?id=1"', $html);
         self::assertStringContainsString('Mercredi 14 octobre 2026', $html);
         self::assertStringContainsString('href="/agenda-patient?id=1&amp;date=2026-10-13"', $html);
         self::assertStringNotContainsString('agenda-section--late', $html);
@@ -187,6 +190,16 @@ final class PagesRenderTest extends TestCase
 
         self::assertStringContainsString('name="lastname"', $html);
         self::assertStringContainsString('name="admissionReason"', $html);
+        // Deux colonnes : identité → note sur les allergies à gauche, sections à droite, recherche en tête.
+        $gauche = strpos($html, 'form-columns__main');
+        $droite = strpos($html, 'form-columns__more');
+        self::assertNotFalse($gauche);
+        self::assertNotFalse($droite);
+        self::assertLessThan($gauche, strpos($html, 'name="patientSearch"'), 'recherche avant les colonnes');
+        self::assertStringContainsString('<div class="form-lead">', $html, 'recherche : IPP et nom côte à côte');
+        self::assertGreaterThan($gauche, strpos($html, 'name="allergyNote"'));
+        self::assertLessThan($droite, strpos($html, 'name="allergyNote"'), 'note sur les allergies à gauche');
+        self::assertGreaterThan($droite, strpos($html, 'id="section-history"'), 'Antécédents à droite');
         // Recherche d'un patient existant : combobox accessible, liste de suggestions, champs cachés.
         self::assertMatchesRegularExpression('/name="patientSearch"[^>]*role="combobox"/', $html);
         self::assertStringContainsString('aria-controls="patient-suggestions"', $html);
@@ -282,7 +295,30 @@ final class PagesRenderTest extends TestCase
         );
         self::assertStringContainsString('aria-label="Modifier : Score ASA"', $html);
         self::assertSame(2, substr_count($html, 'class="inline-edit__value"'), 'valeur calculée non éditable');
+        // Crayon d'édition dans chaque bouton-valeur, la valeur elle-même dans un span (jamais dupliquée).
+        self::assertSame(2, substr_count($html, 'inline-edit__pencil'));
+        self::assertStringContainsString('<span class="inline-edit__text">ASA &quot;II&quot;</span>', $html);
         self::assertStringContainsString('id="dossier-historique"', $html);
+        // Menu figé : agenda en tête, parties du dossier, sous-catégories du dossier complet.
+        self::assertStringContainsString('<nav class="dossier-menu" aria-label="Parties du dossier">', $html);
+        self::assertLessThan(
+            strpos($html, 'href="#dossier-resume"'),
+            strpos($html, 'class="button dossier-menu__agenda" href="/agenda-patient?id=1"'),
+            'bouton Agenda en haut du menu'
+        );
+        self::assertStringContainsString('href="#titre-allergies"', $html);
+        self::assertMatchesRegularExpression('/href="#dossier-scores"\s+data-open-details/', $html);
+        self::assertStringContainsString('href="#dossier-historique" data-open-details', $html);
+        self::assertStringContainsString('id="titre-prescriptions"', $html);
+        self::assertStringContainsString('<aside class="dossier-aside" aria-labelledby="titre-prescriptions">', $html);
+        // Modification d'une partie entière : crayon à côté du titre, formulaire masqué, fenêtre de validation.
+        self::assertStringContainsString('data-part-edit="summary"', $html);
+        self::assertStringContainsString('data-part-edit="scores"', $html);
+        self::assertMatchesRegularExpression('/<form class="part-form" data-part="summary"/', $html);
+        self::assertStringContainsString('id="summary-nom"', $html, 'identifiants préfixés par la partie');
+        self::assertStringContainsString('data-end-stay', $html, 'séjour en cours : bouton de fin de séjour');
+        self::assertStringContainsString('<dialog id="auth-dialog"', $html);
+        self::assertStringContainsString('le mot de passe n\'est pas vérifié', $html, 'authentification factice');
         self::assertStringContainsString('<td>Non &lt;fumeur&gt;</td>', $html);
         self::assertStringContainsString('<small>précision &lt;x&gt;</small>', $html);
         self::assertStringContainsString('data-id-sejour="1"', $html);
@@ -316,6 +352,7 @@ final class PagesRenderTest extends TestCase
         ]], 'recherche' => null]);
         self::assertStringContainsString('href="/sejour?id=7"', $pleine);
         self::assertStringContainsString('aria-label="Dossier de DUPONT Test"', $pleine);
+        self::assertStringNotContainsString('/patients/modifier', $pleine, 'modification depuis le dossier seulement');
         self::assertStringContainsString('<th scope="col">', $pleine);
     }
 
@@ -401,6 +438,7 @@ final class PagesRenderTest extends TestCase
         $line = [
             'idCarePlan' => 1, 'idLine' => 1, 'isMedication' => false, 'activity' => 'Soin A', 'label' => 'Soin A',
             'frequency' => 'Toutes les 8 h', 'startDate' => '14/10/2026 08:00', 'endDate' => null,
+            'period' => 'du 14/10/2026 08:00, sans date de fin',
             'mode' => 'Médical', 'prescriber' => 'Dr Test', 'recordedAt' => '14/10/2026 08:00',
             'status' => $status, 'validation' => $validation, 'stop' => $stop,
         ];

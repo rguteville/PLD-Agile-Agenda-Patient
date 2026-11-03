@@ -115,10 +115,11 @@ final class AdmissionServiceAdmettreTest extends TestCase
     public function testNomEtPrenomSeulsSuffisent(): void
     {
         $this->patients->expects($this->never())->method('findByIpp');
+        $this->patients->expects($this->once())->method('nextIpp')->willReturn(100000042);
         $this->patients->expects($this->once())
             ->method('insert')
             ->with($this->callback(function (Patient $p): bool {
-                $this->assertNull($p->getIpp());
+                $this->assertSame('100000042', $p->getIpp(), 'IPP attribué automatiquement');
                 $this->assertNull($p->getDateNaissance());
                 $this->assertNull($p->getSexe(), 'RG1 : le sexe n\'est pas obligatoire');
 
@@ -178,5 +179,16 @@ final class AdmissionServiceAdmettreTest extends TestCase
     private function sejour(int $idPatient): Sejour
     {
         return new Sejour(11, $idPatient, '2026-000011', new DateTimeImmutable('2026-10-14 10:00:00'));
+    }
+    /** Plage des IPP épuisée : message clair à l'utilisateur, jamais une erreur technique. */
+    public function testPlageDIppEpuiseeDonneUnMessageEtNInsereRien(): void
+    {
+        $this->patients->method('nextIpp')->willThrowException(new \LogicException('Plus aucun IPP'));
+        $this->patients->expects($this->never())->method('insert');
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('saisissez l\'IPP du patient');
+
+        $this->service->admettre(['nom' => 'Martin', 'prenom' => 'Paul']);
     }
 }

@@ -20,7 +20,6 @@ use Aura\Core\View;
 <body>
     <a class="skip-link" href="#main">Aller au contenu</a>
     <?= View::render('components/topbar') ?>
-    <?= View::render('components/sidebar') ?>
 
     <main id="main" tabindex="-1">
         <?= $content ?>

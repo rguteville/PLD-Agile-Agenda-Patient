@@ -55,7 +55,7 @@ puis la zone allergies avec **trois états distincts** :
 
 | État | Clé `allergiesStatus` | Rendu |
 | --- | --- | --- |
-| Allergies connues | `known` | Fond rouge pâle, icône triangle, étiquettes (criticité entre parenthèses) |
+| Allergies connues | `known` | Pas de fond coloré autour, icône triangle, une étiquette par allergie colorée selon sa criticité : **Élevée** rouge plein, **Faible** orange, **non évaluée** contour rouge ; la criticité est toujours écrite entre parenthèses |
 | Aucune allergie connue | `none` | Fond vert pâle, coche, texte « Aucune allergie connue » |
 | Allergies non renseignées | `unknown` | Fond orange pâle, icône alerte, texte « Allergies non renseignées » |
 
@@ -68,19 +68,27 @@ RG2 antérieure). Produire `unknown` demande une donnée d'évaluation des aller
 | Composant | Rôle | Règles |
 | --- | --- | --- |
 | `breadcrumb` | Fil d'Ariane sur les écrans de séjour (Patients › Dossier › Agenda / Prescriptions) | Dernier élément = page courante (`aria-current`), sans lien. |
+| `part_form` + `.part-edit` | Crayon « Modifier » à côté du titre d'une partie du dossier : la partie entière devient un formulaire | Valeurs d'origine en `data-old` (concurrence) ; « Enregistrer » ouvre la fenêtre de validation. |
+| `#auth-dialog` | Fenêtre de validation par un médecin (modification d'une partie, fin de séjour) | **Factice** : le mot de passe n'est pas vérifié, ce que la fenêtre affiche ; `<dialog>` modal, Échap ferme. |
+| `sejour_menu` | Menu figé des écrans de séjour : bouton principal en tête (« Agenda du jour » dans le dossier, « Dossier du séjour » dans l'agenda, au même endroit) | Même composant pour les deux écrans. |
+| `.dossier-menu` | Menu figé à gauche du dossier patient : « Agenda du jour » en tête, Dossier, Allergies, Dossier complet (sous-catégories), Prescriptions en cours | Collant sous le bandeau dès 1024 px, en tête de page en dessous ; partie visible signalée par `aria-current="location"` (`dossier-menu.js`), sous-catégorie = ouverture de sa section. |
 | `form` + `field` | Formulaires : une colonne, libellé au-dessus, aide (`help`) sous le libellé, erreur sous le champ | Types : text, date, number, email, tel, radio, select (`empty`), textarea, checkbox-group, hidden, heading ; `listbox` pour une combobox. |
 | `form` → `sections` | Sections repliables `<details>` des formulaires longs, compteur « n sur m renseignés » | Repliées par défaut, ouvertes si un champ est en erreur (`form-sections.js`). |
 | `status_badge` | Icône + texte + couleur d'un statut | Clés dans `docs/ui.md`. `late` est désormais rouge. |
 | `empty_state` | Écran ou section sans donnée | Titre, explication, action principale à côté quand elle existe. |
-| `.confirm-box` | Confirmation en place (rattachement d'un patient, édition d'un champ) | « Ancienne → nouvelle », Enregistrer / Annuler, `role="group"`, jamais une modale centrée. |
-| `.patient-banner` | Bandeau orange « Données issues du dossier existant… vérifiez-les » | Avec « Changer de patient ». |
+| `.patient-card` | Carte en lecture seule du patient existant choisi à l'admission (identité, âge, IPP, dernier séjour, allergies par criticité) | Affichée dès la sélection, sans confirmation intermédiaire ; masque les champs d'identité ; « Corriger l'identité » les rouvre, « Ce n'est pas ce patient » vide le formulaire. |
+| `allergy_picker` (type de champ `allergy-picker`) | Allergies à l'admission : liste filtrable du référentiel, criticité par allergène coché | Envoie `allergies[]` et `allergyCriticality[id]` ; filtre sans accents ni casse ; un allergène coché reste visible quel que soit le filtre. |
 | `.suggestions` | Liste de suggestions d'une combobox | `role="listbox"`, options `role="option"`, avertissement d'homonymie en tête. |
-| `.inline-edit` | Valeur éditable du dossier (bouton) | Clic ou Entrée → saisie ; Échap annule ; « Enregistré » en `aria-live`. |
+| `.inline-edit` | Valeur éditable du dossier (bouton) | Crayon au survol ou au focus ; clic ou Entrée → le champ remplace la valeur sur place (jamais affichée deux fois) avec un seul bouton « Confirmer » ; Entrée confirme, Échap annule ; « Enregistré » en `aria-live`. |
 
 ## Formulaires
 
-- Une colonne, libellé au-dessus, étoile rouge pour l'obligatoire, aide courte sous le libellé, erreur sous le
-  champ avec bordure rouge à gauche (GOV.UK : message spécifique, à côté du champ, jamais effacer la saisie).
+- Chaque champ montre un exemple grisé en italique (`placeholder`) ; les dates se saisissent en JJ/MM/AAAA
+  dans un champ texte (`date-input.js`), converties par le serveur (`Aura\Core\DateInput`).
+- Libellé au-dessus, étoile rouge pour l'obligatoire, aide courte sous le libellé, erreur sous le champ avec
+  bordure rouge à gauche (GOV.UK : message spécifique, à côté du champ, jamais effacer la saisie).
+- Admission : deux colonnes dès 1100 px (identité → note sur les allergies à gauche, sections complémentaires à
+  droite), recherche du patient sur toute la largeur au-dessus ; une seule colonne en dessous (retours du 2026-11-02).
 - Champs ≥ 44 px de haut, cases et boutons radio 20 px avec libellé cliquable ≥ 44 px.
 - Sections repliables pour tout formulaire de plus d'une dizaine de champs ; l'essentiel reste visible en haut.
 - Un seul bouton primaire (« Admettre », « Enregistrer ») ; recherche et actions secondaires en style secondaire.

@@ -1,6 +1,7 @@
 <?php
 
 use Aura\Core\View;
+use Aura\Service\RecordSectionService;
 
 /**
  * Dossier du séjour (AURA-14) et gestion des allergies connues du patient (AURA-13.2).
@@ -24,6 +25,13 @@ $sections = $sections ?? [];
 $editable = $editable ?? false;
 $csrfToken = $csrfToken ?? null;
 $history = $history ?? [];
+$partValues = $partValues ?? [];
+$services = $services ?? [];
+// Crayon « Modifier » d'une partie entière (retours du 2026-11-02), à côté du titre de la partie.
+$crayonPartie = static fn (string $part, string $title): string =>
+    '<button type="button" class="part-edit" data-part-edit="' . View::e($part) . '" aria-label="Modifier la partie : '
+    . View::e($title) . '" title="Modifier toute la partie">'
+    . View::render('components/icon', ['name' => 'pen-line']) . '<span>Modifier</span></button>';
 // Contenu HTML (échappé) d'une ligne du dossier complet : valeur, ou état explicite si absente.
 $valeurLigne = static function (array $row): string {
     if ($row['value'] !== null) {
@@ -44,21 +52,63 @@ $valeurLigne = static function (array $row): string {
     ['label' => 'Dossier du séjour n° ' . $bandeau['numeroSejour']],
 ]]) ?>
 
+<div class="dossier-layout">
+<?php /* Menu figé à gauche (retours du 2026-11-02) : agenda en tête, puis les parties du dossier ; les
+         sous-catégories du dossier complet ouvrent leur section (public/js/dossier-menu.js). */ ?>
+<?php
+$sousParties = array_map(
+    static fn (array $section): array => [
+        'href' => '#dossier-' . $section['id'],
+        'label' => $section['title'],
+        'openDetails' => true,
+    ],
+    $sections
+);
+if ($editable) {
+    $sousParties[] = [
+        'href' => '#dossier-historique',
+        'label' => 'Historique des modifications',
+        'openDetails' => true,
+    ];
+}
+?>
+<?= View::render('components/sejour_menu', [
+    'primary' => ['href' => '/agenda-patient?id=' . $idSejour, 'label' => 'Agenda du jour', 'icon' => 'calendar'],
+    'items' => [
+        ['href' => '#dossier-resume', 'label' => 'Dossier'],
+        ['href' => '#titre-allergies', 'label' => 'Allergies'],
+        ['href' => '#titre-dossier-complet', 'label' => 'Dossier complet', 'children' => $sousParties],
+        ['href' => '#titre-prescriptions', 'label' => 'Prescriptions en cours'],
+    ],
+]) ?>
+
 <section class="dossier">
-    <div class="page-header">
+    <div class="page-header" id="dossier-resume">
         <h1 class="form-title">Dossier du séjour n° <?= View::e($bandeau['numeroSejour']) ?></h1>
-        <p class="page-actions">
-            <a class="button button--secondary"
-               href="/agenda-patient?id=<?= View::e($idSejour) ?>">Agenda du jour</a>
-            <a class="button button--secondary"
-               href="/care-plans?idEpisodeOfCare=<?= View::e($idSejour) ?>">Toutes les prescriptions</a>
-            <?php if ($sejour['enCours']) : ?>
-                <?php /* AURA-20 : vers l'écran B3 « Nouvelles prescriptions » (séjour en cours seulement). */ ?>
-                <a class="button" href="/care-plans/new?idEpisodeOfCare=<?= View::e($idSejour) ?>">Prescription</a>
-            <?php endif; ?>
-        </p>
+        <?php if ($editable) : ?>
+            <p class="page-actions">
+                <?= $crayonPartie(RecordSectionService::PART_SUMMARY, 'Dossier') ?>
+                <?php if ($sejour['enCours']) : ?>
+                    <?php /* Fin du séjour : validée par un médecin dans la même fenêtre que les modifications. */ ?>
+                    <button type="button" class="button button--danger" data-end-stay>
+                        Mettre fin au séjour
+                    </button>
+                <?php endif; ?>
+            </p>
+        <?php endif; ?>
     </div>
-    <dl>
+    <dl class="dossier-resume" data-part-view="<?= RecordSectionService::PART_SUMMARY ?>">
+        <dt>Patient</dt>
+        <dd>
+            <?= View::e(mb_strtoupper($bandeau['nom']) . ' ' . $bandeau['prenom']) ?>
+            <?php if ($bandeau['sexe'] !== null) : ?>
+                (<?= View::e($bandeau['sexe']) ?>)
+            <?php endif; ?>
+        </dd>
+        <dt>Né(e) le</dt>
+        <dd><?= View::e($bandeau['dateNaissance'] ?? 'non renseignée') ?></dd>
+        <dt>IPP</dt>
+        <dd><?= View::e($bandeau['ipp'] ?? 'sans IPP') ?></dd>
         <dt>Statut</dt>
         <dd>
             <?php if ($sejour['enCours']) : ?>
@@ -86,6 +136,14 @@ $valeurLigne = static function (array $row): string {
         <dt>E-mail</dt>
         <dd><?= View::e($sejour['email'] ?? 'non renseigné') ?></dd>
     </dl>
+    <?php if ($editable) : ?>
+        <?= View::render('components/part_form', [
+            'part' => RecordSectionService::PART_SUMMARY,
+            'title' => 'Dossier',
+            'fields' => RecordSectionService::partFields(RecordSectionService::PART_SUMMARY, $services),
+            'values' => $partValues[RecordSectionService::PART_SUMMARY] ?? [],
+        ]) ?>
+    <?php endif; ?>
 
 <section class="allergies-dossier" aria-labelledby="titre-allergies">
     <h2 id="titre-allergies">Allergies connues</h2>
@@ -103,7 +161,8 @@ $valeurLigne = static function (array $row): string {
         <ul class="liste-allergies">
             <?php foreach ($allergies as $allergy) : ?>
                 <li>
-                    <span class="libelle"><?= View::e($allergy['label']) ?></span>
+                    <span class="libelle allergie allergie--<?= View::e($allergy['level'] ?? 'unknown') ?>"
+                        ><?= View::e($allergy['label']) ?></span>
                     <?php
                     $details = $allergy['criticality'] !== null
                         ? 'criticité ' . $allergy['criticality']
@@ -163,8 +222,8 @@ $valeurLigne = static function (array $row): string {
              visible (repliée) avec « Non renseigné » : l'information est absente, pas cachée. */ ?>
     <h2 class="dossier-subtitle" id="titre-dossier-complet">Dossier complet</h2>
     <?php if ($editable) : ?>
-        <p class="dossier-aide">Chaque valeur se modifie en place : cliquez dessus (ou Entrée au clavier),
-            puis confirmez l'enregistrement. Échap annule.</p>
+        <p class="dossier-aide">Pour modifier une valeur, cliquez sur le crayon qui apparaît au survol
+            (ou Entrée au clavier), corrigez-la puis cliquez sur « Confirmer ». Échap annule.</p>
     <?php endif; ?>
     <div class="dossier-sections" aria-labelledby="titre-dossier-complet"<?= $editable
         ? ' data-inline-edit data-endpoint="/sejour/champ/modifier" data-csrf="' . View::e($csrfToken) . '"'
@@ -176,13 +235,14 @@ $valeurLigne = static function (array $row): string {
         <details class="dossier-section"
                  id="dossier-<?= View::e($section['id']) ?>"<?= $section['filled'] > 0 ? ' open' : '' ?>>
             <summary>
-                <span><?= View::e($section['title']) ?></span>
+                <span class="dossier-section__title"><?= View::e($section['title']) ?></span>
+                <?= $editable ? $crayonPartie($section['id'], $section['title']) : '' ?>
                 <span class="dossier-section__count">
                     <?= View::e($section['filled']) ?> sur <?= View::e($section['total']) ?>
                     renseigné<?= $section['filled'] > 1 ? 's' : '' ?>
                 </span>
             </summary>
-            <dl>
+            <dl data-part-view="<?= View::e($section['id']) ?>">
                 <?php foreach ($section['rows'] as $row) : ?>
                     <dt><?= View::e($row['label']) ?></dt>
                     <?php if ($editable && !$row['computed']) : ?>
@@ -193,13 +253,19 @@ $valeurLigne = static function (array $row): string {
                             data-field="<?= View::e($row['field']) ?>"
                             data-type="<?= View::e($row['type']) ?>"
                             data-label="<?= View::e($row['label']) ?>"
-                            data-raw="<?= View::e($row['raw'] ?? '') ?>"<?= $row['options'] !== null
+                            data-raw="<?= View::e($row['raw'] ?? '') ?>"
+                            data-placeholder="<?= View::e($row['placeholder'] ?? '') ?>"<?= $row['options'] !== null
                                 ? ' data-options="'
                                     . View::e(json_encode($row['options'], JSON_UNESCAPED_UNICODE)) . '"'
                                 : '' ?>>
+                            <?php /* Crayon visible au survol ou au focus seulement. */ ?>
                             <button type="button" class="inline-edit__value"
                                     aria-label="Modifier : <?= View::e($row['label']) ?>"
-                                    ><?= $valeurLigne($row) ?></button>
+                                    ><span class="inline-edit__text"><?= $valeurLigne($row) ?></span><?=
+                                    View::render('components/icon', [
+                                        'name' => 'pen-line',
+                                        'class' => 'inline-edit__pencil',
+                                    ]) ?></button>
                         </dd>
                     <?php else : ?>
                         <?php /* Valeur collée à la balise : pre-line conserve les retours à la ligne. */ ?>
@@ -208,6 +274,14 @@ $valeurLigne = static function (array $row): string {
                     <?php endif; ?>
                 <?php endforeach; ?>
             </dl>
+            <?php if ($editable) : ?>
+                <?= View::render('components/part_form', [
+                    'part' => $section['id'],
+                    'title' => $section['title'],
+                    'fields' => RecordSectionService::partFields($section['id'], $services),
+                    'values' => $partValues[$section['id']] ?? [],
+                ]) ?>
+            <?php endif; ?>
         </details>
     <?php endforeach; ?>
 
@@ -261,81 +335,121 @@ $valeurLigne = static function (array $row): string {
     <?php endif; ?>
     </div>
 
-    <?php /* RG5 : seules les prescriptions validées par un médecin, et pas celles qui sont arrêtées. */ ?>
-    <h2 class="dossier-subtitle">Prescriptions en cours</h2>
+</section>
+
+<?php /* Prescriptions en cours dans une colonne à droite du dossier (retours du 2026-11-02) ; sous le
+         dossier sur un écran plus étroit. RG5 : seules les lignes validées par un médecin et non arrêtées. */ ?>
+<aside class="dossier-aside" aria-labelledby="titre-prescriptions">
+    <div class="dossier-aside__header">
+        <h2 class="dossier-subtitle" id="titre-prescriptions">Prescriptions en cours</h2>
+        <p class="dossier-aside__actions">
+            <?php if ($sejour['enCours']) : ?>
+                <?php /* AURA-20 : vers l'écran B3 « Nouvelles prescriptions » (séjour en cours seulement). */ ?>
+                <a class="button" href="/care-plans/new?idEpisodeOfCare=<?= View::e($idSejour) ?>">Prescription</a>
+            <?php endif; ?>
+            <a class="button button--secondary"
+               href="/care-plans?idEpisodeOfCare=<?= View::e($idSejour) ?>">Toutes les prescriptions</a>
+        </p>
+    </div>
     <?php if ($prescriptions === []) : ?>
         <?= View::render('components/empty_state', [
             'title' => 'Aucune prescription validée.',
             'text' => 'Les ordonnances en attente de validation médicale sont sur l\'écran Prescription.',
         ]) ?>
     <?php else : ?>
-        <div class="table-scroll">
-        <table class="dossier-prescriptions">
-            <thead>
-                <tr>
-                    <th scope="col">Prescription</th>
-                    <th scope="col">Fréquence</th>
-                    <th scope="col">Début</th>
-                    <th scope="col">Fin</th>
-                    <th scope="col">Validée par</th>
-                    <?php if ($sejour['enCours']) : ?>
-                        <th scope="col">Arrêt</th>
-                    <?php endif; ?>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($prescriptions as $line) : ?>
-                    <tr>
-                        <td>
-                            <?= View::e($line['label']) ?>
-                            <?php
-                            $notes = [
-                                'important' => 'Important : ',
-                                'nurseInstructions' => 'Consignes IDE : ',
-                                'maxDose' => 'Dose max : ',
-                                'dilutionVolume' => 'Volume de dilution : ',
-                                'solvent' => 'Solvant : ',
-                                'administrationDuration' => 'Durée d\'administration : ',
-                                'antibioticReason' => 'Motif antibiotique : ',
-                                'germ' => 'Germe : ',
-                                'renalAdjustment' => 'Adaptation rénale : ',
-                                'adjustmentCriterion' => 'Critère d\'adaptation : ',
-                                'offGhsReason' => 'Motif hors GHS : ',
-                                'timeConstraint' => '',
-                            ];
-                            ?>
-                            <?php foreach ($notes as $note => $prefix) : ?>
-                                <?php if ($line[$note] !== null) : ?>
-                                    <br><small><?= View::e($prefix . $line[$note]) ?></small>
-                                <?php endif; ?>
-                            <?php endforeach; ?>
-                        </td>
-                        <td><?= View::e($line['frequency']) ?></td>
-                        <td><?= View::e($line['startDate']) ?></td>
-                        <td><?= View::e($line['endDate'] ?? '—') ?></td>
-                        <td><?= View::e($line['validation']) ?></td>
-                        <?php if ($sejour['enCours']) : ?>
-                            <td>
-                                <?php /* AURA-22 : un médecin arrête la ligne ; elle quitte alors cette liste. */ ?>
-                                <form class="stop-form" method="post" data-ajax
-                                      action="/care-plans/stop?idEpisodeOfCare=<?= View::e($idSejour) ?>">
-                                    <input type="hidden" name="idLine" value="<?= View::e($line['idLine']) ?>">
-                                    <input type="hidden" name="isMedication"
-                                           value="<?= $line['isMedication'] ? '1' : '0' ?>">
-                                    <select name="idStoppedBy" aria-label="Médecin qui arrête">
-                                        <option value="">— médecin —</option>
-                                        <?php foreach ($doctors as $value => $label) : ?>
-                                            <option value="<?= View::e($value) ?>"><?= View::e($label) ?></option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                    <button type="submit">Arrêter</button>
-                                </form>
-                            </td>
+        <?php
+        $notes = [
+            'important' => 'Important : ',
+            'nurseInstructions' => 'Consignes IDE : ',
+            'maxDose' => 'Dose max : ',
+            'dilutionVolume' => 'Volume de dilution : ',
+            'solvent' => 'Solvant : ',
+            'administrationDuration' => 'Durée d\'administration : ',
+            'antibioticReason' => 'Motif antibiotique : ',
+            'germ' => 'Germe : ',
+            'renalAdjustment' => 'Adaptation rénale : ',
+            'adjustmentCriterion' => 'Critère d\'adaptation : ',
+            'offGhsReason' => 'Motif hors GHS : ',
+            'timeConstraint' => '',
+        ];
+        ?>
+        <ul class="prescription-cards dossier-prescriptions">
+            <?php foreach ($prescriptions as $line) : ?>
+                <li class="prescription-card">
+                    <p class="prescription-card__label"><?= View::e($line['label']) ?></p>
+                    <?php foreach ($notes as $note => $prefix) : ?>
+                        <?php if ($line[$note] !== null) : ?>
+                            <p class="prescription-card__note"><?= View::e($prefix . $line[$note]) ?></p>
                         <?php endif; ?>
-                    </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
-        </div>
+                    <?php endforeach; ?>
+                    <dl class="prescription-card__meta">
+                        <dt>Fréquence</dt>
+                        <dd><?= View::e($line['frequency']) ?></dd>
+                        <dt>Période</dt>
+                        <dd><?= View::e($line['period']) ?></dd>
+                        <dt>Validée</dt>
+                        <dd><?= View::e($line['validation']) ?></dd>
+                    </dl>
+                    <?php if ($sejour['enCours']) : ?>
+                        <?php /* AURA-22 : un médecin arrête la ligne ; elle quitte alors cette liste. */ ?>
+                        <form class="stop-form" method="post" data-ajax
+                              action="/care-plans/stop?idEpisodeOfCare=<?= View::e($idSejour) ?>">
+                            <input type="hidden" name="idLine" value="<?= View::e($line['idLine']) ?>">
+                            <input type="hidden" name="isMedication"
+                                   value="<?= $line['isMedication'] ? '1' : '0' ?>">
+                            <select name="idStoppedBy" aria-label="Médecin qui arrête : <?= View::e($line['label']) ?>">
+                                <option value="">— médecin —</option>
+                                <?php foreach ($doctors as $value => $label) : ?>
+                                    <option value="<?= View::e($value) ?>"><?= View::e($label) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <button type="submit">Arrêter</button>
+                        </form>
+                    <?php endif; ?>
+                </li>
+            <?php endforeach; ?>
+        </ul>
     <?php endif; ?>
-</section>
+</aside>
+
+</div>
+
+<?php if ($editable) : ?>
+    <?php /* Fenêtre de validation par un médecin : AUTHENTIFICATION FACTICE (le mot de passe n'est pas
+             vérifié) en attendant l'identification des praticiens (AURA-18). Elle sert aux modifications
+             d'une partie et à la fin du séjour (public/js/part-edit.js). */ ?>
+    <dialog id="auth-dialog" class="auth-dialog" aria-labelledby="auth-dialog-title">
+        <form method="dialog" class="auth-dialog__form" novalidate>
+            <h2 id="auth-dialog-title" class="auth-dialog__title">Validation par un médecin</h2>
+            <p class="auth-dialog__summary" data-auth-summary></p>
+            <div class="auth-dialog__discharge" data-auth-discharge hidden>
+                <?= View::render('components/field', ['field' => [
+                    'name' => 'dischargeDate', 'id' => 'auth-discharge-date', 'label' => 'Date de sortie',
+                    'type' => 'date', 'value' => '', 'error' => '',
+                ]]) ?>
+                <?= View::render('components/field', ['field' => [
+                    'name' => 'dischargeTime', 'id' => 'auth-discharge-time', 'label' => 'Heure de sortie',
+                    'type' => 'time', 'value' => '', 'error' => '',
+                ]]) ?>
+            </div>
+            <?= View::render('components/field', ['field' => [
+                'name' => 'validator', 'id' => 'auth-validator', 'label' => 'Médecin qui valide', 'type' => 'select',
+                'options' => $doctors, 'empty' => 'Choisir le médecin', 'value' => '', 'error' => '',
+            ]]) ?>
+            <?= View::render('components/field', ['field' => [
+                'name' => 'password', 'id' => 'auth-password', 'label' => 'Mot de passe', 'type' => 'password',
+                'value' => '', 'error' => '', 'attributes' => ['autocomplete' => 'off'],
+            ]]) ?>
+            <p class="auth-dialog__notice">
+                <?= View::render('components/icon', ['name' => 'info']) ?>
+                Authentification de démonstration : le mot de passe n'est pas vérifié. Elle sera remplacée par
+                l'identification des praticiens.
+            </p>
+            <p class="form-error" role="alert" data-auth-error hidden></p>
+            <div class="auth-dialog__actions">
+                <button type="submit" class="button" value="confirm">Valider</button>
+                <button type="button" class="button button--secondary" data-auth-cancel>Annuler</button>
+            </div>
+        </form>
+    </dialog>
+<?php endif; ?>

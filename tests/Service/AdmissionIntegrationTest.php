@@ -216,6 +216,7 @@ final class AdmissionIntegrationTest extends TestCase
             'surgeryDate' => '2026-10-12',
             'completedBy' => 'Dr Zztest',
             'allergies' => [$idSubstance],
+            'allergyCriticalities' => [$idSubstance => 'Élevée'],
         ]);
 
         $reluSejour = (new SejourDao($this->pdo))->findById((int) $sejour->getIdSejour());
@@ -236,6 +237,7 @@ final class AdmissionIntegrationTest extends TestCase
         $allergies = (new AllergieDao($this->pdo))->findByPatient($sejour->getIdPatient());
         self::assertCount(1, $allergies);
         self::assertSame($idSubstance, $allergies[0]->getIdAllergene());
+        self::assertSame('Élevée', $allergies[0]->getCriticite(), 'criticité choisie à l\'admission enregistrée');
     }
 
     /** Un patient connu par son IPP : les champs saisis complètent son dossier, les vides ne l'effacent pas. */
@@ -388,6 +390,82 @@ final class AdmissionIntegrationTest extends TestCase
             'a@example.com',
             (new PatientDao($this->pdo))->findById($premier->getIdPatient())?->getDetail('trustedPersonEmail')
         );
+    }
+
+    /** Retours du 2026-11-02 : un nouveau patient admis sans IPP reçoit un IPP unique, dans la plage autorisée. */
+    public function testUnNouveauPatientSansIppRecoitUnIppAutomatique(): void
+    {
+        $service = $this->serviceComplet();
+
+        $premier = $service->admettre(['nom' => self::NOM, 'prenom' => 'Alice']);
+        $second = $service->admettre(['nom' => self::NOM, 'prenom' => 'Bob']);
+
+        $dao = new PatientDao($this->pdo);
+        $ippA = $dao->findById($premier->getIdPatient())?->getIpp();
+        $ippB = $dao->findById($second->getIdPatient())?->getIpp();
+        self::assertNotNull($ippA);
+        self::assertNotNull($ippB);
+        self::assertMatchesRegularExpression('/^\d{6,9}$/', $ippA);
+        self::assertNotSame($ippA, $ippB, 'deux admissions, deux IPP');
+        self::assertGreaterThanOrEqual(PatientDao::IPP_MIN, (int) $ippA);
+    }
+
+    /** Un IPP saisi (patient connu de l'hôpital, nouveau dans le service) est conservé tel quel. */
+    public function testUnIppSaisiEstConserve(): void
+    {
+        $sejour = $this->serviceComplet()->admettre(['nom' => self::NOM, 'prenom' => 'Alice', 'ipp' => '987654318']);
+
+        self::assertSame('987654318', (new PatientDao($this->pdo))->findById($sejour->getIdPatient())?->getIpp());
+    }
+
+    /**
+     * Patient retrouvé : la criticité d'une allergie déjà connue, changée à l'admission, est appliquée et
+     * tracée ; laissée vide, elle ne remplace pas la criticité connue.
+     */
+    public function testLaCriticiteDUneAllergieConnueChangeeALAdmissionEstAppliqueeEtTracee(): void
+    {
+        $service = $this->serviceComplet();
+        $substances = (new \Aura\Dao\SubstanceDao($this->pdo))->findAll();
+        [$a, $b] = [$substances[0]->getIdSubstance(), $substances[1]->getIdSubstance()];
+
+        $premier = $service->admettre([
+            'nom' => self::NOM, 'prenom' => 'Alice', 'allergies' => [$a, $b],
+            'allergyCriticalities' => [$a => 'Faible', $b => 'Élevée'],
+        ]);
+        (new SejourService(new SejourDao($this->pdo)))->cloturerSejour((int) $premier->getIdSejour());
+        $idPatient = $premier->getIdPatient();
+
+        $service->admettre([
+            'idPatient' => (string) $idPatient, 'searchMode' => 'name', 'nom' => self::NOM, 'prenom' => 'Alice',
+            'allergies' => [$a, $b], 'allergyCriticalities' => [$a => 'Élevée', $b => ''],
+        ]);
+
+        $criticites = [];
+        foreach ((new AllergieDao($this->pdo))->findByPatient($idPatient) as $allergie) {
+            $criticites[$allergie->getIdAllergene()] = $allergie->getCriticite();
+        }
+        self::assertSame('Élevée', $criticites[$a], 'criticité changée appliquée');
+        self::assertSame('Élevée', $criticites[$b], 'criticité laissée vide : la valeur connue est gardée');
+
+        $traces = array_filter(
+            (new AuditEventDao($this->pdo))->findForRecord($idPatient, 0, 50),
+            static fn ($e): bool => $e->getField() === 'allergyCriticality'
+        );
+        self::assertCount(1, $traces);
+        self::assertStringEndsWith(': Élevée', (string) array_values($traces)[0]->getNewValue());
+    }
+
+    /** L'IPP attribué automatiquement est tracé comme venant d'AURA. */
+    public function testLIppAttribueAutomatiquementEstTrace(): void
+    {
+        $sejour = $this->serviceComplet()->admettre(['nom' => self::NOM, 'prenom' => 'Alice']);
+
+        $traces = array_values(array_filter(
+            (new AuditEventDao($this->pdo))->findForRecord($sejour->getIdPatient(), 0, 50),
+            static fn ($e): bool => $e->getField() === 'ipp'
+        ));
+        self::assertCount(1, $traces);
+        self::assertStringContainsString('attribué automatiquement', (string) $traces[0]->getDetail());
     }
 
     /** @return array{int, int} */

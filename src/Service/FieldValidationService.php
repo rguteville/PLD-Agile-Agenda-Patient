@@ -95,7 +95,7 @@ final class FieldValidationService
                 break;
             case 'date':
                 if (!$this->isValidDate($value)) {
-                    return sprintf('« %s » : date invalide (format attendu : AAAA-MM-JJ).', $label);
+                    return sprintf('« %s » : date invalide (format attendu : JJ/MM/AAAA).', $label);
                 }
                 break;
             case 'email':

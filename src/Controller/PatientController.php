@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Aura\Controller;
 
+use Aura\Core\DateInput;
 use Aura\Core\View;
 use Aura\Domain\RecordFields;
 use Aura\Service\ModificationPatientService;
@@ -48,6 +49,9 @@ class PatientController
      */
     private const CHAMP_ALLERGIES = 'allergies';
 
+    /** Criticité choisie pour chaque allergène coché : allergyCriticality[idSubstance] = « Faible »… */
+    private const ALLERGY_CRITICALITY_FIELD = 'allergyCriticality';
+
     /** Le formulaire propose H/F, le domaine attend M/F (colonne Patient.sexe). */
     private const SEXE_FORMULAIRE_VERS_DOMAINE = ['H' => 'M', 'F' => 'F'];
 
@@ -57,7 +61,13 @@ class PatientController
      * Scripts du formulaire d'admission : envoi AJAX (AURA-10.2), recherche par IPP (AURA-15),
      * sections repliables avec compteur de champs renseignés (form-sections.js).
      */
-    public const SCRIPTS_ADMISSION = ['/js/form.js', '/js/admission-search.js', '/js/form-sections.js'];
+    public const SCRIPTS_ADMISSION = [
+        '/js/form.js',
+        '/js/admission-search.js',
+        '/js/form-sections.js',
+        '/js/allergy-picker.js',
+        '/js/date-input.js',
+    ];
 
     /** Message renvoyé quand aucun patient ne porte l'IPP recherché (AURA-15). */
     public const MESSAGE_IPP_INCONNU = 'IPP inconnu, saisie manuelle.';
@@ -144,12 +154,16 @@ class PatientController
         foreach ($fiche['details'] as $champ => $valeur) {
             $patient[$champ] = $valeur ?? '';
         }
+        // Le formulaire saisit les dates en JJ/MM/AAAA.
+        $patient['birthDate'] = DateInput::fromIso($patient['birthDate'] ?? '');
 
         $this->repondreJson(200, [
             'ok' => true,
             'patient' => $patient,
             'allergies' => array_column($fiche['allergies'], 'idSubstance'),
             'allergiesLibelles' => array_column($fiche['allergies'], 'libelle'),
+            // Criticité connue de chaque allergie, pour pré-régler la liste de l'admission.
+            'allergyCriticalities' => array_column($fiche['allergies'], 'criticite', 'idSubstance'),
         ]);
     }
 
@@ -343,8 +357,27 @@ class PatientController
         View::page(
             self::VUE_MODIFICATION,
             ['idPatient' => $idPatient, 'valeurs' => $valeurs, 'erreurs' => $erreurs],
-            self::TITRE_MODIFICATION
+            self::TITRE_MODIFICATION,
+            ['/js/date-input.js']
         );
+    }
+
+    /**
+     * Champs de date du formulaire (saisis en JJ/MM/AAAA) : la date de naissance et les champs du
+     * catalogue de type date.
+     *
+     * @return list<string>
+     */
+    private static function dateFields(): array
+    {
+        $dates = ['birthDate'];
+        foreach (RecordFields::PATIENT + RecordFields::EPISODE as $champ => $spec) {
+            if ($spec['type'] === 'date') {
+                $dates[] = $champ;
+            }
+        }
+
+        return $dates;
     }
 
     /**
@@ -390,6 +423,20 @@ class PatientController
             is_array($allergies) ? $allergies : [$allergies],
             static fn ($v): bool => is_string($v) && trim($v) !== ''
         ));
+        // Dates saisies en JJ/MM/AAAA : converties au format des services (AAAA-MM-JJ).
+        foreach (self::dateFields() as $champ) {
+            if (isset($saisie[$champ]) && is_string($saisie[$champ])) {
+                $saisie[$champ] = DateInput::toIso($saisie[$champ]);
+            }
+        }
+        // Criticités : seules les paires (identifiant texte => valeur texte) sont gardées.
+        $criticites = $post[self::ALLERGY_CRITICALITY_FIELD] ?? [];
+        $saisie[self::ALLERGY_CRITICALITY_FIELD] = [];
+        foreach (is_array($criticites) ? $criticites : [] as $id => $valeur) {
+            if (is_string($valeur)) {
+                $saisie[self::ALLERGY_CRITICALITY_FIELD][(string) $id] = trim($valeur);
+            }
+        }
 
         return $saisie;
     }
@@ -407,6 +454,7 @@ class PatientController
             }
         }
         $donnees[self::CHAMP_ALLERGIES] = $saisie[self::CHAMP_ALLERGIES] ?? [];
+        $donnees['allergyCriticalities'] = $saisie[self::ALLERGY_CRITICALITY_FIELD] ?? [];
         // Une valeur de sexe inconnue est transmise telle quelle : le service la refusera.
         $donnees['sexe'] = self::SEXE_FORMULAIRE_VERS_DOMAINE[$donnees['sexe']] ?? $donnees['sexe'];
 
@@ -415,7 +463,8 @@ class PatientController
 
     /**
      * Ré-indexe les erreurs du domaine par nom de champ du formulaire, pour les
-     * afficher à côté du bon champ. Une clé sans correspondance (allergies) est reprise telle quelle.
+     * afficher à côté du bon champ. Une clé sans correspondance (allergies) est reprise telle quelle ;
+     * une erreur de criticité est affichée sous la liste des allergies.
      *
      * @param array<string, string> $erreurs
      * @return array<string, string>
@@ -428,6 +477,11 @@ class PatientController
                 $parChamp[$champ] = $erreurs[$cle];
                 unset($erreurs[$cle]);
             }
+        }
+
+        if (isset($erreurs['allergyCriticalities'])) {
+            $erreurs[self::CHAMP_ALLERGIES] ??= $erreurs['allergyCriticalities'];
+            unset($erreurs['allergyCriticalities']);
         }
 
         return $parChamp + $erreurs;

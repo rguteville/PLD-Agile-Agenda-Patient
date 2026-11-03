@@ -357,14 +357,23 @@ Scénarios manuels avec les données de démo (`database/test.sql`), serveur lan
    IPP, dernier séjour) ; flèche bas, Entrée, Confirmer → formulaire pré-rempli, bandeau orange « Données issues
    du dossier existant » ; Admettre → aucun doublon dans `Patient`, rattachement visible dans « Historique des
    modifications ». L'IPP `100000001` puis « Rechercher » donne un résultat unique avec la même confirmation.
-3. **Édition en place** : `/sejour?id=1`, cliquer « ATCD médicaux », modifier, Tab, Enregistrer → « Enregistré »
-   et ligne d'historique ; Échap pendant la saisie restaure la valeur. Dans deux onglets, modifier le même champ :
+3. **Édition en place** : `/sejour?id=1`, section « Dossier complet », survoler « ATCD médicaux » (un crayon
+   apparaît), cliquer, modifier, « Confirmer » → « Enregistré » et ligne d'historique ; Échap restaure la valeur. Dans deux onglets, modifier le même champ :
    le second est refusé (valeur modifiée entre-temps, rechargée).
-4. **Allergies** : `/sejour?id=8` → « Aucune allergie connue » (vert) ; `/sejour?id=1` → allergies en rouge dans
-   le bandeau ; ajout et retrait depuis la section « Allergies connues ».
-5. **Agenda et prescriptions** : `/agenda-patient?id=1&date=2026-10-14`, `/care-plans?idEpisodeOfCare=1`,
-   nouvelle prescription puis validation par un médecin réanimateur.
-6. **Accessibilité** : parcourir le formulaire d'admission et le dossier au clavier seul (Tab, Entrée, Échap,
+4. **Allergies** : `/sejour?id=8` → « Aucune allergie connue » (vert) ; `/sejour?id=1` → Pénicilline (Élevée) en
+   rouge plein et Latex (Faible) en orange dans le bandeau ; ajout et retrait depuis la section « Allergies
+   connues ». À l'admission, filtrer la liste (« pén »), cocher, choisir la criticité.
+5. **IPP automatique** : admettre un nouveau patient sans IPP → le bandeau du séjour créé affiche un IPP attribué.
+6. **Menu du dossier** : sur `/sejour?id=1`, le menu de gauche reste visible au défilement ; « Scores et état
+   antérieur » ouvre la section et y descend ; « Agenda du jour » est en tête du menu ; dans l'agenda,
+   « Dossier du séjour » est au même endroit. Les prescriptions en cours sont dans la colonne de droite.
+   **Modifier une partie** : crayon « Modifier » à côté de « Dossier » ou d'un titre de section → formulaire
+   de la partie → « Enregistrer » → choisir un médecin, saisir un mot de passe quelconque (authentification
+   factice) → « Valider ». « Mettre fin au séjour » passe par la même fenêtre.
+7. **Agenda et prescriptions** : `/agenda-patient?id=1&date=2026-10-14`, `/care-plans?idEpisodeOfCare=1`
+   (colonne « Période »), nouvelle prescription (« Du / Au ») ; prescrire à nouveau le paracétamol déjà en cours
+   affiche un avertissement sans bloquer ; catégorie « Protocoles » ; validation par un médecin réanimateur.
+8. **Accessibilité** : parcourir le formulaire d'admission et le dossier au clavier seul (Tab, Entrée, Échap,
    flèches dans la liste de suggestions) ; `?theme=light` ou `?theme=dark` pour forcer le thème.
 
 ## Zone dépannage rapide

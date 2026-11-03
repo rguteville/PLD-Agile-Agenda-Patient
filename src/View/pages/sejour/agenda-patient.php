@@ -25,12 +25,26 @@ $dayUrl = static fn (string $date): string => '/agenda-patient?id=' . $idEpisode
     ['label' => 'Agenda'],
 ]]) ?>
 
+<?php
+// Même menu que le dossier : le bouton « Dossier du séjour » est exactement là où se trouve
+// « Agenda du jour » dans le dossier (retours du 2026-11-02).
+$dossierUrl = '/sejour?id=' . $idEpisodeOfCare;
+?>
+<div class="dossier-layout">
+<?= View::render('components/sejour_menu', [
+    'primary' => ['href' => $dossierUrl, 'label' => 'Dossier du séjour', 'icon' => 'inbox'],
+    'items' => [
+        ['href' => $dossierUrl . '#dossier-resume', 'label' => 'Dossier'],
+        ['href' => $dossierUrl . '#titre-allergies', 'label' => 'Allergies'],
+        ['href' => $dossierUrl . '#titre-dossier-complet', 'label' => 'Dossier complet'],
+        ['href' => $dossierUrl . '#titre-prescriptions', 'label' => 'Prescriptions en cours'],
+    ],
+]) ?>
+
 <section class="agenda">
     <div class="page-header">
         <h1 class="form-title">Agenda du séjour n° <?= View::e($bandeau['numeroSejour']) ?></h1>
         <p class="page-actions">
-            <a class="button button--secondary"
-               href="/sejour?id=<?= View::e($idEpisodeOfCare) ?>">Dossier du séjour</a>
             <button type="button" id="print-page" class="button button--secondary">
                 <?= View::render('components/icon', ['name' => 'printer']) ?>
                 Imprimer la journée
@@ -110,3 +124,4 @@ $dayUrl = static fn (string $date): string => '/agenda-patient?id=' . $idEpisode
         <?= View::render('components/validation_dialog', ['validators' => $validators]) ?>
     <?php endif; ?>
 </section>
+</div>
