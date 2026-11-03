@@ -6,13 +6,14 @@ use Aura\Core\View;
  * Icône SVG inline (jeu Lucide 1.66.0, licence ISC, https://lucide.dev) : un seul jeu pour toute
  * l'application, pas de police d'icônes ni de CDN. Le tracé est copié ici tel quel ; pour ajouter
  * une icône, coller l'intérieur du <svg> de lucide-static/icons/<nom>.svg dans $icons.
+ * Inclus par la plupart des vues et composants (topbar, badges, bandeau, agendas).
  *
  * Usage : View::render('components/icon', ['name' => 'clock'])                 → décorative (aria-hidden)
  *         View::render('components/icon', ['name' => 'clock', 'label' => '…']) → porteuse de sens (role="img")
  *
  * @var string $name nom Lucide (clock, circle-check, triangle-alert…)
  * @var string|null $label texte alternatif ; null ou absent = icône décorative
- * @var string|null $class classes CSS supplémentaires (icon--lg…)
+ * @var string|null $class classes CSS supplémentaires (icon--lg…), aucune par défaut
  */
 $icons = [
     'ban' => '<circle cx="12" cy="12" r="10"/><path d="M4.929 4.929 19.07 19.071"/>',

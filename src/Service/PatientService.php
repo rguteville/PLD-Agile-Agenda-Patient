@@ -12,7 +12,11 @@ use DateTimeImmutable;
 use InvalidArgumentException;
 
 /**
- * Admission des patients dans le service.
+ * Admission des patients dans le service, première version (avant AURA-10.4).
+ *
+ * N'est pas câblé dans public/index.php : l'admission réelle passe par AdmissionService. Seul
+ * tests/Service/PatientServiceTest l'utilise encore. Ses règles (patient sous X, e-mail de 100
+ * caractères) diffèrent de celles d'AdmissionService.
  *
  * Le système fonctionne en autonome : la base ne contient que les patients ayant
  * déjà fait un séjour dans le service. Un « patient existant » est donc un patient
@@ -20,9 +24,9 @@ use InvalidArgumentException;
  * avec le dossier patient (OpenEMR) sera faite plus tard.
  *
  * Parcours prévu côté interface :
- *  1. rechercherPatientExistant($formulaire) ;
- *  2a. patient trouvé et lien validé par le personnel : admettrePatientExistant($idPatient, $lit, $box) ;
- *  2b. sinon : inscrirePatient($formulaire).
+ *  1. searchExistingPatient($data) ;
+ *  2a. patient trouvé et lien validé par le personnel : admitExistingPatient($idPatient, $bedNumber, $boxNumber) ;
+ *  2b. sinon : registerPatient($data).
  * Le séjour (lit, box, sortie…) est ensuite géré par EpisodeOfCareService.
  */
 class PatientService
@@ -40,6 +44,11 @@ class PatientService
         return $this->patientDao->findAll();
     }
 
+    /**
+     * Patient par son identifiant interne.
+     *
+     * @throws \RuntimeException si le patient n'existe pas
+     */
     public function getPatient(int $id): Patient
     {
         $patient = $this->patientDao->findById($id);
@@ -54,7 +63,7 @@ class PatientService
     /**
      * Séjours précédents (et en cours) d'un patient, du plus récent au plus ancien.
      *
-     * @return Sejour[]
+     * @return EpisodeOfCare[]
      */
     public function getPatientEpisodesOfCare(int $idPatient): array
     {
@@ -93,7 +102,7 @@ class PatientService
 
     /**
      * Inscrit un nouveau patient et ouvre son séjour (date de prise en charge = maintenant).
-     * Le formulaire peut indiquer le lit (num_lit) et le box (num_box) attribués.
+     * Le formulaire peut indiquer le lit (bedNumber) et le box (boxNumber) attribués.
      * Patient et séjour sont créés ensemble : si le séjour est refusé, le patient n'est pas créé.
      *
      * @param array<string, mixed> $data données du formulaire
@@ -141,9 +150,11 @@ class PatientService
     }
 
     /**
-     * Contrôle les données du formulaire et construit le patient.
+     * Contrôle les données du formulaire et construit le patient. Patient sous X (nom et prénom « X ») :
+     * date de naissance facultative, IPP interdit.
      *
      * @param array<string, mixed> $data
+     * @throws InvalidArgumentException au premier champ invalide (message affichable)
      */
     private function validateForm(array $data): Patient
     {
@@ -209,6 +220,7 @@ class PatientService
         );
     }
 
+    /** Patient sous X : nom et prénom valent « X » (sans casse), identité volontairement inconnue. */
     private function isUnderX(string $lastName, string $firstName): bool
     {
         return strtoupper($lastName) === 'X' && strtoupper($firstName) === 'X';

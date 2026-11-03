@@ -6,9 +6,13 @@ use Aura\Core\View;
  * Bandeau identité + allergies (RG2). À inclure en tête de TOUTE page liée à un séjour
  * (dossier, prescriptions, agenda) : View::render('components/patient_banner', ['banner' => …]).
  * Il reste collé en haut de l'écran (position: sticky) et ne se replie jamais : les allergies
- * doivent rester visibles pendant toute la consultation du séjour.
+ * doivent rester visibles pendant toute la consultation du séjour. Sa hauteur est exposée en variable
+ * CSS par public/js/layout.js. Inclus par pages/episode/record.php, pages/episode/patient-agenda.php,
+ * pages/careplan/list.php et pages/careplan/form.php.
  *
- * @var array<string, mixed> $banner vue-modèle de PatientRecordService::presentBanner()
+ * @var array<string, mixed> $banner vue-modèle de PatientRecordService::presentBanner() (lastName,
+ *      firstName, sex, deceased, deceasedLabel, birthDate, age, ipp, episodeNumber, admissionDate, weight,
+ *      height, bloodType, referent, allergies [label, criticality, level], allergiesStatus)
  */
 ?>
 <header class="patient-banner" role="region" aria-label="Identité du patient et allergies connues">

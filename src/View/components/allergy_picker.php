@@ -8,13 +8,14 @@ use Aura\Core\View;
  * élevée). Envoi : allergies[] (identifiants cochés) et allergyCriticality[id] (criticité).
  * Sans JavaScript, tout reste utilisable : le filtre et le compteur sont des conforts
  * (public/js/allergy-picker.js), la criticité s'affiche via CSS dès que la case est cochée.
+ * Inclus par components/field.php (type « allergy-picker ») dans pages/patient/admission.php.
  *
  * @var string $name nom du champ (allergies)
  * @var array<string, string> $options idSubstance => libellé
  * @var list<string> $checked identifiants cochés
- * @var array<string, string> $criticalities idSubstance => criticité choisie
- * @var list<string> $criticalityOptions valeurs autorisées (Allergie::CRITICALITIES)
- * @var string $ariaError attributs aria-invalid / aria-describedby déjà échappés
+ * @var array<string, string> $criticalities idSubstance => criticité choisie ([] si aucune)
+ * @var list<string> $criticalityOptions valeurs autorisées (AllergyIntolerance::CRITICALITIES)
+ * @var string $ariaError attributs aria-invalid / aria-describedby déjà échappés ('' sans erreur)
  */
 ?>
 <div class="allergy-picker" role="group" aria-labelledby="<?= View::e($name) ?>-label" data-allergy-picker>

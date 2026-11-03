@@ -8,6 +8,17 @@
 // Une valeur inchangée referme simplement le champ. Enregistrement en JSON (POST, un champ à la fois,
 // ancienne valeur jointe pour détecter un conflit). Le serveur reste la garantie : liste blanche,
 // validation, concurrence et historique sont faits côté PHP.
+// Les champs validés par un médecin (groupe sanguin, décès) n'ont pas de dd.inline-edit : ils se
+// modifient par « Modifier » sur leur partie (part-edit.js).
+//
+// Chargé par le dossier du séjour (GET /sejour), actif seulement si le dossier est éditable.
+// Attend : [data-inline-edit] (data-endpoint, data-csrf, data-id-episode-of-care) ; dd.inline-edit
+// (data-entity, data-id, data-field, data-type, data-label, data-raw, data-placeholder, data-options)
+// avec son bouton .inline-edit__value et .inline-edit__text ; #inline-edit-status ;
+// #dossier-historique-table (facultatif).
+// Appel réseau : POST data-endpoint (/sejour/champ/modifier) en JSON {entity, id, episodeOfCare, field,
+// value, oldValue}, en-têtes X-CSRF-Token et X-Requested-With. Réponse : {ok, saved, conflict, value,
+// display, message} ; conflit en 409 (conflict: true, valeur actuelle renvoyée).
 
 (function () {
     const root = document.querySelector('[data-inline-edit]');
@@ -22,6 +33,7 @@
     const STATUS_DELAY_MS = 2000;
     let statusTimer = null;
 
+    // Message bref « Enregistré » ou erreur dans #inline-edit-status (aria-live), effacé après 2 s.
     function announce(message, isError) {
         if (!status) {
             return;
@@ -35,6 +47,7 @@
         }, STATUS_DELAY_MS);
     }
 
+    // Options d'une liste (data-options, JSON valeur => libellé) ; {} si absentes ou illisibles.
     function parseOptions(cell) {
         try {
             return JSON.parse(cell.dataset.options || '{}');
@@ -82,6 +95,7 @@
         return input;
     }
 
+    // Texte affiché d'une valeur brute : libellé d'option, date JJ/MM/AAAA ; null si vide.
     function displayFor(cell, raw) {
         if (raw === '' || raw === null) {
             return null;
@@ -110,6 +124,7 @@
         }
     }
 
+    // Message d'erreur sous la cellule (role="alert"), un seul à la fois.
     function showError(cell, message) {
         clearError(cell);
         const p = document.createElement('p');
@@ -180,6 +195,7 @@
         return cell.dataset.type === 'date' ? frToIso(value) : value;
     }
 
+    // Envoie la valeur au serveur ; conflit ou refus : la saisie reste ouverte avec le message.
     async function submitEdit(cell, input, button) {
         // Un seul envoi à la fois : Entrée répétée ou double clic ne renvoient pas la même modification.
         if (button.disabled) {
@@ -244,6 +260,7 @@
         }
     }
 
+    // Remplace la valeur par le champ de saisie, « Confirmer » et la croix d'annulation.
     function enterEditMode(cell) {
         if (isEditing(cell)) {
             return;

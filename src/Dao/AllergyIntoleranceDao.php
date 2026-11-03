@@ -9,8 +9,10 @@ use DateTimeImmutable;
 use PDO;
 
 /**
- * Accès aux allergies : tables AllergyIntolerance / Substance (noms HL7 depuis AURA-16,
- * cf. database/schema.sql) ; entités en français (cf. README « Convention de nommage »).
+ * Allergies connues des patients (RG2, AURA-13) : table AllergyIntolerance, ressource HL7 du même
+ * nom, jointe au référentiel Substance pour le libellé. La clé SQL s'appelle idAllergy, l'entité
+ * l'expose sous le nom idAllergyIntolerance. Id VARCHAR(20) calculé (MAX + 1, FOR UPDATE).
+ * Exception à la suppression logique : delete() efface la ligne (dette tracée, voir delete()).
  */
 class AllergyIntoleranceDao
 {
@@ -20,10 +22,10 @@ class AllergyIntoleranceDao
 
     /**
      * Allergies d'un patient, avec le libellé de l'allergène, par ordre alphabétique.
-     * La colonne removedAt (retrait logique) est commentée dans le schéma actuel : toutes
+     * La table n'a pas de colonne removedAt (retrait logique absent du schéma actuel) : toutes
      * les allergies enregistrées sont donc renvoyées.
      *
-     * @return Allergie[]
+     * @return AllergyIntolerance[]
      */
     public function findByPatient(int $idPatient): array
     {
@@ -48,6 +50,8 @@ class AllergyIntoleranceDao
      * La contrainte UNIQUE (idPatient, idSubstance) lève une PDOException (erreur 1062)
      * si le couple existe déjà : c'est la garantie finale contre les doublons, que le
      * service traduit en message métier.
+     *
+     * @throws \PDOException doublon (code 1062) ou patient / allergène inconnu (clé étrangère)
      */
     public function insert(AllergyIntolerance $a): int
     {
@@ -94,7 +98,7 @@ class AllergyIntoleranceDao
 
     /**
      * Retire une allergie du dossier (AURA-13.2). Suppression PHYSIQUE : décision d'équipe
-     * du 21/10/2026, la suppression logique (removedAt) étant suspendue dans le schéma.
+     * du 21/10/2026, le schéma n'ayant pas de colonne removedAt pour cette table.
      * Dette technique : la trace « allergie connue au moment d'un soin » disparaît ; seule
      * cette méthode (et le filtre de findByPatient) changera si l'équipe la réactive.
      *
@@ -113,6 +117,12 @@ class AllergyIntoleranceDao
         return $stmt->rowCount() === 1;
     }
 
+    /**
+     * Ligne de findByPatient() vers l'entité. Une criticité vide ou faite d'espaces devient null
+     * (non évaluée) ; les autres valeurs sont gardées telles quelles, même hors CRITICALITIES.
+     *
+     * @param array<string, ?string> $r
+     */
     private function mapToEntity(array $r): AllergyIntolerance
     {
         return new AllergyIntolerance(

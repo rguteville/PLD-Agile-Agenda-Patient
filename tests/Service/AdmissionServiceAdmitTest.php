@@ -16,7 +16,7 @@ use LogicException;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
-/** AURA-10.4 : admettre() enregistre le patient et ouvre son séjour, sans base (DAO simulés). */
+/** AURA-10.4 : admit() enregistre le patient et ouvre son séjour, sans base (DAO simulés). */
 final class AdmissionServiceAdmitTest extends TestCase
 {
     private const DATA = [

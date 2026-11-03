@@ -8,9 +8,13 @@ use Aura\Domain\Practitioner;
 use PDO;
 
 /**
- * Référentiels utiles aux prescriptions (Epic 4) : médicaments, types de soin, praticiens.
- * Ils remplissent les listes déroulantes de l'écran B3 et donnent les libellés affichés dans la
- * liste des prescriptions. Tables Medication, ActivityDefinition, Practitioner, PractitionerRole.
+ * Référentiels en lecture seule, chargés par database/test.sql : médicaments, types de soin,
+ * praticiens (Epic 4), services hospitaliers (admission). Ils remplissent les listes déroulantes
+ * (écran B3, admission, médecin référent) et donnent les libellés affichés. Tables Medication,
+ * ActivityDefinition, Practitioner, PractitionerRole, HealthcareService.
+ *
+ * Attention : PHP convertit en entier une clé de tableau faite de chiffres (« 1 » devient 1).
+ * Les tableaux indexés par id peuvent donc avoir des clés int ; comparer après un cast (string).
  */
 class ReferenceDataDao
 {
@@ -118,7 +122,8 @@ class ReferenceDataDao
     }
 
     /**
-     * Praticiens par nom puis prénom, indexés par idPractitioner.
+     * Praticiens par nom puis prénom, indexés par idPractitioner, avec leur rôle (LEFT JOIN :
+     * un praticien sans rôle est gardé, sans droit de validation).
      *
      * @return array<string, Practitioner>
      */
@@ -174,6 +179,12 @@ class ReferenceDataDao
         return $r ? $this->mapToPractitioner($r) : null;
     }
 
+    /**
+     * Ligne Practitioner jointe à PractitionerRole (title, canValidate) vers l'entité.
+     * Un nom ou prénom NULL en base devient une chaîne vide.
+     *
+     * @param array<string, mixed> $r
+     */
     private function mapToPractitioner(array $r): Practitioner
     {
         return new Practitioner(

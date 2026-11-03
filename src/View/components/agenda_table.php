@@ -3,13 +3,18 @@
 use Aura\Core\View;
 
 /**
- * Tableau d'une tranche de l'agenda (retards épinglés ou rotation) : heure, type, soin, responsable,
- * statut, notes, et l'action « Valider » quand la validation est activée.
+ * Tableau d'une tranche de l'agenda du patient (AURA-24, AURA-25 : retards épinglés ou une rotation) :
+ * heure, type, soin avec le « + » de sa prescription à droite du titre, responsable, statut, notes, et
+ * les boutons d'action (components/care_buttons) quand la validation est activée.
+ * Inclus par pages/episode/patient-agenda.php (vue Jour). Chaque ligne porte data-appointment-row,
+ * data-status et data-care-label, lus par les filtres de public/js/agenda.js.
  *
- * @var list<array<string, mixed>> $items lignes de AgendaService::presentDay()
- * @var string $caption titre lu par les lecteurs d'écran (visuellement masqué)
- * @var bool $validationEnabled affiche la colonne d'actions (dialogue components/validation_dialog)
- * @var int|null $idEpisodeOfCare séjour des soins (envoyé avec l'action)
+ * @var list<array<string, mixed>> $items lignes de AgendaService::presentDay() (id, time, datetime,
+ *      kindLabel, label, details, responsible, status, notValidated, completedAt, performedBy, comment,
+ *      noteBy, prescription, canValidate)
+ * @var string $caption titre du tableau lu par les lecteurs d'écran (visuellement masqué)
+ * @var bool $validationEnabled colonne d'actions (dialogue components/validation_dialog), false par défaut
+ * @var int|null $idEpisodeOfCare séjour des soins, envoyé avec l'action ; null par défaut
  */
 $validationEnabled = $validationEnabled ?? false;
 $idEpisodeOfCare = $idEpisodeOfCare ?? null;

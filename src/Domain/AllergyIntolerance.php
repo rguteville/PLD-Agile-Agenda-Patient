@@ -7,9 +7,10 @@ namespace Aura\Domain;
 use DateTimeImmutable;
 
 /**
- * Allergie connue d'un patient, choisie dans le référentiel des allergènes (RG2, AURA-13).
- * Liée au patient et non au séjour. L'id est null tant que l'allergie n'est pas enregistrée
- * (AllergyIntoleranceDao::insert() le calcule).
+ * Allergie connue d'un patient (ressource HL7 AllergyIntolerance, table AllergyIntolerance),
+ * choisie dans le référentiel des allergènes (RG2, AURA-13). Liée au patient et non au séjour.
+ * L'id (colonne idAllergy) est null tant que l'allergie n'est pas enregistrée
+ * (AllergyIntoleranceDao::insert() le calcule). Retirer une allergie efface la ligne (pas de removedAt).
  */
 class AllergyIntolerance
 {
@@ -64,6 +65,7 @@ class AllergyIntolerance
         return $this->substance;
     }
 
+    /** En principe une valeur de CRITICALITIES (une valeur inattendue en base est gardée) ; null = non évaluée. */
     public function getCriticality(): ?string
     {
         return $this->criticality;

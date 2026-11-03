@@ -12,8 +12,9 @@ use LogicException;
 use PDO;
 
 /**
- * Accès à la table Patient. Les colonnes suivent database/schema.sql (camelCase anglais,
- * cf. README « Convention de nommage ») ; les entités du domaine restent en français.
+ * Accès à la table Patient, ressource HL7 du même nom (cf. database/schema.sql). Seule traduction :
+ * la colonne phoneNumber devient phone dans l'entité. Id VARCHAR(20) calculé par insert()
+ * (MAX + 1, FOR UPDATE) ; IPP calculé par nextIpp() quand l'admission n'en fournit pas.
  *
  * AURA-12.3 : un patient supprimé (removedAt renseigné, suppression logique) n'est renvoyé par
  * aucune lecture (liste, recherches, findById, findByIpp, findByIdentity). Seuls existsByIpp(),
@@ -44,12 +45,19 @@ class PatientDao
     {
     }
 
+    /** Liste des colonnes de $columns, calculée au premier appel puis gardée en cache. */
     private static function columns(): string
     {
         return self::$columns ??= self::IDENTITY_COLUMNS . ', ' . implode(', ', RecordFields::patientColumns());
     }
 
-    /** @return Patient[] */
+    /**
+     * Patients actifs, par nom puis prénom. Lecture partielle (LIST_COLUMNS) : seul « deceased »
+     * figure dans les champs complémentaires, les autres valent null. Ces entités servent à
+     * l'affichage : ne jamais les passer à update(), qui effacerait les champs non lus.
+     *
+     * @return Patient[]
+     */
     public function findAll(): array
     {
         // Liste : l'identité et le décès suffisent, les autres champs complémentaires (TEXT) ne sont pas chargés.
@@ -64,7 +72,8 @@ class PatientDao
      * Patients dont le nom, le prénom ou l'IPP contient le terme saisi (AURA-12.1),
      * triés par nom puis prénom. Le terme est passé en paramètre préparé et ses
      * caractères joker (% et _) sont échappés : il est impossible d'injecter du SQL
-     * ni d'élargir la recherche avec un joker.
+     * ni d'élargir la recherche avec un joker. Patients supprimés exclus ; lecture partielle
+     * comme findAll().
      *
      * @return Patient[]
      */
@@ -97,9 +106,10 @@ class PatientDao
      * des mots d'abord, puis nom, prénom. Avec la date du dernier séjour (admission la plus récente).
      * Performance : l'expression calculée empêche l'usage d'un index pour le filtre (balayage de la
      * table Patient, quelques milliers de lignes au plus dans un service) ; les index sur lastName et
-     * firstName servent au tri et à findByIdentite().
+     * firstName servent au tri et à findByIdentity(). Patients supprimés exclus.
      *
      * @param list<string> $words mots non vides
+     * @param int $limit nombre maximal de résultats (au moins 1)
      * @return list<array{patient: Patient, lastAdmission: ?DateTimeImmutable}>
      */
     public function searchByWords(array $words, int $limit): array
@@ -241,8 +251,9 @@ class PatientDao
     }
 
     /**
-     * AURA-12.3 : suppression logique (règle n° 8) ; la date vient de l'horloge de la base, comme les
-     * autres horodatages. Renvoie false si le patient n'existe pas ou est déjà supprimé : la condition
+     * AURA-12.3 : suppression logique (README, « Conventions ») ; la date vient de l'horloge de la base, comme
+     * CarePlan.recordedAt (l'arrêt d'une ligne et la fin de séjour prennent, eux, l'heure de PHP).
+     * Renvoie false si le patient n'existe pas ou est déjà supprimé : la condition
      * est dans la requête, deux suppressions simultanées ne comptent qu'une fois. Les règles (séjour en
      * cours, soin réalisé) sont vérifiées avant, par PatientDeletionService.
      */
@@ -257,8 +268,9 @@ class PatientDao
     }
 
     /**
-     * Patients portant exactement ce nom, ce prénom et cette date de naissance
-     * (reconnaissance d'un patient déjà venu dans le service, sans IPP).
+     * Patients actifs portant exactement ce nom, ce prénom et cette date de naissance
+     * (reconnaissance d'un patient déjà venu dans le service, sans IPP). Comparaison selon la
+     * collation de la table : casse et accents ignorés.
      *
      * @return Patient[]
      */
@@ -285,6 +297,9 @@ class PatientDao
      * calculé ici (plus grand id + 1), dans une transaction qui verrouille la
      * table pour éviter que deux inscriptions simultanées obtiennent le même id.
      * Si une transaction est déjà ouverte (inscription + séjour), on s'y rattache.
+     * L'IPP n'est pas calculé ici : l'appelant le fournit ou le prend dans nextIpp().
+     *
+     * @throws \PDOException IPP déjà pris (UNIQUE) ou hors de la plage du CHECK
      */
     public function insert(Patient $p): int
     {
@@ -318,6 +333,9 @@ class PatientDao
      * Met à jour toutes les colonnes du patient (AURA-12.2), champs complémentaires compris :
      * l'appelant doit donc transmettre les détails existants s'il ne veut pas les effacer.
      * L'id n'est jamais modifié ; une seule instruction SQL, donc pas de transaction ici.
+     * Ni removedAt ni l'historique (AuditEvent) ne sont touchés : la traçabilité est le rôle du service.
+     *
+     * @throws LogicException si le patient n'a pas d'id (jamais enregistré)
      */
     public function update(Patient $p): void
     {
@@ -349,7 +367,9 @@ class PatientDao
     /**
      * Met à jour seulement les champs complémentaires fournis (clés de RecordFields::PATIENT ;
      * toute autre clé est ignorée). Sert à compléter un patient déjà connu lors d'une
-     * nouvelle admission sans toucher à son identité.
+     * nouvelle admission sans toucher à son identité. Aucun contrôle des champs réservés au
+     * médecin (décès, groupe sanguin) ni trace : AdmissionService ne l'appelle que sans
+     * RecordEditService (tests) ; sinon c'est RecordEditService qui écrit et trace.
      *
      * @param array<string, ?string> $details
      */
@@ -370,7 +390,10 @@ class PatientDao
      * Met à jour UN champ seulement si sa valeur en base est encore celle attendue (contrôle de
      * concurrence optimiste, atomique : la comparaison est faite par l'UPDATE lui-même, <=> traite
      * NULL). Renvoie false si la ligne n'existe pas ou si la valeur a changé entre-temps.
-     * Le nom de colonne doit appartenir à la liste blanche, sinon LogicException.
+     * Le nom de colonne doit être une clé de RecordFields::PATIENT (liste blanche). Un patient
+     * supprimé reste modifiable ici : c'est à l'appelant de le lire d'abord (findById()).
+     *
+     * @throws LogicException si la colonne n'est pas dans la liste blanche
      */
     public function updateDetailIfUnchanged(int $id, string $column, ?string $new, ?string $expected): bool
     {
@@ -406,6 +429,12 @@ class PatientDao
         return $values;
     }
 
+    /**
+     * Ligne lue vers l'entité. Seuls les champs complémentaires présents dans la ligne sont repris
+     * (lecture partielle de findAll() et search() : « deceased » seulement) ; l'IPP INT devient une chaîne.
+     *
+     * @param array<string, mixed> $r
+     */
     private function mapToEntity(array $r): Patient
     {
         return new Patient(

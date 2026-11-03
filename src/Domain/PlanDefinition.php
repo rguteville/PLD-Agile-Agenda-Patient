@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Aura\Domain;
 
 /**
- * Protocole (table PlanDefinition), la catégorie « Protocoles » de l'écran B3 : un modèle
- * d'ordonnance pour une pathologie, dont les lignes (PlanDefinitionAction) pré-remplissent une
- * nouvelle prescription. Un protocole retiré n'est plus proposé (active = false) mais reste en
+ * Protocole (ressource HL7 PlanDefinition, table PlanDefinition), la catégorie « Protocoles » de
+ * l'écran B3 : un modèle d'ordonnance pour une pathologie, dont les lignes (PlanDefinitionAction)
+ * pré-remplissent une nouvelle prescription. Un protocole retiré n'est plus proposé (active = false) mais reste en
  * base pour les ordonnances qui en sont issues.
  */
 class PlanDefinition

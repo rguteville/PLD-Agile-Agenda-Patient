@@ -99,8 +99,9 @@ class PatientSearchService
      * Un résultat de recherche : seulement les éléments d'identité nécessaires pour distinguer
      * deux homonymes. Méthode pure.
      *
-     * @return array{idPatient: int, nom: string, prenom: string, nomNaissance: ?string,
-     *               dateNaissance: ?string, age: ?int, sexe: ?string, ipp: ?string, dernierSejour: ?string}
+     * @return array{idPatient: int, lastName: string, firstName: string, birthLastName: ?string,
+     *               birthDate: ?string, age: ?int, sex: ?string, ipp: ?string, lastEpisodeOfCare: ?string}
+     *         dates en JJ/MM/AAAA ; lastEpisodeOfCare = date d'admission du dernier séjour
      */
     public static function presentResult(
         Patient $patient,
@@ -147,8 +148,9 @@ class PatientSearchService
      * domaine), champs complémentaires du catalogue et allergènes connus (ids + libellés).
      * Null si le patient n'existe pas.
      *
-     * @return array{identite: array<string, ?string>, details: array<string, ?string>,
-     *               allergies: list<array{idSubstance: string, libelle: string, criticite: ?string}>}|null
+     * @return array{identity: array<string, ?string>, details: array<string, ?string>,
+     *               allergies: list<array{idSubstance: string, label: string, criticality: ?string}>}|null
+     *         identity : idPatient, lastName, firstName, ipp, birthDate (AAAA-MM-JJ), sex
      */
     public function record(int $idPatient): ?array
     {
@@ -183,11 +185,13 @@ class PatientSearchService
         ];
     }
 
+    /** Date d'admission du dernier séjour du patient, null s'il n'en a aucun. */
     private function lastAdmission(Patient $patient): ?DateTimeImmutable
     {
         return $this->patientDao->lastAdmissionDate((int) $patient->getIdPatient());
     }
 
+    /** Texte sans espaces de bord ; vide ou null = null. */
     private static function textOrNull(?string $value): ?string
     {
         if ($value === null) {

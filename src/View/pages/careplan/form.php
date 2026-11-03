@@ -7,7 +7,9 @@ use Aura\Service\CarePlanService;
  * AURA-20 / AURA-21 / AURA-23 : fenêtre « B3. Nouvelles prescriptions » (figures 7, 8 et 9 du
  * sujet). Toutes les listes viennent de CarePlanService::form() ; public/js/care-plan.js anime
  * les listes en cascade (Catégorie → Médicament / Soin / Protocole → Forme), le panier et l'alerte
- * allergie ; public/js/form.js envoie les formulaires.
+ * allergie ; public/js/form.js envoie les formulaires (POST /care-plans/create et /care-plans/validate).
+ * Rendue par CarePlanController::newForm() (GET /care-plans/new?idEpisodeOfCare=…, séjour en cours
+ * seulement) et réaffichée en 422 après un refus sans JavaScript. Scripts : form.js, care-plan.js.
  *
  * @var array<string, mixed> $banner bandeau patient (RG2)
  * @var int $idEpisodeOfCare
@@ -22,12 +24,14 @@ use Aura\Service\CarePlanService;
  * @var array<string, string> $planDefinitions protocoles actifs : idPlanDefinition => « titre (pathologie) »
  * @var array<string, string> $frequencyTypes ONCE / SCHEDULED / DAYS => libellé
  * @var array<string, string> $routes code => libellé
- * @var list<array{idCarePlan: int, mode: string, recordedAt: string, prescriber: string, lines: list<string>}>
- *      $pendingCarePlans ordonnances du séjour en attente de validation (RG5)
- * @var string $formError ordonnance refusée sans JavaScript (sinon form.js affiche l'erreur)
- * @var list<string> $activeMedications idMedication déjà prescrits et non arrêtés dans ce séjour
- * @var array<string, string> $medicationAllergens idMedication => allergène du patient (alerte allergie)
- * @var int $noteMaxLength longueur maximale de la note de l'ordonnance
+ * @var list<array{idCarePlan: int, mode: string, recordedAt: ?string, prescriber: string, note: ?string,
+ *      lines: list<string>, allergyAlerts: list<string>}> $pendingCarePlans ordonnances du séjour en
+ *      attente de validation (RG5)
+ * @var string $formError ordonnance refusée sans JavaScript (sinon form.js affiche l'erreur), '' sinon
+ * @var list<string> $activeMedications idMedication déjà prescrits et non arrêtés dans ce séjour ([] par défaut)
+ * @var array<string, string> $medicationAllergens idMedication => allergène du patient (alerte allergie),
+ *      [] par défaut
+ * @var int $noteMaxLength longueur maximale de la note (CarePlanService::NOTE_MAX_LENGTH par défaut)
  * @var string $csrfToken jeton CSRF de la session (formulaires d'enregistrement et de validation)
  */
 

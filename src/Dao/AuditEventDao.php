@@ -9,8 +9,10 @@ use DateTimeImmutable;
 use PDO;
 
 /**
- * Accès à l'historique des modifications du dossier (table AuditEvent). Journal en ajout seul :
- * aucune mise à jour ni suppression.
+ * Journal de traçabilité (RG10) : table AuditEvent, ressource HL7 du même nom. Il trace les
+ * modifications du dossier (Patient, EpisodeOfCare), les validations et notes des soins
+ * (Appointment) et les prescriptions confirmées malgré une allergie (CarePlan). Journal en ajout
+ * seul : aucune mise à jour ni suppression. Seule table à id AUTO_INCREMENT avec CareTeam.
  */
 class AuditEventDao
 {
@@ -42,7 +44,9 @@ class AuditEventDao
 
     /**
      * Dernières modifications d'un dossier (patient + séjour), de la plus récente à la plus ancienne.
+     * Les événements des soins et des ordonnances du séjour n'en font pas partie.
      *
+     * @param int $limit nombre maximal de lignes (au moins 1)
      * @return AuditEvent[]
      */
     public function findForRecord(int $idPatient, int $idEpisode, int $limit = 20): array
@@ -139,6 +143,12 @@ class AuditEventDao
         return $authors;
     }
 
+    /**
+     * Ligne SQL vers l'entité. entityId est un VARCHAR : il redevient un entier s'il n'a que des
+     * chiffres (id de patient, de séjour), il reste une chaîne sinon (soin « SOI01 » des données de démo).
+     *
+     * @param array<string, ?string> $r
+     */
     private function mapToEntity(array $r): AuditEvent
     {
         return new AuditEvent(

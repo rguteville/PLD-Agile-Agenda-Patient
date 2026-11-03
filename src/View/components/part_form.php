@@ -5,13 +5,17 @@ use Aura\Core\View;
 /**
  * Formulaire de modification d'une partie entière du dossier (retours du 2026-11-02), masqué jusqu'au
  * clic sur le crayon du titre (public/js/part-edit.js). « Enregistrer » ouvre la fenêtre de validation
- * par un médecin ; le serveur valide et trace (RecordSectionService). Les valeurs d'origine (data-old)
- * servent au contrôle de concurrence.
+ * par un médecin, puis part-edit.js envoie la partie en JSON à POST /sejour/partie/modifier ; le serveur
+ * valide et trace (RecordSectionService). Les valeurs d'origine (data-old) servent au contrôle de
+ * concurrence. Inclus par pages/episode/record.php (résumé et chaque section du dossier complet).
+ * Attributs lus par part-edit.js : data-part, data-title, data-old, data-part-error, data-part-cancel.
  *
  * @var string $part identifiant de la partie (summary, history…)
  * @var string $title libellé de la partie
- * @var array<string, array<string, mixed>> $fields RecordSectionService::partFields()
- * @var array<string, string> $values valeurs actuelles (RecordSectionService::currentValues())
+ * @var array<string, array<string, mixed>> $fields RecordSectionService::partFields() (type, label,
+ *      required, placeholder, help, options, empty, max)
+ * @var array<string, string> $values valeurs actuelles (PatientRecordService::partValues(), qui lit
+ *      RecordSectionService::currentValues())
  */
 $formFields = [];
 foreach ($fields as $key => $spec) {

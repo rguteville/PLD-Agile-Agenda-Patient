@@ -3,16 +3,20 @@
 use Aura\Core\View;
 
 /**
- * Dialogue d'action sur un soin (AURA-26, AURA-28) : « Réalisé » (qui, quand), « Non effectué »
- * (motif obligatoire) ou simple note. Ouvert par les boutons de l'agenda (data-care-action) ;
- * public/js/agenda.js l'envoie en JSON à POST /agenda-patient/soin et recharge la page. Sans
- * JavaScript, le formulaire part en POST classique et le serveur renvoie à la page d'origine.
+ * Dialogue d'action sur un soin (AURA-26, AURA-28). Bouton « Valider » : choix « Réalisé » (qui, quand)
+ * ou « Non effectué » (motif obligatoire). Bouton « Note » : note seule, le choix est masqué (action
+ * « note », radio caché). L'option visible « Note seulement » a été retirée le 2026-11-04.
+ * Ouvert par les boutons de components/care_buttons (data-care-action) ; public/js/agenda.js l'envoie en
+ * JSON à POST /agenda-patient/soin (en-tête X-CSRF-Token) et recharge la page. Sans JavaScript, le
+ * formulaire part en POST classique (champ csrf) et le serveur renvoie à la page d'origine (champ back).
+ * Inclus par pages/episode/patient-agenda.php, pages/service/consolidated-view.php et
+ * pages/team/planning.php, seulement quand la validation est activée.
  *
  * Authentification FACTICE (comme les parties du dossier) : soignant + mot de passe non vérifié.
  *
  * @var array<string, string> $validators idPractitioner => « Prénom Nom (rôle) »
  * @var string $csrfToken jeton de session de l'endpoint
- * @var string $back page d'origine, pour le retour sans JavaScript
+ * @var string $back page d'origine, pour le retour sans JavaScript ; '' par défaut
  */
 $back = $back ?? '';
 ?>

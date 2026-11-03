@@ -12,6 +12,15 @@
 //
 // Accessibilité : combobox (role, aria-expanded, aria-activedescendant), listbox, flèches / Entrée /
 // Échap, nombre de résultats annoncé en aria-live.
+//
+// Chargé par l'admission (GET /, PatientController::SCRIPTS_ADMISSION). Attend : #admission-form, ses
+// champs patientSearch, idPatient et searchMode (cachés), #patient-search-status, #patient-suggestions,
+// #identity (titre « Identité »). Émet aura:allergies-filled (allergy-picker.js).
+// Appels réseau, en lecture seule (GET, Accept: application/json, sans jeton CSRF) :
+// - GET /patients/recherche?q=… : {ok, mode, results, total, truncated, homonyms} ; 422 si moins de
+//   2 caractères ({ok: false, errors}) ;
+// - GET /patients/fiche?id=… : {ok, patient, allergies, allergyLabels, allergyCriticalities} ;
+//   400 ou 404 ({ok: false, message}).
 
 (function () {
     const form = document.getElementById('admission-form');
@@ -53,6 +62,7 @@
     let activeInput = searchInput;
     let requestId = 0;
 
+    // Message sous le champ de recherche (zone aria-live) ; kind : searching, found, unknown, error.
     function setStatus(target, message, kind) {
         if (!target) {
             return;
@@ -66,6 +76,7 @@
         }
     }
 
+    // Détails d'une suggestion : naissance et âge, sexe, IPP, nom de naissance, dernier séjour.
     function describe(p) {
         const parts = [];
         parts.push(p.birthDate ? `né(e) le ${p.birthDate}${p.age !== null ? ` (${p.age} ans)` : ''}` : 'date de naissance inconnue');
@@ -78,6 +89,7 @@
         return parts.join(', ');
     }
 
+    // Vide et ferme la liste de suggestions (aria-expanded="false").
     function closeList() {
         listbox.hidden = true;
         listbox.textContent = '';
@@ -87,6 +99,7 @@
         searchInput.removeAttribute('aria-activedescendant');
     }
 
+    // Option active au clavier (aria-activedescendant) ; index hors liste : aucune.
     function setActive(index) {
         const options = listbox.querySelectorAll('[role="option"]');
         options.forEach(o => o.classList.remove('is-active'));
@@ -101,6 +114,7 @@
         options[index].scrollIntoView({ block: 'nearest' });
     }
 
+    // Affiche les suggestions, avec l'avertissement d'homonymes et l'invitation à affiner (plus de 20).
     function renderResults(data, statusTarget, isIpp) {
         closeList();
         results = data.results || [];
@@ -146,6 +160,7 @@
         activeInput.setAttribute('aria-expanded', 'true');
     }
 
+    // Interroge GET /patients/recherche ; une réponse arrivée après une saisie plus récente est ignorée.
     async function search(query, input, statusTarget) {
         const q = query.trim();
         activeInput = input;
@@ -181,6 +196,7 @@
         renderResults(data, statusTarget, isIpp);
     }
 
+    // Relance la recherche DEBOUNCE_MS après la dernière frappe.
     function scheduleSearch(input, statusTarget) {
         clearTimeout(timer);
         timer = setTimeout(() => search(input.value, input, statusTarget), DEBOUNCE_MS);
@@ -190,6 +206,7 @@
     // Pas de confirmation intermédiaire (retours du 2026-11-02) : la carte affichée après la sélection
     // montre l'identité complète, et « Ce n'est pas ce patient » annule le rattachement.
 
+    // Sélection d'une suggestion (clic ou Entrée) : charge sa fiche ; mode « ipp » ou « name ».
     function select(index) {
         const p = results[index];
         if (!p) {
@@ -200,6 +217,7 @@
         loadRecord(p, mode);
     }
 
+    // Remplit un champ visible du formulaire et prévient les autres scripts (événement input).
     function setFieldValue(name, value) {
         const control = form.querySelector(`[name="${CSS.escape(name)}"]`);
         if (!control || control.type === 'hidden') {
@@ -209,6 +227,7 @@
         control.dispatchEvent(new Event('input', { bubbles: true }));
     }
 
+    // Pré-remplit le formulaire avec la fiche : identité, détails, allergies cochées et leur criticité.
     function fillForm(patientRecord) {
         Object.keys(patientRecord.patient).forEach(name => {
             if (name === 'gender') {
@@ -239,6 +258,7 @@
     // Le groupe sanguin d'un patient connu est sur sa carte, en lecture seule (retours du 2026-11-04).
     const IDENTITY_FIELDS = ['lastname', 'firstname', 'birthDate', 'gender', 'ipp', 'bloodType'];
 
+    // Lignes .form-row des champs d'identité, masquées tant que la carte est affichée.
     function identityRows() {
         return IDENTITY_FIELDS
             .map(name => form.querySelector(`[name="${CSS.escape(name)}"]`))
@@ -251,7 +271,7 @@
         identityRows().forEach(row => { row.hidden = !visible; });
     }
 
-    // Niveau d'affichage d'une criticité (même règle que Allergie::criticalityLevel()).
+    // Niveau d'affichage d'une criticité (même règle que AllergyIntolerance::criticalityLevel()).
     function level(criticality) {
         if (criticality === 'Élevée') {
             return 'high';
@@ -263,6 +283,8 @@
         form.querySelectorAll('.patient-card').forEach(el => el.remove());
     }
 
+    // Carte en lecture seule du patient sélectionné : identité, groupe sanguin, IPP, dernier séjour,
+    // allergies, alerte de décès, bouton « Ce n'est pas ce patient ».
     function showCard(p, patientRecord) {
         removeCard();
         const card = document.createElement('section');
@@ -367,6 +389,8 @@
         searchInput.focus();
     }
 
+    // Charge la fiche (GET /patients/fiche), pré-remplit le formulaire, rattache le patient (idPatient)
+    // et affiche sa carte.
     async function loadRecord(p, mode) {
         let data;
         try {
@@ -397,6 +421,7 @@
 
     // ---- Clavier et événements ----
 
+    // Flèches haut et bas : option active ; Entrée : sélection ; Échap : fermeture de la liste.
     function onKeydown(event) {
         if (listbox.hidden) {
             return;

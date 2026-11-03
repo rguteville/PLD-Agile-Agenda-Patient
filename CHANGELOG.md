@@ -12,6 +12,17 @@ Format : une entrée par pull request, de la plus récente à la plus ancienne.
   allergies, référent, liens vers l'agenda et le dossier).
 - « Liste de travail » : en retard, maintenant (deux heures), plus tard dans la rotation, réalisés.
 - `AgendaService::presentBoard()` (pur, testé), composant `care_line`.
+- Décès : « Déclarer le décès » (`POST /sejour/deces`, médecin, authentification factice) termine le séjour en
+  cours à l'heure du décès et annule ses soins encore prévus ; tracé.
+- Retours du 2026-11-04 (2) : allergies seulement dans le panneau du patient choisi de l'agenda du service ;
+  « + » de la prescription à droite du titre du soin ; filtres ouverts à droite du bouton ; cœur barré à côté du
+  nom d'un patient décédé dans la liste ; rotation de nuit « de 22 h à 0 h » ; libellés sans tirets longs ni
+  points médians.
+- Documentation relue et complétée : docblocks de `src/` (classes, méthodes, exceptions, vues avec leurs `@var`,
+  en-têtes des scripts `public/js/` avec l'endpoint appelé), README (toutes les routes, scénario de démo à jour,
+  tests, CI), `docs/ARCHITECTURE.md` (routes complètes, diagramme ER régénéré avec les équipes, décisions),
+  `docs/TESTS.md` (création de la base de test), `docs/ui.md` et `docs/UI-GUIDE.md` (agenda du service,
+  validation d'un soin, composants récents). Aucun changement de code.
 
 ### Retours des médecins du 2026-11-04 et audit IHM (`feat/retours-2026-11-04`, PR #54)
 

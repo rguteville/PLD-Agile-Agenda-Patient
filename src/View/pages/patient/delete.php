@@ -6,10 +6,13 @@ use Aura\Core\View;
  * Confirmation de la suppression d'un patient (AURA-12.3) : rappel de l'identité avant de confirmer.
  * Si la suppression est impossible (séjour en cours, soin réalisé : RG10), le motif remplace le
  * bouton de confirmation ; le serveur refait de toute façon la vérification au POST.
+ * Rendue par PatientController::confirmDeletion() (GET /patients/supprimer?id=…) et, en 409 après un
+ * refus, par PatientController::delete() (POST /patients/supprimer?id=…). Aucun script.
  *
  * @var array{idPatient: int, lastName: string, firstName: string, ipp: ?string, birthDate: ?string} $identity
  * @var int $episodes nombre de séjours du patient dans le service
- * @var ?string $refusal motif du refus, null si la suppression est possible
+ * @var ?string $refusal motif du refus, null par défaut (suppression possible)
+ * @var string $csrfToken jeton CSRF du POST de confirmation ('' par défaut)
  */
 $refusal = $refusal ?? null;
 $fullName = $identity['lastName'] . ' ' . $identity['firstName'];

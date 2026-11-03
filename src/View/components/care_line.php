@@ -3,15 +3,19 @@
 use Aura\Core\View;
 
 /**
- * Une ligne de soin compacte (agenda du service, refonte du 2026-11-04) : heure, patient (facultatif),
- * soin et dose, statut, « + » de la prescription, actions. Utilisée par le panneau de détail d'un lit et
- * par la liste de travail de la rotation. Jamais la couleur seule : le statut a son badge (icône et texte).
+ * Une ligne de soin compacte (agenda du service, refonte du 2026-11-04) : heure, patient et décès
+ * (facultatif), soin avec le « + » de sa prescription à droite du titre, dose, trace et note, statut,
+ * actions. Pas d'allergies ici depuis le 2026-11-04 : elles sont dans le panneau du patient choisi
+ * (pages/service/consolidated-view.php). Jamais la couleur seule : le statut a son badge (icône et texte).
+ * Inclus par pages/service/consolidated-view.php : panneau de détail d'un lit et liste de travail.
  *
- * @var array<string, mixed> $item soin de AgendaService::presentBoard() (champs de presentItem() + patient)
- * @var bool $showPatient affiche « Lit · NOM Prénom » (liste de travail) ; non dans le panneau d'un lit
- * @var bool $showStatus badge du statut (non dans une section de la liste de travail qui le dit déjà)
- * @var bool $validationEnabled boutons Valider / Note
- * @var string $agendaUrl lien vers l'agenda du patient pour ce jour
+ * @var array<string, mixed> $item soin de AgendaService::presentBoard() (champs de presentItem(), plus
+ *      idEpisodeOfCare, bed, patient, deceased)
+ * @var bool $showPatient affiche « Lit N, NOM Prénom » (liste de travail), false par défaut (panneau d'un lit)
+ * @var bool $showStatus badge du statut, true par défaut (false dans une section de la liste de travail
+ *      dont le titre le dit déjà)
+ * @var bool $validationEnabled boutons Valider / Note (components/care_buttons), false par défaut
+ * @var string $agendaUrl lien vers l'agenda du patient pour ce jour (lu seulement si $showPatient)
  */
 $showPatient = $showPatient ?? false;
 $showStatus = $showStatus ?? true;

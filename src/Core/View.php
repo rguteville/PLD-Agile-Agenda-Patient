@@ -34,7 +34,13 @@ class View
         }
     }
 
-    /** Affiche une page complète : son contenu inséré dans le layout */
+    /**
+     * Affiche une page complète : le gabarit src/View/pages/<template>.php inséré dans layouts/main.
+     *
+     * @param array<string, mixed> $data variables du gabarit de la page
+     * @param string $title titre de l'onglet du navigateur
+     * @param list<string> $scripts scripts de public/js à charger en fin de page (ex. « /js/form.js »)
+     */
     public static function page(string $template, array $data = [], string $title = 'AURA', array $scripts = []): void
     {
         $content = self::render('pages/' . $template, $data);

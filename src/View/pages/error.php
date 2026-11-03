@@ -3,8 +3,11 @@
 use Aura\Core\View;
 
 /**
- * @var int $code
- * @var string $message
+ * Page d'erreur applicative (400, 403, 404…), rendue par View::error() depuis les contrôleurs et le
+ * routeur (404 « Page introuvable. », public/index.php). Lien de retour vers la liste des patients.
+ *
+ * @var int $code code HTTP déjà envoyé
+ * @var string $message explication lisible par le soignant
  */
 ?>
 <section class="error" role="alert">

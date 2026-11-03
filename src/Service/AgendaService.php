@@ -20,6 +20,19 @@ use DateTimeImmutable;
 use DateTimeInterface;
 use LogicException;
 
+/**
+ * Agendas des soins (AURA-24 agenda du patient, AURA-29 agenda du service, AURA-31 « Mon planning »).
+ *
+ * Deux étages :
+ *  - lecture en base : getAgenda() (un séjour) et getAgendaService() (tous les séjours en cours d'un
+ *    service) assemblent ordonnances, lignes et soins planifiés en tableaux ;
+ *  - présentation, méthodes statiques PURES (jour et heure courante injectés) : presentDay(), presentWeek(),
+ *    presentService(), presentBoard(), presentShift() construisent les vues-modèles des écrans.
+ *
+ * « En retard » est un calcul d'affichage (soin PLANIFIE dont l'heure est passée), jamais stocké.
+ * Un soin est validable jusqu'à la fin de la rotation en cours (shiftEnd()), même règle que
+ * AppointmentService::apply() côté serveur.
+ */
 final class AgendaService
 {
     /**
@@ -84,12 +97,16 @@ final class AgendaService
 
     /**
      * Agenda du service (AURA-29) : un élément par séjour en cours du service, avec l'identité du
-     * patient, ses allergies (RG2 : visibles sur tout écran de soins) et ses prescriptions au format
-     * de getAgenda(). Requiert le PatientDao ; les allergies demandent l'AllergyIntoleranceDao.
+     * patient, son décès éventuel, ses allergies (RG2), son médecin référent et ses prescriptions au
+     * format de getAgenda(). Requiert le PatientDao ; les allergies demandent l'AllergyIntoleranceDao.
+     * Sert aussi aux équipes et à « Mon planning » (TeamController).
      *
+     * @param string $idHealthServiceId identifiant du service (HealthcareService)
      * @return list<array{idEpisodeOfCare: int, lastName: string, firstName: string, bed: ?string,
-     *                    episodeNumber: string, allergies: ?list<array{label: string, level: string}>,
+     *                    episodeNumber: string, deceased: ?string,
+     *                    allergies: ?list<array{label: string, level: string}>, referent: ?string,
      *                    carePlans: list<array<string, mixed>>}>
+     * @throws LogicException si le service a été construit sans PatientDao
      */
     public function getAgendaService(string $idHealthServiceId): array
     {
@@ -128,15 +145,16 @@ final class AgendaService
     }
 
     /**
-     * Vue-modèle de l'agenda du service (src/View/pages/service/consolidated-view.php), en vertical :
-     * un créneau de SERVICE_SLOT_HOURS heures par ligne, un patient par colonne, et dans chaque case
-     * les soins du créneau (libellé, horaire, statut). Les retards de tout le service sont aussi
-     * listés en tête (AURA-32). Mêmes règles que presentDay() (retard = calcul d'affichage).
+     * Vue-modèle du jour de l'agenda du service : jour affiché et navigation, et pour chaque patient
+     * ses soins du jour rangés par créneau de SERVICE_SLOT_HOURS heures. Les retards de tout le service
+     * sont aussi listés (AURA-32). Mêmes règles que presentDay() (retard = calcul d'affichage).
+     * Depuis la refonte du 2026-11-04, l'écran (consolidated-view.php) n'affiche plus la grille
+     * créneaux × patients : il lit ici le jour et la navigation, et presentBoard() part de cette sortie.
      * Pure : le jour affiché et l'heure courante sont injectés.
      *
      * @param list<array<string, mixed>> $episodes sortie de getAgendaService()
      * @return array{date: string, dateLabel: string, isToday: bool, previous: string, next: string,
-     *               slots: list<string>, currentSlot: ?string, late: int,
+     *               slots: list<string>, emptySlots: list<string>, currentSlot: ?string, late: int,
      *               lateItems: list<array<string, mixed>>, patients: list<array<string, mixed>>}
      */
     public static function presentService(array $episodes, DateTimeImmutable $day, DateTimeImmutable $now): array
@@ -237,14 +255,22 @@ final class AgendaService
      * nombre de soins à faire dans la rotation, puis le prochain soin, puis le lit (sans lit en dernier).
      *
      * La rotation est bornée au jour civil affiché : presentService() ne lit qu'un jour, la nuit est donc
-     * « 22 h – 24 h » le soir et « 0 h – 6 h » après minuit (les soins de l'autre côté de minuit sont sur le
+     * « 22 h à 0 h » le soir et « 0 h à 6 h » après minuit (les soins de l'autre côté de minuit sont sur le
      * jour voisin). Jour qui n'est pas aujourd'hui : pas de rotation ; « à faire » = tous les soins prévus du
      * jour, le panneau montre toute la journée. Les retards sont toujours listés, quel que soit le jour.
      *
+     * RG2 : les allergies de chaque patient suivent ses lignes et ses soins, mais l'écran ne les affiche
+     * que dans le panneau du patient choisi (choix de Raphaël du 2026-11-04).
+     *
      * @param array<string, mixed> $service sortie de presentService()
-     * @param int|null $selected séjour choisi pour le panneau (null : le premier du tableau ; inconnu dans ce
-     *                           service : pas de panneau, selectionMissing = true)
-     * @return array<string, mixed>
+     * @param int|null $selected séjour choisi pour le panneau, paramètre ?sejour= de l'URL (null : le premier
+     *                           du tableau ; inconnu dans ce service : pas de panneau, selectionMissing = true)
+     * @return array{isToday: bool, rotation: ?array{label: string, until: string},
+     *               totals: array{patients: int, late: int, todo: int}, rows: list<array<string, mixed>>,
+     *               selected: ?array<string, mixed>, selectionMissing: bool,
+     *               worklist: array{late: list<array<string, mixed>>, stopped: list<array<string, mixed>>,
+     *                               now: list<array<string, mixed>>, later: list<array<string, mixed>>,
+     *                               done: list<array<string, mixed>>}}
      */
     public static function presentBoard(array $service, DateTimeImmutable $now, ?int $selected = null): array
     {
@@ -267,7 +293,8 @@ final class AgendaService
             $items = array_merge(...array_values($patient['items'] ?? [])) ?: [];
             usort($items, $byTime);
             $id = (int) $patient['idEpisodeOfCare'];
-            // Chaque soin de la liste de travail porte son patient, avec ses allergies (RG2) et son décès.
+            // Chaque soin de la liste de travail porte son patient (lit, nom, décès, allergies). La vue
+            // n'affiche les allergies que dans le panneau du patient choisi (voir le docblock).
             $who = [
                 'idEpisodeOfCare' => $id,
                 'bed' => $patient['bed'] ?? null,
@@ -357,6 +384,20 @@ final class AgendaService
         ];
     }
 
+    /**
+     * Agenda d'un séjour (AURA-24) : ses ordonnances, avec pour chaque ligne de soin ou de médicament
+     * ses soins planifiés (Appointment). Le champ idActivityDefinition de chaque ligne est remplacé par
+     * son libellé : nom du type de soin (ActivityDefinition.name) ou DCI du médicament (Medication.inn).
+     * Avec l'AuditEventDao, chaque soin planifié porte aussi performedBy et noteBy (withPerformers()).
+     *
+     * @return list<array{idCarePlan: ?int, idEpisodeOfCare: int, idPrescriber: string, mode: string,
+     *                    recordedAt: ?DateTimeImmutable, idValidator: ?string, validatedAt: ?DateTimeImmutable,
+     *                    note: ?string,
+     *                    prescriberName: ?string, validatorName: ?string,
+     *                    serviceRequests: list<array<string, mixed>>,
+     *                    medicationRequests: list<array<string, mixed>>}>
+     *         voir serializeService(), serializeMedication() et serializeAppointment() pour les lignes
+     */
     public function getAgenda(int $idEpisodeOfCare): array
     {
         $response = [];
@@ -445,6 +486,17 @@ final class AgendaService
         return $carePlans;
     }
 
+    /**
+     * Ordonnance en tableau pour l'agenda : ses champs, les noms du prescripteur et du validateur (lus
+     * dans $practitionerNames, null si inconnus) et ses lignes avec leurs soins planifiés.
+     *
+     * @param list<ServiceRequest> $serviceRequests lignes de soin de l'ordonnance
+     * @param array<int|string, list<\Aura\Domain\Appointment>> $serviceAppointments soins par idServiceRequest
+     * @param list<MedicationRequest> $medicationRequests lignes de médicament de l'ordonnance
+     * @param array<int|string, list<\Aura\Domain\Appointment>> $medicationAppointments soins par
+     *        idMedicationRequest
+     * @return array<string, mixed> voir getAgenda()
+     */
     public function serializeCarePlan(
         CarePlan $carePlan,
         array $serviceRequests,
@@ -470,6 +522,13 @@ final class AgendaService
         ];
     }
 
+    /**
+     * Lignes de soin (ServiceRequest) en tableaux, chacune avec ses soins planifiés.
+     *
+     * @param list<ServiceRequest> $requests
+     * @param array<int|string, list<\Aura\Domain\Appointment>> $appointments soins par idServiceRequest
+     * @return list<array<string, mixed>> jamais null en pratique (liste vide sans ligne)
+     */
     public function serializeService(array $requests, array $appointments): ?array
     {
         $res = [];
@@ -490,6 +549,13 @@ final class AgendaService
         return $res;
     }
 
+    /**
+     * Lignes de médicament (MedicationRequest) en tableaux, avec dose, voie et soins planifiés.
+     *
+     * @param list<MedicationRequest> $requests
+     * @param array<int|string, list<\Aura\Domain\Appointment>> $appointments soins par idMedicationRequest
+     * @return list<array<string, mixed>> jamais null en pratique (liste vide sans ligne)
+     */
     public function serializeMedication(array $requests, array $appointments): ?array
     {
         $res = [];
@@ -516,6 +582,15 @@ final class AgendaService
         return $res;
     }
 
+    /**
+     * Soins planifiés en tableaux (heure prévue, statut en base, réalisation, note).
+     *
+     * @param list<\Aura\Domain\Appointment> $appointments
+     * @return list<array{idAppointment: string, idServiceRequest: ?string, idMedicationRequest: ?string,
+     *                    plannedTime: ?DateTimeImmutable, status: ?string,
+     *                    timeOfCompletion: ?DateTimeImmutable, timeRecorded: ?DateTimeImmutable,
+     *                    comment: ?string}> jamais null en pratique
+     */
     public function serializeAppointment(array $appointments): ?array
     {
         $res = [];
@@ -906,72 +981,4 @@ final class AgendaService
                 || ($status === 'planned' && $planned < self::shiftEnd($now)),
         ];
     }
-
-// format des données renvoyées à la page web
-// {
-//     careplans: [
-//         {
-//             idCarePlan: 1;
-//             idEpisodeOfCare: ;
-//             idPrescriber: ;
-//             mode: ,
-//             recordedAt: ,
-//             idValidator: ,
-//             validatedAt: null,
-//             serviceRequests : [
-//                 {
-//                     idServiceRequest:null,
-//                     idCarePlan,
-//                     idActivityDefinition,
-//                     startDate,
-//                     endDate,
-//                     frequencyHours,
-//                     timeConstraint,
-//                     idStoppedBy,
-//                     stoppedAt;
-//                     appointments: [
-//                         {
-//                             idAppointment,
-//                             idServiceRequest,
-//                             idMedicationRequest,
-//                             plannedTime,
-//                             status,
-//                             timeOfCompletion,
-//                             timeRecorded,
-//                             comment
-//                         }
-//                     ]
-//                 }
-//             ],
-//             medicationRequest: [
-//                 {
-//                     idMedicationRequest,
-//                     idCarePlan,
-//                     idActivityDefinition,
-//                     idMedication,
-//                     dose,
-//                     route,
-//                     startDate,
-//                     endDate,
-//                     frequencyHours,
-//                     timeConstraint,
-//                     idStoppedBy,
-//                     stoppedAt,
-//                     appointments: [
-//                         {
-//                             idAppointment,
-//                             idServiceRequest,
-//                             idMedicationRequest,
-//                             plannedTime,
-//                             status,
-//                             timeOfCompletion,
-//                             timeRecorded,
-//                             comment
-//                         }
-//                     ]
-//                 }
-//             ]
-//         }
-//     ]
-// }
 }

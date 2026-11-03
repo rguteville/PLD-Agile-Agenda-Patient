@@ -6,11 +6,15 @@ use Aura\Domain\CarePlan;
 /**
  * Prescriptions d'un séjour (Epic 4, tableau des prescriptions, figure 10 du cahier des charges).
  * Vue minimale pour tester le back : le front peut la remplacer en gardant les mêmes données.
+ * Rendue par CarePlanController::list() (GET /care-plans?idEpisodeOfCare=…), données de
+ * CarePlanService::listing(). Aucun script propre à la page.
  *
  * @var array<string, mixed> $banner vue-modèle de PatientRecordService::presentBanner()
  * @var int $idEpisodeOfCare
- * @var bool $isOpen séjour en cours
- * @var list<array<string, mixed>> $lines vue-modèle de CarePlanService::presentLine()
+ * @var bool $isOpen séjour en cours (bouton « Nouvelle prescription »)
+ * @var list<array<string, mixed>> $lines vue-modèle de CarePlanService::presentLine() (label, frequency,
+ *      period, mode, prescriber, status, validation, stop, idCarePlan, allergen, carePlanNote et les
+ *      champs de consigne : important, nurseInstructions, maxDose…)
  */
 ?>
 <?= View::render('components/patient_banner', ['banner' => $banner]) ?>

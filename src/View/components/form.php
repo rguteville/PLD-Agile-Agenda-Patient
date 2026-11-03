@@ -2,13 +2,25 @@
 
 use Aura\Core\View;
 
-// Formulaire AJAX (form.js). Paramètres : id, action, title, submit, error, fields (champs visibles)
-// et, pour un formulaire long, sections : liste de ['id', 'title', 'fields', 'filled', 'total'],
-// chacune rendue en <details> repliée par défaut, avec le nombre de champs renseignés dans l'en-tête
-// (mis à jour par form-sections.js). Une section est ouverte si l'un de ses champs est en erreur.
-// lead : champs rendus sur toute la largeur avant le reste (ex. recherche d'un patient existant).
-// Avec des sections, le formulaire est en deux colonnes sur grand écran : fields à gauche,
-// sections à droite ; une seule colonne sous 1100 px.
+/**
+ * Formulaire POST marqué data-ajax (AURA-10.2), envoyé par public/js/form.js quand la page charge ce
+ * script ; sinon POST classique. Inclus par pages/patient/admission.php et pages/patient/edit.php.
+ * Pour un formulaire long, chaque section est rendue en <details> repliée par défaut, avec le nombre de
+ * champs renseignés dans l'en-tête (mis à jour par form-sections.js) ; une section est ouverte si l'un de
+ * ses champs est en erreur. Avec des sections, le formulaire est en deux colonnes sur grand écran :
+ * fields à gauche, sections à droite ; une seule colonne sous 1100 px.
+ *
+ * @var string|null $id identifiant HTML du formulaire, « form » par défaut
+ * @var string $action URL du POST
+ * @var string|null $title titre h1, aucun par défaut
+ * @var string|null $submit libellé du bouton d'envoi, « Enregistrer » par défaut
+ * @var string|null $error erreur hors champ affichée à côté du bouton, aucune par défaut
+ * @var list<array<string, mixed>> $fields champs visibles (components/field)
+ * @var list<array{id: string, title: string, fields: list<array<string, mixed>>, filled: int, total: int}>
+ *      $sections sections repliables, [] par défaut
+ * @var list<array<string, mixed>> $lead champs rendus sur toute la largeur avant le reste (recherche d'un
+ *      patient existant), [] par défaut
+ */
 $sections = $sections ?? [];
 $lead = $lead ?? [];
 ?>

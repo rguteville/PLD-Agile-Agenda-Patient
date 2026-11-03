@@ -8,7 +8,7 @@ namespace Aura\Domain;
  * Ligne modèle d'un protocole (table PlanDefinitionAction) : les mêmes champs qu'une ligne de
  * soin ou de médicament (RequestLine), mais des durées à la place des dates. Appliqué à une date,
  * le protocole donne une ligne qui commence startOffsetHours heures après et dure durationHours
- * heures (null = sans date d'arrêt).
+ * heures (null = sans date d'arrêt). Ressource HL7 PlanDefinition.action, lue par PlanDefinitionDao.
  */
 class PlanDefinitionAction
 {
@@ -16,6 +16,15 @@ class PlanDefinitionAction
     public const KIND_MEDICATION = 'MEDICATION';
     public const KIND_CARE = 'CARE';
 
+    /**
+     * Les paramètres de $idMedication à $offGhsReason ont le même sens que dans MedicationRequest.
+     * Pour KIND_MEDICATION, idMedication, dose et route sont obligatoires ; pour KIND_CARE, ils sont
+     * null (contrainte CHECK de la table).
+     *
+     * @param int $startOffsetHours heures entre l'application du protocole et le début (0 ou plus)
+     * @param ?int $durationHours durée en heures, seulement pour une ligne récurrente (RG3) ; null = sans arrêt
+     * @param ?int $frequencyHours intervalle en heures ; null = soin unique
+     */
     public function __construct(
         private string $idPlanDefinitionAction,
         private string $idPlanDefinition,

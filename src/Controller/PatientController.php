@@ -50,14 +50,14 @@ class PatientController
 
     /**
      * Allergènes cochés à l'admission (liste à cases `allergies[]`) : seul champ à valeurs
-     * multiples, lu à part de lireSaisie().
+     * multiples, lu à part de readInput().
      */
     private const ALLERGIES_FIELD = 'allergies';
 
     /** Criticité choisie pour chaque allergène coché : allergyCriticality[idSubstance] = « Faible »… */
     private const ALLERGY_CRITICALITY_FIELD = 'allergyCriticality';
 
-    /** Le formulaire propose H/F, le domaine attend M/F (colonne Patient.sexe). */
+    /** Le formulaire propose H/F, le domaine attend M/F (colonne Patient.sex). */
     private const FORM_SEX_TO_DOMAIN = ['H' => 'M', 'F' => 'F'];
 
     private const ADMISSION_VIEW = 'patient/admission';
@@ -113,7 +113,8 @@ class PatientController
      * GET /patients/recherche?q=… : patients existants correspondant à un IPP (résultat unique) ou à
      * des mots du nom / prénom, en JSON, pour la liste de suggestions de l'admission. Jamais de
      * sélection automatique, jamais de donnée médicale dans la réponse (identitovigilance).
-     * 422 si la saisie fait moins de 2 caractères ; 200 avec `resultats` (éventuellement vide) sinon.
+     * 422 si la saisie fait moins de 2 caractères ; 200 sinon avec `mode`, `results` (éventuellement vide),
+     * `total`, `truncated` et `homonyms`.
      */
     public function search(): void
     {
@@ -195,8 +196,8 @@ class PatientController
      * GET /patients/recherche-ipp?ipp=… (AURA-15) : patient déjà connu sous cet IPP, en JSON,
      * pour pré-remplir le formulaire d'admission. L'identité est renvoyée avec les noms de
      * champs du formulaire ; les allergies connues (RG2) sont jointes en lecture seule.
-     * Réponses : 422 si l'IPP est vide ou hors format ; 200 avec `trouve: false` si inconnu ;
-     * 200 avec `trouve: true`, `patient` et `allergies` sinon.
+     * Réponses : 422 si l'IPP est vide ou hors format ; 200 avec `found: false` si inconnu ;
+     * 200 avec `found: true`, `patient` (dont `editLink`) et `allergies` sinon.
      */
     public function searchByIpp(): void
     {
@@ -358,7 +359,10 @@ class PatientController
         header('Location: ' . $destination, true, 303);
     }
 
-    /** GET /patients/modifier?id=… (AURA-12.2) : formulaire pré-rempli avec l'identité du patient ; 400 / 404 sinon. */
+    /**
+     * GET /patients/modifier?id=… (AURA-12.2) : formulaire pré-rempli avec l'identité du patient
+     * (nom, prénom, IPP, date de naissance, sexe) ; 400 / 404 sinon.
+     */
     public function edit(): void
     {
         $service = $this->patientUpdateService();
@@ -385,7 +389,8 @@ class PatientController
 
     /**
      * POST /patients/modifier?id=… : enregistre l'identité modifiée puis redirige vers la liste (303) ;
-     * réaffiche le formulaire en 422 avec les erreurs par champ en cas de refus.
+     * réaffiche le formulaire en 422 avec les erreurs par champ en cas de refus ; 404 si le patient est
+     * inconnu. Pas de jeton CSRF sur cette route, contrairement aux autres POST (dette signalée).
      */
     public function update(): void
     {
@@ -413,6 +418,7 @@ class PatientController
         header('Location: /patients', true, 303);
     }
 
+    /** @throws LogicException si la route n'a pas injecté de PatientUpdateService */
     private function patientUpdateService(): PatientUpdateService
     {
         if ($this->patientUpdateService === null) {
@@ -422,6 +428,7 @@ class PatientController
         return $this->patientUpdateService;
     }
 
+    /** @throws LogicException si la route n'a pas injecté de PatientDeletionService */
     private function patientDeletionService(): PatientDeletionService
     {
         if ($this->patientDeletionService === null) {
@@ -433,6 +440,7 @@ class PatientController
         return $this->patientDeletionService;
     }
 
+    /** Identifiant du patient lu dans l'URL (?id=…) ; null s'il manque ou n'est pas un entier positif. */
     private function readPatientId(): ?int
     {
         $id = $_GET['id'] ?? null;
@@ -443,6 +451,12 @@ class PatientController
         return (int) $id;
     }
 
+    /**
+     * Page de modification de l'identité (patient/edit), avec la saisie et les erreurs à réafficher.
+     *
+     * @param array<string, mixed> $values valeurs indexées par nom de champ du formulaire
+     * @param array<string, string> $errors erreurs indexées par nom de champ du formulaire
+     */
     private function showEditForm(int $idPatient, array $values, array $errors): void
     {
         View::page(
@@ -473,7 +487,7 @@ class PatientController
 
     /**
      * Correspondance complète champ formulaire => clé domaine : les champs historiques
-     * (CHAMPS_FORMULAIRE) plus les champs du catalogue RecordFields, dont le nom est identique
+     * (FORM_FIELDS) plus les champs du catalogue RecordFields, dont le nom est identique
      * des deux côtés.
      *
      * @return array<string, string>
@@ -505,7 +519,8 @@ class PatientController
         }
         // Champs du catalogue : seulement ceux présents dans la requête. Un champ absent n'est pas
         // « vidé » : pour un patient existant, il reste tel quel (un formulaire tronqué n'efface rien).
-        // Le décès n'est pas un champ d'admission (RecordFields::admissionPatientFields()) : ignoré s'il est envoyé.
+        // Le décès n'est pas un champ d'admission (RecordFields::admissionPatientFields()) : ignoré s'il est
+        // envoyé.
         $catalogue = array_merge(array_keys(RecordFields::admissionPatientFields()), RecordFields::episodeColumns());
         foreach ($catalogue as $field) {
             if (array_key_exists($field, $post)) {
@@ -538,7 +553,9 @@ class PatientController
     }
 
     /**
-     * @param array<string, mixed> $saisie
+     * Traduit la saisie (noms de champs du formulaire) vers les clés du domaine, sexe H/F compris.
+     *
+     * @param array<string, mixed> $input
      * @return array<string, mixed> données indexées par clé du domaine
      */
     private function toDomain(array $input): array
@@ -584,7 +601,10 @@ class PatientController
     }
 
     /**
-     * @param array<string, mixed> $saisie
+     * Refus de l'admission : 422 en JSON {ok:false, errors} pour form.js, sinon formulaire réaffiché en 422
+     * avec la saisie et les erreurs.
+     *
+     * @param array<string, mixed> $input
      * @param array<string, string> $errors
      */
     private function respondWithErrors(array $input, array $errors): void
@@ -618,7 +638,7 @@ class PatientController
             || strcasecmp($requestedWith, 'XMLHttpRequest') === 0;
     }
 
-    /** @param array<string, mixed> $corps */
+    /** @param array<string, mixed> $body */
     private function respondJson(int $status, array $body): void
     {
         http_response_code($status);

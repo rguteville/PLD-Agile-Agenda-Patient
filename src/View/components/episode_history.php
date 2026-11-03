@@ -6,12 +6,13 @@ use Aura\Core\View;
  * Historique des séjours d'un patient (retours des médecins du 2026-11-03), du plus récent au plus
  * ancien : numéro, statut, dates d'admission et de sortie, service et motif ; chaque séjour mène à son
  * dossier. Le séjour affiché est signalé par le texte « Séjour affiché » et aria-current, pas par la
- * couleur seule. Liste des patients (dans un bloc dépliable) et dossier du séjour.
+ * couleur seule. Inclus par pages/patient/list.php (dans un bloc dépliable) et pages/episode/record.php.
  *
  * Usage : View::render('components/episode_history', ['episodes' => …])
  *
- * @var list<array<string, mixed>> $episodes vue-modèle de EpisodeHistoryService::present()
- * @var string|null $label nom accessible de la liste (« Séjours de DUPONT Marie »)
+ * @var list<array<string, mixed>> $episodes vue-modèle de EpisodeHistoryService::present() (idEpisodeOfCare,
+ *      episodeNumber, ongoing, displayed, admissionDate, dischargeDate, service, admissionReason)
+ * @var string|null $label nom accessible de la liste (« Séjours de DUPONT Marie »), null par défaut
  */
 $label = $label ?? null;
 ?>

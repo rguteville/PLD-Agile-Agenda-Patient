@@ -19,8 +19,8 @@ use InvalidArgumentException;
 
 /**
  * Prescriptions d'un séjour (Epic 4) : liste (tableau des prescriptions, figure 10 du cahier
- * des charges), saisie d'une ordonnance (écran B3 « Nouvelles prescriptions », figures 7 à 9)
- * et validation par un médecin (RG5, AURA-23).
+ * des charges), saisie d'une ordonnance (écran B3 « Nouvelles prescriptions », figures 7 à 9),
+ * validation par un médecin (RG5, AURA-23) et arrêt d'une ligne (AURA-22).
  *
  * Une ordonnance (CarePlan) est saisie en une fois avec toutes ses lignes : chaque « OK » de
  * l'écran B3 ajoute une ligne, « Enregistrer l'ordonnance » envoie le tout.
@@ -377,7 +377,12 @@ final class CarePlanService
      * sauf si le prescripteur a coché « Je prescris malgré l'allergie ». La confirmation est alors
      * tracée (AuditEvent, une ligne par médicament concerné) dans la même transaction que l'ordonnance.
      *
-     * @param array<string, mixed> $input voir checkInput()
+     * Un prescripteur médecin s'authentifie comme pour une validation (FACTICE : prescriberPassword
+     * non vide, non vérifié), puisque son ordonnance est validée d'office.
+     *
+     * @param array<string, mixed> $input voir checkInput(), plus prescriberPassword
+     * @return int idCarePlan de l'ordonnance enregistrée
+     * @throws PrescriptionRejected mot de passe du médecin manquant, ou allergie non confirmée
      * @throws InvalidArgumentException saisie invalide ou ordonnance refusée (message affichable)
      */
     public function prescribe(int $idEpisodeOfCare, array $input): int
@@ -610,6 +615,7 @@ final class CarePlanService
      * La validation porte sur toute l'ordonnance ; qui et quand sont enregistrés (RG10).
      * Le médecin s'authentifie (FACTICE : mot de passe non vide, non vérifié), comme dans le dossier.
      *
+     * @throws PrescriptionRejected authentification refusée (erreur sur la clé auth)
      * @throws InvalidArgumentException validation refusée (message affichable)
      */
     public function validateCarePlan(
@@ -646,6 +652,8 @@ final class CarePlanService
     /**
      * AURA-22 : un médecin arrête une ligne (soin ou médicament) d'une ordonnance de ce séjour.
      * La ligne quitte alors « Prescriptions en cours » du dossier ; qui et quand sont enregistrés (RG10).
+     * Ses soins encore planifiés à une heure future passent à ANNULE (CarePlanDao::markStopped()).
+     * Même authentification factice que la validation.
      *
      * @throws InvalidArgumentException arrêt refusé (message affichable)
      */
@@ -992,7 +1000,11 @@ final class CarePlanService
         return array_filter($activityDefinitions, static fn(string $name) => $name !== self::MEDICATION_ACTIVITY);
     }
 
-    /** @param array<string, Practitioner> $practitioners */
+    /**
+     * Nom et rôle d'un praticien ; son identifiant s'il est absent du référentiel, '' sans praticien.
+     *
+     * @param array<string, Practitioner> $practitioners
+     */
     private static function name(array $practitioners, ?string $idPractitioner): string
     {
         if ($idPractitioner === null) {

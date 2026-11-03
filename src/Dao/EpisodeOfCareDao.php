@@ -13,8 +13,12 @@ use PDO;
 use PDOException;
 
 /**
- * Accès aux séjours : table EpisodeOfCare (noms HL7 depuis AURA-16, cf. database/schema.sql) ;
- * les entités du domaine restent en français.
+ * Accès aux séjours : table EpisodeOfCare, ressource HL7 du même nom (cf. database/schema.sql).
+ * Seule traduction : la colonne idHealthcareService devient idService dans l'entité.
+ *
+ * Id VARCHAR(20) et numéro de séjour AAAA-NNNNNN calculés par insert() (MAX + 1, FOR UPDATE, RG1).
+ * Un séjour n'est jamais supprimé : il se termine par sa date de sortie (updateDischarge(), fin de
+ * séjour ou décès). Les lectures joignent le médecin référent (Practitioner) pour son nom.
  */
 class EpisodeOfCareDao
 {
@@ -78,9 +82,9 @@ class EpisodeOfCareDao
     }
 
     /**
-     * Séjours d'un patient dans le service, du plus récent au plus ancien.
+     * Tous les séjours d'un patient, tous services confondus, du plus récent au plus ancien.
      *
-     * @return Sejour[]
+     * @return EpisodeOfCare[]
      */
     public function findByPatient(int $idPatient): array
     {
@@ -120,9 +124,9 @@ class EpisodeOfCareDao
     }
 
     /**
-     * Séjours en cours (patients présents dans le service), du plus ancien au plus récent.
+     * Séjours en cours (dischargeDate NULL), tous services confondus, du plus ancien au plus récent.
      *
-     * @return Sejour[]
+     * @return EpisodeOfCare[]
      */
     public function findOngoing(): array
     {
@@ -135,6 +139,12 @@ class EpisodeOfCareDao
         return array_map(fn(array $r) => $this->mapToEntity($r), $rows);
     }
 
+    /**
+     * Séjours EN COURS d'un service hospitalier (dischargeDate NULL), du plus récent au plus ancien :
+     * les patients présents, base de l'agenda du service (AgendaService::getAgendaService()).
+     *
+     * @return EpisodeOfCare[]
+     */
     public function findByHealthcareService(string $idService): array
     {
          $stmt = $this->pdo->prepare(
@@ -148,7 +158,10 @@ class EpisodeOfCareDao
         return array_map(fn(array $r) => $this->mapToEntity($r), $stmt->fetchAll(PDO::FETCH_ASSOC));
     }
 
-    /** Enregistre la date de sortie (clôture du séjour). */
+    /**
+     * Enregistre la date de sortie, ce qui termine le séjour (fin de séjour ou décès). Aucun contrôle
+     * ici : EpisodeOfCareService::closeEpisodeOfCare() vérifie que le séjour est en cours.
+     */
     public function updateDischarge(int $idEpisodeOfCare, DateTimeInterface $dischargeDate): void
     {
         $stmt = $this->pdo->prepare(
@@ -174,9 +187,11 @@ class EpisodeOfCareDao
      * compteur sur 6 chiffres qui repart à 000001 chaque année (ex. 2026-000108).
      * Cf. database/schema.sql et le README.
      *
-     * Comme pour Patient, idSejour n'a pas d'AUTO_INCREMENT : l'id est calculé ici. La lecture
+     * Comme pour Patient, idEpisodeOfCare n'a pas d'AUTO_INCREMENT : l'id est calculé ici. La lecture
      * des maxima est verrouillée (FOR UPDATE) ; si un doublon passe malgré tout, la contrainte
-     * UNIQUE le refuse et l'insertion est retentée avec des valeurs recalculées.
+     * UNIQUE le refuse et l'insertion est retentée avec des valeurs recalculées (INSERT_ATTEMPTS fois).
+     *
+     * @throws PDOException toute autre erreur SQL, ou un doublon encore présent au dernier essai
      */
     public function insert(EpisodeOfCare $s): EpisodeOfCare
     {
@@ -282,7 +297,10 @@ class EpisodeOfCareDao
      * Met à jour UN champ seulement si sa valeur en base est encore celle attendue (contrôle de
      * concurrence optimiste, atomique : la comparaison est faite par l'UPDATE lui-même, <=> traite
      * NULL). Renvoie false si la ligne n'existe pas ou si la valeur a changé entre-temps.
-     * Le nom de colonne doit appartenir à la liste blanche, sinon LogicException.
+     * Le nom de colonne doit appartenir à la liste blanche (RecordFields::EPISODE ou
+     * EDITABLE_BASE_COLUMNS).
+     *
+     * @throws LogicException si la colonne n'est pas dans la liste blanche
      */
     public function updateDetailIfUnchanged(int $id, string $column, ?string $new, ?string $expected): bool
     {
@@ -313,6 +331,12 @@ class EpisodeOfCareDao
         return $values;
     }
 
+    /**
+     * Ligne lue (colonnes de columns(), avec la jointure du référent) vers l'entité. Les champs
+     * complémentaires sont repris tels quels en texte ; poids et taille deviennent des float.
+     *
+     * @param array<string, mixed> $r
+     */
     private function mapToEntity(array $r): EpisodeOfCare
     {
         return new EpisodeOfCare(

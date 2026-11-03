@@ -1,9 +1,18 @@
 // Envoi AJAX des formulaires marqués data-ajax et affichage des erreurs
 // renvoyées par le serveur (AURA-10.2) à côté de chaque champ.
 // Le contrôle côté serveur reste la garantie : ce script ne valide rien lui-même.
+// Chargé par l'admission (POST /patients/create), le dossier du séjour (arrêt d'une ligne, POST
+// /care-plans/stop) et l'écran B3 (POST /care-plans/create et /care-plans/validate). Pas par la
+// modification d'un patient : son formulaire data-ajax y part en POST classique.
+// Attend : form[data-ajax] ; lignes .form-row, zone .form-actions (components/form.php).
+// Appel réseau : POST vers l'attribut action, corps FormData (jeton CSRF dans le champ csrf quand le
+// formulaire en a un), en-têtes Accept: application/json et X-Requested-With: XMLHttpRequest.
+// Réponse : {ok: false, errors: {champ: message}} (422) ou {ok: true, redirect: '/…'}.
+// Événement émis : aura:form-errors (form-sections.js ouvre les sections en erreur).
 
 const GENERIC_ERROR_MESSAGE = "L'enregistrement a échoué. Veuillez réessayer.";
 
+// Retire les erreurs d'un envoi précédent (messages, classes et attributs ARIA).
 function clearFormErrors(form) {
     form.querySelectorAll('.field-error, .form-error').forEach(el => el.remove());
     form.querySelectorAll('.has-error').forEach(row => row.classList.remove('has-error'));
@@ -13,6 +22,7 @@ function clearFormErrors(form) {
     });
 }
 
+// Message sous le champ, relié par aria-describedby ; champ inconnu : erreur générale du formulaire.
 function showFieldError(form, fieldName, message) {
     const input = form.querySelector(`[name="${CSS.escape(fieldName)}"]`);
     const row = input ? input.closest('.form-row') : null;

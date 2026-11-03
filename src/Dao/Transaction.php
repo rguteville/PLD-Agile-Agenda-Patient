@@ -17,9 +17,14 @@ class Transaction
     }
 
     /**
+     * Lance $treatment dans une transaction et renvoie son résultat. Toute exception annule la
+     * transaction (rollBack) puis est relancée telle quelle. Dans une transaction déjà ouverte,
+     * l'appelant extérieur garde la main sur la validation et l'annulation.
+     *
      * @template T
-     * @param callable(): T $traitement
+     * @param callable(): T $treatment
      * @return T
+     * @throws \Throwable l'exception levée par $treatment, après annulation
      */
     public function run(callable $treatment): mixed
     {

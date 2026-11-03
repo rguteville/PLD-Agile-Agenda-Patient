@@ -10,7 +10,10 @@ use DateTimeImmutable;
 use InvalidArgumentException;
 
 /**
- * Gestion des séjours d'un patient dans le service : ouverture (admission),
+ * Gestion des séjours (EpisodeOfCare) : lecture, ouverture à l'admission (AURA-10, numéro AAAA-NNNNNN
+ * généré par EpisodeOfCareDao::insert(), AURA-10.3), changement de lit ou de box, et sortie (fin de
+ * séjour ou décès, appelée par RecordSectionService). Règles : un seul séjour en cours par patient, un
+ * lit ou un box occupé par un seul séjour en cours, sortie ni avant l'admission ni dans le futur.
  */
 class EpisodeOfCareService
 {
@@ -18,6 +21,11 @@ class EpisodeOfCareService
     {
     }
 
+    /**
+     * Séjour par son identifiant interne.
+     *
+     * @throws InvalidArgumentException si le séjour n'existe pas
+     */
     public function getEpisodeOfCare(int $idEpisodeOfCare): EpisodeOfCare
     {
         $episodeOfCare = $this->episodeOfCareDao->findById($idEpisodeOfCare);
@@ -29,6 +37,11 @@ class EpisodeOfCareService
         return $episodeOfCare;
     }
 
+    /**
+     * Séjour par son numéro (AAAA-NNNNNN).
+     *
+     * @throws InvalidArgumentException si aucun séjour ne porte ce numéro
+     */
     public function getEpisodeOfCareByNumber(string $episodeNumber): EpisodeOfCare
     {
         $episodeOfCare = $this->episodeOfCareDao->findByNumber($episodeNumber);
@@ -43,7 +56,7 @@ class EpisodeOfCareService
     /**
      * Séjours d'un patient, du plus récent au plus ancien (consultation des séjours précédents).
      *
-     * @return Sejour[]
+     * @return EpisodeOfCare[]
      */
     public function getPatientEpisodesOfCare(int $idPatient): array
     {
@@ -51,9 +64,9 @@ class EpisodeOfCareService
     }
 
     /**
-     * Patients actuellement présents dans le service.
+     * Séjours en cours (sans date de sortie), tous services confondus, du plus ancien au plus récent.
      *
-     * @return Sejour[]
+     * @return EpisodeOfCare[]
      */
     public function getOngoingEpisodesOfCare(): array
     {
@@ -155,7 +168,12 @@ class EpisodeOfCareService
         return $this->getEpisodeOfCare($idEpisodeOfCare);
     }
 
-    /** Un lit ou un box ne peut être occupé que par un seul séjour en cours. */
+    /**
+     * Un lit ou un box ne peut être occupé que par un seul séjour en cours.
+     *
+     * @param int|null $ignoredEpisodeId séjour qui change d'emplacement (sa place actuelle ne compte pas)
+     * @throws InvalidArgumentException si le lit ou le box est déjà occupé
+     */
     private function checkLocationFree(?string $bedNumber, ?string $boxNumber, ?int $ignoredEpisodeId): void
     {
         foreach ($this->episodeOfCareDao->findOngoing() as $other) {
@@ -172,7 +190,12 @@ class EpisodeOfCareService
         }
     }
 
-    /** Nettoie un numéro de lit / box saisi : null si vide, 20 caractères maximum. */
+    /**
+     * Nettoie un numéro de lit ou de box saisi : null si vide, 20 caractères maximum.
+     *
+     * @param string $label 'bed' ou 'box', repris tel quel dans le message d'erreur
+     * @throws InvalidArgumentException si le numéro dépasse 20 caractères
+     */
     private function location(?string $value, string $label): ?string
     {
         $value = $value !== null ? trim($value) : null;

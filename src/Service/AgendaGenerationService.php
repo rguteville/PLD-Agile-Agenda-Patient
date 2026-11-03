@@ -140,6 +140,7 @@ final class AgendaGenerationService
      * un soin annulé à une heure donnée ne doit pas réapparaître à la génération suivante.
      *
      * @return DateTimeImmutable[]
+     * @throws LogicException ligne sans identifiant (jamais enregistrée)
      */
     private function existingTimes(RequestLine $line): array
     {

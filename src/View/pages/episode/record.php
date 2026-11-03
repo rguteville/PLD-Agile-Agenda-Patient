@@ -4,21 +4,36 @@ use Aura\Core\View;
 use Aura\Service\RecordSectionService;
 
 /**
- * Dossier du séjour (AURA-14) et gestion des allergies connues du patient (AURA-13.2).
+ * Dossier du séjour (AURA-14) et gestion des allergies connues du patient (AURA-13.2) : bandeau (RG2),
+ * menu figé, résumé, allergies, dossier complet éditable, historique des modifications, séjours du
+ * patient, prescriptions en cours, et fenêtre de validation par un médecin (authentification FACTICE).
+ * Rendue par EpisodeOfCareController::show() (GET /sejour?id=…), et en 422 après un ajout ou un retrait
+ * d'allergie refusé (POST /sejour/allergies/ajouter|retirer). Données de PatientRecordService::record().
+ * Scripts : form.js (arrêt d'une ligne), confirm.js (retrait d'une allergie), inline-edit.js (un champ),
+ * record-menu.js (menu), date-input.js (dates), part-edit.js (partie entière, fin de séjour, décès).
  *
- * @var array<string, mixed> $banner
- * @var array<string, mixed> $episodeOfCare
+ * @var array<string, mixed> $banner vue-modèle de PatientRecordService::presentBanner()
+ * @var array<string, mixed> $episodeOfCare vue-modèle de PatientRecordService::presentEpisodeOfCare()
  * @var int $idEpisodeOfCare
  * @var list<array<string, mixed>> $prescriptions lignes validées, vue-modèle de CarePlanService::presentLine()
- * @var array<string, string> $doctors médecins pouvant arrêter une ligne : idPractitioner => « nom (rôle) »
- * @var list<array{idAllergy: ?int, label: string, criticality: ?string, recordedAt: ?string}> $allergies
+ * @var array<string, string> $doctors médecins : idPractitioner => « nom (rôle) », pour arrêter une ligne
+ *      (AURA-22) et pour la fenêtre de validation
+ * @var list<array{idAllergy: ?int, label: string, criticality: ?string, level: string, recordedAt: ?string}>
+ *      $allergies
  * @var array<string, string> $substances allergènes du référentiel non encore enregistrés, id => libellé
  * @var list<string> $criticalities
  * @var ?string $allergyError message d'un ajout ou d'un retrait refusé, null sinon
  * @var list<array<string, mixed>> $sections dossier complet, vue-modèle de PatientRecordService::presentSections()
- * @var bool $editable édition champ par champ active (inline-edit.js, endpoint /sejour/champ/modifier)
- * @var ?string $csrfToken jeton de session envoyé par le script dans X-CSRF-Token
+ *      ([] par défaut)
+ * @var bool $editable édition active (false par défaut) : champ par champ (inline-edit.js, POST
+ *      /sejour/champ/modifier), partie entière (part-edit.js, POST /sejour/partie/modifier), fin du séjour
+ *      (POST /sejour/cloturer), déclaration du décès (POST /sejour/deces), historique des modifications
+ * @var ?string $csrfToken jeton de session : en-tête X-CSRF-Token des scripts et champ csrf des formulaires
  * @var list<array<string, mixed>> $history dernières modifications, vue-modèle de RecordEditService::history()
+ *      ([] par défaut)
+ * @var array<string, array<string, string>> $partValues valeurs actuelles de chaque partie, pour les
+ *      formulaires « Modifier » (PatientRecordService::partValues()), [] par défaut
+ * @var array<string, string> $services référentiel des services, pour la partie « Dossier », [] par défaut
  * @var array<string, string> $referringDoctors médecins pouvant être référents : idPractitioner => « Dr Prénom Nom »
  * @var list<array<string, mixed>> $episodeHistory séjours du patient, vue-modèle de EpisodeHistoryService::present()
  * @var ?array<string, mixed> $currentEpisode séjour en cours du patient quand le séjour affiché est un autre
@@ -130,7 +145,8 @@ if ($editable) {
                 <?php endif; ?>
                 <?php if (empty($banner['deceased'])) : ?>
                     <?php /* Retours du 2026-11-04 : le décès se déclare d'un bouton visible (il était caché dans
-                             la partie « Administratif complémentaire »), validé par un médecin et tracé. */ ?>
+                             la partie « Administratif complémentaire »), validé par un médecin et tracé. Il met
+                             fin au séjour à l'heure du décès (POST /sejour/deces, part-edit.js). */ ?>
                     <button type="button" class="button button--danger" data-declare-death
                             data-current="<?= View::e($partValues['admin']['deceased'] ?? '') ?>">
                         Déclarer le décès
@@ -307,7 +323,8 @@ if ($editable) {
             <dl data-part-view="<?= View::e($section['id']) ?>">
                 <?php foreach ($section['rows'] as $row) : ?>
                     <dt><?= View::e($row['label']) ?></dt>
-                    <?php /* Décès : modifiable par « Modifier » sur la partie seulement (validé par un médecin). */ ?>
+                    <?php /* Champs validatedByDoctor (groupe sanguin, décès) : pas d'édition champ par champ,
+                             seulement « Modifier » sur la partie, validé par un médecin et tracé. */ ?>
                     <?php if ($editable && !$row['computed'] && empty($row['validatedByDoctor'])) : ?>
                         <?php /* Bouton focalisable : Entrée ou clic passe en saisie (inline-edit.js). */ ?>
                         <dd class="inline-edit"
@@ -521,7 +538,8 @@ if ($editable) {
 <?php if ($editable) : ?>
     <?php /* Fenêtre de validation par un médecin : AUTHENTIFICATION FACTICE (le mot de passe n'est pas
              vérifié) en attendant l'identification des praticiens (AURA-18). Elle sert aux modifications
-             d'une partie et à la fin du séjour (public/js/part-edit.js). */ ?>
+             d'une partie, à la fin du séjour et à la déclaration du décès (public/js/part-edit.js) : pour ces
+             deux dernières, la date et l'heure (de sortie ou du décès) s'affichent. */ ?>
     <dialog id="auth-dialog" class="auth-dialog" aria-labelledby="auth-dialog-title">
         <form method="dialog" class="auth-dialog__form" novalidate>
             <h2 id="auth-dialog-title" class="auth-dialog__title">Validation par un médecin</h2>

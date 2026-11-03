@@ -8,8 +8,9 @@ use Aura\Domain\Substance;
 use PDO;
 
 /**
- * Référentiel des allergènes : table Substance (cf. database/schema.sql). Lecture seule :
- * le référentiel est chargé par database/test.sql, jamais saisi dans l'application.
+ * Référentiel des allergènes (AURA-13.1) : table Substance, ressource HL7 du même nom (cf.
+ * database/schema.sql). Lecture seule : le référentiel est chargé par database/test.sql, jamais
+ * saisi dans l'application.
  */
 class SubstanceDao
 {
@@ -43,6 +44,11 @@ class SubstanceDao
         return $r ? $this->mapToEntity($r) : null;
     }
 
+    /**
+     * Ligne SQL vers l'entité : la colonne name devient Substance::getDescription().
+     *
+     * @param array<string, string> $r
+     */
     private function mapToEntity(array $r): Substance
     {
         return new Substance((string) $r['idSubstance'], (string) $r['name']);

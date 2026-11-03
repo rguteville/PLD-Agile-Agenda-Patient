@@ -24,7 +24,10 @@ use DateTimeInterface;
  * depuis AURA-13.2, la section de gestion des allergies (liste avec retrait, ajout
  * depuis le référentiel).
  *
- * Les données viennent de la base via les DAO (AURA-11) ; les méthodes presenter*()
+ * Depuis les retours des médecins (2026-11-03 et 04) : dossier complet par sections, historique des
+ * séjours, médecin référent, décès et groupe sanguin dans le bandeau.
+ *
+ * Les données viennent de la base via les DAO (AURA-11) ; les méthodes present*()
  * et availableSubstances() sont pures (pas d'accès aux données) pour être testables sans base.
  */
 final class PatientRecordService
@@ -40,9 +43,15 @@ final class PatientRecordService
     }
 
     /**
-     * @return array{bandeau: array<string, mixed>, sejour: array<string, mixed>,
-     *               allergies: list<array<string, mixed>>, substances: array<string, string>,
-     *               criticalities: list<string>}|null
+     * Vue-modèle complète du dossier d'un séjour : bandeau, séjour, historique des séjours, allergies,
+     * sections du dossier et valeurs des formulaires « Modifier ».
+     *
+     * @return array{banner: array<string, mixed>, episodeOfCare: array<string, mixed>,
+     *               episodeHistory: list<array<string, mixed>>, currentEpisode: ?array<string, mixed>,
+     *               allergies: list<array<string, mixed>>, allergens: array<string, string>,
+     *               substances: array<string, string>, criticalities: list<string>,
+     *               sections: list<array<string, mixed>>, partValues: array<string, array<string, string>>,
+     *               services: array<string, string>, referringDoctors: array<string, string>}|null
      *         null si le séjour n'existe pas (ou si son patient a disparu : données incohérentes)
      */
     public function record(int $idEpisodeOfCare): ?array
@@ -126,10 +135,11 @@ final class PatientRecordService
     }
 
     /**
-     * Vue-modèle du bandeau : identité (nom, prénom, date de naissance, IPP) et allergies
-     * connues (RG2). Composant src/View/components/patient_banner.php.
+     * Vue-modèle du bandeau : identité (nom, prénom, date de naissance, IPP), décès, numéro de séjour,
+     * mesures, groupe sanguin, médecin référent et allergies connues (RG2).
+     * Composant src/View/components/patient_banner.php.
      *
-     * @param Allergie[] $allergies
+     * @param AllergyIntolerance[] $allergies
      * @return array<string, mixed>
      */
     public static function presentBanner(
@@ -179,6 +189,9 @@ final class PatientRecordService
     }
 
     /**
+     * Vue-modèle du séjour : dates, en cours ou non, service, référent, motif, lit, box, mesures,
+     * précautions et coordonnées du patient. Pure.
+     *
      * @param array<string, string> $services référentiel des services (id => nom) pour afficher le nom
      * @return array<string, mixed>
      */
@@ -217,7 +230,7 @@ final class PatientRecordService
      * bouton « Retirer », la date de saisie distingue une allergie connue d'un séjour
      * antérieur d'une allergie découverte pendant le séjour en cours.
      *
-     * @param Allergie[] $allergies
+     * @param AllergyIntolerance[] $allergies
      * @return list<array{idAllergy: ?int, label: string, criticality: ?string, level: string, recordedAt: ?string}>
      */
     public static function presentAllergies(array $allergies): array
@@ -256,7 +269,7 @@ final class PatientRecordService
      * L'ordre du référentiel (alphabétique) est conservé.
      *
      * @param Substance[] $substances
-     * @param Allergie[] $allergies
+     * @param AllergyIntolerance[] $allergies
      * @return array<string, string> libellé indexé par id d'allergène
      */
     public static function availableSubstances(array $substances, array $allergies): array
@@ -410,7 +423,8 @@ final class PatientRecordService
             'type' => $spec['type'],
             'options' => $spec['options'] ?? null,
             'computed' => false,
-            // Champ réservé à la modification d'une partie validée par un médecin (décès) : pas d'édition en ligne.
+            // Champ réservé à la modification d'une partie validée par un médecin (groupe sanguin, décès) :
+            // pas d'édition en ligne.
             'validatedByDoctor' => $spec['validatedByDoctor'] ?? false,
             'help' => $spec['help'] ?? null,
             'placeholder' => $spec['placeholder'] ?? null,
@@ -457,6 +471,7 @@ final class PatientRecordService
         return $number . ' ' . $unit;
     }
 
+    /** Texte sans espaces de bord ; vide ou null = null. */
     private static function textOrNull(?string $value): ?string
     {
         if ($value === null) {

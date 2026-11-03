@@ -1,12 +1,21 @@
-// Agenda (patient et service) : impression, filtres par statut, et dialogue d'action sur un soin
-// (AURA-26 valider, non effectué, AURA-28 note), envoyé en JSON à POST /agenda-patient/soin.
+// Agendas (patient, service, « Mon planning ») : impression, filtres par statut, et dialogue d'action sur
+// un soin (AURA-26 : « Valider », puis Réalisé ou Non effectué ; AURA-28 : « Note », note seule).
+// Chargé par EpisodeOfCareController::getAgenda() (GET /agenda-patient), ServiceController::getAgenda()
+// (GET /agenda-service) et TeamController::planning() (GET /mon-planning).
+// Attend : #print-page ; [data-agenda-filters] avec ses boutons [data-filter] et [data-filter-state] ;
+// des lignes [data-appointment-row] (data-status, data-care-label) ; des boutons [data-care-action]
+// (data-appointment, data-episode, data-label, components/care_buttons.php) ; #validation-dialog et son
+// formulaire [data-care-form] (data-csrf, components/validation_dialog.php).
+// Appel réseau : POST /agenda-patient/soin en JSON, en-têtes Accept: application/json et X-CSRF-Token.
+// Réponse : {ok: true} (la page est rechargée) ou {ok: false, errors: {champ: message}, message}.
 // Le serveur revalide tout : ce script n'est qu'un confort, la page fonctionne sans lui (POST classique).
 const printButton = document.getElementById('print-page');
 if (printButton) {
     printButton.addEventListener('click', () => window.print());
 }
 
-// ---- Filtres : statut (« Tous », « En retard »…) et, dans l'agenda du service, type de soin ----
+// ---- Filtres (agenda du patient, « Mon planning ») : statut (« Tous », « En retard »…) ----
+// Le filtre par type de soin ([data-type-filter]) n'est plus fourni par aucune vue : code inactif.
 const filters = document.querySelector('[data-agenda-filters]');
 if (filters) {
     filters.hidden = false;
@@ -16,9 +25,10 @@ if (filters) {
 
     const state = filters.querySelector('[data-filter-state]');
 
+    // Masque les lignes hors filtre et rappelle le filtre actif sur le bouton « Filtres ».
     function apply() {
         const type = typeFilter ? typeFilter.value : '';
-        // Rappel du filtre actif sur le bouton replié (« Filtres : En retard · Paracétamol »).
+        // Rappel du filtre actif sur le bouton replié (« Filtres : En retard, Paracétamol »).
         if (state) {
             const pressed = filters.querySelector('[data-filter][aria-pressed="true"]');
             const parts = [];
@@ -34,7 +44,8 @@ if (filters) {
             row.hidden = (status !== 'all' && row.dataset.status !== status)
                 || (type !== '' && row.dataset.careLabel !== type);
         });
-        // Une rotation ou un créneau dont tous les soins sont filtrés se replie sur son titre.
+        // Une rotation (.agenda-section, agenda du patient) dont tous les soins sont filtrés se replie sur
+        // son titre ; .service-slot (ancienne grille du service) n'existe plus dans aucune vue.
         const filtering = status !== 'all' || type !== '';
         document.querySelectorAll('.agenda-section, .service-slot').forEach(section => {
             const visible = section.querySelectorAll('[data-appointment-row]:not([hidden])').length;
@@ -72,6 +83,7 @@ if (dialog && careForm && typeof dialog.showModal === 'function') {
         return date.toISOString().slice(0, 16);
     }
 
+    // Efface les messages d'erreur et les aria-invalid laissés par un envoi précédent.
     function clearErrors() {
         careForm.querySelectorAll('[data-error]').forEach(p => {
             p.hidden = true;
@@ -80,8 +92,8 @@ if (dialog && careForm && typeof dialog.showModal === 'function') {
         careForm.querySelectorAll('[aria-invalid]').forEach(field => field.removeAttribute('aria-invalid'));
     }
 
-    // L'heure de réalisation n'a de sens que pour « Réalisé » ; la note devient un motif obligatoire
-    // pour « Non effectué ».
+    // L'heure de réalisation n'a de sens que pour « Réalisé » ; la note devient obligatoire pour
+    // « Non effectué » (motif) et pour « Note ».
     function applyAction() {
         const action = careForm.elements.action.value;
         // Bouton « Note » : seulement la note (et qui l'écrit), sans le choix Réalisé / Non effectué.
@@ -97,6 +109,8 @@ if (dialog && careForm && typeof dialog.showModal === 'function') {
 
     careForm.querySelectorAll('input[name="action"]').forEach(radio => radio.addEventListener('change', applyAction));
 
+    // Ouvre le dialogue pour le soin du bouton : action « done » (Valider) ou « note » (Note), heure
+    // de réalisation à maintenant, champs vidés.
     document.querySelectorAll('[data-care-action]').forEach(button => {
         button.addEventListener('click', () => {
             clearErrors();
@@ -115,6 +129,7 @@ if (dialog && careForm && typeof dialog.showModal === 'function') {
         button.addEventListener('click', () => dialog.close());
     });
 
+    // Affiche un message sous le champ [data-error="key"] ; false si ce champ n'existe pas.
     function showError(key, message) {
         const p = careForm.querySelector(`[data-error="${key}"]`);
         if (!p) {
@@ -125,6 +140,7 @@ if (dialog && careForm && typeof dialog.showModal === 'function') {
         return true;
     }
 
+    // Envoi en JSON ; succès : rechargement (l'agenda affiche « par … ») ; refus : erreurs dans le dialogue.
     careForm.addEventListener('submit', async event => {
         event.preventDefault();
         clearErrors();

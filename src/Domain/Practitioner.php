@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Aura\Domain;
 
 /**
- * Professionnel de santé qui peut prescrire (Epic 4). Tables Practitioner / PractitionerRole.
+ * Professionnel de santé (ressource HL7 Practitioner, tables Practitioner et PractitionerRole) :
+ * prescripteur (Epic 4), membre d'une équipe de vacation (AURA-30), médecin référent d'un séjour,
+ * médecin qui valide une modification du dossier (fenêtre d'authentification factice, AURA-18).
  */
 class Practitioner
 {

@@ -13,15 +13,19 @@ use Aura\Core\View;
  * RG2 : allergies (ou « Aucune allergie connue ») dans le panneau du patient choisi ; ni le tableau ni la liste
  * de travail ne les répètent (choix de Raphaël du 2026-11-04 : écran plus léger). Vue-modèle :
  * AgendaService::presentBoard().
+ * Rendue par ServiceController::getAgenda() (GET /agenda-service?idHealthcareService=…&date=…, &vue=liste,
+ * &sejour=idEpisodeOfCare pour le lit détaillé). Scripts : agenda.js (impression, dialogue),
+ * auto-submit.js (choix du service et du jour).
  *
  * @var array<string, mixed> $service vue-modèle de AgendaService::presentService() (jour, navigation)
- * @var array<string, mixed> $board vue-modèle de AgendaService::presentBoard()
- * @var string $view « lits » ou « liste »
- * @var array<string, string> $services référentiel des services (choix du service affiché)
- * @var string|null $idHealthcareService service affiché
- * @var bool $validationEnabled actions sur les soins + dialogue
- * @var array<string, string> $validators soignants proposés par le dialogue
- * @var string|null $csrfToken jeton de POST /agenda-patient/soin
+ * @var array<string, mixed> $board vue-modèle de AgendaService::presentBoard() (isToday, rotation, totals,
+ *      rows, selected, selectionMissing, worklist)
+ * @var string $view « lits » ou « liste », « lits » par défaut
+ * @var array<string, string> $services référentiel des services (choix du service affiché), [] par défaut
+ * @var string|null $idHealthcareService service affiché, null par défaut
+ * @var bool $validationEnabled actions sur les soins + dialogue, false par défaut
+ * @var array<string, string> $validators soignants proposés par le dialogue, [] par défaut
+ * @var string|null $csrfToken jeton de POST /agenda-patient/soin, null sans validation
  */
 $services = $services ?? [];
 $idHealthcareService = $idHealthcareService ?? null;

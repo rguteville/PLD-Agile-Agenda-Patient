@@ -17,7 +17,12 @@ use PDO;
 /**
  * Accès aux prescriptions (Epic 4) : CarePlan = la prescription (l'ordonnance), ServiceRequest =
  * ses lignes de soin, MedicationRequest = ses lignes de médicament. Classes et colonnes portent
- * les mêmes noms : rien n'est traduit ici, le DAO ne fait que lire et écrire.
+ * les mêmes noms (ressources HL7) : rien n'est traduit ici, le DAO ne fait que lire et écrire.
+ * Écrit aussi les soins planifiés (Appointment) de chaque ligne.
+ *
+ * Ids VARCHAR(20) sans AUTO_INCREMENT, calculés par nextId() (MAX + 1, FOR UPDATE) dans la
+ * transaction d'écriture. Rien n'est supprimé (RG10) : une ligne s'arrête (stoppedAt, AURA-22)
+ * et ses soins futurs passent au statut ANNULE.
  */
 class CarePlanDao
 {
@@ -109,6 +114,9 @@ class CarePlanDao
      *
      * Comme pour Patient et EpisodeOfCare, les identifiants n'ont pas d'AUTO_INCREMENT : ils sont
      * calculés ici (plus grand + 1), tables verrouillées (FOR UPDATE) jusqu'à la fin de la transaction.
+     * Chaque ligne reçoit aussi ses soins planifiés (insertAppointments()), dans la même transaction.
+     *
+     * @throws \PDOException contrainte refusée (CHECK, clé étrangère) : rien n'est enregistré
      */
     public function insert(CarePlan $carePlan): int
     {
@@ -170,6 +178,9 @@ class CarePlanDao
      * Renvoie false si la ligne n'existe pas ou est déjà arrêtée : comme pour markValidated(),
      * la condition « stoppedAt IS NULL » est dans la requête, si bien qu'un second arrêt
      * simultané ne peut pas écraser le premier.
+     *
+     * @param bool $isMedication true pour une MedicationRequest, false pour une ServiceRequest
+     * @param ?DateTimeInterface $now heure de l'arrêt ; maintenant par défaut (injectée par les tests)
      */
     public function markStopped(
         bool $isMedication,
@@ -317,6 +328,8 @@ class CarePlanDao
      * modifié : c'est l'appelant (AgendaGenerationService) qui écarte les heures déjà planifiées.
      *
      * @param DateTimeImmutable[] $plannedTimes
+     * @throws LogicException si la ligne n'a pas encore d'identifiant
+     * @throws \PDOException si une heure existe déjà pour la ligne (clés UNIQUE de Appointment)
      */
     public function addAppointments(RequestLine $line, array $plannedTimes): int
     {
@@ -426,7 +439,12 @@ class CarePlanDao
         return $byCarePlan;
     }
 
-    /** @param RequestLine[] $lines */
+    /**
+     * Ligne de CarePlan vers l'entité, avec ses lignes déjà lues (linesOfEpisodeOfCare()).
+     *
+     * @param array<string, ?string> $r
+     * @param RequestLine[] $lines
+     */
     private function mapToCarePlan(array $r, array $lines): CarePlan
     {
         return new CarePlan(
@@ -443,6 +461,11 @@ class CarePlanDao
         );
     }
 
+    /**
+     * Ligne de ServiceRequest (colonnes de SERVICE_COLUMNS) vers l'entité.
+     *
+     * @param array<string, ?string> $r
+     */
     private function mapToServiceRequest(array $r): ServiceRequest
     {
         return new ServiceRequest(
@@ -458,6 +481,11 @@ class CarePlanDao
         );
     }
 
+    /**
+     * Ligne de MedicationRequest (colonnes de MEDICATION_COLUMNS) vers l'entité.
+     *
+     * @param array<string, ?string> $r
+     */
     private function mapToMedicationRequest(array $r): MedicationRequest
     {
         return new MedicationRequest(
@@ -487,11 +515,13 @@ class CarePlanDao
         );
     }
 
+    /** Valeur DATETIME lue en base vers une date, null si la colonne est NULL. */
     private static function date(?string $value): ?DateTimeImmutable
     {
         return $value !== null ? new DateTimeImmutable($value) : null;
     }
 
+    /** Date vers le format DATETIME de la base (« AAAA-MM-JJ HH:MM:SS »), null si la date l'est. */
     private static function toSql(?DateTimeInterface $date): ?string
     {
         return $date?->format(self::SQL_DATE_FORMAT);

@@ -27,8 +27,11 @@ export DB_HOST=127.0.0.1 DB_PORT=3306 DB_NAME=aura_test DB_USER=aura_ci DB_PASSW
 composer test
 ```
 
-Le CI GitHub (`.github/workflows/ci.yml`) charge `schema.sql` et `test.sql` dans une MariaDB jetable, lance les
-deux suites avec couverture (pcov) : le résumé est dans le journal, le rapport HTML dans l'artefact « couverture ».
+Le CI GitHub (`.github/workflows/ci.yml`, à chaque push sur `main` et à chaque pull request) valide
+`composer.json`, vérifie la syntaxe (`php -l` sur `src`, `tests`, `public`, `config`, `bin`) et le style, charge
+`schema.sql` et `test.sql` dans une MariaDB 11.8 jetable (base `aura_test`, utilisateur `aura` / `aura_ci`), puis
+lance les deux suites avec couverture (pcov) : le résumé est dans le journal, le rapport HTML dans l'artefact
+« couverture ».
 
 **Couverture en local** : `pecl install pcov` (une fois), puis `composer test:coverage`. La couverture ne compte
 que le code exécuté dans le processus PHPUnit : les tests HTTP passent par un serveur séparé et n'y entrent pas
@@ -36,9 +39,22 @@ que le code exécuté dans le processus PHPUnit : les tests HTTP passent par un 
 
 ## Base de test
 
-- `aura_test`, utilisateur `aura_ci` / `aura_ci` (mêmes valeurs que le CI GitHub : pas un secret). Jamais la base
-  de développement `aura`.
-- Création : voir le message d'aide de `ci-local.sh`, puis `schema.sql` et `test.sql`.
+- Base jetable `aura_test`, jamais la base de développement `aura`. Mots de passe sans valeur (pas des secrets) :
+  le CI GitHub utilise l'utilisateur `aura` / `aura_ci` ; en local, l'exemple ci-dessus utilise `aura_ci` / `aura_ci`.
+- Création en local (une fois, en administrateur MariaDB), puis chargement à chaque changement du schéma :
+
+  ```sql
+  CREATE DATABASE aura_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+  CREATE USER 'aura_ci'@'localhost' IDENTIFIED BY 'aura_ci';
+  GRANT ALL PRIVILEGES ON aura_test.* TO 'aura_ci'@'localhost';
+  ```
+
+  ```bash
+  mariadb -u aura_ci -paura_ci aura_test < database/schema.sql
+  mariadb -u aura_ci -paura_ci aura_test < database/test.sql
+  ```
+- Le script `.claude/scripts/ci-local.sh` (outil local de Raphaël, non versionné) enchaîne ces étapes et rejoue
+  le CI ; sans lui, les commandes ci-dessus suffisent.
 - `config/config.example.php` lit les variables `DB_*` ; `Database` ne l'utilise que si `DB_HOST` est défini.
 - Les tests s'appuient sur les dates fixes de `test.sql` (jour de référence : mercredi 14 octobre 2026). Ne jamais
   y appliquer `database/demo-today.sql`.
@@ -47,7 +63,7 @@ que le code exécuté dans le processus PHPUnit : les tests HTTP passent par un 
 
 - Un fichier par classe, même arborescence que `src/` (`tests/Service/XxxServiceTest.php`), classe `final`,
   namespace `Aura\Tests\…`. Noms de méthodes en anglais qui énoncent la règle
-  (`testCareCannotBeValidatedHoursAhead`) ; commentaires et messages d'assertion en français.
+  (`testCareOfAComingDayCannotBeValidatedAhead`) ; commentaires et messages d'assertion en français.
 - Service pur : date injectée (`new DateTimeImmutable('2026-10-14')`), variantes par `#[DataProvider]` statique.
 - Avec base : en `setUp`, sauter si `DB_HOST` ou `DB_NAME` manquent (`markTestSkipped`), `Database::get()`,
   `beginTransaction()`, `rollBack()` en `tearDown`. Données aux noms improbables (`Zz…`, `ZZ_…`), dates écrites
@@ -73,18 +89,19 @@ Chaque règle du cahier des charges et les tests qui la garantissent. Une règle
 | RG4 | Prescription rattachée à un séjour, un prescripteur et un type de soin | `CarePlanServiceFormTest`, `CarePlanDaoTest`, `CarePlanSafetyIntegrationTest` |
 | RG5 | Prescription d'urgence ou paramédicale « non validée » jusqu'à la validation d'un médecin authentifié | `CarePlanTest`, `CarePlanServiceSafetyTest`, `CarePlanSafetyIntegrationTest`, `AgendaServicePresentWeekTest` (marqueur dans l'agenda) |
 | RG6 | Agenda généré à partir des prescriptions actives (une occurrence par horaire) | `RequestLineTest`, `CarePlanDaoTest::testSavingPrescriptionCreatesItsScheduledCare`, `AgendaGenerationServiceTest`, `AgendaGenerationIntegrationTest` |
-| RG7 | Validation d'un soin : qui, quand, catégorie habilitée, une seule fois | `AppointmentServiceTest`, `AppointmentIntegrationTest`, `WorkflowsHttpTest::testCareIsValidatedOnce…` |
-| RG8 | Soin prévu non validé après son heure = en retard, en tête de l'agenda | `AgendaServicePresentDayTest`, `AgendaServicePresentServiceTest`, `AgendaServicePresentWeekTest`, `CareTeamServiceTest` (vacation) |
+| RG7 | Validation d'un soin : qui, quand, catégorie habilitée, une seule fois, au plus tard jusqu'à la fin de la rotation en cours | `AppointmentServiceTest`, `AppointmentIntegrationTest`, `AgendaServiceShiftEndTest`, `WorkflowsHttpTest::testCareIsValidatedOnce…` |
+| RG8 | Soin prévu non validé après son heure = en retard, en tête de l'agenda | `AgendaServicePresentDayTest`, `AgendaServicePresentServiceTest`, `AgendaServicePresentBoardTest` (agenda du service), `AgendaServicePresentWeekTest`, `CareTeamServiceTest` (vacation) |
 | RG9 | Pas de recalcul rétroactif ; génération idempotente ; jour passé consultable | `AgendaGenerationServiceTest`, `AgendaGenerationIntegrationTest`, `PagesHttpTest` (jour passé) |
-| RG10 | Traçabilité : auteur et horodatage, rien n'est effacé (suppression logique, annulation tracée) | `AuditEventDaoTest`, `RecordEditServiceTest`, `RecordSectionServiceTest`, `PatientDeletionServiceTest`, `PatientDeletionIntegrationTest`, `CarePlanDaoTest::testStoppingALine…`, `WorkflowsHttpTest` |
+| RG10 | Traçabilité : auteur et horodatage, rien n'est effacé (suppression logique, annulation tracée) | `AuditEventDaoTest`, `RecordEditServiceTest`, `RecordSectionServiceTest` (dont le décès qui termine le séjour), `PatientDeletionServiceTest`, `PatientDeletionIntegrationTest`, `CarePlanDaoTest::testStoppingALine…`, `WorkflowsHttpTest` |
 
 Contraintes de la base (unicité, CHECK, NOT NULL, clés étrangères) : `tests/Dao/SchemaConstraintsTest.php`, cas
-repris de `database/test_contraintes.sql` (Didac Espin, branche `tests/AURA-16.2`).
+repris de `database/test_contraintes.sql` (Didac Espin, branche `tests/AURA-16.2` ; ce fichier n'est pas dans
+cette branche).
 
 ## Ce qui n'est pas testé automatiquement
 
 - **JavaScript** (`public/js/*.js`) : aucun test navigateur. Le serveur revalide tout ce que le JavaScript envoie,
   et la suite `http` vérifie ces refus côté serveur ; le comportement de l'interface se vérifie par captures
-  (`.claude/scripts/screenshot.sh`) et à la main. Un test navigateur (Playwright) serait un outil de plus à
+  (Chrome headless ; `.claude/scripts/screenshot.sh` est un outil local non versionné) et à la main. Un test navigateur (Playwright) serait un outil de plus à
   installer et maintenir : à décider par l'équipe.
 - **Contraste des couleurs** et lecture d'écran : vérifiés à la main.

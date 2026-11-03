@@ -17,7 +17,7 @@ use InvalidArgumentException;
 
 /**
  * AURA-12.3 : suppression d'un patient, après confirmation. Suppression logique (Patient.removedAt,
- * règle n° 8) : le patient disparaît de la liste et des recherches, sa ligne et ses séjours restent en
+ * README, « Conventions ») : le patient disparaît de la liste et des recherches, sa ligne et ses séjours restent en
  * base. Refusée (RG10, traçabilité) si le patient a un séjour en cours ou si au moins un soin a été
  * réalisé pendant l'un de ses séjours. La règle (refusalReason()) est pure et testée sans base.
  */
@@ -120,7 +120,11 @@ final class PatientDeletionService
         });
     }
 
-    /** @param EpisodeOfCare[] $episodes séjours du patient */
+    /**
+     * Motif de refus pour ce patient (refusalReason()), le nombre de soins réalisés lu en base.
+     *
+     * @param EpisodeOfCare[] $episodes séjours du patient
+     */
     private function refusalFor(int $idPatient, array $episodes): ?string
     {
         $hasOngoingEpisode = array_filter($episodes, static fn (EpisodeOfCare $e): bool => $e->isOngoing()) !== [];

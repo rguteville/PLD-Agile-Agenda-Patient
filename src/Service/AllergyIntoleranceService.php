@@ -41,9 +41,10 @@ final class AllergyIntoleranceService
      * Enregistre une allergie pour le patient du séjour et renvoie son id.
      *
      * @param mixed $idSubstance valeur brute du formulaire : doit exister dans le référentiel (critère 1)
-     * @param mixed $criticality valeur brute du formulaire : vide, ou l'une des Allergie::CRITICALITIES
+     * @param mixed $criticality valeur brute du formulaire : vide, ou l'une des AllergyIntolerance::CRITICALITIES
      * @throws InvalidArgumentException séjour inconnu, allergène hors référentiel, criticité
      *                                  hors liste, ou allergie déjà enregistrée (critère 3)
+     * @throws PDOException autre erreur SQL que doublon ou clé étrangère
      */
     public function add(int $idEpisodeOfCare, mixed $idSubstance, mixed $criticality): int
     {
@@ -97,7 +98,8 @@ final class AllergyIntoleranceService
     }
 
     /**
-     * Retire une allergie du dossier du patient du séjour.
+     * Retire une allergie du dossier du patient du séjour. Suppression PHYSIQUE (DELETE), exception
+     * connue à la règle du soft delete : voir AllergyIntoleranceDao::delete().
      *
      * @throws InvalidArgumentException séjour inconnu, ou allergie absente du dossier de ce patient
      */
@@ -110,6 +112,11 @@ final class AllergyIntoleranceService
         }
     }
 
+    /**
+     * Séjour affiché par le formulaire, dont on tire le patient.
+     *
+     * @throws InvalidArgumentException si aucun séjour ne porte cet identifiant
+     */
     private function findEpisodeOfCare(int $idEpisodeOfCare): EpisodeOfCare
     {
         $episodeOfCare = $this->episodeOfCareDao->findById($idEpisodeOfCare);

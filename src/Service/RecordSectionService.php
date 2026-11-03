@@ -19,7 +19,9 @@ use DateTimeImmutable;
 use InvalidArgumentException;
 
 /**
- * Modification d'une partie entière du dossier patient et fin de séjour (retours du 2026-11-02).
+ * Modification d'une partie entière du dossier patient et fin de séjour (retours du 2026-11-02, routes
+ * POST /sejour/partie/modifier et /sejour/cloturer), déclaration du décès (retours du 2026-11-04, POST
+ * /sejour/deces) : le décès termine le séjour en cours et annule ses soins prévus après l'heure du décès.
  *
  * Chaque partie du dossier (le résumé « Dossier » avec l'identité, le séjour et les coordonnées, puis
  * Admission, Antécédents, Histoire de la maladie, Scores, Mesures, Administratif) se modifie d'un bloc,
@@ -30,6 +32,9 @@ use InvalidArgumentException;
  *  - concurrence optimiste : la valeur d'origine envoyée doit être celle en base ;
  *  - tout ou rien : la partie est écrite dans une transaction, annulée à la première erreur ;
  *  - traçabilité : chaque champ modifié écrit une ligne AuditEvent au nom du médecin qui valide.
+ *
+ * Les champs réservés au médecin (RecordFields, 'validatedByDoctor' : groupe sanguin, décès) ne se
+ * modifient que par ce service : RecordEditService les refuse sans médecin authentifié.
  *
  * Médecin référent du séjour (retours des médecins du 2026-11-03) : modifiable dans la partie « Dossier »
  * et dans « Admission », comme le service ; contrôlé contre la liste des médecins (RecordEditService).
@@ -228,11 +233,14 @@ class RecordSectionService
     }
 
     /**
-     * Enregistre une partie : valeurs nouvelles et d'origine indexées par clé de partFields().
+     * Enregistre une partie : valeurs nouvelles et d'origine indexées par clé de partFields(). Seuls les
+     * champs changés sont traités ; la moindre erreur annule toute la partie. Si le décès passe à « Oui »
+     * et que le séjour est en cours, le séjour se termine dans la même transaction (endStayAfterDeath()).
      *
      * @param array<string, mixed> $values
-     * @param array<string, mixed> $oldValues
-     * @return array{status: string, errors: array<string, string>, message: ?string}
+     * @param array<string, mixed> $oldValues valeurs affichées au départ (concurrence optimiste)
+     * @param DateTimeImmutable|null $deathTime heure du décès pour la fin de séjour (null : maintenant)
+     * @return array{status: string, errors: array<string, string>, message: ?string} status = STATUS_*
      */
     public function updatePart(
         int $idEpisodeOfCare,
@@ -384,7 +392,10 @@ class RecordSectionService
      * Déclaration du décès (retours du 2026-11-04), validée par un médecin (authentification factice) et
      * tracée : le patient est déclaré décédé et, si le séjour est en cours, il se termine à l'heure du décès
      * (JJ/MM/AAAA, HH:MM ; maintenant si vides), ses soins prévus après cette heure sont annulés. Tout ou rien.
+     * Heure du décès dans le futur ou avant l'admission : refusée avant toute écriture. Passe par
+     * updatePart() sur le champ deceased de la partie « admin ».
      *
+     * @param string $oldDeceased valeur du décès affichée au départ (concurrence optimiste)
      * @return array{status: string, errors: array<string, string>, message: ?string}
      */
     public function declareDeath(
@@ -431,6 +442,8 @@ class RecordSectionService
     /**
      * Fin du séjour consécutive au décès, dans la transaction de la déclaration : sortie à l'heure du décès
      * (maintenant à défaut), tracée, puis annulation des soins encore prévus après cette heure.
+     *
+     * @throws PartRejected fin de séjour refusée par EpisodeOfCareService (toute la transaction est annulée)
      */
     private function endStayAfterDeath(int $idEpisodeOfCare, ?DateTimeImmutable $deathTime, string $author): void
     {
@@ -632,7 +645,11 @@ class RecordSectionService
         }
     }
 
-    /** @param array{new: ?string, old: ?string} $change */
+    /**
+     * Trace d'un champ modifié par une partie (AuditEvent, au nom du médecin qui valide).
+     *
+     * @param array{new: ?string, old: ?string} $change
+     */
     private function trace(string $entity, int $id, string $field, array $change, string $author): void
     {
         $this->auditEventDao->insert(new AuditEvent(
@@ -702,11 +719,13 @@ class RecordSectionService
         return $value === '' ? null : $value;
     }
 
+    /** Nombre au format des formulaires : au plus deux décimales, sans zéros inutiles (68.50 → « 68.5 »). */
     private static function number(float $value): string
     {
         return rtrim(rtrim(number_format($value, 2, '.', ''), '0'), '.');
     }
 
+    /** Texte sans espaces de bord ; vide ou null = null. */
     private static function blankToNull(?string $value): ?string
     {
         $value = $value === null ? null : trim($value);

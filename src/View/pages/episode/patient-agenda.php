@@ -4,20 +4,25 @@ use Aura\Core\View;
 
 /**
  * Agenda du séjour (AURA-24, AURA-25) : bandeau identité + allergies en tête (RG2), puis
- * - vue Jour : retards épinglés en tête, puis les soins par rotation, avec filtres par statut et
- *   actions sur chaque soin (valider, non effectué, note : AURA-26, AURA-28) ;
+ * - vue Jour : retards épinglés en tête, puis les soins par rotation (la nuit : « de 22 h à 0 h » et
+ *   « de 0 h à 6 h »), avec filtres par statut regroupés derrière le bouton « Filtres », et sur chaque
+ *   soin « Valider » (Réalisé ou Non effectué dans le dialogue) et « Note » (AURA-26, AURA-28) ;
+ *   un soin se valide s'il est en retard ou prévu avant la fin de la rotation en cours ;
  * - vue Semaine : une ligne par soin prescrit, une colonne par jour (lundi → dimanche).
  * Toute la logique (filtre du jour, tri, retard, rotations, semaine) est dans AgendaService,
  * testée sans base.
+ * Rendue par EpisodeOfCareController::getAgenda() (GET /agenda-patient?id=…&date=AAAA-MM-JJ, &vue=semaine
+ * pour la semaine). Scripts : agenda.js (impression, filtres, dialogue), auto-submit.js (choix du jour).
  *
  * @var array<string, mixed> $banner vue-modèle de PatientRecordService::presentBanner()
  * @var int $idEpisodeOfCare
- * @var string $view 'day' ou 'week'
- * @var array<string, mixed> $agenda vue-modèle de AgendaService::presentDay()
- * @var array<string, mixed>|null $week vue-modèle de AgendaService::presentWeek() (vue Semaine)
- * @var bool $validationEnabled boutons d'action + dialogue (séjour en cours)
- * @var array<string, string> $validators soignants proposés par le dialogue
- * @var string|null $csrfToken jeton de POST /agenda-patient/soin
+ * @var string $view 'day' ou 'week', 'day' par défaut
+ * @var array<string, mixed> $agenda vue-modèle de AgendaService::presentDay() (date, dateLabel, previous,
+ *      next, isToday, counts, late, shifts)
+ * @var array<string, mixed>|null $week vue-modèle de AgendaService::presentWeek() (vue Semaine), null par défaut
+ * @var bool $validationEnabled boutons d'action + dialogue (séjour en cours), false par défaut
+ * @var array<string, string> $validators soignants proposés par le dialogue, [] par défaut
+ * @var string|null $csrfToken jeton de POST /agenda-patient/soin, null sans validation
  */
 $view = $view ?? 'day';
 $week = $week ?? null;

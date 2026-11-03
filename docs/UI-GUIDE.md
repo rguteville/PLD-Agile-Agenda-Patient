@@ -69,16 +69,19 @@ RG2 antérieure). Produire `unknown` demande une donnée d'évaluation des aller
 | --- | --- | --- |
 | `breadcrumb` | Fil d'Ariane sur les écrans de séjour (Patients › Dossier › Agenda / Prescriptions) | Dernier élément = page courante (`aria-current`), sans lien. |
 | `part_form` + `.part-edit` | Crayon « Modifier » à côté du titre d'une partie du dossier : la partie entière devient un formulaire | Valeurs d'origine en `data-old` (concurrence) ; « Enregistrer » ouvre la fenêtre de validation. |
-| `#auth-dialog` | Fenêtre de validation par un médecin (modification d'une partie, fin de séjour) | **Factice** : le mot de passe n'est pas vérifié, ce que la fenêtre affiche ; `<dialog>` modal, Échap ferme. |
+| `#auth-dialog` | Fenêtre de validation par un médecin (modification d'une partie, fin de séjour, décès) | **Factice** : le mot de passe n'est pas vérifié, ce que la fenêtre affiche ; `<dialog>` modal, Échap ferme. |
 | `episode_menu` | Menu figé des écrans de séjour : bouton principal en tête (« Agenda du jour » dans le dossier, « Dossier du séjour » dans l'agenda, au même endroit) | Même composant pour les deux écrans. |
 | `.record-menu` | Menu figé à gauche du dossier patient : « Agenda du jour » en tête, Dossier, Allergies, Dossier complet (sous-catégories), Prescriptions en cours | Collant sous le bandeau dès 1024 px, en tête de page en dessous ; partie visible signalée par `aria-current="location"` (`record-menu.js`), sous-catégorie = ouverture de sa section. |
 | `form` + `field` | Formulaires : une colonne, libellé au-dessus, aide (`help`) sous le libellé, erreur sous le champ | Types : text, date, number, email, tel, radio, select (`empty`), textarea, checkbox-group, hidden, heading ; `listbox` pour une combobox. |
 | `form` → `sections` | Sections repliables `<details>` des formulaires longs, compteur « n sur m renseignés » | Repliées par défaut, ouvertes si un champ est en erreur (`form-sections.js`). |
 | `status_badge` | Icône + texte + couleur d'un statut | Clés dans `docs/ui.md`. `late` est désormais rouge. |
 | `empty_state` | Écran ou section sans donnée | Titre, explication, action principale à côté quand elle existe. |
-| `.patient-card` | Carte en lecture seule du patient existant choisi à l'admission (identité, âge, IPP, dernier séjour, allergies par criticité) | Affichée dès la sélection, sans confirmation intermédiaire ; masque les champs d'identité ; « Corriger l'identité » les rouvre, « Ce n'est pas ce patient » vide le formulaire. |
+| `.patient-card` | Carte en lecture seule du patient existant choisi à l'admission (identité, âge, IPP, groupe sanguin, dernier séjour, allergies par criticité, alerte si décédé) | Affichée dès la sélection, sans confirmation intermédiaire ; masque les champs d'identité ; plus de « Corriger l'identité » depuis le 2026-11-03 (la correction se fait dans le dossier, tracée) ; « Ce n'est pas ce patient » vide le formulaire. |
 | `allergy_picker` (type de champ `allergy-picker`) | Allergies à l'admission : liste filtrable du référentiel, criticité par allergène coché | Envoie `allergies[]` et `allergyCriticality[id]` ; filtre sans accents ni casse ; un allergène coché reste visible quel que soit le filtre. |
 | `.suggestions` | Liste de suggestions d'une combobox | `role="listbox"`, options `role="option"`, avertissement d'homonymie en tête. |
+| `validation_dialog` + `care_buttons` | Action sur un soin depuis les agendas et « Mon planning » : « Valider » (Réalisé ou Non effectué) et « Note » | « Valider » seulement pour un soin en retard ou prévu avant la fin de la rotation en cours ; soignant + mot de passe non vérifié (factice) ; motif obligatoire pour « Non effectué ». |
+| `care_line` | Ligne de soin de l'agenda du service (liste de travail et panneau du lit) | Heure, patient dans la liste de travail (lit, nom, décès), soin avec le « + » de la prescription à droite du titre, statut, actions. Pas d'allergies sur la ligne : elles sont dans le panneau du patient choisi. |
+| `deceased_tag` | Décès d'un patient : icône cœur barré + libellé accordé (« Décédé », « Décédée », « Décédé(e) ») | `iconOnly` dans la liste des patients : icône seule à côté du nom, libellé en infobulle et en texte alternatif. |
 | `.inline-edit` | Valeur éditable du dossier (bouton) | Crayon au survol ou au focus ; clic ou Entrée → le champ remplace la valeur sur place (jamais affichée deux fois) avec un seul bouton « Confirmer » ; Entrée confirme, Échap annule ; « Enregistré » en `aria-live`. |
 
 ## Formulaires
@@ -143,3 +146,6 @@ bash .claude/scripts/screenshot.sh "/sejour?id=1&theme=light" 1024   # tablette 
 bash .claude/scripts/screenshot.sh "/sejour?id=1" 1280               # thème du système (sombre sur un Mac en sombre)
 composer test                                                       # tests de rendu sans base (tests/View)
 ```
+
+`screenshot.sh` est un outil local, non versionné (capture Chrome headless) : sans lui, capture à la main aux
+mêmes largeurs.

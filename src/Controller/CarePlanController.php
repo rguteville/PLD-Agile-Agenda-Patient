@@ -20,9 +20,10 @@ use InvalidArgumentException;
  * écriture, réponse JSON pour form.js (AJAX) ; après un enregistrement, retour sur l'écran B3
  * avec un message (POST → redirect → GET).
  *
- * Les deux POST de l'écran B3 (enregistrer, valider) exigent le jeton CSRF de la session (champ
- * « csrf », 403 sinon) : sans lui, une page tierce pourrait faire prescrire ou valider à l'insu du
- * soignant. La validation demande en plus l'authentification (FACTICE) du médecin.
+ * Les trois POST (enregistrer, valider, arrêter une ligne) exigent le jeton CSRF de la session (champ
+ * « csrf », 403 sinon) : sans lui, une page tierce pourrait faire prescrire, valider ou arrêter à l'insu
+ * du soignant. Ils demandent aussi l'authentification (FACTICE) du médecin : prescripteur à
+ * l'enregistrement, validateur, médecin qui arrête la ligne.
  */
 final class CarePlanController
 {
@@ -85,7 +86,10 @@ final class CarePlanController
         $this->showForm($form, '');
     }
 
-    /** POST /care-plans/create?idEpisodeOfCare=… : enregistre l'ordonnance et toutes ses lignes. */
+    /**
+     * POST /care-plans/create?idEpisodeOfCare=… : enregistre l'ordonnance et toutes ses lignes, et planifie
+     * leurs soins (AURA-24.4). Refus : 422 avec les erreurs par champ, rien n'est écrit.
+     */
     public function create(): void
     {
         $idEpisodeOfCare = $this->requestedEpisodeOfCare();
@@ -154,7 +158,9 @@ final class CarePlanController
 
     /**
      * POST /care-plans/stop?idEpisodeOfCare=… : un médecin arrête une ligne depuis le dossier du
-     * séjour (AURA-22), puis retour au dossier. Champs : idLine, isMedication (1 ou 0), idStoppedBy.
+     * séjour (AURA-22), puis retour au dossier. Champs : idLine, isMedication (1 ou 0), idStoppedBy,
+     * password (authentification FACTICE), csrf. Les soins encore prévus après l'arrêt sont annulés.
+     * Refus : 422 (JSON {ok:false, errors: {form: message}} pour form.js, sinon page d'erreur).
      */
     public function stop(): void
     {
@@ -269,7 +275,7 @@ final class CarePlanController
     private function respondWithErrors(int $idEpisodeOfCare, array $errors): void
     {
         if ($this->expectsJson()) {
-            // Clé « erreurs » : c'est celle que lit public/js/form.js (partagé avec l'admission).
+            // Clé « errors » : c'est celle que lit public/js/form.js (partagé avec l'admission).
             $this->respondJson(422, ['ok' => false, 'errors' => $errors]);
             return;
         }
@@ -343,6 +349,7 @@ final class CarePlanController
         return is_string($value) && preg_match('/^[1-9][0-9]{0,17}$/', $value) === 1 ? (int) $value : null;
     }
 
+    /** Valeur texte d'un champ, sans espaces autour ; chaîne vide si absente ou d'un autre type. */
     private static function text(mixed $value): string
     {
         return is_string($value) ? trim($value) : '';

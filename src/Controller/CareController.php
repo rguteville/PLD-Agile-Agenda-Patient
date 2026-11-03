@@ -36,6 +36,12 @@ final class CareController
     {
     }
 
+    /**
+     * Traite la requête : jeton CSRF, identifiants du séjour et du soin, puis AppointmentService::apply()
+     * (règles : soignant habilité, authentification factice, rotation en cours, une seule validation).
+     * Répond en JSON si l'en-tête Accept le demande, sinon redirige (303) vers `back` quand c'est une
+     * page d'agenda connue (agenda du patient, du service, « Mon planning »), à défaut vers l'agenda du séjour.
+     */
     public function act(): void
     {
         $body = $this->readBody();
@@ -80,7 +86,11 @@ final class CareController
         $this->respond($status, $payload);
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * Corps de la requête : JSON si l'en-tête Content-Type l'annonce, sinon $_POST.
+     *
+     * @return array<string, mixed>
+     */
     private function readBody(): array
     {
         $contentType = $_SERVER['CONTENT_TYPE'] ?? $_SERVER['HTTP_CONTENT_TYPE'] ?? '';
@@ -93,6 +103,7 @@ final class CareController
         return $_POST;
     }
 
+    /** Vrai si le client attend du JSON (agenda.js envoie `Accept: application/json`). */
     private function expectsJson(): bool
     {
         return str_contains($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json');

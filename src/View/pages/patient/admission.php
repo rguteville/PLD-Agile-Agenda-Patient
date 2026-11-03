@@ -9,11 +9,17 @@ use Aura\Service\AdmissionService;
  * Formulaire d'admission (AURA-10, AURA-15) étendu aux champs du SI réel (PR « admission-champs-complets »).
  * L'essentiel reste visible en haut (identité, IPP, motif, service, allergies) ; le reste est réparti en
  * sections repliées par défaut (RecordFields::SECTIONS), toutes facultatives.
+ * Patient connu sélectionné : son groupe sanguin déjà renseigné n'est pas modifiable ici (donnée vitale,
+ * validée par un médecin dans le dossier) ; inconnu, il peut être complété.
+ * Rendue par PatientController::showAdmissionForm() (GET /) et, sans JavaScript, réaffichée en 422 par
+ * PatientController::create() (POST /patients/create). Scripts : form.js, admission-search.js,
+ * form-sections.js, allergy-picker.js, date-input.js.
  *
- * @var array<string, mixed> $values valeurs saisies après un refus serveur (vide à l'affichage initial)
- * @var array<string, string> $errors erreurs indexées par nom de champ
- * @var string $formError message hors champ (admission refusée)
- * @var array<string, array<string, string>> $referenceDataSets 'services', 'doctors' et 'substances' (vides sans base)
+ * @var array<string, mixed> $values valeurs saisies après un refus serveur, [] par défaut
+ * @var array<string, string> $errors erreurs indexées par nom de champ, [] par défaut
+ * @var string $formError message hors champ (admission refusée), '' par défaut
+ * @var array<string, array<string, string>> $referenceDataSets 'services', 'doctors' et 'substances' (vides sans
+ *      base), [] par défaut
  */
 $values = $values ?? [];
 $errors = $errors ?? [];

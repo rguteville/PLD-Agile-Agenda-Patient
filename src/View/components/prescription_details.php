@@ -5,9 +5,12 @@ use Aura\Core\View;
 /**
  * Carte de la prescription d'un soin (retours du 2026-11-03) : un « + » sur le soin, qui déplie tous
  * les éléments de la prescription (fréquence, période, dose, voie, consigne, prescripteur, validation,
- * note, arrêt). <details> natif : clavier et lecteurs d'écran sans JavaScript.
+ * note, arrêt). <details> natif : clavier et lecteurs d'écran sans JavaScript. Rien n'est rendu si la
+ * prescription est vide. Le « + » se place à droite du titre du soin (2026-11-04) : inclus dans le
+ * <span class="care-title"> de components/agenda_table.php, components/care_line.php et
+ * pages/team/planning.php.
  *
- * @var array<string, mixed> $item ligne de AgendaService (label, prescription)
+ * @var array<string, mixed> $item ligne de AgendaService (label, prescription : liste de [label, value])
  */
 $rows = $item['prescription'] ?? [];
 if ($rows === []) {

@@ -13,17 +13,21 @@ use LogicException;
 /**
  * Équipes et vacations (AURA-30) : au début de chaque vacation, le cadre compose les équipes et leur
  * attribue les patients du service. Deux vacations par jour (backlog : « 2 rotations par jour ») :
- * JOUR 8 h – 20 h et NUIT 20 h – 8 h le lendemain, bornes = HYPOTHÈSE à confirmer avec le service.
+ * JOUR de 8 h à 20 h et NUIT de 20 h à 8 h le lendemain, bornes = HYPOTHÈSE à confirmer avec le service.
  * La vacation de nuit porte la date de son début : à 3 h le 15, on est dans la nuit du 14.
+ * À ne pas confondre avec les rotations de l'agenda (AgendaService::SHIFTS : 6 h, 14 h, 22 h), autre
+ * hypothèse, qui bornent la validation anticipée d'un soin.
  */
 final class CareTeamService
 {
+    /** Vacations : code (CareTeam.shift) => libellé, heures affichées et heure de début. */
     public const SHIFTS = [
         CareTeam::SHIFT_DAY => ['label' => 'Jour', 'hours' => '8 h à 20 h', 'from' => 8],
         CareTeam::SHIFT_NIGHT => ['label' => 'Nuit', 'hours' => '20 h à 8 h', 'from' => 20],
     ];
     private const SHIFT_HOURS = 12;
 
+    /** Longueur maximale du nom d'une équipe (colonne CareTeam.name VARCHAR(30)). */
     public const NAME_MAX = 30;
 
     public const STATUS_SAVED = 'saved';
@@ -133,12 +137,13 @@ final class CareTeamService
     }
 
     /**
-     * Compose une équipe après contrôle.
+     * Compose une équipe après contrôle, relu et écrit dans une même transaction.
      *
      * @param array<string, mixed> $input voir validate()
      * @param array<string, string> $practitioners
      * @param array<int, string> $episodes
      * @return array{status: string, errors?: array<string, string>, id?: int}
+     * @throws LogicException si le service a été construit sans CareTeamDao ou Transaction
      */
     public function create(
         string $idHealthcareService,
@@ -184,7 +189,11 @@ final class CareTeamService
         });
     }
 
-    /** Retire une équipe (suppression logique) ; false si elle n'existe pas ou est déjà retirée. */
+    /**
+     * Retire une équipe (suppression logique) ; false si elle n'existe pas ou est déjà retirée.
+     *
+     * @throws LogicException si le service a été construit sans CareTeamDao
+     */
     public function remove(int $idCareTeam, DateTimeImmutable $now): bool
     {
         if ($this->careTeamDao === null) {

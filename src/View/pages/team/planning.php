@@ -7,16 +7,21 @@ use Aura\Service\CareTeamService;
 /**
  * « Mon planning » (AURA-31) : les soins des patients attribués au soignant pendant la vacation, par
  * ordre chronologique, retards en tête d'écran, patients de l'équipe (allergies RG2) et actions sur
- * chaque soin. Le soignant se choisit dans la liste tant que l'identification n'existe pas (AURA-50).
+ * chaque soin (« Valider » et « Note », components/care_buttons). Le soignant se choisit dans la liste
+ * tant que l'identification n'existe pas (AURA-50).
+ * Rendue par TeamController::planning() (GET /mon-planning?idPractitioner=…&date=…&vacation=…).
+ * Scripts : agenda.js (filtres, dialogue), auto-submit.js (choix du soignant et de la vacation).
  *
  * @var array<string, string> $practitioners soignants : id => « Prénom Nom (rôle) »
  * @var string|null $idPractitioner soignant affiché
- * @var array<string, mixed> $shiftView vacation affichée (date, shift, label, previous, next)
- * @var list<CareTeam> $teams équipes du soignant pour la vacation
- * @var array<string, mixed>|null $planning vue-modèle de AgendaService::presentShift()
- * @var bool $validationEnabled
- * @var array<string, string> $validators
- * @var string|null $csrfToken
+ * @var array<string, mixed> $shiftView vacation affichée (date, shift, label, previous et next :
+ *      [date, shift])
+ * @var list<CareTeam> $teams équipes du soignant pour la vacation, [] par défaut
+ * @var array<string, mixed>|null $planning vue-modèle de AgendaService::presentShift() (items, patients,
+ *      counts), null par défaut (aucun soignant choisi)
+ * @var bool $validationEnabled boutons d'action + dialogue, false par défaut
+ * @var array<string, string> $validators soignants proposés par le dialogue
+ * @var string|null $csrfToken jeton de POST /agenda-patient/soin, null sans validation
  */
 $teams = $teams ?? [];
 $planning = $planning ?? null;

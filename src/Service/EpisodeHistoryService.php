@@ -117,7 +117,11 @@ final class EpisodeHistoryService
         return $number !== '' ? $number : (string) $episode->getIdEpisodeOfCare();
     }
 
-    /** Nom du service si le référentiel le connaît, sinon l'identifiant brut (on ne cache rien). */
+    /**
+     * Nom du service si le référentiel le connaît, sinon l'identifiant brut (on ne cache rien).
+     *
+     * @param array<string, string> $services
+     */
     private static function service(EpisodeOfCare $episode, array $services): ?string
     {
         $id = self::textOrNull($episode->getIdService());
@@ -125,6 +129,7 @@ final class EpisodeHistoryService
         return $id === null ? null : ($services[$id] ?? $id);
     }
 
+    /** Texte sans espaces de bord ; vide ou null = null. */
     private static function textOrNull(?string $value): ?string
     {
         $value = $value === null ? null : trim($value);

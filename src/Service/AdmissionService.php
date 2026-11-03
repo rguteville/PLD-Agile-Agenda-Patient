@@ -23,7 +23,7 @@ use PDOException;
  *
  * AURA-10.2 : contrôle serveur des champs. La validation est pure : aucun accès
  * à la base, aucune dépendance PDO, aucune sortie HTTP.
- * AURA-10.4 : admettre() enregistre le patient (ou le retrouve par son IPP) et
+ * AURA-10.4 : admit() enregistre le patient (ou le retrouve par son IPP) et
  * ouvre son séjour (numéro généré, AURA-10.3) dans une seule transaction.
  * PR « admission-champs-complets » : les champs facultatifs du catalogue RecordFields
  * (antécédents, histoire de la maladie, scores, administratif), le service hospitalier et
@@ -31,10 +31,12 @@ use PDOException;
  * transaction. Leur règle de validation vit dans FieldValidationService.
  * Retours des médecins du 2026-11-03 : médecin référent du séjour (responsable de soin), facultatif
  * (« à désigner » pour une admission de garde), choisi dans la liste des médecins.
+ * Retours du 2026-11-04 : le groupe sanguin déjà connu d'un patient existant ne se modifie pas à
+ * l'admission (LOCKED_FOR_KNOWN_PATIENT) ; il se corrige dans le dossier, validé par un médecin.
  */
 class AdmissionService
 {
-    /** Valeurs de `sexe` acceptées (colonne Patient.sexe VARCHAR(1), cf. database/test.sql). */
+    /** Valeurs de `sex` acceptées (colonne Patient.sex VARCHAR(1), cf. database/test.sql). */
     public const ALLOWED_SEXES = ['M', 'F'];
 
     /** Format attendu pour la date de naissance (AAAA-MM-JJ). */
@@ -43,10 +45,10 @@ class AdmissionService
     /** IPP : 6 à 9 chiffres (colonne Patient.ipp INT avec CHECK entre 100000 et 999999999). */
     public const IPP_PATTERN = '/^\d{6,9}$/';
 
-    /** Plus grande taille (cm) ou plus grand poids (kg) enregistrable : colonnes Sejour DECIMAL(5,2). */
+    /** Plus grande taille (cm) ou plus grand poids (kg) enregistrable : colonnes EpisodeOfCare DECIMAL(5,2). */
     public const MEASURE_MAX = 999.99;
 
-    /** Longueur maximale des précautions, en caractères (colonne Sejour.precautions VARCHAR(500)). */
+    /** Longueur maximale des précautions, en caractères (colonne EpisodeOfCare.precautions VARCHAR(500)). */
     public const PRECAUTIONS_MAX_LENGTH = 500;
 
     /** AURA-12.3 : IPP saisi qui appartient à un patient supprimé (il reste réservé). */
@@ -56,11 +58,11 @@ class AdmissionService
     private FieldValidationService $fields;
 
     /**
-     * @param DateTimeImmutable|null $aujourdhui date de référence (injectable pour les tests)
-     * @param PatientDao|null $patientDao accès aux patients, requis par admettre() seulement
-     * @param EpisodeOfCareService|null $sejourService ouverture du séjour, requis par admettre() seulement
-     * @param Transaction|null $transaction patient + séjour validés ensemble, requis par admettre() seulement
-     * @param AllergyIntoleranceDao|null $allergieDao enregistrement des allergies choisies à l'admission (facultatif)
+     * @param DateTimeImmutable|null $today date de référence (injectable pour les tests)
+     * @param PatientDao|null $patientDao accès aux patients, requis par admit() seulement
+     * @param EpisodeOfCareService|null $episodeOfCareService ouverture du séjour, requis par admit() seulement
+     * @param Transaction|null $transaction patient + séjour validés ensemble, requis par admit() seulement
+     * @param AllergyIntoleranceDao|null $allergyIntoleranceDao allergies choisies à l'admission (facultatif)
      * @param AuditEventDao|null $auditEventDao trace du rattachement d'un séjour à un patient existant
      * @param RecordEditService|null $recordEditService mise à jour tracée, champ par champ, d'un patient existant
      */
@@ -95,13 +97,19 @@ class AdmissionService
      *  - retrouvé par son IPP sans sélection : son identité n'est pas modifiée, les champs
      *    complémentaires saisis non vides complètent son dossier (les vides ne l'effacent pas).
      * Dans les deux cas, le rattachement du séjour au patient est tracé (mode de recherche) et
-     * les allergènes choisis qu'il n'a pas encore sont ajoutés, les autres ignorés.
+     * les allergènes choisis qu'il n'a pas encore sont ajoutés. Pour un allergène déjà connu, une
+     * criticité choisie différente de celle enregistrée la remplace (tracé) ; vide, elle ne change rien.
+     * Groupe sanguin déjà connu : il ne change pas ici (voir completePatient()).
      *
-     * @param array<string, mixed> $donnees clés du domaine (voir valider())
-     * @param array<string, array<string, string>> $referenceDataSets voir valider()
-     * @return Sejour le séjour ouvert, avec son identifiant et son numéro
+     * Interblocage ou doublon de clé entre deux admissions simultanées : la transaction est rejouée,
+     * au plus ADMISSION_ATTEMPTS fois.
+     *
+     * @param array<string, mixed> $data clés du domaine (voir validate())
+     * @param array<string, array<string, string>> $referenceDataSets voir validate()
+     * @return EpisodeOfCare le séjour ouvert, avec son identifiant et son numéro
      * @throws InvalidArgumentException données invalides ou admission refusée (message affichable)
      * @throws LogicException si le service a été construit sans accès à la base
+     * @throws PDOException erreur SQL non rejouable, ou toujours en échec après ADMISSION_ATTEMPTS essais
      */
     public function admit(array $data, array $referenceDataSets = []): EpisodeOfCare
     {
@@ -176,12 +184,14 @@ class AdmissionService
     private const ADMISSION_ATTEMPTS = 3;
 
     /**
-     * Écritures de l'admission dans une transaction (voir admettre()).
+     * Écritures de l'admission dans une transaction (voir admit()) : patient choisi, retrouvé par IPP
+     * ou créé (IPP attribué si absent), séjour ouvert, rattachement tracé, allergies ajoutées.
      *
      * @param array<string, ?string> $patientDetails
      * @param array<string, ?string> $episodeDetails
      * @param list<string> $allergies
-     * @param array<string, string> $criticites
+     * @param array<string, string> $criticalities
+     * @throws InvalidArgumentException patient introuvable, IPP réservé ou déjà pris, séjour refusé
      */
     private function runAdmission(
         Patient $patient,
@@ -348,7 +358,7 @@ class AdmissionService
 
     /**
      * Patient sélectionné dans la recherche : identité modifiée enregistrée et tracée champ par
-     * champ, puis champs complémentaires (y compris vidés) par completerPatient().
+     * champ, puis champs complémentaires (y compris vidés) par completePatient().
      *
      * @param array<string, ?string> $details
      * @throws InvalidArgumentException si l'IPP saisi appartient à un autre patient
@@ -443,8 +453,11 @@ class AdmissionService
     /**
      * Champs complémentaires d'un patient existant : chaque valeur différente de la fiche est
      * enregistrée et tracée par RecordEditService ; sans ce service (tests), écriture directe.
+     * Un champ de LOCKED_FOR_KNOWN_PATIENT déjà renseigné n'est jamais modifié : une autre valeur
+     * saisie est refusée, la même est ignorée ; vide en base, il peut être complété.
      *
      * @param array<string, ?string> $details
+     * @throws InvalidArgumentException champ verrouillé modifié, ou mise à jour refusée par RecordEditService
      */
     private function completePatient(Patient $existing, array $details): void
     {
@@ -493,7 +506,7 @@ class AdmissionService
 
     /**
      * Criticité choisie par allergène (idSubstance => « Faible » | « Élevée ») ; vide ou absente =
-     * non évaluée (null en base). Valeurs déjà contrôlées par valider().
+     * non évaluée (null en base). Valeurs déjà contrôlées par validate().
      *
      * @return array<string, string>
      */
@@ -553,8 +566,8 @@ class AdmissionService
     /**
      * Construit l'entité à partir de données validées (champs vides = null).
      *
-     * @param array<string, mixed> $donnees
-     * @param array<string, ?string> $details champs complémentaires normalisés (RecordFields::PATIENT)
+     * @param array<string, mixed> $data
+     * @param array<string, ?string> $details champs complémentaires normalisés (RecordFields::admissionPatientFields())
      */
     private function buildPatient(array $data, array $details = []): Patient
     {
@@ -578,10 +591,10 @@ class AdmissionService
     /**
      * Valide les données d'identité du patient (RG1 : nom et prénom obligatoires, IPP facultatif).
      *
-     * Clés attendues (celles du domaine) : nom, prenom, ipp, dateNaissance, sexe.
+     * Clés attendues (celles du domaine) : lastName, firstName, ipp, birthDate, sex.
      * Une clé absente est traitée comme vide. Les messages ne reprennent jamais la valeur saisie.
      *
-     * @param array<string, mixed> $donnees
+     * @param array<string, mixed> $data
      * @return array<string, string> erreurs indexées par champ ; [] si les données sont valides
      */
     public function validatePatientIdentity(array $data): array
@@ -619,14 +632,14 @@ class AdmissionService
     /**
      * Valide les données d'admission (RG1 : nom et prénom obligatoires, IPP facultatif).
      *
-     * Clés attendues (celles du domaine) : nom, prenom, ipp, dateNaissance, sexe,
-     * taille, poids, precautions, idService, idReferringPractitioner (médecin référent, facultatif),
-     * allergies (liste d'identifiants d'allergènes),
-     * allergyCriticalities (idSubstance => criticité de Allergie::CRITICALITIES ou vide)
-     * et tous les champs facultatifs de RecordFields::PATIENT et ::EPISODE. Une clé absente
+     * Clés attendues (celles du domaine) : lastName, firstName, ipp, birthDate, sex,
+     * height, weight, precautions, idService, idReferringPractitioner (médecin référent, facultatif),
+     * idPatient (patient choisi dans la recherche, facultatif), allergies (liste d'identifiants d'allergènes),
+     * allergyCriticalities (idSubstance => criticité de AllergyIntolerance::CRITICALITIES ou vide)
+     * et les champs facultatifs de RecordFields::admissionPatientFields() et ::EPISODE. Une clé absente
      * est traitée comme vide. Les messages ne reprennent jamais la valeur saisie (données de santé).
      *
-     * @param array<string, mixed> $donnees
+     * @param array<string, mixed> $data
      * @param array<string, array<string, string>> $referenceDataSets listes autorisées, lues en base par
      *        l'appelant : 'services' (idHealthcareService => nom), 'substances' (idSubstance => libellé) et
      *        'doctors' (idPractitioner => « Dr Prénom Nom », médecins pouvant être référents).
@@ -755,6 +768,7 @@ class AdmissionService
         return null;
     }
 
+    /** Vrai si la saisie est un nombre (is_numeric) strictement positif. */
     private function isStrictlyPositive(string $value): bool
     {
         return is_numeric($value) && (float) $value > 0;

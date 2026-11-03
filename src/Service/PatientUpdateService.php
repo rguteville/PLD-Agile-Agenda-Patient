@@ -32,7 +32,7 @@ final class PatientUpdateService
      * Valide puis enregistre. Renvoie les erreurs par champ ([] = modification faite).
      * Rien n'est écrit tant qu'il reste une erreur.
      *
-     * @param array<string, mixed> $donnees clés du domaine : nom, prenom, ipp, dateNaissance, sexe
+     * @param array<string, mixed> $data clés du domaine : lastName, firstName, ipp, birthDate, sex
      * @return array<string, string>
      * @throws InvalidArgumentException si le patient n'existe pas
      */

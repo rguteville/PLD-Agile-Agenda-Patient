@@ -7,8 +7,10 @@ namespace Aura\Domain;
 use DateTimeImmutable;
 
 /**
- * Soin planifié (table Appointment) : occurrence datée d'une ligne de prescription (soin ou
- * médicament, exactement l'un des deux), avec son statut et, le cas échéant, l'heure de réalisation.
+ * Soin planifié (ressource HL7 Appointment, table Appointment) : occurrence datée d'une ligne de
+ * prescription (soin ou médicament, exactement l'un des deux), avec son statut et, le cas échéant,
+ * l'heure de réalisation. Statuts stockés en français : PLANIFIE, REALISE, NON_FAIT, et ANNULE
+ * (ligne arrêtée ou décès, écrit par CarePlanDao et AppointmentDao, sans constante ici).
  */
 class Appointment
 {
@@ -18,6 +20,12 @@ class Appointment
     public const STATUS_DONE = 'REALISE';
     public const STATUS_NOT_DONE = 'NON_FAIT';
 
+    /**
+     * @param string $idAppointment VARCHAR : numérique pour un soin créé par AURA, « SOI01 » dans la démo
+     * @param ?DateTimeImmutable $timeOfCompletion heure de réalisation saisie (null si pas réalisé)
+     * @param ?DateTimeImmutable $timeRecorded heure à laquelle la validation ou l'annulation a été saisie
+     * @param ?string $comment note du soin (VARCHAR(100)) : motif d'un soin non fait ou annulé
+     */
     public function __construct(
         private string $idAppointment,
         private ?string $idServiceRequest = null,

@@ -1,7 +1,11 @@
 // Champs de date saisis en JJ/MM/AAAA (data-date-input) : les barres obliques sont insérées pendant la
 // frappe, seuls les chiffres sont gardés. Le serveur convertit et valide (Aura\Core\DateInput, services).
+// Chargé par l'admission (GET /), la modification d'un patient et le dossier du séjour.
+// Attend : input[data-date-input] (components/field.php, type date ; champs créés par inline-edit.js).
+// Aucun appel réseau.
 
 (function () {
+    // « 14031958 » → « 14/03/1958 » : barres après le jour et le mois, 8 chiffres au plus.
     function format(digits) {
         const d = digits.slice(0, 8);
         if (d.length <= 2) {

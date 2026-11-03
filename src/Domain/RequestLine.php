@@ -13,7 +13,8 @@ use DateTimeImmutable;
  *
  * Abstraite : une ligne est toujours l'un ou l'autre. Les propriétés portent le nom des colonnes
  * des tables ServiceRequest / MedicationRequest ; $id est leur clé (idServiceRequest ou
- * idMedicationRequest).
+ * idMedicationRequest). Une ligne n'est jamais supprimée : elle est arrêtée (stoppedAt, AURA-22).
+ * Immuable, sauf setIdActivityDefinition() (voir sa note).
  */
 abstract class RequestLine
 {
@@ -81,6 +82,7 @@ abstract class RequestLine
         return $this->idStoppedBy;
     }
 
+    /** Heure de l'arrêt (AURA-22, heure de PHP) ; null si la ligne n'est pas arrêtée. */
     public function getStoppedAt(): ?DateTimeImmutable
     {
         return $this->stoppedAt;
@@ -142,6 +144,12 @@ abstract class RequestLine
         return $this->stoppedAt !== null;
     }
 
+    /**
+     * Seule exception à l'immuabilité. AgendaService::getAgenda() remplace l'identifiant par un
+     * LIBELLÉ à afficher (nom du type de soin, ou DCI du médicament pour une MedicationRequest),
+     * sur des lignes lues pour l'agenda et jamais réécrites. Après cet appel, la valeur n'est plus
+     * un idActivityDefinition : ne pas passer la ligne à CarePlanDao.
+     */
     public function setIdActivityDefinition(string $idActivityDefinition): void
     {
         $this->idActivityDefinition = $idActivityDefinition;

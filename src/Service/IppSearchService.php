@@ -47,15 +47,15 @@ class IppSearchService
      * d'admission (date AAAA-MM-JJ, sexe M/F) et allergies par libellé, comme le bandeau (RG2).
      * Méthode pure (pas d'accès aux données), testable sans base.
      *
-     * @param Allergie[] $allergies
+     * @param AllergyIntolerance[] $allergies
      * @return array{
      *     idPatient: int,
      *     ipp: ?string,
-     *     nom: string,
-     *     prenom: string,
-     *     dateNaissance: ?string,
-     *     sexe: ?string,
-     *     allergies: list<array{libelle: string, criticite: ?string}>
+     *     lastName: string,
+     *     firstName: string,
+     *     birthDate: ?string,
+     *     sex: ?string,
+     *     allergies: list<array{label: string, criticality: ?string}>
      * }
      */
     public static function present(Patient $patient, array $allergies): array
@@ -77,6 +77,7 @@ class IppSearchService
         ];
     }
 
+    /** Texte sans espaces de bord ; vide ou null = null. */
     private static function textOrNull(?string $value): ?string
     {
         if ($value === null) {

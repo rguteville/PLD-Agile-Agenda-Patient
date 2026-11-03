@@ -5,10 +5,13 @@ use Aura\Core\View;
 /**
  * Formulaire de modification d'un patient (AURA-12.2). Seuls les champs d'identité sont
  * modifiables ici : taille, poids et précautions appartiennent au séjour.
+ * Rendue par PatientController::edit() (GET /patients/modifier?id=…) et, en 422 après un refus, par
+ * PatientController::update() (POST /patients/modifier?id=…). Script : date-input.js seulement ; form.js
+ * n'est pas chargé, le formulaire data-ajax part donc en POST classique.
  *
- * @var int $idPatient
- * @var array<string, string> $values indexées par nom de champ (pré-remplies ou ressaisies)
- * @var array<string, string> $errors indexées par nom de champ, [] si aucune
+ * @var int $idPatient fourni par le contrôleur, mais la vue le relit dans $_GET['id'] (chaîne ou null)
+ * @var array<string, string> $values indexées par nom de champ (pré-remplies ou ressaisies), [] par défaut
+ * @var array<string, string> $errors indexées par nom de champ, [] par défaut
  */
 $idPatient = $_GET['id'] ?? null;
 $values = $values ?? [];

@@ -4,12 +4,15 @@ use Aura\Core\View;
 
 /**
  * Liste des patients (AURA-12.1). Retours des médecins du 2026-11-03 : séjour en cours mis en avant,
- * dossier toujours accessible (séjour en cours, sinon dernier séjour), historique des séjours dépliable,
- * décès affiché (icône + texte).
+ * dossier toujours accessible (séjour en cours, sinon dernier séjour), historique des séjours dépliable.
+ * Décès : cœur barré à côté du nom (components/deceased_tag, iconOnly, 2026-11-04), libellé en infobulle
+ * et en texte alternatif.
+ * Rendue par PatientController::list() (GET /patients?q=…). Aucun script propre à la page.
  *
- * @var list<array<string, mixed>> $patients vue-modèle de PatientListService::presentLine()
+ * @var list<array<string, mixed>> $patients vue-modèle de PatientListService::presentLine() (idPatient,
+ *      lastName, firstName, ipp, birthDate, deceased, deceasedLabel, current, record, history)
  * @var ?string $search terme saisi, null si aucun
- * @var bool $deleted vrai juste après une suppression (AURA-12.3)
+ * @var bool $deleted vrai juste après une suppression (AURA-12.3), false par défaut
  */
 $deleted = $deleted ?? false;
 ?>

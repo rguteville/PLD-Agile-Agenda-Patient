@@ -105,7 +105,7 @@ final class AgendaServicePresentBoardTest extends TestCase
         self::assertContains('09:00', array_column($board['selected']['items'], 'time'), 'hors rotation, mais visible');
     }
 
-    /** La nuit est bornée au jour affiché : « 22 h – 24 h » le soir, « 0 h – 6 h » après minuit. */
+    /** La nuit est bornée au jour affiché : « 22 h à 0 h » le soir, « 0 h à 6 h » après minuit. */
     public function testNightShiftIsClippedToTheDisplayedDay(): void
     {
         $service = ['isToday' => true, 'date' => '2026-10-14', 'patients' => [
@@ -122,7 +122,10 @@ final class AgendaServicePresentBoardTest extends TestCase
         self::assertSame('0 h à 6 h', $night['rotation']['label']);
     }
 
-    /** Chaque soin de la liste de travail porte les allergies (RG2) et le décès de son patient. */
+    /**
+     * Chaque soin de la liste de travail porte, dans le vue-modèle, les allergies (RG2) et le décès de son
+     * patient. Depuis le 2026-11-04, l'écran n'affiche les allergies que dans le panneau du patient choisi.
+     */
     public function testWorklistItemsCarryAllergiesAndDeath(): void
     {
         $patient = $this->patient(1, 'L1', [$this->item('08:00', 'late')]);

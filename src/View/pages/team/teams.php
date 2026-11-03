@@ -7,6 +7,9 @@ use Aura\Service\CareTeamService;
 /**
  * Équipes d'une vacation (AURA-30) : équipes composées (soignants, patients), patients encore sans
  * équipe, et formulaire de composition d'une équipe. Contrôles côté serveur (CareTeamService).
+ * Rendue par TeamController::teams() (GET /equipes?idHealthcareService=…&date=…&vacation=…) et, en 422
+ * après un refus, par TeamController::create() (POST /equipes/creer). Scripts : confirm.js (retrait
+ * d'une équipe, POST /equipes/retirer), auto-submit.js (choix du service et de la vacation).
  *
  * @var array<string, string> $services référentiel des services
  * @var string $idHealthcareService service affiché
@@ -14,9 +17,9 @@ use Aura\Service\CareTeamService;
  * @var list<CareTeam> $teams équipes actives de la vacation
  * @var list<array<string, mixed>> $episodes séjours en cours du service (AgendaService::getAgendaService())
  * @var array<string, string> $practitioners soignants proposés
- * @var array<string, string> $errors erreurs du formulaire de composition
- * @var array<string, mixed> $values saisie à réafficher après un refus
- * @var string $csrfToken
+ * @var array<string, string> $errors erreurs du formulaire de composition, [] par défaut
+ * @var array<string, mixed> $values saisie à réafficher après un refus, [] par défaut
+ * @var string $csrfToken jeton CSRF des deux formulaires POST
  */
 $errors = $errors ?? [];
 $values = $values ?? [];

@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace Aura\Core;
 
 /**
- * Jeton anti-CSRF minimal, fondé sur la session PHP (PR « dossier-patient-edition-inline »).
+ * Jeton anti-CSRF minimal, fondé sur la session PHP (introduit par la PR #44, édition en ligne du dossier).
  *
- * Le projet n'avait ni session ni CSRF : ce jeton ne protège que l'édition en ligne du dossier
- * (en-tête X-CSRF-Token envoyé par public/js/inline-edit.js). La session n'est ouverte que par
- * les pages qui appellent token() ou check(), pour ne pas changer le comportement des autres.
- * Décision à confirmer par l'équipe (voir la PR) : généraliser ou retirer.
+ * Un seul jeton par session, envoyé en en-tête X-CSRF-Token (appels JSON) ou en champ « csrf »
+ * (formulaires). Il protège aujourd'hui les écritures du dossier (champ, partie, fin de séjour, décès,
+ * allergies), des prescriptions (enregistrement, validation, arrêt d'une ligne), des soins
+ * (POST /agenda-patient/soin), des équipes et la suppression d'un patient. Exceptions connues : l'admission
+ * (POST /patients/create) et la modification de l'identité (POST /patients/modifier) n'ont pas de jeton.
+ * La session n'est ouverte que par les pages qui appellent token() ou check().
  */
 final class Csrf
 {
@@ -39,6 +41,10 @@ final class Csrf
         return is_string($expected) && hash_equals($expected, $received);
     }
 
+    /**
+     * Ouvre la session si besoin (cookie HttpOnly, SameSite=Lax, mode strict). Si les en-têtes sont déjà
+     * partis (tests en ligne de commande), $_SESSION est seulement initialisé.
+     */
     private static function startSession(): void
     {
         if (session_status() === PHP_SESSION_NONE && !headers_sent()) {

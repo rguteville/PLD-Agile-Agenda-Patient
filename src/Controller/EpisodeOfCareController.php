@@ -19,14 +19,20 @@ use LogicException;
 
 /**
  * Écrans d'un séjour : dossier (bandeau RG2, allergies, dossier complet éditable, prescriptions
- * validées, historique), ajout / retrait d'allergie (AURA-13.2) et agenda du jour (AURA-24).
+ * validées, historique), ajout / retrait d'allergie (AURA-13.2) et agenda du patient, jour ou semaine
+ * (AURA-24, AURA-26 pour la validation d'un soin).
+ *
+ * Routes : GET /sejour, POST /sejour/allergies/ajouter, POST /sejour/allergies/retirer, GET /agenda-patient.
+ * Les modifications du dossier (champ, partie, fin de séjour, décès) passent par RecordController.
  */
 final class EpisodeOfCareController
 {
     private const RECORD_VIEW = 'episode/record';
     /**
      * form.js : arrêt d'une ligne de prescription en AJAX ; confirm.js : confirmation du retrait d'une
-     * allergie ; inline-edit.js : édition champ par champ du dossier complet ; record-menu.js : menu figé.
+     * allergie ; inline-edit.js : édition champ par champ du dossier complet ; record-menu.js : menu figé ;
+     * date-input.js : dates saisies en JJ/MM/AAAA ; part-edit.js : modification d'une partie, fin de séjour
+     * et décès, avec la fenêtre de validation par un médecin.
      */
     private const RECORD_SCRIPTS = [
         '/js/form.js',
@@ -36,7 +42,10 @@ final class EpisodeOfCareController
         '/js/date-input.js',
         '/js/part-edit.js',
     ];
-    /** agenda.js : impression de la journée et dialogue de validation. */
+    /**
+     * agenda.js : filtres, impression et dialogue d'action sur un soin ; auto-submit.js : changement de jour
+     * dès le choix d'une date.
+     */
     private const AGENDA_SCRIPTS = ['/js/agenda.js', '/js/auto-submit.js'];
 
     /** Identifiant numérique tel que stocké (VARCHAR contenant un entier, sans zéro de tête). */
@@ -71,7 +80,8 @@ final class EpisodeOfCareController
     }
 
     /**
-     * POST /sejour/allergies/ajouter (AURA-13.2) : champs idSejour, idSubstance, criticality.
+     * POST /sejour/allergies/ajouter (AURA-13.2) : champs csrf, idEpisodeOfCare, idSubstance, criticality.
+     * Jeton faux : 403 ; séjour invalide : 400.
      * Succès : redirection 303 vers le dossier (POST → redirect → GET : rafraîchir la page
      * n'enregistre pas l'allergie une seconde fois). Refus métier : le dossier est réaffiché
      * avec le message, en 422, comme le formulaire d'admission.
@@ -103,7 +113,10 @@ final class EpisodeOfCareController
         header('Location: /sejour?id=' . $idEpisodeOfCare, true, 303);
     }
 
-    /** POST /sejour/allergies/retirer (AURA-13.2) : champs idSejour, idAllergy. Même schéma que l'ajout. */
+    /**
+     * POST /sejour/allergies/retirer (AURA-13.2) : champs csrf, idEpisodeOfCare, idAllergy. Même schéma que
+     * l'ajout. Le retrait est physique (DELETE), exception connue à la suppression logique.
+     */
     public function removeAllergy(): void
     {
         // Une allergie retirée à l'insu du soignant désactiverait le refus d'un allergène prescrit : CSRF.
@@ -133,7 +146,13 @@ final class EpisodeOfCareController
         header('Location: /sejour?id=' . $idEpisodeOfCare, true, 303);
     }
 
-    /** GET /agenda-patient?id=… ou ?numSejour=… : agenda du séjour, bandeau en tête (RG2, AURA-24). */
+    /**
+     * GET /agenda-patient?id=… ou ?numSejour=… : agenda du séjour, bandeau en tête (RG2, AURA-24).
+     * Paramètres facultatifs : `date` (AAAA-MM-JJ, aujourd'hui par défaut), `vue=semaine`. Les actions sur
+     * un soin ne sont proposées que pour un séjour en cours.
+     *
+     * @throws \InvalidArgumentException si `numSejour` ne correspond à aucun séjour (non rattrapée ici)
+     */
     public function getAgenda(): void
     {
         $id = $_GET['id'] ?? null;
@@ -218,7 +237,7 @@ final class EpisodeOfCareController
         ] : ['editable' => false, 'csrfToken' => Csrf::token(), 'history' => []];
 
         View::page(self::RECORD_VIEW, $record + $editing + [
-            // idSejour : lien du bouton « Prescription » vers l'écran B3 (AURA-20) et formulaires d'allergie.
+            // idEpisodeOfCare : lien du bouton « Prescription » vers l'écran B3 (AURA-20) et formulaires d'allergie.
             'idEpisodeOfCare' => $idEpisodeOfCare,
             // Prescriptions validées par un médecin (RG5), sans les lignes arrêtées ; une ligne qui contient un
             // allergène du patient est signalée (prescrite malgré l'allergie).
@@ -238,6 +257,7 @@ final class EpisodeOfCareController
         return (int) $value;
     }
 
+    /** @throws LogicException si la route n'a pas injecté de PatientRecordService */
     private function patientRecordService(): PatientRecordService
     {
         if ($this->patientRecordService === null) {
@@ -249,6 +269,7 @@ final class EpisodeOfCareController
         return $this->patientRecordService;
     }
 
+    /** @throws LogicException si la route n'a pas injecté d'AllergyIntoleranceService */
     private function allergyIntoleranceService(): AllergyIntoleranceService
     {
         if ($this->allergyIntoleranceService === null) {

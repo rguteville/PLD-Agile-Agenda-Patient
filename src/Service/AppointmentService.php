@@ -14,9 +14,12 @@ use LogicException;
 
 /**
  * Actions sur un soin planifié depuis l'agenda (AURA-26 valider un soin réalisé, AURA-28 note) :
- * « réalisé » (qui, quand), « non effectué » (motif obligatoire) ou simple note. Qui agit est
- * tracé dans AuditEvent (RG10) : la table Appointment n'a pas de colonne « réalisé par », et
- * l'historique existant suffit sans modifier le schéma.
+ * « réalisé » (qui, quand, note facultative), « non effectué » (motif obligatoire), ou note seule par
+ * le bouton « Note » de l'agenda (ACTION_NOTE ; le dialogue de validation n'a plus de choix « Note
+ * seulement » depuis le 2026-11-04). Réalisé ou non effectué : seulement pour un soin prévu avant la fin
+ * de la rotation en cours (AgendaService::shiftEnd()). Qui agit est tracé dans AuditEvent (RG10) : la
+ * table Appointment n'a pas de colonne « réalisé par », et l'historique existant suffit sans modifier
+ * le schéma.
  *
  * Authentification FACTICE, comme les parties du dossier : un soignant de la liste et un mot de
  * passe non vide, non vérifié, en attendant l'identification des praticiens (AURA-50).
@@ -77,7 +80,7 @@ final class AppointmentService
         return true;
     }
 
-    /** @return array<string, string> */
+    /** @return array<string, string> soignants proposés par le dialogue : idPractitioner => libellé */
     public function performers(): array
     {
         return $this->performers;
@@ -132,10 +135,13 @@ final class AppointmentService
     /**
      * Applique l'action sur un soin du séjour indiqué. Le soin doit appartenir à ce séjour, en cours ;
      * « réalisé » et « non effectué » ne s'appliquent qu'à un soin encore prévu (écriture conditionnelle :
-     * si quelqu'un l'a validé entre-temps, rien n'est écrit et la réponse est un conflit).
+     * si quelqu'un l'a validé entre-temps, rien n'est écrit et la réponse est un conflit), prévu avant la
+     * fin de la rotation en cours, par une catégorie habilitée (canPerform()) ; sur une ligne arrêtée,
+     * seule une dose faite avant l'arrêt se valide. Une note ne se modifie que par son auteur (AURA-28).
      *
      * @param array<string, mixed> $input voir validate()
-     * @return array{status: string, errors?: array<string, string>, message?: string}
+     * @return array{status: string, errors?: array<string, string>, message?: string} status = STATUS_*
+     * @throws LogicException si le service a été construit sans AppointmentDao, AuditEventDao ou Transaction
      */
     public function apply(int $idEpisodeOfCare, string $idAppointment, array $input, DateTimeImmutable $now): array
     {

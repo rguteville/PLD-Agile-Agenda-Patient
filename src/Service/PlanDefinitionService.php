@@ -64,7 +64,12 @@ final class PlanDefinitionService
         );
     }
 
-    /** @return array<string, string> */
+    /**
+     * Une action du protocole en ligne du formulaire B3 (voir linesToPrefill()). Fréquence : « Une fois »
+     * sans fréquence, « Tous les N jours » si elle tombe sur des jours entiers, sinon « Toutes les N heures ».
+     *
+     * @return array<string, string>
+     */
     private static function lineOf(PlanDefinitionAction $action, DateTimeImmutable $appliedAt): array
     {
         $start = $appliedAt->modify(sprintf('+%d hours', $action->getStartOffsetHours()));

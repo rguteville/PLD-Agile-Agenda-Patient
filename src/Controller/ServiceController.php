@@ -28,6 +28,11 @@ final class ServiceController
     ) {
     }
 
+    /**
+     * Affiche l'agenda du service. Paramètres GET : `idHealthcareService` (facultatif, premier service par
+     * défaut), `date` (AAAA-MM-JJ, aujourd'hui par défaut), `vue` (`lits` par défaut, ou `liste`), `sejour`
+     * (idEpisodeOfCare du lit détaillé dans le panneau). Service inconnu : page 404.
+     */
     public function getAgenda(): void
     {
         $id = $_GET['idHealthcareService'] ?? null;

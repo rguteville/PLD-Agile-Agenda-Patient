@@ -1,4 +1,4 @@
-# AURA — système de design de l'IHM
+# AURA : système de design de l'IHM
 
 > Document d'origine de la refonte AURA-UI (2026-11-01). Les jetons, règles de couleur et composants ont été
 > complétés le 2026-11-02 par [docs/UI-GUIDE.md](UI-GUIDE.md), qui fait foi en cas de divergence (notamment :
@@ -61,7 +61,9 @@ journée »).
 | `empty_state` | Écran ou section sans donnée, avec explication. | `title` ; `text` ; `icon`. |
 | `patient_banner` | Identité, IPP, séjour, poids, taille, allergies (RG2). Collant, jamais replié. | `bandeau` (vue-modèle de `PatientRecordService::presentBanner()`). |
 | `agenda_table` | Tableau d'une tranche de l'agenda. | `items`, `caption`, `validationEnabled`. |
-| `validation_dialog` | `<dialog>` « Valider un soin » : qui, quand, note. **Balisage seul** (voir « Hors périmètre »). | `validators`. |
+| `validation_dialog` | `<dialog>` d'action sur un soin : « Réalisé » (qui, quand) ou « Non effectué » (motif), ou note seule ouverte par le bouton « Note ». Envoyé par `agenda.js` à `POST /agenda-patient/soin`. | `validators`, `csrfToken`, `back`. |
+| `care_line` | Ligne de soin de l'agenda du service, liste de travail et panneau du lit (heure, patient, soin, statut, actions). | `item`, `showPatient`, `showStatus`, `validationEnabled`, `agendaUrl`. |
+| `care_buttons` | Boutons « Valider » (soin en retard ou prévu avant la fin de la rotation en cours) et « Note ». | `item`, `idEpisodeOfCare`, `context`. |
 | `form` + `field` | Formulaires (inchangés) : label associé, `aria-invalid`, `aria-describedby`, `role="alert"`. | voir `.claude/rules/views-ui.md`. |
 
 Classes utilitaires : `.button` (+ `.button--secondary`, `.button--danger`), `.page-header` / `.page-actions`,
@@ -95,19 +97,24 @@ Une valeur inconnue en base s'affiche telle quelle, en neutre, avec l'icône `ci
 
 ## Écrans
 
-- **Agenda patient** (`pages/episode/patient-agenda.php`) : un jour, chronologique. Les retards sont épinglés en tête
-  (figure 4 du cahier des charges), puis quatre tranches de rotation : Nuit (fin) 0 h–6 h, Matin 6 h–14 h,
-  Après-midi 14 h–22 h, Nuit (début) 22 h–24 h. **Bornes = hypothèse** à confirmer avec le service
-  (`AgendaService::SHIFTS`). La colonne « Responsable » (IDE / IDE-AS) est déduite du type de ligne faute de
-  donnée en base. Toute la logique est dans `AgendaService::presentDay()` (pur, testé).
+- **Agenda patient** (`pages/episode/patient-agenda.php`, `GET /agenda-patient`) : un jour, chronologique. Les
+  retards sont épinglés en tête (figure 4 du cahier des charges), puis quatre tranches de rotation : Nuit (fin)
+  de 0 h à 6 h, Matin de 6 h à 14 h, Après-midi de 14 h à 22 h, Nuit (début) de 22 h à 0 h. **Bornes = hypothèse**
+  à confirmer avec le service (`AgendaService::SHIFTS`). Un soin se valide s'il est en retard ou prévu avant la
+  fin de la rotation en cours (`AgendaService::shiftEnd()`). La colonne « Responsable » (IDE / IDE-AS) est déduite
+  du type de ligne faute de donnée en base. Toute la logique est dans `AgendaService::presentDay()` (pur, testé) ;
+  `?vue=semaine` affiche la semaine (`presentWeek()`).
 - **Prescriptions** (`pages/careplan/list.php`) : badge `to_validate` = « petit stylo » du SI réel (RG5).
-- **Vue du service** (`pages/service/consolidated-view.php`, refonte du 2026-11-04) : onglet « Lits » (une ligne par
-  patient, triée par urgence : nombre de retards, plus ancien retard, à faire dans la rotation, prochain soin, lit ;
-  panneau de détail du lit choisi, `?sejour=`) et onglet « Liste de travail » (`?vue=liste` : en retard, doses de
-  lignes arrêtées, maintenant, plus tard, réalisés). Allergies (RG2) sur chaque ligne. La rotation est bornée au
-  jour affiché (la nuit : « 22 h – 24 h » puis « 0 h – 6 h » le lendemain).
-  Vue-modèle pur `AgendaService::presentBoard()`, ligne de soin partagée `components/care_line`.
-  **Balisage seul**, sans route : le contrat du vue-modèle est documenté en tête du fichier et couvert par un test.
+- **Vue du service** (`pages/service/consolidated-view.php`, `GET /agenda-service`, refonte du 2026-11-04) : onglet
+  « Lits » (une ligne par patient, triée par urgence : nombre de retards, plus ancien retard, à faire dans la
+  rotation, prochain soin, lit ; panneau de détail du lit choisi, `?sejour=`) et onglet « Liste de travail »
+  (`?vue=liste` : en retard, doses de lignes arrêtées, maintenant, plus tard, réalisés). Allergies (RG2) dans le
+  panneau du patient choisi seulement (choix du 2026-11-04 : ni le tableau ni la liste de travail ne les
+  répètent). La rotation est bornée au jour affiché (la nuit : « de 22 h à 0 h » puis « de 0 h à 6 h » le
+  lendemain). Vue-modèle pur `AgendaService::presentBoard()`, ligne de soin partagée `components/care_line`. Le
+  contrat du vue-modèle est documenté en tête du fichier et couvert par un test.
+- **Équipes et « Mon planning »** (`pages/team/teams.php`, `pages/team/planning.php`, `GET /equipes`,
+  `GET /mon-planning`) : vacations de 8 h à 20 h et de 20 h à 8 h (`CareTeamService::SHIFTS`, hypothèse).
 
 ## Vérifier
 
@@ -117,16 +124,20 @@ bash .claude/scripts/ci-local.sh             # CI complet en local
 bash .claude/scripts/screenshot.sh "/agenda-patient?id=1&date=2026-10-14"   # capture Chrome headless
 ```
 
+Les deux scripts `.claude/scripts/` sont des outils locaux, non versionnés : sans eux, suivre `docs/TESTS.md` pour
+la base de test et faire la capture à la main.
+
 Contrôles manuels avant une PR IHM : navigation au clavier (Tab, Entrée, Échap sur le menu et le dialogue), focus
 visible, lecteur d'écran sur les badges et le bandeau, rendu en 1366 px et 390 px, mode clair et sombre, aperçu avant
 impression de l'agenda.
 
 ## Hors périmètre (volontairement)
 
-- **Validation d'un soin** : le dialogue existe, mais aucune route POST, aucune règle métier, et la table
-  `Appointment` n'a pas de colonne « validé par ». Le contrôleur passe `validationEnabled = false`. Ticket à créer
-  avec un diff de schéma à proposer au responsable BDD.
-- **Vue consolidée du service** : pas de requête « tous patients » ni de route. Gabarit prêt, service à écrire.
-- **Identification du praticien** (AURA-18) : toute « validation » reste auto-déclarée par une liste déroulante.
+Mis à jour le 2026-11-04. La validation d'un soin (`POST /agenda-patient/soin`, AURA-26, AURA-28) et la vue
+consolidée du service (`GET /agenda-service`, AURA-29) existent désormais ; ils étaient hors périmètre lors de la
+refonte du 2026-11-01.
+
+- **Authentification du praticien** (AURA-50 ; praticiens et rôles : AURA-18) : toute « validation » reste auto-déclarée par une liste déroulante
+  et un mot de passe non vérifié (authentification factice).
 - **Nettoyage du CSS historique** : les anciennes règles restent et sont surchargées par le bloc AURA-UI pour
   limiter les conflits de fusion ; à nettoyer quand les branches ouvertes seront fusionnées.

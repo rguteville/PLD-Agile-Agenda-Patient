@@ -78,7 +78,13 @@ final class FieldValidationService
         return $clean;
     }
 
-    /** Libellé utilisé dans les messages d'erreur (jamais la valeur saisie : données de santé). */
+    /**
+     * Erreur d'une valeur non vide contre sa spécification : longueur (max), puis selon le type, option
+     * de l'échelle, date, e-mail, téléphone ou nombre borné (min, maxValue) ; null si elle est valide.
+     * Le message cite le libellé du champ, jamais la valeur saisie (données de santé).
+     *
+     * @param array<string, mixed> $spec spécification du champ (RecordFields)
+     */
     private function validateValue(array $spec, string $value): ?string
     {
         $label = (string) ($spec['label'] ?? 'field');

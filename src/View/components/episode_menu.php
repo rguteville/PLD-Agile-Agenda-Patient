@@ -6,9 +6,11 @@ use Aura\Core\View;
  * Menu figé à gauche des écrans d'un séjour (dossier, agenda) : un bouton principal en tête, toujours
  * au même endroit (« Agenda du jour » dans le dossier, « Dossier du séjour » dans l'agenda), puis les
  * parties du dossier. Dans le dossier, les sous-catégories ouvrent leur section (record-menu.js).
+ * Inclus par pages/episode/record.php et pages/episode/patient-agenda.php.
  *
  * @var array{href: string, label: string, icon: string} $primary bouton en tête du menu
- * @var list<array{href: string, label: string, openDetails?: bool, children?: list<array<string, mixed>>}> $items
+ * @var list<array{href: string, label: string, children?: list<array{href: string, label: string,
+ *      openDetails?: bool}>}> $items parties ; un enfant avec openDetails reçoit data-open-details
  */
 ?>
 <nav class="record-menu" aria-label="Parties du dossier">

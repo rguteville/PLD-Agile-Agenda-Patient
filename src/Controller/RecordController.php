@@ -10,12 +10,18 @@ use Aura\Service\RecordSectionService;
 use LogicException;
 
 /**
- * POST /sejour/champ/modifier : modification d'un champ du dossier, sans rechargement de page
- * (public/js/inline-edit.js). Corps JSON {entity, id, sejour, field, value, oldValue} ou formulaire
- * classique avec les mêmes noms ; en-tête X-CSRF-Token (ou champ csrf) obligatoire. `sejour` est
- * le séjour affiché : un patient n'est modifiable que depuis le dossier d'un de ses séjours.
+ * Écritures du dossier de séjour, toutes en JSON avec jeton CSRF (en-tête X-CSRF-Token ou champ csrf) :
+ *  - POST /sejour/champ/modifier (update()) : un champ, édition en ligne (public/js/inline-edit.js) ;
+ *  - POST /sejour/partie/modifier (updatePart()) : une partie entière du dossier ;
+ *  - POST /sejour/cloturer (endStay()) : fin du séjour ;
+ *  - POST /sejour/deces (declareDeath()) : décès, qui termine aussi le séjour.
+ * Les trois dernières passent par la fenêtre de validation par un médecin (public/js/part-edit.js),
+ * authentification FACTICE en attendant l'authentification des praticiens (AURA-50).
  *
- * Réponses JSON : 200 {ok:true, saved, value, display, message} ; 400 corps illisible ;
+ * Champ par champ : corps JSON {entity, id, episodeOfCare, field, value, oldValue} ou formulaire classique
+ * avec les mêmes noms. `episodeOfCare` est le séjour affiché : un patient n'est modifiable que depuis le
+ * dossier d'un de ses séjours. Les champs réservés au médecin (groupe sanguin, décès) y sont refusés.
+ * Réponses JSON : 200 {ok:true, saved, conflict, value, display, message} ; 400 corps illisible ;
  * 403 jeton absent ou faux ; 404 dossier inconnu ; 409 conflit de concurrence (valeur actuelle
  * renvoyée) ; 422 champ refusé ou valeur invalide (message sous le champ).
  */
@@ -49,9 +55,10 @@ final class RecordController
 
     /**
      * POST /sejour/partie/modifier (retours du 2026-11-02) : toute une partie du dossier d'un coup.
-     * Corps JSON {sejour, part, values: {champ: valeur}, oldValues: {champ: valeur}, validator, password},
-     * en-tête X-CSRF-Token. Réponses : 200 {ok, redirect} ; 422 {erreurs} (champ ou « auth ») ;
-     * 409 conflit ; 404 dossier ou partie inconnue ; 403 jeton ; 400 requête incomplète.
+     * Corps JSON {episodeOfCare, part, values: {champ: valeur}, oldValues: {champ: valeur}, validator,
+     * password}, en-tête X-CSRF-Token. Réponses : 200 {ok, redirect} vers l'ancre de la partie ;
+     * 422 {ok:false, conflict, message, errors} (erreur d'un champ ou clé « auth ») ; 409 conflit ;
+     * 404 dossier ou partie inconnue ; 403 jeton ; 400 requête incomplète.
      */
     public function updatePart(): void
     {
@@ -84,7 +91,7 @@ final class RecordController
     }
 
     /**
-     * POST /sejour/cloturer : fin du séjour. Corps JSON {sejour, date (JJ/MM/AAAA), time (HH:MM),
+     * POST /sejour/cloturer : fin du séjour. Corps JSON {episodeOfCare, date (JJ/MM/AAAA), time (HH:MM),
      * validator, password}, en-tête X-CSRF-Token. Mêmes réponses que updatePart().
      */
     public function endStay(): void
@@ -143,7 +150,12 @@ final class RecordController
         $this->respondPart($result, (int) $idEpisodeOfCare, '#dossier-resume');
     }
 
-    /** @param array{status: string, errors: array<string, string>, message: ?string} $result */
+    /**
+     * Réponse commune aux parties, à la fin de séjour et au décès : 200 {ok, redirect} vers le dossier à
+     * l'ancre donnée, sinon le code de PART_HTTP_STATUS avec {ok:false, conflict, message, errors}.
+     *
+     * @param array{status: string, errors: array<string, string>, message: ?string} $result
+     */
     private function respondPart(array $result, int $idEpisodeOfCare, string $anchor): void
     {
         $status = self::PART_HTTP_STATUS[$result['status']] ?? 500;
@@ -159,7 +171,11 @@ final class RecordController
         ]);
     }
 
-    /** @param array<string, mixed> $body */
+    /**
+     * Vérifie le jeton CSRF (en-tête X-CSRF-Token, sinon champ csrf) ; répond 403 et renvoie false s'il est faux.
+     *
+     * @param array<string, mixed> $body
+     */
     private function checkToken(array $body): bool
     {
         $token = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? $body['csrf'] ?? null;
@@ -171,6 +187,7 @@ final class RecordController
         return false;
     }
 
+    /** @throws LogicException si la route n'a pas injecté de RecordSectionService */
     private function sectionService(): RecordSectionService
     {
         if ($this->recordSectionService === null) {
@@ -180,12 +197,16 @@ final class RecordController
         return $this->recordSectionService;
     }
 
+    /** Valeur texte du corps, chaîne vide si absente ou d'un autre type. */
     private static function text(mixed $value): string
     {
         return is_string($value) ? $value : '';
     }
 
-    /** Traite la requête (voir l'en-tête de classe pour le contrat JSON et les codes HTTP). */
+    /**
+     * POST /sejour/champ/modifier : un champ du dossier (voir l'en-tête de classe pour le contrat JSON et
+     * les codes HTTP).
+     */
     public function update(): void
     {
         $body = $this->readBody();

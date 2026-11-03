@@ -7,7 +7,8 @@ namespace Aura\Domain;
 use DateTimeImmutable;
 
 /**
- * Équipe d'une vacation (AURA-30, table CareTeam) : soignants et patients attribués, pour un
+ * Équipe d'une vacation (AURA-30, ressource HL7 CareTeam, table CareTeam et ses tables de liaison
+ * CareTeamMember, CareTeamPatient) : soignants et patients attribués, pour un
  * service, une date et une vacation (JOUR ou NUIT). Immuable : on recompose en retirant l'équipe.
  */
 final class CareTeam

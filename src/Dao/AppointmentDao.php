@@ -10,8 +10,11 @@ use DateTimeInterface;
 use PDO;
 
 /**
- * Accès à la table Appointment. Les colonnes suivent database/schema.sql (camelCase anglais,
- * cf. README « Convention de nommage ») ; les entités du domaine restent en français.
+ * Soins planifiés : table Appointment, ressource HL7 du même nom. Chaque soin appartient à une
+ * ligne de soin (idServiceRequest) ou de médicament (idMedicationRequest), jamais aux deux.
+ * Les soins sont créés par CarePlanDao (enregistrement de la prescription, génération de l'agenda).
+ * Aucune suppression : un soin qui ne doit plus avoir lieu passe au statut ANNULE (arrêt de la
+ * ligne, décès), un soin non effectué au statut NON_FAIT (RG10).
  */
 class AppointmentDao
 {
@@ -26,6 +29,9 @@ class AppointmentDao
      * Soins planifiés d'une ligne, par ordre d'heure prévue. La colonne dépend de la nature de la
      * ligne : ServiceRequest et MedicationRequest ont chacun leurs identifiants, un soin « 1 » et un
      * médicament « 1 » coexistent.
+     *
+     * @param bool $isMedication true pour une ligne de MedicationRequest, false pour une ServiceRequest
+     * @return Appointment[] tous statuts confondus (ANNULE compris)
      */
     public function findByRequest(string $idRequest, bool $isMedication): array
     {
@@ -96,7 +102,12 @@ class AppointmentDao
 
     /**
      * Clôt un soin encore prévu (REALISE ou NON_FAIT). Écriture conditionnelle : false si le soin
-     * n'est plus PLANIFIE (validé entre-temps par quelqu'un d'autre), et rien n'est écrit.
+     * n'existe pas ou n'est plus PLANIFIE (validé entre-temps par quelqu'un d'autre), et rien n'est écrit.
+     *
+     * @param string $status Appointment::STATUS_DONE ou STATUS_NOT_DONE (non contrôlé ici)
+     * @param ?DateTimeInterface $timeOfCompletion heure de réalisation ; null pour un soin non fait
+     * @param DateTimeInterface $timeRecorded heure de la saisie (RG10)
+     * @param ?string $comment null garde la note existante
      */
     public function close(
         string $idAppointment,
@@ -126,7 +137,8 @@ class AppointmentDao
     /**
      * Annule les soins encore prévus d'un séjour après $after (décès : retours du 2026-11-04). Suppression
      * logique : statut ANNULE, motif en commentaire s'il n'y en a pas, heure d'enregistrement $after.
-     * Appelée dans la transaction de la déclaration de décès.
+     * Appelée dans la transaction de la déclaration de décès (RecordSectionService, POST /sejour/deces),
+     * avec $after = heure de sortie du séjour. Les soins prévus avant $after restent PLANIFIE.
      *
      * @return int nombre de soins annulés
      */
@@ -158,6 +170,11 @@ class AppointmentDao
         $stmt->execute(['comment' => $comment, 'id' => $idAppointment]);
     }
 
+    /**
+     * Ligne SQL (colonnes de COLUMNS) vers l'entité ; les dates DATETIME deviennent des DateTimeImmutable.
+     *
+     * @param array<string, ?string> $r
+     */
     private function mapToEntity(array $r): Appointment
     {
         return new Appointment(

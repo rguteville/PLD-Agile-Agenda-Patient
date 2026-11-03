@@ -3,6 +3,7 @@
 // - une section dont un champ est en erreur (contrôle HTML natif ou refus serveur via form.js)
 //   s'ouvre pour que l'erreur soit visible ; le premier champ fautif reçoit le focus.
 // Le serveur reste la garantie : ce script n'empêche ni n'autorise aucun envoi.
+// Chargé par l'admission (GET /). Écoute aura:form-errors (form.js). Aucun appel réseau.
 
 (function () {
     const sections = document.querySelectorAll('details[data-form-section]');
@@ -47,6 +48,7 @@
         section.classList.toggle('form-section--filled', filled > 0);
     }
 
+    // Ouvre chaque section qui contient une erreur et donne le focus au premier champ fautif.
     function openSectionsWithErrors(form) {
         let first = null;
         sections.forEach(section => {

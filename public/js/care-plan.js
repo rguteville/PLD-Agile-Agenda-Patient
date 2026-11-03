@@ -6,12 +6,21 @@
 // Retours du 2026-11-03 : alerte allergie dès le choix d'un médicament qui contient un allergène du
 // patient, et case « Je prescris malgré l'allergie » tant que l'ordonnance en contient un (le serveur
 // refuse l'ordonnance sans elle).
+//
+// Chargé par CarePlanController (GET /care-plans/new?idEpisodeOfCare=…, et l'écran réaffiché après un
+// refus). Attend : #care-plan-form (data-lists, JSON), #category (options data-kind), #item,
+// #dosage-form, les fiches #b3-medication-params, #b3-care-params, #b3-group-params, les zones
+// #b3-message, #b3-allergy, #b3-notice, #b3-warning, #b3-lines (champs cachés), #b3-cart,
+// #b3-allergy-confirm, #allergyOverride, #mode et #idPrescriber (options data-doctor).
+// Appel réseau : GET /care-plans/protocol-lines?idPlanDefinition=…&startDate=AAAA-MM-JJTHH:MM, en JSON :
+// {ok: true, lines} ou 422 {ok: false, errors}. Lecture seule, sans jeton CSRF ; l'enregistrement de
+// l'ordonnance passe par form.js (champ csrf).
 
 const carePlanForm = document.getElementById('care-plan-form');
 
 if (carePlanForm) {
     // { careTypes: { idActivityDefinition: nom }, medications: { DCI: { idMedication: forme } },
-    //   planDefinitions: { idPlanDefinition: « titre (pathologie) » },
+    //   activeMedications: { idMedication: true }, planDefinitions: { idPlanDefinition: « titre (pathologie) » },
     //   medicationAllergens: { idMedication: allergène du patient } }
     const lists = JSON.parse(carePlanForm.dataset.lists);
     const allergens = lists.medicationAllergens ?? {};
@@ -37,6 +46,7 @@ if (carePlanForm) {
     // Libellé de la deuxième liste selon la catégorie choisie.
     const ITEM_LABELS = { MEDICATION: 'Médicament (DCI)', CARE: 'Soin', GROUP: 'Protocole' };
 
+    // Remplace les options d'une liste ; liste désactivée si elle est vide.
     function fill(select, options) {
         const empty = Object.keys(options).length === 0;
         select.replaceChildren(new Option(empty ? '' : 'Choisir', ''));
@@ -44,11 +54,13 @@ if (carePlanForm) {
         select.disabled = Object.keys(options).length === 0;
     }
 
+    // Message d'erreur de saisie (#b3-message), masqué si le texte est vide.
     function showMessage(text) {
         message.textContent = text;
         message.hidden = text === '';
     }
 
+    // Alerte allergie (#b3-allergy), masquée si le texte est vide.
     function showAllergy(text) {
         allergyAlert.textContent = text;
         allergyAlert.hidden = text === '';
@@ -71,18 +83,21 @@ if (carePlanForm) {
         return `${dayOfMonth}/${month}/${year} ${time}`;
     }
 
+    // Vide une fiche de paramètres et masque ses blocs « heures » et « jours ».
     function clearParams(params) {
         params.querySelectorAll('input:not(:disabled)').forEach(input => { input.value = ''; });
         params.querySelectorAll('select').forEach(select => { select.selectedIndex = 0; });
         params.querySelectorAll('[id$="hours-block"], [id$="days-block"]').forEach(block => { block.hidden = true; });
     }
 
+    // Masque les trois fiches (médicament, soin, protocole).
     function closeParams() {
         medicationParams.hidden = true;
         careParams.hidden = true;
         groupParams.hidden = true;
     }
 
+    // Ouvre une fiche vide, titrée par la catégorie choisie.
     function openParams(params) {
         closeParams();
         clearParams(params);
@@ -276,6 +291,7 @@ if (carePlanForm) {
         return { category: categoryLabel, label, fields, key: Object.values(fields).join('|') };
     }
 
+    // Lecture de la fiche d'un soin : renvoie la ligne à ajouter, ou { error }.
     function careLine() {
         const frequencyType = $('#care-frequency').value;
         const fields = {
@@ -298,6 +314,7 @@ if (carePlanForm) {
     const inCart = line => [...hiddenLines.children].some(block => block.dataset.key === line.key);
     const notice = document.getElementById('b3-notice');
 
+    // Avertissement non bloquant (#b3-notice : doublon possible), masqué si le texte est vide.
     function showNotice(text) {
         notice.textContent = text;
         notice.hidden = text === '';

@@ -10,8 +10,10 @@ use DateTimeInterface;
 use PDO;
 
 /**
- * Accès aux équipes de vacation (AURA-30) : CareTeam, CareTeamMember, CareTeamPatient. Seules les
- * équipes actives (removedAt NULL) sont lues ; retirer une équipe garde sa ligne (suppression logique).
+ * Accès aux équipes de vacation (AURA-30) : CareTeam (ressource HL7 du même nom), CareTeamMember,
+ * CareTeamPatient. Seules les équipes actives (removedAt NULL) sont lues ; retirer une équipe garde
+ * sa ligne (suppression logique, colonne générée activeKey pour l'unicité du nom). idCareTeam est
+ * un AUTO_INCREMENT. La règle « un patient dans une seule équipe par vacation » est dans CareTeamService.
  */
 class CareTeamDao
 {
@@ -55,7 +57,12 @@ class CareTeamDao
         return $this->withDetails($stmt->fetchAll(PDO::FETCH_ASSOC));
     }
 
-    /** Crée l'équipe, ses membres et ses patients ; à appeler dans Transaction::run(). */
+    /**
+     * Crée l'équipe, ses membres et ses patients, et renvoie son id ; à appeler dans Transaction::run().
+     *
+     * @throws \PDOException nom déjà pris par une équipe active de la vacation (uq_careteam_name),
+     *                       vacation hors JOUR / NUIT, soignant ou séjour inconnu
+     */
     public function insert(CareTeam $team): int
     {
         $this->pdo->prepare(
@@ -93,7 +100,7 @@ class CareTeamDao
     }
 
     /**
-     * Membres (« Prénom Nom ») et séjours de chaque équipe lue.
+     * Membres (« Prénom Nom ») et séjours de chaque équipe lue : deux requêtes par équipe.
      *
      * @param list<array<string, mixed>> $rows
      * @return list<CareTeam>

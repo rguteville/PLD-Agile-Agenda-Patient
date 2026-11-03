@@ -156,7 +156,7 @@ final class AppointmentIntegrationTest extends TestCase
         self::assertSame(AppointmentService::STATUS_SAVED, $result['status'], 'prévu à 8 h, fait et validé à 7 h');
     }
 
-    /** La nuit (22 h – 6 h) chevauche minuit : la dose de 0 h 30 faite à 23 h 45 se valide à 23 h 50. */
+    /** La nuit (de 22 h à 6 h) chevauche minuit : la dose de 0 h 30 faite à 23 h 45 se valide à 23 h 50. */
     public function testNightShiftCareAfterMidnightCanBeValidatedBeforeMidnight(): void
     {
         $this->pdo->exec("UPDATE Appointment SET plannedTime = '2026-10-15 00:30:00' WHERE idAppointment = 'ZZ_SOI'");
@@ -171,7 +171,7 @@ final class AppointmentIntegrationTest extends TestCase
         self::assertSame(AppointmentService::STATUS_SAVED, $result['status']);
     }
 
-    /** Soin de la nuit validé le lendemain à 0 h 30 : celui de 23 h du même jour est d'une rotation à venir. */
+    /** À 0 h 30, un soin prévu à 23 h 10 le même jour appartient à une rotation à venir : refusé. */
     public function testCareOfALaterShiftOfTheSameDayIsRefused(): void
     {
         $this->pdo->exec("UPDATE Appointment SET plannedTime = '2026-10-14 23:10:00' WHERE idAppointment = 'ZZ_SOI'");

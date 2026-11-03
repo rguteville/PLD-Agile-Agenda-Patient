@@ -23,7 +23,10 @@ use DateTimeImmutable;
  *  - même validation que l'admission (FieldValidationService, bornes d'AdmissionService) ;
  *  - contrôle de concurrence optimiste : l'ancienne valeur envoyée doit être celle en base, sinon refus
  *    avec la valeur actuelle ;
- *  - traçabilité : chaque modification écrit une ligne AuditEvent dans la même transaction.
+ *  - traçabilité : chaque modification écrit une ligne AuditEvent dans la même transaction ;
+ *  - champs réservés au médecin (RecordFields, 'validatedByDoctor' : groupe sanguin, décès) : refusés sans
+ *    auteur identifié, donc jamais modifiés par l'édition en ligne ; ils passent par RecordSectionService.
+ *    Seule exception : l'admission peut compléter un groupe sanguin encore vide ($completeEmpty).
  */
 class RecordEditService
 {
@@ -99,6 +102,9 @@ class RecordEditService
      * $completeEmpty (admission seulement) : un champ réservé au médecin peut être renseigné sans auteur
      * identifié s'il est encore vide ; jamais remplacé ni effacé.
      *
+     * @param string $entity ENTITY_PATIENT ou ENTITY_EPISODE
+     * @param string $author auteur tracé ; AuditEvent::AUTHOR_UNKNOWN = non identifié (édition en ligne, admission)
+     * @param int|null $idEpisodeOfCare séjour du dossier : un patient n'est modifiable que s'il est celui de ce séjour
      * @return array{status: string, message: ?string, value: ?string, display: ?string}
      */
     public function update(
@@ -116,8 +122,9 @@ class RecordEditService
             return self::result(self::STATUS_FORBIDDEN_FIELD, 'Ce champ ne peut pas être modifié depuis le dossier.');
         }
         $spec = $specs[$field];
-        // Champ réservé à un médecin identifié (décès du patient) : jamais modifié par l'édition en ligne ni
-        // par une admission (auteur non identifié), seulement par la modification d'une partie validée.
+        // Champ réservé à un médecin identifié (groupe sanguin, décès) : jamais modifié par l'édition en ligne
+        // ni par une admission (auteur non identifié), seulement par la modification d'une partie validée.
+        // Exception : l'admission complète un champ encore vide ($completeEmpty).
         $completing = $completeEmpty && trim((string) $oldValue) === '' && trim((string) $newValue) !== '';
         if (($spec['validatedByDoctor'] ?? false) && $author === AuditEvent::AUTHOR_UNKNOWN && !$completing) {
             return self::result(
@@ -249,7 +256,11 @@ class RecordEditService
         return $rows;
     }
 
-    /** Valeur affichable d'un champ : libellé d'une échelle, date à la française, nombre sans zéros inutiles. */
+    /**
+     * Valeur affichable d'un champ : libellé d'une échelle, date à la française, nombre sans zéros inutiles.
+     *
+     * @param array<string, mixed> $spec spécification du champ (type, options)
+     */
     public static function display(array $spec, ?string $raw): ?string
     {
         if ($raw === null) {
@@ -291,7 +302,11 @@ class RecordEditService
         return self::blankToNull($record->getDetail($field));
     }
 
-    /** Deux valeurs diffèrent-elles ? Les nombres sont comparés numériquement (« 62.50 » = « 62.5 »). */
+    /**
+     * Deux valeurs diffèrent-elles ? Les nombres sont comparés numériquement (« 62.50 » = « 62.5 »).
+     *
+     * @param array<string, mixed> $spec
+     */
     private function differs(array $spec, ?string $a, ?string $b): bool
     {
         if (($spec['type'] ?? 'text') === 'number' && $a !== null && $b !== null && is_numeric($a) && is_numeric($b)) {
@@ -301,11 +316,13 @@ class RecordEditService
         return $a !== $b;
     }
 
+    /** Nombre au format des formulaires : au plus deux décimales, sans zéros inutiles (62.50 → « 62.5 »). */
     private static function formatNumber(float $value): string
     {
         return rtrim(rtrim(number_format($value, 2, '.', ''), '0'), '.');
     }
 
+    /** Texte sans espaces de bord ; vide ou null = null. */
     private static function blankToNull(?string $value): ?string
     {
         if ($value === null) {

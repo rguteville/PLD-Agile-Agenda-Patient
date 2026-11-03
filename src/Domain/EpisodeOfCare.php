@@ -6,8 +6,26 @@ namespace Aura\Domain;
 
 use DateTimeInterface;
 
+/**
+ * Séjour d'un patient dans un service (ressource HL7 EpisodeOfCare, table EpisodeOfCare). Immuable :
+ * toute modification passe par EpisodeOfCareDao, puis on relit le séjour.
+ *
+ * Le séjour est en cours tant que dischargeDate est null. Il se termine par la fin de séjour
+ * (POST /sejour/cloturer) ou par la déclaration du décès du patient (POST /sejour/deces, ou
+ * Patient.deceased passé à « Oui » par « Modifier »), qui renseignent toutes deux dischargeDate.
+ * Le numéro AAAA-NNNNNN est généré par EpisodeOfCareDao::insert() (RG1) : à la création, l'entité
+ * porte un numéro vide, ignoré.
+ */
 class EpisodeOfCare
 {
+    /**
+     * @param ?int $idEpisodeOfCare null tant que le séjour n'est pas enregistré
+     * @param ?string $idService idHealthcareService du service hospitalier (null = non renseigné)
+     * @param ?float $weight poids à l'admission, en kg
+     * @param ?float $height taille à l'admission, en cm
+     * @param array<string, ?string> $details champs complémentaires, clés de RecordFields::EPISODE
+     * @param ?string $referringPractitionerName nom affiché du référent, lu par jointure, jamais écrit
+     */
     public function __construct(
         private ?int $idEpisodeOfCare,
         private int $idPatient,
@@ -112,13 +130,14 @@ class EpisodeOfCare
 
     /**
      * « Prénom Nom » du médecin référent, lu par EpisodeOfCareDao (jointure sur Practitioner) pour
-     * l'affichage ; null s'il n'y en a pas. Jamais écrit en base.
+     * l'affichage ; son identifiant s'il n'a pas de nom, null s'il n'y a pas de référent. Jamais écrit en base.
      */
     public function getReferringPractitionerName(): ?string
     {
         return $this->referringPractitionerName;
     }
 
+    /** En cours : pas encore de date de sortie (ni fin de séjour ni décès déclaré). */
     public function isOngoing(): bool
     {
         return $this->dischargeDate === null;
