@@ -353,7 +353,7 @@ Scénarios manuels avec les données de démo (`database/test.sql`), serveur lan
 1. **Admission d'un nouveau patient** : `/`, nom + prénom, cocher deux allergènes, ouvrir « Scores » et choisir
    ASA III, « Mesures » 180 cm / 80 kg, sexe M, Admettre → dossier du séjour avec IMC, poids théorique, Vt et
    allergies dans le bandeau. Une date de chirurgie `2026-02-30` est refusée sous le champ, section ouverte.
-2. **Patient existant** : `/`, taper « lef » dans « Nom ou prénom » → Lefèvre Odette (date de naissance, âge,
+2. **Patient existant** : `/`, taper « fle » dans « Nom ou prénom » → Fletcher Jessica (date de naissance, âge,
    IPP, dernier séjour) ; flèche bas, Entrée, Confirmer → formulaire pré-rempli, bandeau orange « Données issues
    du dossier existant » ; Admettre → aucun doublon dans `Patient`, rattachement visible dans « Historique des
    modifications ». L'IPP `100000001` puis « Rechercher » donne un résultat unique avec la même confirmation.

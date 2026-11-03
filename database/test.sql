@@ -113,13 +113,13 @@ INSERT INTO Practitioner (idPractitioner, idPractitionerRole, firstName, lastNam
 -- ---------------------------------------------------------------------------
 
 INSERT INTO Patient (idPatient, ipp, firstName, lastName, phoneNumber, email, sex, birthDate, deceased, generalPractitioner, address, bloodType) VALUES
-    ('1', 100000001, 'Marie',   'Dupont',  '0600000001', 'marie.dupont@example.com', 'F', '1958-03-14', FALSE, 'Dr Lambert', '12 rue des Lilas, 69003 Lyon',                    'A+'),
-    ('2', 100000002, 'Jean',    'Martin',  '0600000002', NULL,                       'M', '1972-11-02', FALSE, 'Dr Lambert', '4 avenue Berthelot, 69007 Lyon',                  'O+'),
-    ('3', 100000003, 'Sofia',   'Haddad',  '0600000003', 'sofia.h@example.com',      'F', '1990-06-25', FALSE, 'Dr Nguyen',  '27 cours Gambetta, 69007 Lyon',                   'B-'),
-    ('4', 100000004, 'Lucas',   'Bernard', NULL,         NULL,                       'M', '2001-01-09', FALSE, NULL,         '3 place Bellecour, 69002 Lyon',                   'O-'),
-    ('5', 100000005, 'Odette',  'Lefèvre', '0600000005', NULL,                       'F', '1939-08-30', TRUE,  'Dr Faure',   '8 rue Mercière, 69002 Lyon',                      'A-'),
-    ('6', 100000006, 'Yanis',   'Mercier', '0600000006', 'yanis.m@example.com',      'M', '1985-12-17', FALSE, 'Dr Nguyen',  '15 boulevard du 11 Novembre, 69100 Villeurbanne', 'AB+'),
-    ('7', NULL,      'Camille', 'Roux',    NULL,         NULL,                       'F', '1967-04-21', FALSE, NULL,         NULL,                                              NULL);
+    ('1', 100000001, 'Marge',    'Simpson',   '0600000001', 'marge.simpson@example.com', 'F', '1958-03-14', FALSE, 'Dr Lambert', '12 rue des Lilas, 69003 Lyon',                    'A+'),
+    ('2', 100000002, 'Luke',     'Skywalker', '0600000002', NULL,                        'M', '1972-11-02', FALSE, 'Dr Lambert', '4 avenue Berthelot, 69007 Lyon',                  'O+'),
+    ('3', 100000003, 'Hermione', 'Granger',   '0600000003', 'h.granger@example.com',     'F', '1990-06-25', FALSE, 'Dr Nguyen',  '27 cours Gambetta, 69007 Lyon',                   'B-'),
+    ('4', 100000004, 'Peter',    'Parker',    NULL,         NULL,                        'M', '2001-01-09', FALSE, NULL,         '3 place Bellecour, 69002 Lyon',                   'O-'),
+    ('5', 100000005, 'Jessica',  'Fletcher',  '0600000005', NULL,                        'F', '1939-08-30', TRUE,  'Dr Faure',   '8 rue Mercière, 69002 Lyon',                      'A-'),
+    ('6', 100000006, 'Arsène',   'Lupin',     '0600000006', 'a.lupin@example.com',       'M', '1985-12-17', FALSE, 'Dr Nguyen',  '15 boulevard du 11 Novembre, 69100 Villeurbanne', 'AB+'),
+    ('7', NULL,      'Ellen',    'Ripley',    NULL,         NULL,                        'F', '1967-04-21', FALSE, NULL,         NULL,                                              NULL);
 
 -- ---------------------------------------------------------------------------
 -- Séjours (dépend de Patient et HealthcareService)
@@ -142,7 +142,7 @@ INSERT INTO EpisodeOfCare (idEpisodeOfCare, idPatient, idHealthcareService, epis
 UPDATE Patient SET
     birthLastName = 'Durand',
     generalPractitioner = 'Dr Lambert',
-    trustedPersonName = 'Paul Dupont (époux)',
+    trustedPersonName = 'Homer Simpson (époux)',
     trustedPersonPhone = '06 00 00 00 11',
     medicalHistory = 'HTA traitée depuis 2015.\nBPCO stade II (tabagisme sevré en 2019).',
     surgicalHistory = 'Cholécystectomie (2008).',
