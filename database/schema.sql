@@ -10,8 +10,8 @@
 
 DROP TABLE IF EXISTS AuditEvent; -- Historique des modifications du dossier (aucune clé étrangère)
 DROP TABLE IF EXISTS Appointment; -- SoinPlanifié ->[ServiceRequest,MedicationRequest]
+DROP TABLE IF EXISTS MedicationRequest; -- PrescriptionMedicament ->[Medication,ActivityDefinition,CarePlan,Practitioner]
 DROP TABLE IF EXISTS ServiceRequest; -- PrescriptionSoin ->[ActivityDefinition,CarePlan,Practitioner]
-DROP TABLE IF EXISTS MedicationRequest; -- PrescriptionMedicament ->[Medication,CarePlan,Practitioner]
 DROP TABLE IF EXISTS CarePlan; -- Prescription ->[Practitioner,EpisodeOfCare,PlanDefinition]
 DROP TABLE IF EXISTS PlanDefinitionAction; -- LigneProtocole ->[PlanDefinition,ActivityDefinition,Medication]
 DROP TABLE IF EXISTS PlanDefinition; -- Protocole ->[Pathology]
@@ -19,9 +19,9 @@ DROP TABLE IF EXISTS Pathology; -- Pathologie
 DROP TABLE IF EXISTS EpisodeOfCare; -- Séjour ->[Patient,HealthcareService]
 DROP TABLE IF EXISTS Practitioner; -- Praticien ->[PractitionerRole]
 DROP TABLE IF EXISTS AllergyIntolerance; -- Allergie ->[Patient,Substance]
-DROP TABLE IF EXISTS Substance; -- Allergène
+DROP TABLE IF EXISTS Medication; -- Médicament ->[Substance]
+DROP TABLE IF EXISTS Substance; -- Substance (Allergène)
 DROP TABLE IF EXISTS PractitionerRole; -- RôlePraticien
-DROP TABLE IF EXISTS Medication; -- Médicament
 DROP TABLE IF EXISTS ActivityDefinition; -- TypeSoin
 DROP TABLE IF EXISTS HealthcareService; -- Service Hospitalier
 DROP TABLE IF EXISTS Patient; -- Patient
@@ -43,27 +43,27 @@ CREATE TABLE Patient( -- Patient
     -- tous facultatifs : identité de naissance, INS, personne de confiance, DMP, directives
     -- anticipées, note libre sur les allergies, antécédents (ATCD) en texte libre.
     -- Stables au fil des séjours : ils vivent sur Patient, pas sur EpisodeOfCare.
-    birthLastName VARCHAR(50) NULL,
-    birthFirstName VARCHAR(50) NULL,
-    insNumber VARCHAR(20) NULL,
-    trustedPersonName VARCHAR(100) NULL,
-    trustedPersonPhone VARCHAR(20) NULL,
-    trustedPersonEmail VARCHAR(100) NULL,
-    dmpIdentifier VARCHAR(100) NULL,
-    advanceDirectives TEXT NULL,
-    allergyNote TEXT NULL,
-    medicalHistory TEXT NULL,
-    surgicalHistory TEXT NULL,
-    obstetricHistory TEXT NULL,
-    transfusionHistory TEXT NULL,
-    vaccinationHistory TEXT NULL,
-    anestheticHistory TEXT NULL,
-    toxicHistory TEXT NULL,
-    familySocialHistory TEXT NULL,
-    lifestyle TEXT NULL,
-    foreignTravel TEXT NULL,
-    comorbidities TEXT NULL,
-    currentTreatment TEXT NULL,
+    birthLastName VARCHAR(50),
+    birthFirstName VARCHAR(50),
+    insNumber VARCHAR(20),
+    trustedPersonName VARCHAR(100),
+    trustedPersonPhone VARCHAR(20),
+    trustedPersonEmail VARCHAR(100),
+    dmpIdentifier VARCHAR(100),
+    advanceDirectives TEXT,
+    allergyNote TEXT,
+    medicalHistory TEXT,
+    surgicalHistory TEXT,
+    obstetricHistory TEXT,
+    transfusionHistory TEXT,
+    vaccinationHistory TEXT,
+    anestheticHistory TEXT,
+    toxicHistory TEXT,
+    familySocialHistory TEXT,
+    lifestyle TEXT,
+    foreignTravel TEXT,
+    comorbidities TEXT,
+    currentTreatment TEXT,
 
     -- Recherche d'un patient existant à l'admission (PR « admission-recherche-patient ») : index pour le tri
     -- (ORDER BY lastName, firstName), l'égalité « nom exact » et findByIdentite() ; le filtre par début de mot
@@ -76,6 +76,64 @@ CREATE TABLE Patient( -- Patient
 CREATE TABLE HealthcareService( -- Service Hospitalier
     idHealthcareService VARCHAR(20) PRIMARY KEY,
     serviceName VARCHAR(50)
+);
+
+CREATE TABLE ActivityDefinition( -- TypeSoin
+    idActivityDefinition VARCHAR(20) PRIMARY KEY,
+    name VARCHAR(100),
+    description VARCHAR(200)
+);
+
+CREATE TABLE PractitionerRole( -- RôlePraticien
+    idPractitionerRole VARCHAR(20) PRIMARY KEY,
+    title VARCHAR(50),
+    canValidate BOOLEAN NOT NULL DEFAULT FALSE
+);
+
+-- Référentiel des allergènes (AURA-13.1) : une substance n'y figure qu'une fois.
+CREATE TABLE Substance( -- Allergène
+    idSubstance VARCHAR(20) PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE
+);
+
+CREATE TABLE Medication( -- Medicament
+    idMedication VARCHAR(20) PRIMARY KEY,
+    inn VARCHAR(100), -- DCI
+    form VARCHAR(100),
+    idSubstance VARCHAR(20), -- Si le composé actif est un allergène connu
+
+    CONSTRAINT uq_inn_form UNIQUE (inn,form),
+    CONSTRAINT fk_substance_medication FOREIGN KEY (idSubstance) REFERENCES Substance(idSubstance)
+);
+
+-- Allergie connue d'un patient (AURA-13.1, RG2).
+CREATE TABLE AllergyIntolerance( -- Allergie
+    idAllergy VARCHAR(20) PRIMARY KEY,
+    idPatient VARCHAR(20) NOT NULL,
+    idSubstance VARCHAR(20) NOT NULL,
+    manifestation VARCHAR(100),
+    criticality VARCHAR(100),
+    -- Date à laquelle l'allergie a été enregistrée dans AURA, remplie par la base à
+    -- l'insertion. Ce n'est pas la date d'apparition de l'allergie. L'allergie est liée
+    -- au patient et non au séjour : la date distingue une allergie connue depuis un
+    -- séjour antérieur d'une allergie découverte pendant le séjour en cours, et dira si
+    -- elle était connue au moment d'un soin (AURA-20/25).
+    recordedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    
+    CONSTRAINT uq_substance_patient UNIQUE (idPatient, idSubstance),
+    CONSTRAINT fk_patient_allergy FOREIGN KEY (idPatient) REFERENCES Patient(idPatient),
+    CONSTRAINT fk_substance_allergy FOREIGN KEY (idSubstance) REFERENCES Substance(idSubstance)
+);
+
+CREATE TABLE Practitioner( -- Praticien 
+    idPractitioner VARCHAR(20) PRIMARY KEY,
+    idPractitionerRole VARCHAR(20),
+    firstName VARCHAR(50),
+    lastName VARCHAR(50),
+    phoneNumber VARCHAR(10),
+    email VARCHAR(50),
+
+    CONSTRAINT fk_practitionerrole_practitioner FOREIGN KEY (idPractitionerRole) REFERENCES PractitionerRole(idPractitionerRole)
 );
 
 CREATE TABLE EpisodeOfCare( -- Séjour
@@ -93,87 +151,33 @@ CREATE TABLE EpisodeOfCare( -- Séjour
     admissionReason VARCHAR(1000),
     -- Mesures relevées à l'admission (AURA-04, AURA-10.1), facultatives : poids en kg,
     -- taille en cm, précautions en texte libre (isolement, risque de chute…).
-    weight DECIMAL(5,2) NULL,
-    height DECIMAL(5,2) NULL,
-    precautions VARCHAR(500) NULL,
+    weight DECIMAL(5,2),
+    height DECIMAL(5,2),
+    precautions VARCHAR(500),
     -- Champs complémentaires de l'admission (PR « admission-champs-complets », 2026-11-02), tous
     -- facultatifs et propres à l'hospitalisation : statut spécial, plan blanc, histoire de la maladie
     -- (5 zones), scores à l'admission (valeurs contrôlées par Aura\Domain\ClinicalScales), chirurgie.
-    specialStatus VARCHAR(100) NULL,
-    whitePlan TEXT NULL,
-    diseaseHistory1 TEXT NULL,
-    diseaseHistory2 TEXT NULL,
-    diseaseHistory3 TEXT NULL,
-    diseaseHistory4 TEXT NULL,
-    diseaseHistory5 TEXT NULL,
-    asaScore VARCHAR(5) NULL,
-    nyhaClass VARCHAR(5) NULL,
-    mcCabeScore VARCHAR(5) NULL,
-    knausScore VARCHAR(5) NULL,
-    girScore VARCHAR(5) NULL,
-    intermacsProfile VARCHAR(5) NULL,
-    intubationCriteria TEXT NULL,
-    surgeryDate DATE NULL,
-    materialLeftInPlace TEXT NULL,
-    removableProstheses VARCHAR(200) NULL,
-    completedBy VARCHAR(100) NULL,
+    specialStatus VARCHAR(100),
+    whitePlan TEXT,
+    diseaseHistory1 TEXT,
+    diseaseHistory2 TEXT,
+    diseaseHistory3 TEXT,
+    diseaseHistory4 TEXT,
+    diseaseHistory5 TEXT,
+    asaScore VARCHAR(5),
+    nyhaClass VARCHAR(5),
+    mcCabeScore VARCHAR(5),
+    knausScore VARCHAR(5),
+    girScore VARCHAR(5),
+    intermacsProfile VARCHAR(5),
+    intubationCriteria TEXT,
+    surgeryDate DATE,
+    materialLeftInPlace TEXT,
+    removableProstheses VARCHAR(200),
+    completedBy VARCHAR(100),
 
-    CONSTRAINT fk_patient_episode FOREIGN KEY (idPatient) REFERENCES Patient(idPatient) ON DELETE RESTRICT,
-    CONSTRAINT fk_healthcareservice_episode FOREIGN KEY (idHealthcareService) REFERENCES HealthcareService(idHealthcareService) ON DELETE RESTRICT
-);
-
--- Référentiel des allergènes (AURA-13.1) : une substance n'y figure qu'une fois.
-CREATE TABLE Substance( -- Allergène
-    idSubstance VARCHAR(20) PRIMARY KEY,
-    description VARCHAR(100) NOT NULL UNIQUE
-);
-
--- Allergie connue d'un patient (AURA-13.1, RG2). idAllergie reste la clé (lue par
--- AllergieDao). Suppression logique (règle n° 8 du README) : retirer une allergie
--- remplit removedAt, la ligne reste en base. ON DELETE RESTRICT : on ne supprime ni un
--- patient ni un allergène qui a des allergies enregistrées, même retirées.
-CREATE TABLE AllergyIntolerance( -- Allergie
-    idAllergy VARCHAR(20) PRIMARY KEY,
-    idPatient VARCHAR(20) NOT NULL,
-    idSubstance VARCHAR(20) NOT NULL,
-    manifestation VARCHAR(100),
-    criticality VARCHAR(100),
-    -- Date à laquelle l'allergie a été enregistrée dans AURA, remplie par la base à
-    -- l'insertion. Ce n'est pas la date d'apparition de l'allergie. L'allergie est liée
-    -- au patient et non au séjour : la date distingue une allergie connue depuis un
-    -- séjour antérieur d'une allergie découverte pendant le séjour en cours, et dira si
-    -- elle était connue au moment d'un soin (AURA-20/25).
-    recordedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    -- Date de retrait (suppression logique) ; NULL = allergie active.
-    #removedAt DATETIME NULL,
-    -- 1 si l'allergie est active, NULL si elle est retirée. Calculée par la base, jamais
-    -- écrite. Comme UNIQUE ignore les NULL, la contrainte ci-dessous refuse deux
-    -- allergies ACTIVES pour le même couple patient / allergène, mais permet de saisir
-    -- à nouveau un allergène retiré (MariaDB n'a pas d'index partiel).
-    #activeKey TINYINT GENERATED ALWAYS AS (IF(removedAt IS NULL, 1, NULL)) STORED,
-
-    CONSTRAINT uq_substance_patient UNIQUE (idPatient, idSubstance),
-    CONSTRAINT fk_patient_allergy FOREIGN KEY (idPatient) REFERENCES Patient(idPatient)
-        ON DELETE RESTRICT,
-    CONSTRAINT fk_substance_allergy FOREIGN KEY (idSubstance) REFERENCES Substance(idSubstance)
-        ON DELETE RESTRICT
-);
-
-CREATE TABLE PractitionerRole( -- RôlePraticien
-    idPractitionerRole VARCHAR(20) PRIMARY KEY,
-    description VARCHAR(50),
-    canValidate BOOLEAN NOT NULL DEFAULT FALSE
-);
-
-CREATE TABLE Practitioner( -- Praticien 
-    idPractitioner VARCHAR(20) PRIMARY KEY,
-    idPractitionerRole VARCHAR(20),
-    firstName VARCHAR(50),
-    lastName VARCHAR(50),
-    phoneNumber VARCHAR(10),
-    email VARCHAR(50),
-
-    CONSTRAINT fk_practitionerrole_practitioner FOREIGN KEY (idPractitionerRole) REFERENCES PractitionerRole(idPractitionerRole) ON DELETE RESTRICT
+    CONSTRAINT fk_patient_episode FOREIGN KEY (idPatient) REFERENCES Patient(idPatient),
+    CONSTRAINT fk_healthcareservice_episode FOREIGN KEY (idHealthcareService) REFERENCES HealthcareService(idHealthcareService)
 );
 
 -- Référentiel des pathologies auxquelles un protocole s'applique. Pas de nom HL7 : en FHIR,
@@ -190,46 +194,10 @@ CREATE TABLE Pathology( -- Pathologie
 CREATE TABLE PlanDefinition( -- Protocole
     idPlanDefinition VARCHAR(20) PRIMARY KEY,
     title VARCHAR(100) NOT NULL,
-    idPathology VARCHAR(20) NULL,
+    idPathology VARCHAR(20),
     active BOOLEAN NOT NULL DEFAULT TRUE,
 
-    CONSTRAINT fk_pathology_plandefinition FOREIGN KEY (idPathology) REFERENCES Pathology(idPathology) ON DELETE RESTRICT
-);
-
-CREATE TABLE CarePlan( -- Prescription
-    idCarePlan VARCHAR(20) PRIMARY KEY,
-    idEpisodeOfCare VARCHAR(20) NOT NULL,
-    idPrescriber VARCHAR(20) NOT NULL,
-    mode VARCHAR(20) NOT NULL,
-    recordedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    -- RG5 / RG10 : médecin qui a validé et quand (NULL = non validée). La validation porte
-    -- sur toute l'ordonnance.
-    idValidator VARCHAR(20) NULL,
-    validatedAt DATETIME NULL,
-    -- Traçabilité : protocole d'où vient l'ordonnance ; NULL = saisie ligne par ligne.
-    idPlanDefinition VARCHAR(20) NULL,
-
-    CONSTRAINT chk_careplan_mode CHECK (mode IN ('MEDICAL', 'PARAMEDICAL', 'EMERGENCY')),
-    CONSTRAINT chk_careplan_validation CHECK ((idValidator IS NULL) = (validatedAt IS NULL)),
-
-    CONSTRAINT fk_episodeofcare_careplan FOREIGN KEY (idEpisodeOfCare) REFERENCES EpisodeOfCare(idEpisodeOfCare) ON DELETE RESTRICT,
-    CONSTRAINT fk_prescriber_careplan FOREIGN KEY (idPrescriber) REFERENCES Practitioner(idPractitioner) ON DELETE RESTRICT,
-    CONSTRAINT fk_validator_careplan FOREIGN KEY (idValidator) REFERENCES Practitioner(idPractitioner) ON DELETE RESTRICT,
-    CONSTRAINT fk_plandefinition_careplan FOREIGN KEY (idPlanDefinition) REFERENCES PlanDefinition(idPlanDefinition) ON DELETE RESTRICT
-);
-
-CREATE TABLE Medication( -- Medicament
-    idMedication VARCHAR(20) PRIMARY KEY,
-    inn VARCHAR(100), -- DCI
-    form VARCHAR(100),
-
-    CONSTRAINT uq_inn_form UNIQUE (inn,form)
-);
-
-CREATE TABLE ActivityDefinition( -- TypeSoin
-    idActivityDefinition VARCHAR(20) PRIMARY KEY,
-    name VARCHAR(100),
-    description VARCHAR(200)
+    CONSTRAINT fk_pathology_plandefinition FOREIGN KEY (idPathology) REFERENCES Pathology(idPathology)
 );
 
 -- Ligne modèle d'un protocole : les mêmes champs qu'une ligne de soin (kind = 'CARE') ou de
@@ -243,25 +211,25 @@ CREATE TABLE PlanDefinitionAction( -- LigneProtocole
     -- RG6 : type de soin (« Administration médicamenteuse » pour un médicament).
     idActivityDefinition VARCHAR(20) NOT NULL,
     -- Médicament, dose et voie : obligatoires pour un médicament, vides pour un soin.
-    idMedication VARCHAR(20) NULL,
-    dose VARCHAR(50) NULL,
-    route VARCHAR(50) NULL,
-    important VARCHAR(200) NULL,
-    nurseInstructions VARCHAR(200) NULL,
-    maxDose VARCHAR(50) NULL,
-    dilutionVolume VARCHAR(50) NULL,
-    solvent VARCHAR(200) NULL,
-    administrationDuration VARCHAR(50) NULL,
-    antibioticReason VARCHAR(200) NULL,
-    germ VARCHAR(200) NULL,
-    renalAdjustment VARCHAR(200) NULL,
-    adjustmentCriterion VARCHAR(200) NULL,
-    offGhsReason VARCHAR(200) NULL,
+    idMedication VARCHAR(20),
+    dose VARCHAR(50),
+    route VARCHAR(50),
+    important VARCHAR(200),
+    nurseInstructions VARCHAR(200),
+    maxDose VARCHAR(50),
+    dilutionVolume VARCHAR(50),
+    solvent VARCHAR(200),
+    administrationDuration VARCHAR(50),
+    antibioticReason VARCHAR(200),
+    germ VARCHAR(200),
+    renalAdjustment VARCHAR(200),
+    adjustmentCriterion VARCHAR(200),
+    offGhsReason VARCHAR(200),
     -- Heures entre l'application du protocole et le début de la ligne (0 = tout de suite).
     startOffsetHours SMALLINT NOT NULL DEFAULT 0,
-    durationHours SMALLINT NULL,
-    frequencyHours SMALLINT NULL,
-    timeConstraint VARCHAR(200) NULL,
+    durationHours SMALLINT,
+    frequencyHours SMALLINT,
+    timeConstraint VARCHAR(200),
 
     CONSTRAINT chk_plandefinitionaction_kind CHECK (kind IN ('MEDICATION', 'CARE')),
     CONSTRAINT chk_plandefinitionaction_medication CHECK (
@@ -275,11 +243,32 @@ CREATE TABLE PlanDefinitionAction( -- LigneProtocole
         durationHours IS NULL OR (durationHours > 0 AND frequencyHours IS NOT NULL)
     ),
 
-    CONSTRAINT fk_plandefinition_plandefinitionaction FOREIGN KEY (idPlanDefinition) REFERENCES PlanDefinition(idPlanDefinition) ON DELETE RESTRICT,
-    CONSTRAINT fk_activitydefinition_plandefinitionaction FOREIGN KEY (idActivityDefinition) REFERENCES ActivityDefinition(idActivityDefinition) ON DELETE RESTRICT,
-    CONSTRAINT fk_medication_plandefinitionaction FOREIGN KEY (idMedication) REFERENCES Medication(idMedication) ON DELETE RESTRICT
+    CONSTRAINT fk_plandefinition_plandefinitionaction FOREIGN KEY (idPlanDefinition) REFERENCES PlanDefinition(idPlanDefinition),
+    CONSTRAINT fk_activitydefinition_plandefinitionaction FOREIGN KEY (idActivityDefinition) REFERENCES ActivityDefinition(idActivityDefinition),
+    CONSTRAINT fk_medication_plandefinitionaction FOREIGN KEY (idMedication) REFERENCES Medication(idMedication)
 );
 
+CREATE TABLE CarePlan( -- Prescription
+    idCarePlan VARCHAR(20) PRIMARY KEY,
+    idEpisodeOfCare VARCHAR(20) NOT NULL,
+    idPrescriber VARCHAR(20) NOT NULL,
+    mode VARCHAR(20) NOT NULL,
+    recordedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    -- RG5 / RG10 : médecin qui a validé et quand (NULL = non validée). La validation porte
+    -- sur toute l'ordonnance.
+    idValidator VARCHAR(20),
+    validatedAt DATETIME,
+    -- Traçabilité : protocole d'où vient l'ordonnance ; NULL = saisie ligne par ligne.
+    idPlanDefinition VARCHAR(20),
+
+    CONSTRAINT chk_careplan_mode CHECK (mode IN ('MEDICAL', 'PARAMEDICAL', 'EMERGENCY')),
+    CONSTRAINT chk_careplan_validation CHECK ((idValidator IS NULL) = (validatedAt IS NULL)),
+
+    CONSTRAINT fk_episodeofcare_careplan FOREIGN KEY (idEpisodeOfCare) REFERENCES EpisodeOfCare(idEpisodeOfCare),
+    CONSTRAINT fk_prescriber_careplan FOREIGN KEY (idPrescriber) REFERENCES Practitioner(idPractitioner),
+    CONSTRAINT fk_validator_careplan FOREIGN KEY (idValidator) REFERENCES Practitioner(idPractitioner),
+    CONSTRAINT fk_plandefinition_careplan FOREIGN KEY (idPlanDefinition) REFERENCES PlanDefinition(idPlanDefinition)
+);
 
 CREATE TABLE ServiceRequest( -- LignePrescriptionSoin
     idServiceRequest VARCHAR(20) PRIMARY KEY,
@@ -287,23 +276,22 @@ CREATE TABLE ServiceRequest( -- LignePrescriptionSoin
     -- RG6 : type de soin.
     idActivityDefinition VARCHAR(20) NOT NULL,
     startDate DATETIME NOT NULL,
-    endDate DATETIME NULL,
-    frequencyHours SMALLINT NULL,
+    endDate DATETIME,
+    frequencyHours SMALLINT,
     -- Contrainte horaire en texte libre (« à jeun », « 8 h et 20 h »).
-    timeConstraint VARCHAR(200) NULL,
+    timeConstraint VARCHAR(200),
     -- AURA-22 : arrêt de la ligne (suppression logique, règle n° 8), par qui et quand (RG10).
-    idStoppedBy VARCHAR(20) NULL,
-    stoppedAt DATETIME NULL,
+    idStoppedBy VARCHAR(20),
+    stoppedAt DATETIME,
 
     CONSTRAINT chk_servicerequest_frequence CHECK (frequencyHours IS NULL OR frequencyHours > 0),
     CONSTRAINT chk_servicerequest_dates CHECK (endDate IS NULL OR endDate >= startDate),
     CONSTRAINT chk_servicerequest_arret CHECK ((idStoppedBy IS NULL) = (stoppedAt IS NULL)),
 
-    CONSTRAINT fk_careplan_servicerequest FOREIGN KEY (idCarePlan) REFERENCES CarePlan(idCarePlan) ON DELETE RESTRICT,
-    CONSTRAINT fk_activitydefinition_servicerequest FOREIGN KEY (idActivityDefinition) REFERENCES ActivityDefinition(idActivityDefinition) ON DELETE RESTRICT,
-    CONSTRAINT fk_stoppedby_servicerequest FOREIGN KEY (idStoppedBy) REFERENCES Practitioner(idPractitioner) ON DELETE RESTRICT
+    CONSTRAINT fk_careplan_servicerequest FOREIGN KEY (idCarePlan) REFERENCES CarePlan(idCarePlan),
+    CONSTRAINT fk_activitydefinition_servicerequest FOREIGN KEY (idActivityDefinition) REFERENCES ActivityDefinition(idActivityDefinition),
+    CONSTRAINT fk_stoppedby_servicerequest FOREIGN KEY (idStoppedBy) REFERENCES Practitioner(idPractitioner)
 );
-
 
 CREATE TABLE MedicationRequest( -- LignePrescriptionMedicament
     idMedicationRequest VARCHAR(20) PRIMARY KEY,
@@ -315,42 +303,41 @@ CREATE TABLE MedicationRequest( -- LignePrescriptionMedicament
     dose VARCHAR(50) NOT NULL,
     route VARCHAR(50) NOT NULL,
     -- Écran B3 (figure 9) : « Important -> » et « Consignes pour IDE », facultatifs.
-    important VARCHAR(200) NULL,
-    nurseInstructions VARCHAR(200) NULL,
+    important VARCHAR(200),
+    nurseInstructions VARCHAR(200),
     -- Écran B3 (figure 9) : « (Dose max) », « Volume de dilution », « Solvant », facultatifs.
-    maxDose VARCHAR(50) NULL,
-    dilutionVolume VARCHAR(50) NULL,
-    solvent VARCHAR(200) NULL,
+    maxDose VARCHAR(50),
+    dilutionVolume VARCHAR(50),
+    solvent VARCHAR(200),
     -- Écran B3 (figure 9), facultatifs : durée d'administration (« 30 min »), motif et germe
     -- (si antibiotique), adaptation rénale et son critère, motif si hors GHS.
-    administrationDuration VARCHAR(50) NULL,
-    antibioticReason VARCHAR(200) NULL,
-    germ VARCHAR(200) NULL,
-    renalAdjustment VARCHAR(200) NULL,
-    adjustmentCriterion VARCHAR(200) NULL,
-    offGhsReason VARCHAR(200) NULL,
+    administrationDuration VARCHAR(50),
+    antibioticReason VARCHAR(200),
+    germ VARCHAR(200),
+    renalAdjustment VARCHAR(200),
+    adjustmentCriterion VARCHAR(200),
+    offGhsReason VARCHAR(200),
     startDate DATETIME NOT NULL,
-    endDate DATETIME NULL,
-    frequencyHours SMALLINT NULL,
-    timeConstraint VARCHAR(200) NULL,
-    idStoppedBy VARCHAR(20) NULL,
-    stoppedAt DATETIME NULL,
+    endDate DATETIME,
+    frequencyHours SMALLINT,
+    timeConstraint VARCHAR(200),
+    idStoppedBy VARCHAR(20),
+    stoppedAt DATETIME,
 
     CONSTRAINT chk_medicationrequest_frequence CHECK (frequencyHours IS NULL OR frequencyHours > 0),
     CONSTRAINT chk_medicationrequest_dates CHECK (endDate IS NULL OR endDate >= startDate),
     CONSTRAINT chk_medicationrequest_arret CHECK ((idStoppedBy IS NULL) = (stoppedAt IS NULL)),
 
-    CONSTRAINT fk_careplan_medicationrequest FOREIGN KEY (idCarePlan) REFERENCES CarePlan(idCarePlan) ON DELETE RESTRICT,
-    CONSTRAINT fk_activitydefinition_medicationrequest FOREIGN KEY (idActivityDefinition) REFERENCES ActivityDefinition(idActivityDefinition) ON DELETE RESTRICT,
-    CONSTRAINT fk_medication_medicationrequest FOREIGN KEY (idMedication) REFERENCES Medication(idMedication) ON DELETE RESTRICT,
-    CONSTRAINT fk_stoppedby_medicationrequest FOREIGN KEY (idStoppedBy) REFERENCES Practitioner(idPractitioner) ON DELETE RESTRICT
+    CONSTRAINT fk_careplan_medicationrequest FOREIGN KEY (idCarePlan) REFERENCES CarePlan(idCarePlan),
+    CONSTRAINT fk_activitydefinition_medicationrequest FOREIGN KEY (idActivityDefinition) REFERENCES ActivityDefinition(idActivityDefinition),
+    CONSTRAINT fk_medication_medicationrequest FOREIGN KEY (idMedication) REFERENCES Medication(idMedication),
+    CONSTRAINT fk_stoppedby_medicationrequest FOREIGN KEY (idStoppedBy) REFERENCES Practitioner(idPractitioner)
 );
-
 
 CREATE TABLE Appointment( -- SoinPlanifie
     idAppointment VARCHAR(20) PRIMARY KEY,
-    idServiceRequest VARCHAR(20) NULL,
-    idMedicationRequest VARCHAR(20) NULL,
+    idServiceRequest VARCHAR(20),
+    idMedicationRequest VARCHAR(20),
     plannedTime DATETIME NOT NULL,
     status VARCHAR(20),
     timeOfCompletion DATETIME,
@@ -359,8 +346,9 @@ CREATE TABLE Appointment( -- SoinPlanifie
 
     CONSTRAINT chk_appointment_ligne CHECK ((idServiceRequest IS NULL) <> (idMedicationRequest IS NULL)),
 
-    CONSTRAINT fk_servicerequest_appointment FOREIGN KEY (idServiceRequest) REFERENCES ServiceRequest(idServiceRequest) ON DELETE RESTRICT,
-    CONSTRAINT fk_medicationrequest_appointment FOREIGN KEY (idMedicationRequest) REFERENCES MedicationRequest(idMedicationRequest) ON DELETE RESTRICT
+
+    CONSTRAINT fk_servicerequest_appointment FOREIGN KEY (idServiceRequest) REFERENCES ServiceRequest(idServiceRequest),
+    CONSTRAINT fk_medicationrequest_appointment FOREIGN KEY (idMedicationRequest) REFERENCES MedicationRequest(idMedicationRequest)
 );
 
 -- Historique des modifications champ par champ du dossier patient (PR « dossier-patient-edition-inline »,
