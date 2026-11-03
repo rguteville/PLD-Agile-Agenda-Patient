@@ -16,7 +16,7 @@ DROP TABLE IF EXISTS CarePlan; -- Prescription ->[Practitioner,EpisodeOfCare,Pla
 DROP TABLE IF EXISTS PlanDefinitionAction; -- LigneProtocole ->[PlanDefinition,ActivityDefinition,Medication]
 DROP TABLE IF EXISTS PlanDefinition; -- Protocole ->[Pathology]
 DROP TABLE IF EXISTS Pathology; -- Pathologie
-DROP TABLE IF EXISTS EpisodeOfCare; -- Séjour ->[Patient,HealthcareService]
+DROP TABLE IF EXISTS EpisodeOfCare; -- Séjour ->[Patient,HealthcareService,Practitioner]
 DROP TABLE IF EXISTS Practitioner; -- Praticien ->[PractitionerRole]
 DROP TABLE IF EXISTS AllergyIntolerance; -- Allergie ->[Patient,Substance]
 DROP TABLE IF EXISTS Medication; -- Médicament ->[Substance]
@@ -175,9 +175,14 @@ CREATE TABLE EpisodeOfCare( -- Séjour
     materialLeftInPlace TEXT,
     removableProstheses VARCHAR(200),
     completedBy VARCHAR(100),
+    -- Médecin référent du séjour (responsable de soin, retours des médecins du 2026-11-03) : le médecin
+    -- de jour qui fait l'admission ou reprend le patient. NULL = « à désigner » (admission de garde :
+    -- un médecin de jour le désigne ensuite depuis le dossier).
+    idReferringPractitioner VARCHAR(20),
 
     CONSTRAINT fk_patient_episode FOREIGN KEY (idPatient) REFERENCES Patient(idPatient),
-    CONSTRAINT fk_healthcareservice_episode FOREIGN KEY (idHealthcareService) REFERENCES HealthcareService(idHealthcareService)
+    CONSTRAINT fk_healthcareservice_episode FOREIGN KEY (idHealthcareService) REFERENCES HealthcareService(idHealthcareService),
+    CONSTRAINT fk_referringpractitioner_episode FOREIGN KEY (idReferringPractitioner) REFERENCES Practitioner(idPractitioner)
 );
 
 -- Référentiel des pathologies auxquelles un protocole s'applique. Pas de nom HL7 : en FHIR,
