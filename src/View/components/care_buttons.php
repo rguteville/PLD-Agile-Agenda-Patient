@@ -12,8 +12,10 @@ use Aura\Core\View;
  * @var array<string, mixed> $item ligne de AgendaService (id, time, label, status)
  * @var int $idEpisodeOfCare séjour du soin
  * @var string $context préfixe du résumé affiché dans le dialogue (patient), facultatif
+ * @var bool $withNote bouton « Note » affiché (non dans l'alerte des retards : on y valide seulement)
  */
 $context = $context ?? '';
+$withNote = $withNote ?? true;
 $summary = ($context !== '' ? $context . ' · ' : '') . $item['time'] . ' · ' . $item['label'];
 $attributes = ' data-appointment="' . View::e($item['id']) . '"'
     . ' data-episode="' . View::e($idEpisodeOfCare) . '"'
@@ -23,5 +25,7 @@ $attributes = ' data-appointment="' . View::e($item['id']) . '"'
     <?php if ($item['canValidate'] ?? in_array($item['status'], ['planned', 'late'], true)) : ?>
         <button type="button" class="button" data-care-action="done"<?= $attributes ?>>Valider</button>
     <?php endif; ?>
-    <button type="button" class="button button--secondary" data-care-action="note"<?= $attributes ?>>Note</button>
+    <?php if ($withNote) : ?>
+        <button type="button" class="button button--secondary" data-care-action="note"<?= $attributes ?>>Note</button>
+    <?php endif; ?>
 </span>

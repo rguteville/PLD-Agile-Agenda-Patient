@@ -140,20 +140,8 @@ if ($editable) {
         <?php endif; ?>
     </div>
     <dl class="record-summary" data-part-view="<?= RecordSectionService::PART_SUMMARY ?>">
-        <dt>Patient</dt>
-        <dd>
-            <?= View::e(mb_strtoupper($banner['lastName']) . ' ' . $banner['firstName']) ?>
-            <?php if ($banner['sex'] !== null) : ?>
-                (<?= View::e($banner['sex']) ?>)
-            <?php endif; ?>
-            <?php if (!empty($banner['deceased'])) : ?>
-                <?= View::render('components/deceased_tag', ['label' => $banner['deceasedLabel'] ?? null]) ?>
-            <?php endif; ?>
-        </dd>
-        <dt>Né(e) le</dt>
-        <dd><?= View::e($banner['birthDate'] ?? 'non renseignée') ?></dd>
-        <dt>IPP</dt>
-        <dd><?= View::e($banner['ipp'] ?? 'sans IPP') ?></dd>
+        <?php /* Audit IHM du 2026-11-04 : nom, naissance et IPP sont déjà dans le bandeau patient (RG2), au-dessus ;
+                 le résumé ne les répète plus. */ ?>
         <dt>Statut</dt>
         <dd>
             <?php if ($episodeOfCare['ongoing']) : ?>
@@ -161,6 +149,10 @@ if ($editable) {
             <?php else : ?>
                 <?= View::render('components/status_badge', ['status' => 'stopped', 'label' => 'Clos']) ?>
                 le <?= View::e($episodeOfCare['dischargeDate']) ?>
+            <?php endif; ?>
+            <?php /* Le décès reste affiché dans le résumé, en plus du bandeau (retours du 2026-11-03). */ ?>
+            <?php if (!empty($banner['deceased'])) : ?>
+                <?= View::render('components/deceased_tag', ['label' => $banner['deceasedLabel'] ?? null]) ?>
             <?php endif; ?>
         </dd>
         <dt>Admission</dt>
@@ -259,29 +251,33 @@ if ($editable) {
     <?php if ($substances === []) : ?>
         <p class="reference-exhausted">Tous les allergènes du référentiel sont déjà enregistrés pour ce patient.</p>
     <?php else : ?>
-        <form method="post" action="/sejour/allergies/ajouter" class="add-allergy">
-            <input type="hidden" name="csrf" value="<?= View::e($csrfToken ?? '') ?>">
-            <input type="hidden" name="idEpisodeOfCare" value="<?= View::e($idEpisodeOfCare) ?>">
-            <div class="inline-field">
-                <label for="idSubstance">Allergène</label>
-                <select id="idSubstance" name="idSubstance" required>
-                    <option value="">Choisir dans la liste</option>
-                    <?php foreach ($substances as $id => $description) : ?>
-                        <option value="<?= View::e($id) ?>"><?= View::e($description) ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <div class="inline-field">
-                <label for="criticality">Criticité</label>
-                <select id="criticality" name="criticality">
-                    <option value="">Non évaluée</option>
-                    <?php foreach ($criticalities as $criticality) : ?>
-                        <option value="<?= View::e($criticality) ?>"><?= View::e($criticality) ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <button type="submit">Ajouter</button>
-        </form>
+        <?php /* Audit IHM du 2026-11-04 : le formulaire d'ajout s'ouvre à la demande (ouvert après une erreur). */ ?>
+        <details class="add-allergy-menu"<?= empty($allergyError) ? '' : ' open' ?>>
+            <summary>Ajouter une allergie</summary>
+            <form method="post" action="/sejour/allergies/ajouter" class="add-allergy">
+                <input type="hidden" name="csrf" value="<?= View::e($csrfToken ?? '') ?>">
+                <input type="hidden" name="idEpisodeOfCare" value="<?= View::e($idEpisodeOfCare) ?>">
+                <div class="inline-field">
+                    <label for="idSubstance">Allergène</label>
+                    <select id="idSubstance" name="idSubstance" required>
+                        <option value="">Choisir dans la liste</option>
+                        <?php foreach ($substances as $id => $description) : ?>
+                            <option value="<?= View::e($id) ?>"><?= View::e($description) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="inline-field">
+                    <label for="criticality">Criticité</label>
+                    <select id="criticality" name="criticality">
+                        <option value="">Non évaluée</option>
+                        <?php foreach ($criticalities as $criticality) : ?>
+                            <option value="<?= View::e($criticality) ?>"><?= View::e($criticality) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <button type="submit">Ajouter</button>
+            </form>
+        </details>
     <?php endif; ?>
 </section>
 
@@ -289,8 +285,7 @@ if ($editable) {
              visible (repliée) avec « Non renseigné » : l'information est absente, pas cachée. */ ?>
     <h2 class="record-subtitle" id="titre-dossier-complet">Dossier complet</h2>
     <?php if ($editable) : ?>
-        <p class="record-help">Pour modifier une valeur, cliquez sur le crayon qui apparaît au survol
-            (ou Entrée au clavier), corrigez-la puis cliquez sur « Confirmer ». Échap annule.</p>
+        <p class="record-help">Crayon au survol (ou Entrée) pour corriger une valeur ; Échap annule.</p>
     <?php endif; ?>
     <div class="record-sections" aria-labelledby="titre-dossier-complet"<?= $editable
         ? ' data-inline-edit data-endpoint="/sejour/champ/modifier" data-csrf="' . View::e($csrfToken) . '"'
@@ -461,47 +456,62 @@ if ($editable) {
             <?php foreach ($prescriptions as $line) : ?>
                 <li class="prescription-card">
                     <p class="prescription-card__label"><?= View::e($line['label']) ?></p>
-                    <?php foreach ($notes as $note => $prefix) : ?>
-                        <?php if ($line[$note] !== null) : ?>
-                            <p class="prescription-card__note"><?= View::e($prefix . $line[$note]) ?></p>
-                        <?php endif; ?>
-                    <?php endforeach; ?>
-                    <?php /* Retours du 2026-11-03 : allergène du patient et note de l'ordonnance. */ ?>
+                    <p class="prescription-card__summary">
+                        <?= View::e($line['frequency']) ?> · <?= View::e($line['period']) ?>
+                    </p>
+                    <?php /* Sécurité du patient : allergène et consigne « Important » restent visibles. */ ?>
                     <?php if (($line['allergen'] ?? null) !== null) : ?>
                         <p class="allergy-flag">Contient un allergène du patient :
                             <?= View::e($line['allergen']) ?></p>
                     <?php endif; ?>
-                    <?php if (($line['carePlanNote'] ?? null) !== null) : ?>
-                        <p class="prescription-card__note care-plan-note">Note de l'ordonnance :
-                            <?= View::e($line['carePlanNote']) ?></p>
+                    <?php if ($line['important'] !== null) : ?>
+                        <p class="prescription-card__note"><?= View::e($notes['important'] . $line['important']) ?></p>
                     <?php endif; ?>
-                    <dl class="prescription-card__meta">
-                        <dt>Fréquence</dt>
-                        <dd><?= View::e($line['frequency']) ?></dd>
-                        <dt>Période</dt>
-                        <dd><?= View::e($line['period']) ?></dd>
-                        <dt>Validée</dt>
-                        <dd><?= View::e($line['validation']) ?></dd>
-                    </dl>
+                    <?php /* Audit IHM du 2026-11-04 : notes, note de l'ordonnance et validation dans « Détails ». */ ?>
+                    <details class="prescription-card__more">
+                        <summary>Détails</summary>
+                        <?php foreach ($notes as $note => $prefix) : ?>
+                            <?php if ($note !== 'important' && $line[$note] !== null) : ?>
+                                <p class="prescription-card__note"><?= View::e($prefix . $line[$note]) ?></p>
+                            <?php endif; ?>
+                        <?php endforeach; ?>
+                        <?php if (($line['carePlanNote'] ?? null) !== null) : ?>
+                            <p class="prescription-card__note care-plan-note">Note de l'ordonnance :
+                                <?= View::e($line['carePlanNote']) ?></p>
+                        <?php endif; ?>
+                        <dl class="prescription-card__meta">
+                            <dt>Fréquence</dt>
+                            <dd><?= View::e($line['frequency']) ?></dd>
+                            <dt>Période</dt>
+                            <dd><?= View::e($line['period']) ?></dd>
+                            <dt>Validée</dt>
+                            <dd><?= View::e($line['validation']) ?></dd>
+                        </dl>
+                    </details>
                     <?php if ($episodeOfCare['ongoing']) : ?>
-                        <?php /* AURA-22 : un médecin arrête la ligne ; elle quitte alors cette liste. */ ?>
-                        <form class="stop-form" method="post" data-ajax
-                              action="/care-plans/stop?idEpisodeOfCare=<?= View::e($idEpisodeOfCare) ?>">
-                            <input type="hidden" name="idLine" value="<?= View::e($line['idLine']) ?>">
-                            <input type="hidden" name="isMedication"
-                                   value="<?= $line['isMedication'] ? '1' : '0' ?>">
-                            <input type="hidden" name="csrf" value="<?= View::e($csrfToken ?? '') ?>">
-                            <select name="idStoppedBy" aria-label="Médecin qui arrête : <?= View::e($line['label']) ?>">
-                                <option value="">— médecin —</option>
-                                <?php foreach ($doctors as $value => $label) : ?>
-                                    <option value="<?= View::e($value) ?>"><?= View::e($label) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                            <?php /* Authentification FACTICE : mot de passe exigé, non vérifié (AURA-18). */ ?>
-                            <input type="password" name="password" autocomplete="off" placeholder="mot de passe"
-                                   aria-label="Mot de passe du médecin qui arrête : <?= View::e($line['label']) ?>">
-                            <button type="submit">Arrêter</button>
-                        </form>
+                        <?php /* AURA-22 : un médecin arrête la ligne ; elle quitte alors cette liste. Le formulaire
+                                 ne s'ouvre qu'à la demande (audit IHM du 2026-11-04). */ ?>
+                        <details class="prescription-card__stop">
+                            <summary>Arrêter…</summary>
+                            <form class="stop-form" method="post" data-ajax
+                                  action="/care-plans/stop?idEpisodeOfCare=<?= View::e($idEpisodeOfCare) ?>">
+                                <input type="hidden" name="idLine" value="<?= View::e($line['idLine']) ?>">
+                                <input type="hidden" name="isMedication"
+                                       value="<?= $line['isMedication'] ? '1' : '0' ?>">
+                                <input type="hidden" name="csrf" value="<?= View::e($csrfToken ?? '') ?>">
+                                <select name="idStoppedBy"
+                                        aria-label="Médecin qui arrête : <?= View::e($line['label']) ?>">
+                                    <option value="">— médecin —</option>
+                                    <?php foreach ($doctors as $value => $label) : ?>
+                                        <option value="<?= View::e($value) ?>"><?= View::e($label) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <?php /* Authentification FACTICE : mot de passe exigé, non vérifié (AURA-18). */ ?>
+                                <input type="password" name="password" autocomplete="off" placeholder="mot de passe"
+                                       aria-label="Mot de passe du médecin qui arrête : <?= View::e($line['label']) ?>">
+                                <button type="submit">Arrêter la ligne</button>
+                            </form>
+                        </details>
                     <?php endif; ?>
                 </li>
             <?php endforeach; ?>

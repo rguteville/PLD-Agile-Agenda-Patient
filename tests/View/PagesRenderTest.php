@@ -505,10 +505,10 @@ final class PagesRenderTest extends TestCase
             self::listLine(idPatient: 9, lastName: 'NOUVEAU'),
         ], 'search' => null]);
 
-        // Séjour en cours : badge, numéro, lit, service, depuis le …
+        // Séjour en cours (audit IHM du 2026-11-04) : lit et service, puis numéro et date d'entrée.
         self::assertStringContainsString('patient-list__row--current', $html);
-        self::assertMatchesRegularExpression('/n° 2026-000001\s*<\/span>/', $html);
-        self::assertStringContainsString('Lit L01,', $html);
+        self::assertStringContainsString('n° 2026-000001 · depuis le', $html);
+        self::assertMatchesRegularExpression('/Lit L01 ·/', $html);
         self::assertStringContainsString('Réa &lt;médicale&gt;', $html);
         self::assertStringContainsString('depuis le 10/10/2026', $html);
         // Dernier séjour clos : lien explicite ; aucun séjour : texte, pas de lien.

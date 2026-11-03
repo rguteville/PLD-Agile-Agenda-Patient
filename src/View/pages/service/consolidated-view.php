@@ -98,6 +98,7 @@ $slotLabel = static function (string $slot): string {
                                 'item' => $item,
                                 'idEpisodeOfCare' => $item['idEpisodeOfCare'],
                                 'context' => $item['patient'],
+                                'withNote' => false,
                             ]) ?>
                         <?php endif; ?>
                     </li>
@@ -205,8 +206,18 @@ $slotLabel = static function (string $slot): string {
                 </thead>
                 <tbody>
                     <?php foreach ($service['slots'] as $slot) : ?>
-                        <?php $isNow = ($service['currentSlot'] ?? null) === $slot; ?>
-                        <tr class="service-slot<?= $isNow ? ' is-now' : '' ?>">
+                        <?php
+                        $isNow = ($service['currentSlot'] ?? null) === $slot;
+                        // Audit IHM du 2026-11-04 : un créneau sans aucun soin dans le service est resserré.
+                        $slotEmpty = true;
+                        foreach ($service['patients'] as $patient) {
+                            if (($patient['items'][$slot] ?? []) !== []) {
+                                $slotEmpty = false;
+                                break;
+                            }
+                        }
+                        ?>
+                        <tr class="service-slot<?= $isNow ? ' is-now' : '' ?><?= $slotEmpty ? ' is-empty' : '' ?>">
                             <th scope="row" class="col-time">
                                 <?= View::e($slotLabel($slot)) ?>
                                 <?php if ($isNow) : ?>
@@ -234,6 +245,9 @@ $slotLabel = static function (string $slot): string {
                                                         <span class="item-details"><?=
                                                             View::e($item['details']) ?></span>
                                                     <?php endif; ?>
+                                                    <?php /* Audit IHM du 2026-11-04 : « + », statut, auteur et
+                                                             boutons sur une seule ligne sous le libellé. */ ?>
+                                                    <span class="slot-item__foot">
                                                     <?= View::render('components/prescription_details', [
                                                         'item' => $item,
                                                     ]) ?>
@@ -261,6 +275,7 @@ $slotLabel = static function (string $slot): string {
                                                             'context' => $who,
                                                         ]) ?>
                                                     <?php endif; ?>
+                                                    </span>
                                                 </li>
                                             <?php endforeach; ?>
                                         </ul>

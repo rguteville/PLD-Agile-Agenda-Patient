@@ -74,17 +74,14 @@ $deleted = $deleted ?? false;
                     <td>
                         <?php if ($p['current'] !== null) : ?>
                             <?php $current = $p['current']; ?>
+                            <?php /* Audit IHM du 2026-11-04 : deux lignes au lieu de quatre ; la colonne dit déjà
+                                     « en cours ». */ ?>
                             <div class="current-episode">
-                                <?= View::render('components/status_badge', [
-                                    'status' => 'planned',
-                                    'label' => 'En cours',
-                                ]) ?>
-                                <span class="current-episode__number">
-                                    n° <?= View::e($current['episodeNumber']) ?>
-                                </span>
-                                <span>Lit <?= View::e($current['bed'] ?? 'non attribué') ?>,
+                                <span>Lit <?= View::e($current['bed'] ?? 'non attribué') ?> ·
                                     <?= View::e($current['service'] ?? 'service non renseigné') ?></span>
-                                <span>depuis le <?= View::e($current['since']) ?></span>
+                                <?php $since = 'n° ' . $current['episodeNumber'] . ' · depuis le ' . $current['since'];
+                                ?>
+                                <small class="current-episode__number"><?= View::e($since) ?></small>
                             </div>
                         <?php else : ?>
                             <span class="no-service">aucun</span>

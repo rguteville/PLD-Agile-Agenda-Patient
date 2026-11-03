@@ -4958,3 +4958,117 @@ form.form--columns .form-lead > .form-row {
     max-width: 100%;
     text-overflow: ellipsis;
 }
+
+/* ===== Audit IHM du 2026-11-04 : écrans plus sobres, détails à la demande ===== */
+/* Prescription : le mot de passe du médecin a l'allure des listes voisines. */
+.b3-row input[type="password"] {
+    flex: 1;
+    min-width: 0;
+    height: 32px;
+    padding: 4px 8px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+    color: var(--fg);
+    font: inherit;
+}
+
+/* Dossier : cartes de prescription resserrées, détails et arrêt repliés. */
+.prescription-card__summary {
+    margin: 2px 0 0;
+    color: var(--fg-muted);
+    font-size: var(--fs-1);
+}
+
+.prescription-card__more,
+.prescription-card__stop,
+.add-allergy-menu {
+    margin-top: var(--sp-2);
+}
+
+.prescription-card__more > summary,
+.prescription-card__stop > summary,
+.add-allergy-menu > summary {
+    width: max-content;
+    color: var(--accent);
+    font-size: var(--fs-1);
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.prescription-card__stop > summary {
+    color: var(--st-alert-fg);
+}
+
+.prescription-card__stop[open] .stop-form,
+.add-allergy-menu[open] .add-allergy {
+    margin-top: var(--sp-2);
+}
+
+.record-allergies .remove-allergy button {
+    padding: 2px var(--sp-2);
+    font-size: var(--fs-1);
+}
+
+/* Agenda du patient : rotation sans soin sur une ligne. */
+.agenda-section.is-empty h2 {
+    margin-bottom: 0;
+    color: var(--fg-muted);
+    font-size: var(--fs-2);
+}
+
+.agenda-section.is-empty .agenda-empty {
+    margin: 0 0 0 var(--sp-2);
+    padding: 0;
+    border: 0;
+    background: none;
+    font-size: var(--fs-1);
+    font-weight: 400;
+}
+
+/* Agenda du service : pied de carte en ligne, créneaux vides resserrés. */
+.slot-item__foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-1) var(--sp-2);
+    margin-top: 2px;
+}
+
+.slot-item__foot .care-buttons .button {
+    padding: 2px var(--sp-2);
+    font-size: var(--fs-1);
+}
+
+.service-slot.is-empty th,
+.service-slot.is-empty td {
+    padding-top: 2px;
+    padding-bottom: 2px;
+    font-size: var(--fs-1);
+    color: var(--fg-muted);
+}
+
+.service-alert__list {
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+/* Liste des patients : séjour en cours sur deux lignes, suppression discrète (rouge au survol). */
+.current-episode .current-episode__number {
+    color: var(--fg-muted);
+    font-weight: 400;
+}
+
+.patient-list__delete {
+    color: var(--fg-muted);
+}
+
+.patient-list__delete:hover,
+.patient-list__delete:focus-visible {
+    color: var(--st-alert-fg);
+}
+
+/* Agenda du patient : « Valider » et « Note » côte à côte. */
+.agenda-table .care-buttons {
+    flex-wrap: nowrap;
+}

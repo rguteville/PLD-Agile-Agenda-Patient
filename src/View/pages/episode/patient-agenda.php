@@ -203,14 +203,17 @@ $recordUrl = '/sejour?id=' . $idEpisodeOfCare;
         <?php endif; ?>
 
         <?php foreach ($agenda['shifts'] as $shift) : ?>
-            <section class="agenda-section" aria-labelledby="agenda-<?= View::e($shift['key']) ?>-title">
+            <?php /* Audit IHM du 2026-11-04 : une rotation sans soin tient sur une ligne discrète. */ ?>
+            <section class="agenda-section<?= $shift['items'] === [] ? ' is-empty' : '' ?>"
+                     aria-labelledby="agenda-<?= View::e($shift['key']) ?>-title">
                 <h2 id="agenda-<?= View::e($shift['key']) ?>-title">
                     <?= View::e($shift['label']) ?>
                     <span class="count"><?= View::e($shift['hours']) ?> · <?= View::e(count($shift['items'])) ?></span>
+                    <?php if ($shift['items'] === []) : ?>
+                        <span class="agenda-empty">rien de prévu</span>
+                    <?php endif; ?>
                 </h2>
-                <?php if ($shift['items'] === []) : ?>
-                    <p class="agenda-empty">Rien de prévu sur cette rotation.</p>
-                <?php else : ?>
+                <?php if ($shift['items'] !== []) : ?>
                     <?= View::render('components/agenda_table', [
                         'items' => $shift['items'],
                         'caption' => 'Rotation ' . $shift['label'] . ', ' . $shift['hours'],
