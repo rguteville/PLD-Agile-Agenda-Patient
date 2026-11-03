@@ -92,6 +92,20 @@ final class AgendaServicePresentWeekTest extends TestCase
         self::assertSame([], $service['lateItems']);
     }
 
+    public function testMissingReferentIsShownOnlyWhenTheSourceKnowsIt(): void
+    {
+        $day = new DateTimeImmutable('2026-10-14');
+        $toAssign = $this->episode(1, 'Ripley', []) + ['referent' => null];
+        $named = $this->episode(2, 'Simpson', []) + ['referent' => 'Dr Claire Morel'];
+
+        $service = AgendaService::presentService([$toAssign, $named, $this->episode(3, 'X', [])], $day, $this->now());
+
+        self::assertNull($service['patients'][0]['referent']);
+        self::assertTrue($service['patients'][0]['referentKnown'], 'garde : « à désigner »');
+        self::assertSame('Dr Claire Morel', $service['patients'][1]['referent']);
+        self::assertFalse($service['patients'][2]['referentKnown'], 'source sans référent : rien n\'est affiché');
+    }
+
     /** @return array<string, mixed> */
     private function episode(int $id, string $lastName, array $appointments): array
     {

@@ -152,6 +152,11 @@ $careButtons = static function (array $item, int $idEpisodeOfCare, string $who) 
                                 <span class="patient-bed">séjour n° <?= View::e($patient['episodeNumber']) ?></span>
                                 <?php if (($patient['referent'] ?? null) !== null) : ?>
                                     <span class="patient-bed">Réf. <?= View::e($patient['referent']) ?></span>
+                                <?php elseif ($patient['referentKnown'] ?? false) : ?>
+                                    <span class="referent-missing">
+                                        <?= View::render('components/icon', ['name' => 'info']) ?>
+                                        Référent à désigner
+                                    </span>
                                 <?php endif; ?>
                                 <?php if (is_array($patient['allergies'])) : ?>
                                     <span class="service-patient__allergies">

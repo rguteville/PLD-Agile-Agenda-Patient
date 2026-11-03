@@ -167,6 +167,8 @@ final class AgendaService
                 'bed' => $episode['bed'] ?? null,
                 'episodeNumber' => (string) $episode['episodeNumber'],
                 'referent' => $episode['referent'] ?? null,
+                // Le référent est-il connu de cette source ? (sinon la vue ne dit pas « à désigner » à tort)
+                'referentKnown' => array_key_exists('referent', $episode),
                 'allergies' => $episode['allergies'] ?? null,
                 'late' => $agenda['counts']['late'],
                 'total' => $agenda['counts']['total'],
