@@ -144,16 +144,60 @@ final class AppointmentIntegrationTest extends TestCase
         self::assertArrayHasKey('completedAt', $result['errors']);
     }
 
-    public function testCareOfTheDayDoneEarlyCanBeValidated(): void
+    public function testCareOfTheCurrentShiftDoneEarlyCanBeValidated(): void
     {
         $result = $this->service->apply(
             1,
             'ZZ_SOI',
-            ['action' => 'done', 'idPerformer' => 'PRA04', 'password' => 'x', 'completedAt' => '2026-10-14T05:00'],
-            new DateTimeImmutable('2026-10-14 05:10:00')
+            ['action' => 'done', 'idPerformer' => 'PRA04', 'password' => 'x', 'completedAt' => '2026-10-14T07:00'],
+            new DateTimeImmutable('2026-10-14 07:10:00')
         );
 
-        self::assertSame(AppointmentService::STATUS_SAVED, $result['status'], 'prévu à 8 h, fait et validé à 5 h');
+        self::assertSame(AppointmentService::STATUS_SAVED, $result['status'], 'prévu à 8 h, fait et validé à 7 h');
+    }
+
+    /** La nuit (22 h – 6 h) chevauche minuit : la dose de 0 h 30 faite à 23 h 45 se valide à 23 h 50. */
+    public function testNightShiftCareAfterMidnightCanBeValidatedBeforeMidnight(): void
+    {
+        $this->pdo->exec("UPDATE Appointment SET plannedTime = '2026-10-15 00:30:00' WHERE idAppointment = 'ZZ_SOI'");
+
+        $result = $this->service->apply(
+            1,
+            'ZZ_SOI',
+            ['action' => 'done', 'idPerformer' => 'PRA04', 'password' => 'x', 'completedAt' => '2026-10-14T23:45'],
+            new DateTimeImmutable('2026-10-14 23:50:00')
+        );
+
+        self::assertSame(AppointmentService::STATUS_SAVED, $result['status']);
+    }
+
+    /** Soin de la nuit validé le lendemain à 0 h 30 : celui de 23 h du même jour est d'une rotation à venir. */
+    public function testCareOfALaterShiftOfTheSameDayIsRefused(): void
+    {
+        $this->pdo->exec("UPDATE Appointment SET plannedTime = '2026-10-14 23:10:00' WHERE idAppointment = 'ZZ_SOI'");
+
+        $result = $this->service->apply(
+            1,
+            'ZZ_SOI',
+            ['action' => 'done', 'idPerformer' => 'PRA04', 'password' => 'x', 'completedAt' => '2026-10-14T00:30'],
+            new DateTimeImmutable('2026-10-14 00:30:00')
+        );
+
+        self::assertSame(AppointmentService::STATUS_INVALID, $result['status']);
+    }
+
+    /** « Non effectué » suit la même règle : on ne retire pas à l'avance un soin d'une rotation à venir. */
+    public function testCareOfAComingShiftCannotBeDeclaredNotDone(): void
+    {
+        $result = $this->service->apply(
+            1,
+            'ZZ_SOI',
+            ['action' => 'not_done', 'idPerformer' => 'PRA04', 'password' => 'x', 'comment' => 'patient au bloc'],
+            new DateTimeImmutable('2026-10-14 05:00:00')
+        );
+
+        self::assertSame(AppointmentService::STATUS_INVALID, $result['status'], 'prévu à 8 h, nuit en cours');
+        self::assertArrayHasKey('comment', $result['errors']);
     }
 
     public function testStoppedLineAcceptsOnlyCareDoneBeforeTheStop(): void

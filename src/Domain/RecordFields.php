@@ -50,11 +50,14 @@ final class RecordFields
     public const DECEASED_OPTIONS = ['0' => 'Non', '1' => 'Oui'];
 
     public const PATIENT = [
+        // Donnée vitale (retours du 2026-11-04) : comme le décès, elle ne change que par « Modifier » sur
+        // sa partie, validé par un médecin et tracé ; l'admission peut seulement compléter un groupe inconnu.
         'bloodType' => [
             'label' => 'Groupe sanguin',
             'type' => 'select',
             'section' => 'admission',
             'options' => self::BLOOD_TYPES,
+            'validatedByDoctor' => true,
         ],
         'allergyNote' => [
             'placeholder' => 'réaction cutanée au sparadrap',

@@ -34,6 +34,23 @@ final class AgendaService
         ['key' => 'night-start', 'label' => 'Nuit (début)', 'hours' => '22 h – 24 h', 'from' => 22, 'to' => 24],
     ];
 
+    /**
+     * Fin de la rotation en cours à l'instant $now (6 h, 14 h, 22 h, ou 6 h le lendemain pour la nuit
+     * commencée à 22 h). Un soin prévu avant cette heure peut être validé ou déclaré non effectué ; un
+     * soin d'une rotation à venir, non (retours du 2026-11-04). Bornes : HYPOTHÈSE de SHIFTS.
+     */
+    public static function shiftEnd(DateTimeImmutable $now): DateTimeImmutable
+    {
+        $hour = (int) $now->format('G');
+        foreach ([6, 14, 22] as $end) {
+            if ($hour < $end) {
+                return $now->setTime($end, 0);
+            }
+        }
+
+        return $now->modify('+1 day')->setTime(6, 0);
+    }
+
     /** Statut en base (Appointment.status) → clé du badge (components/status_badge.php). */
     public const STATUS_KEYS = [
         'PLANIFIE' => 'planned',
@@ -41,7 +58,6 @@ final class AgendaService
         'ANNULE' => 'cancelled',
         'NON_FAIT' => 'not_done',
     ];
-
 
     /** Durée d'un créneau de la vue du service, en heures (0 h, 2 h… 22 h). */
     public const SERVICE_SLOT_HOURS = 2;
@@ -184,6 +200,14 @@ final class AgendaService
             ];
         }
         usort($lateItems, static fn (array $a, array $b): int => $a['datetime'] <=> $b['datetime']);
+        // Créneaux sans aucun soin dans le service (audit IHM du 2026-11-04 : affichés resserrés).
+        $emptySlots = array_values(array_filter(
+            $slots,
+            static fn (string $slot): bool => array_filter(
+                $patients,
+                static fn (array $p): bool => ($p['items'][$slot] ?? []) !== []
+            ) === []
+        ));
 
         return [
             'date' => $day->format('Y-m-d'),
@@ -192,6 +216,7 @@ final class AgendaService
             'previous' => $day->modify('-1 day')->format('Y-m-d'),
             'next' => $day->modify('+1 day')->format('Y-m-d'),
             'slots' => $slots,
+            'emptySlots' => $emptySlots,
             'currentSlot' => $isToday ? $slotOf((int) $now->format('G')) : null,
             'late' => count($lateItems),
             'lateItems' => $lateItems,
@@ -740,11 +765,12 @@ final class AgendaService
             // RG5 / AURA-23 : ordonnance pas encore validée par un médecin (urgence, paramédicale) :
             // ses soins entrent dans l'agenda avec un marqueur visible.
             'notValidated' => $plan !== [] && array_key_exists('validatedAt', $plan) && $plan['validatedAt'] === null,
-            // Validable : en retard, ou prévu aujourd'hui (retours du 2026-11-04 : un soin fait en avance
-            // doit pouvoir être validé), pas un soin d'un jour à venir ; une ligne arrêtée se trace si
-            // la dose a été faite avant l'arrêt. Même règle au serveur (AppointmentService::apply()).
+            // Validable : en retard, ou prévu avant la fin de la rotation en cours (retours du 2026-11-04 :
+            // un soin fait en avance doit pouvoir être validé ; la nuit, la dose de minuit aussi), pas un
+            // soin d'une rotation à venir ; une ligne arrêtée se trace si la dose a été faite avant l'arrêt.
+            // Même règle au serveur (AppointmentService::apply()).
             'canValidate' => in_array($status, ['late', 'stopped'], true)
-                || ($status === 'planned' && $planned->format('Y-m-d') <= $now->format('Y-m-d')),
+                || ($status === 'planned' && $planned < self::shiftEnd($now)),
         ];
     }
 

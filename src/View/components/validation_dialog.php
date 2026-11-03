@@ -27,7 +27,7 @@ $back = $back ?? '';
         <input type="hidden" name="back" value="<?= View::e($back) ?>">
 
         <?php /* Retours du 2026-11-04 : Réalisé / Non effectué côte à côte ; la note seule s'ouvre par le
-                 bouton « Note » de l'agenda (choix masqué, data-note-mode). */ ?>
+                 bouton « Note » de l'agenda (agenda.js masque alors [data-action-choice]). */ ?>
         <fieldset class="dialog-field care-actions" data-action-choice>
             <legend>Le soin a été</legend>
             <label><input type="radio" name="action" value="done" checked> Réalisé</label>
@@ -36,29 +36,29 @@ $back = $back ?? '';
         </fieldset>
 
         <div class="dialog-row">
-        <div class="dialog-field">
-            <label for="validation-performer">Soignant</label>
-            <select id="validation-performer" name="idPerformer" required aria-describedby="validation-auth-error">
-                <option value="">— soignant —</option>
-                <?php foreach ($validators as $value => $label) : ?>
-                    <option value="<?= View::e($value) ?>"><?= View::e($label) ?></option>
-                <?php endforeach; ?>
-            </select>
-        </div>
+            <div class="dialog-field">
+                <label for="validation-performer">Soignant</label>
+                <select id="validation-performer" name="idPerformer" required aria-describedby="validation-auth-error">
+                    <option value="">— soignant —</option>
+                    <?php foreach ($validators as $value => $label) : ?>
+                        <option value="<?= View::e($value) ?>"><?= View::e($label) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
 
-        <div class="dialog-field">
-            <label for="validation-password">Mot de passe</label>
-            <input type="password" id="validation-password" name="password" autocomplete="off" required
-                   aria-describedby="validation-auth-error">
-            <p class="form-error" role="alert" id="validation-auth-error" data-error="auth" hidden></p>
-        </div>
+            <div class="dialog-field">
+                <label for="validation-password">Mot de passe</label>
+                <input type="password" id="validation-password" name="password" autocomplete="off" required
+                       aria-describedby="validation-auth-error">
+                <p class="form-error" role="alert" id="validation-auth-error" data-error="auth" hidden></p>
+            </div>
 
-        <div class="dialog-field" data-only-action="done">
-            <label for="validation-time">Réalisé le</label>
-            <input type="datetime-local" id="validation-time" name="completedAt"
-                   aria-describedby="validation-time-error">
-            <p class="form-error" role="alert" id="validation-time-error" data-error="completedAt" hidden></p>
-        </div>
+            <div class="dialog-field" data-only-action="done">
+                <label for="validation-time">Réalisé le</label>
+                <input type="datetime-local" id="validation-time" name="completedAt"
+                       aria-describedby="validation-time-error">
+                <p class="form-error" role="alert" id="validation-time-error" data-error="completedAt" hidden></p>
+            </div>
         </div>
 
         <div class="dialog-field">

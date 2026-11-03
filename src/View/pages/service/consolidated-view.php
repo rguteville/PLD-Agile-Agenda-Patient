@@ -209,13 +209,7 @@ $slotLabel = static function (string $slot): string {
                         <?php
                         $isNow = ($service['currentSlot'] ?? null) === $slot;
                         // Audit IHM du 2026-11-04 : un créneau sans aucun soin dans le service est resserré.
-                        $slotEmpty = true;
-                        foreach ($service['patients'] as $patient) {
-                            if (($patient['items'][$slot] ?? []) !== []) {
-                                $slotEmpty = false;
-                                break;
-                            }
-                        }
+                        $slotEmpty = in_array($slot, $service['emptySlots'] ?? [], true);
                         ?>
                         <tr class="service-slot<?= $isNow ? ' is-now' : '' ?><?= $slotEmpty ? ' is-empty' : '' ?>">
                             <th scope="row" class="col-time">

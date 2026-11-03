@@ -96,6 +96,9 @@ class RecordEditService
      * Modifie un champ. Ne lève pas d'exception pour un refus métier : le résultat porte un statut
      * (STATUS_*), un message français et, en cas de conflit, la valeur actuelle en base.
      *
+     * $completeEmpty (admission seulement) : un champ réservé au médecin peut être renseigné sans auteur
+     * identifié s'il est encore vide ; jamais remplacé ni effacé.
+     *
      * @return array{status: string, message: ?string, value: ?string, display: ?string}
      */
     public function update(
@@ -105,7 +108,8 @@ class RecordEditService
         mixed $newValue,
         mixed $oldValue,
         string $author = AuditEvent::AUTHOR_UNKNOWN,
-        ?int $idEpisodeOfCare = null
+        ?int $idEpisodeOfCare = null,
+        bool $completeEmpty = false
     ): array {
         $specs = $this->editableFields($entity);
         if (!isset($specs[$field])) {
@@ -114,7 +118,8 @@ class RecordEditService
         $spec = $specs[$field];
         // Champ réservé à un médecin identifié (décès du patient) : jamais modifié par l'édition en ligne ni
         // par une admission (auteur non identifié), seulement par la modification d'une partie validée.
-        if (($spec['validatedByDoctor'] ?? false) && $author === AuditEvent::AUTHOR_UNKNOWN) {
+        $completing = $completeEmpty && trim((string) $oldValue) === '' && trim((string) $newValue) !== '';
+        if (($spec['validatedByDoctor'] ?? false) && $author === AuditEvent::AUTHOR_UNKNOWN && !$completing) {
             return self::result(
                 self::STATUS_FORBIDDEN_FIELD,
                 'Ce champ se modifie avec « Modifier » sur sa partie, validé par un médecin.'

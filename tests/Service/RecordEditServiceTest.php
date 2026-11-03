@@ -90,6 +90,32 @@ final class RecordEditServiceTest extends TestCase
         self::assertSame(RecordEditService::STATUS_INVALID, $invalid['status'], 'seulement Oui / Non');
     }
 
+    /**
+     * Groupe sanguin (relecture du 2026-11-04) : sans médecin identifié, jamais remplacé ni effacé, même par
+     * l'admission ; l'admission peut seulement compléter un groupe encore vide.
+     */
+    public function testBloodTypeIsLockedWithoutDoctorButCanBeCompletedWhenEmpty(): void
+    {
+        $refused = [
+            'édition en ligne' => $this->service->update('patient', 9, 'bloodType', 'O-', 'A+'),
+            'admission, remplacement' => $this->service
+                ->update('patient', 9, 'bloodType', 'O-', 'A+', completeEmpty: true),
+            'admission, effacement' => $this->service->update('patient', 9, 'bloodType', '', 'A+', completeEmpty: true),
+            'édition en ligne, groupe vide' => $this->service->update('patient', 9, 'bloodType', 'B+', null),
+        ];
+        foreach ($refused as $case => $r) {
+            self::assertSame(RecordEditService::STATUS_FORBIDDEN_FIELD, $r['status'], $case);
+        }
+
+        $this->patients->method('findById')->with(9)->willReturn($this->patient([]));
+        $this->patients->expects($this->once())->method('updateDetailIfUnchanged')
+            ->with(9, 'bloodType', 'B+', null)->willReturn(true);
+        $this->audit->expects($this->once())->method('insert')->willReturn(1);
+
+        $r = $this->service->update('patient', 9, 'bloodType', 'B+', null, completeEmpty: true);
+        self::assertSame(RecordEditService::STATUS_SAVED, $r['status'], 'admission : groupe inconnu complété');
+    }
+
     public function testNonexistentRecord(): void
     {
         $this->patients->method('findById')->willReturn(null);

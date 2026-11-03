@@ -128,10 +128,10 @@ if ($editable) {
                         Mettre fin au séjour
                     </button>
                 <?php endif; ?>
-                <?php if ($editable && empty($banner['deceased'])) : ?>
+                <?php if (empty($banner['deceased'])) : ?>
                     <?php /* Retours du 2026-11-04 : le décès se déclare d'un bouton visible (il était caché dans
                              la partie « Administratif complémentaire »), validé par un médecin et tracé. */ ?>
-                    <button type="button" class="button button--secondary" data-declare-death
+                    <button type="button" class="button button--danger" data-declare-death
                             data-current="<?= View::e($partValues['admin']['deceased'] ?? '') ?>">
                         Déclarer le décès
                     </button>
@@ -451,6 +451,7 @@ if ($editable) {
             'offGhsReason' => 'Motif hors GHS : ',
             'timeConstraint' => '',
         ];
+        $visibleNotes = ['important', 'nurseInstructions', 'maxDose', 'timeConstraint', 'renalAdjustment'];
         ?>
         <ul class="prescription-cards record-prescriptions">
             <?php foreach ($prescriptions as $line) : ?>
@@ -459,40 +460,36 @@ if ($editable) {
                     <p class="prescription-card__summary">
                         <?= View::e($line['frequency']) ?> · <?= View::e($line['period']) ?>
                     </p>
-                    <?php /* Sécurité du patient : allergène et consigne « Important » restent visibles. */ ?>
+                    <?php /* Sécurité du patient (relecture du 2026-11-04) : allergène, consignes, dose maximale,
+                             contrainte horaire et note de l'ordonnance restent visibles ; seuls les champs
+                             administratifs (motif antibiotique, germe, hors GHS…) et la validation se replient. */ ?>
                     <?php if (($line['allergen'] ?? null) !== null) : ?>
                         <p class="allergy-flag">Contient un allergène du patient :
                             <?= View::e($line['allergen']) ?></p>
                     <?php endif; ?>
-                    <?php if ($line['important'] !== null) : ?>
-                        <p class="prescription-card__note"><?= View::e($notes['important'] . $line['important']) ?></p>
+                    <?php foreach ($visibleNotes as $note) : ?>
+                        <?php if ($line[$note] !== null) : ?>
+                            <p class="prescription-card__note"><?= View::e($notes[$note] . $line[$note]) ?></p>
+                        <?php endif; ?>
+                    <?php endforeach; ?>
+                    <?php if (($line['carePlanNote'] ?? null) !== null) : ?>
+                        <p class="prescription-card__note care-plan-note">Note de l'ordonnance :
+                            <?= View::e($line['carePlanNote']) ?></p>
                     <?php endif; ?>
-                    <?php /* Audit IHM du 2026-11-04 : notes, note de l'ordonnance et validation dans « Détails ». */ ?>
                     <details class="prescription-card__more">
-                        <summary>Détails</summary>
+                        <summary>Détails<span class="sr-only"> : <?= View::e($line['label']) ?></span></summary>
                         <?php foreach ($notes as $note => $prefix) : ?>
-                            <?php if ($note !== 'important' && $line[$note] !== null) : ?>
+                            <?php if (!in_array($note, $visibleNotes, true) && $line[$note] !== null) : ?>
                                 <p class="prescription-card__note"><?= View::e($prefix . $line[$note]) ?></p>
                             <?php endif; ?>
                         <?php endforeach; ?>
-                        <?php if (($line['carePlanNote'] ?? null) !== null) : ?>
-                            <p class="prescription-card__note care-plan-note">Note de l'ordonnance :
-                                <?= View::e($line['carePlanNote']) ?></p>
-                        <?php endif; ?>
-                        <dl class="prescription-card__meta">
-                            <dt>Fréquence</dt>
-                            <dd><?= View::e($line['frequency']) ?></dd>
-                            <dt>Période</dt>
-                            <dd><?= View::e($line['period']) ?></dd>
-                            <dt>Validée</dt>
-                            <dd><?= View::e($line['validation']) ?></dd>
-                        </dl>
+                        <p class="prescription-card__note">Validée : <?= View::e($line['validation']) ?></p>
                     </details>
                     <?php if ($episodeOfCare['ongoing']) : ?>
                         <?php /* AURA-22 : un médecin arrête la ligne ; elle quitte alors cette liste. Le formulaire
                                  ne s'ouvre qu'à la demande (audit IHM du 2026-11-04). */ ?>
                         <details class="prescription-card__stop">
-                            <summary>Arrêter…</summary>
+                            <summary>Arrêter…<span class="sr-only"> : <?= View::e($line['label']) ?></span></summary>
                             <form class="stop-form" method="post" data-ajax
                                   action="/care-plans/stop?idEpisodeOfCare=<?= View::e($idEpisodeOfCare) ?>">
                                 <input type="hidden" name="idLine" value="<?= View::e($line['idLine']) ?>">

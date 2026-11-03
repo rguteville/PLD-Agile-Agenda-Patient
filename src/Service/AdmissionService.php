@@ -450,15 +450,16 @@ class AdmissionService
     {
         $idPatient = (int) $existing->getIdPatient();
         // Retours du 2026-11-04 : une donnée vitale déjà connue (groupe sanguin) ne change pas à l'admission ;
-        // elle se corrige dans le dossier, validée par un médecin et tracée. Vide, elle peut être complétée.
+        // elle se corrige dans le dossier par « Modifier », validée par un médecin et tracée (RecordFields,
+        // validatedByDoctor). Vide, elle peut être complétée ici.
         foreach (self::LOCKED_FOR_KNOWN_PATIENT as $field => $label) {
             $known = trim((string) $existing->getDetail($field));
             $entered = trim((string) ($details[$field] ?? ''));
             if ($known !== '' && $entered !== '' && $entered !== $known) {
                 throw new InvalidArgumentException(sprintf(
-                    'Le %s de ce patient est déjà connu (%s) : il se modifie dans son dossier, pas à l\'admission.',
-                    $label,
-                    $known
+                    'Le %s de ce patient est déjà connu : il se modifie dans son dossier, validé par un médecin, '
+                    . 'pas à l\'admission.',
+                    $label
                 ));
             }
             if ($known !== '') {
@@ -476,7 +477,9 @@ class AdmissionService
                 $field,
                 $value,
                 $existing->getDetail($field),
-                AuditEvent::AUTHOR_UNKNOWN
+                AuditEvent::AUTHOR_UNKNOWN,
+                // Seuls les champs verrouillés ci-dessus (groupe sanguin) se complètent ainsi ; le décès, jamais.
+                completeEmpty: isset(self::LOCKED_FOR_KNOWN_PATIENT[$field])
             );
             $status = $result['status'];
             if ($status !== RecordEditService::STATUS_SAVED && $status !== RecordEditService::STATUS_UNCHANGED) {

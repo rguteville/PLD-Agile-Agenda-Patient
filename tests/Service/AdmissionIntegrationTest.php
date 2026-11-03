@@ -361,6 +361,21 @@ final class AdmissionIntegrationTest extends TestCase
         self::assertSame('A+', $reread->getDetail('bloodType'));
     }
 
+    /** Même verrou quand le patient est retrouvé par son IPP saisi, sans sélection dans la recherche. */
+    public function testKnownBloodTypeIsLockedWhenPatientIsFoundByIpp(): void
+    {
+        $service = $this->fullService();
+        $ipp = '987654399';
+        $first = $service->admit([
+            'lastName' => self::LAST_NAME, 'firstName' => 'Carl', 'ipp' => $ipp, 'bloodType' => 'AB+',
+        ]);
+        (new EpisodeOfCareService(new EpisodeOfCareDao($this->pdo)))
+            ->closeEpisodeOfCare((int) $first->getIdEpisodeOfCare());
+
+        $this->expectException(InvalidArgumentException::class);
+        $service->admit(['lastName' => self::LAST_NAME, 'firstName' => 'Carl', 'ipp' => $ipp, 'bloodType' => 'O+']);
+    }
+
     public function testUnknownBloodTypeCanBeCompletedAtAdmission(): void
     {
         $service = $this->fullService();

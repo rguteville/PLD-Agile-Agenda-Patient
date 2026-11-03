@@ -210,14 +210,18 @@ final class AppointmentService
             ];
         }
         $planned = $appointment->getPlannedTime();
-        // Un soin fait en avance se valide le jour même ; un soin d'un jour à venir, non (même règle que
-        // AgendaService : canValidate). L'heure de réalisation, elle, n'est jamais dans le futur (validate()).
-        if ($action === self::ACTION_DONE && $planned !== null && $planned->format('Y-m-d') > $now->format('Y-m-d')) {
+        // Réalisé ou non effectué : seulement pour un soin prévu avant la fin de la rotation en cours (même
+        // règle que AgendaService : canValidate). Un soin fait en avance dans la rotation se valide ; celui
+        // d'une rotation à venir, non. L'heure de réalisation, elle, n'est jamais dans le futur (validate()).
+        $shiftEnd = AgendaService::shiftEnd($now);
+        if ($planned !== null && $planned >= $shiftEnd) {
             return [
                 'status' => self::STATUS_INVALID,
-                'errors' => ['completedAt' => sprintf(
-                    'Soin prévu le %s : il se valide le jour même, pas à l\'avance.',
-                    $planned->format('d/m à H:i')
+                'errors' => [($action === self::ACTION_DONE ? 'completedAt' : 'comment') => sprintf(
+                    'Soin prévu le %s, après la fin de la rotation en cours (%s) : il se valide pendant '
+                    . 'sa rotation, pas à l\'avance.',
+                    $planned->format('d/m à H:i'),
+                    $shiftEnd->format('d/m à H:i')
                 )],
             ];
         }
