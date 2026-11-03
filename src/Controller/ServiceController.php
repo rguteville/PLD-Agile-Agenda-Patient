@@ -26,17 +26,18 @@ final class ServiceController
             return;
         }
 
-        // Jour demandé (?date=AAAA-MM-JJ), aujourd'hui sinon ; le retard se calcule à l'heure courante.
+        // A adapter à la vue service !!!
+        // Attention à la fonction presentDay qui était utilisée pour l'agenda-patient et qui devrait être réutilisée pour l'agenda-service
         $now = new DateTimeImmutable('now');
         $agenda = AgendaService::presentDay(
             $this->agendaService->getAgendaService($id),
             AgendaService::parseDay($_GET['date'] ?? null, $now),
             $now
         );
+        
+        // Créer la sérialisation suivant le modèle de agenda-service
         View::page('service/agenda-service', [
             'agenda' => $agenda,
-            // La validation d'un soin n'a pas encore de route : colonne et dialogue restent masqués.
-            'validationEnabled' => false,
         ]);
     }
 }

@@ -50,10 +50,15 @@ final class AgendaService
     ) {
     }
 
-    public function getAgendaService(string $idHealthServiceId): void
+    public function getAgendaService(string $idHealthServiceId): array
     { // TODO
+        $response = [];
+
         $episodesOfCare = $this->sejourDao->findByHealthcareService($idHealthServiceId);
-        
+        foreach ($episodesOfCare as $episodeOfCare) { 
+            $response[] = $this->getAgenda($episodeOfCare->getIdSejour());
+        }
+        return $response;
     }
 
     public function getAgenda(int $idEpisodeOfCare): array

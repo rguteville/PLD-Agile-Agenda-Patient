@@ -2,9 +2,10 @@
 
 use Aura\Core\View;
 
-/** TO DOOOOOOOOOOOOOOOOOOOOOO
- *
- * @var array<string, mixed> $agenda vue-modèle de AgendaService::presentDay()
+/** TODO
+ * Attention à prévoir le cas de chevauchement d'appointments sur la même période 
+ * 
+ * @var array<string, mixed> $agenda
  */
 ?>
 
