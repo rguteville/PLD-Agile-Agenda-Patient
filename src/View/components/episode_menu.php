@@ -11,17 +11,17 @@ use Aura\Core\View;
  * @var list<array{href: string, label: string, openDetails?: bool, children?: list<array<string, mixed>>}> $items
  */
 ?>
-<nav class="dossier-menu" aria-label="Parties du dossier">
-    <a class="button dossier-menu__agenda" href="<?= View::e($primary['href']) ?>">
+<nav class="record-menu" aria-label="Parties du dossier">
+    <a class="button record-menu__agenda" href="<?= View::e($primary['href']) ?>">
         <?= View::render('components/icon', ['name' => $primary['icon']]) ?>
         <?= View::e($primary['label']) ?>
     </a>
-    <ul class="dossier-menu__list">
+    <ul class="record-menu__list">
         <?php foreach ($items as $item) : ?>
             <li>
                 <a href="<?= View::e($item['href']) ?>"><?= View::e($item['label']) ?></a>
                 <?php if (($item['children'] ?? []) !== []) : ?>
-                    <ul class="dossier-menu__sub">
+                    <ul class="record-menu__sub">
                         <?php foreach ($item['children'] as $child) : ?>
                             <li><a href="<?= View::e($child['href']) ?>"<?= !empty($child['openDetails'])
                                 ? ' data-open-details' : '' ?>><?= View::e($child['label']) ?></a></li>

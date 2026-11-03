@@ -142,7 +142,7 @@ final class DemoDataTest extends TestCase
             ))->list();
         }));
         $line = null;
-        foreach ($items->query('//table[contains(@class, "liste-patients")]/tbody/tr') as $tr) {
+        foreach ($items->query('//table[contains(@class, "patient-list")]/tbody/tr') as $tr) {
             $cells = $items->query('td', $tr);
             if (
                 trim($cells->item(0)->textContent) === $patient->getLastName()
@@ -174,10 +174,10 @@ final class DemoDataTest extends TestCase
                 )))->show();
             }
         ));
-        $banner = '//header[contains(@class, "bandeau-patient")]';
+        $banner = '//header[contains(@class, "patient-banner")]';
         self::assertSame(
             $patient->getLastName(),
-            trim($record->evaluate("string($banner//span[@class='nom'])")),
+            trim($record->evaluate("string($banner//span[@class='last-name'])")),
             'le dossier du patient sans IPP doit s\'afficher avec son bandeau'
         );
         self::assertSame(

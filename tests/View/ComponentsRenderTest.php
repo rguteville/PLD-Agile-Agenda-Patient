@@ -229,8 +229,8 @@ final class ComponentsRenderTest extends TestCase
             ['label' => 'Latex', 'criticality' => null, 'level' => 'unknown'],
         ])]);
 
-        self::assertStringContainsString('allergie--high', $html);
-        self::assertStringContainsString('allergie--unknown', $html);
+        self::assertStringContainsString('allergy-tag--high', $html);
+        self::assertStringContainsString('allergy-tag--unknown', $html);
         self::assertStringContainsString('(criticité non évaluée)', $html, 'jamais la couleur seule');
     }
 

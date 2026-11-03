@@ -40,10 +40,10 @@ final class PagesRenderTest extends TestCase
             'agenda' => self::agenda(),
         ]);
 
-        self::assertStringContainsString('class="bandeau-patient"', $html);
+        self::assertStringContainsString('class="patient-banner"', $html);
         self::assertStringContainsString('Aucun soin ni médicament prévu ce jour.', $html);
         // « Dossier du séjour » en tête du menu de gauche, à la place d'« Agenda du jour » dans le dossier.
-        self::assertStringContainsString('class="button dossier-menu__agenda" href="/sejour?id=1"', $html);
+        self::assertStringContainsString('class="button record-menu__agenda" href="/sejour?id=1"', $html);
         self::assertStringContainsString('Mercredi 14 octobre 2026', $html);
         self::assertStringContainsString('href="/agenda-patient?id=1&amp;date=2026-10-13"', $html);
         self::assertStringNotContainsString('agenda-section--late', $html);
@@ -172,8 +172,8 @@ final class PagesRenderTest extends TestCase
         self::assertStringNotContainsString('id="dossier-disease" open', $html, 'section vide repliée');
         self::assertMatchesRegularExpression('/1 sur 2\s+renseigné/', $html);
         self::assertStringContainsString("HTA &lt;b&gt;\nDiabète", $html);
-        self::assertStringContainsString('<span class="non-renseigne">Non renseigné</span>', $html);
-        self::assertStringContainsString('<span class="non-renseigne">Non calculable</span>', $html);
+        self::assertStringContainsString('<span class="not-recorded">Non renseigné</span>', $html);
+        self::assertStringContainsString('<span class="not-recorded">Non calculable</span>', $html);
         self::assertStringContainsString('<small>Non calculable : taille manquante.</small>', $html);
         self::assertMatchesRegularExpression('/data-entity="patient"\s+data-field="medicalHistory"/', $html);
     }
@@ -300,17 +300,17 @@ final class PagesRenderTest extends TestCase
         self::assertStringContainsString('<span class="inline-edit__text">ASA &quot;II&quot;</span>', $html);
         self::assertStringContainsString('id="dossier-historique"', $html);
         // Menu figé : agenda en tête, parties du dossier, sous-catégories du dossier complet.
-        self::assertStringContainsString('<nav class="dossier-menu" aria-label="Parties du dossier">', $html);
+        self::assertStringContainsString('<nav class="record-menu" aria-label="Parties du dossier">', $html);
         self::assertLessThan(
             strpos($html, 'href="#dossier-resume"'),
-            strpos($html, 'class="button dossier-menu__agenda" href="/agenda-patient?id=1"'),
+            strpos($html, 'class="button record-menu__agenda" href="/agenda-patient?id=1"'),
             'bouton Agenda en haut du menu'
         );
         self::assertStringContainsString('href="#titre-allergies"', $html);
         self::assertMatchesRegularExpression('/href="#dossier-scores"\s+data-open-details/', $html);
         self::assertStringContainsString('href="#dossier-historique" data-open-details', $html);
         self::assertStringContainsString('id="titre-prescriptions"', $html);
-        self::assertStringContainsString('<aside class="dossier-aside" aria-labelledby="titre-prescriptions">', $html);
+        self::assertStringContainsString('<aside class="record-aside" aria-labelledby="titre-prescriptions">', $html);
         // Modification d'une partie entière : crayon à côté du titre, formulaire masqué, fenêtre de validation.
         self::assertStringContainsString('data-part-edit="summary"', $html);
         self::assertStringContainsString('data-part-edit="scores"', $html);
@@ -322,7 +322,7 @@ final class PagesRenderTest extends TestCase
         self::assertStringContainsString('<td>Non &lt;fumeur&gt;</td>', $html);
         self::assertStringContainsString('<small>précision &lt;x&gt;</small>', $html);
         self::assertStringContainsString('data-id-sejour="1"', $html);
-        self::assertStringContainsString('<span class="non-renseigne">vide</span>', $html);
+        self::assertStringContainsString('<span class="not-recorded">vide</span>', $html);
     }
 
     public function testReadOnlyRecordHasNoButtonOrHistory(): void

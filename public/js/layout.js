@@ -2,7 +2,7 @@
 
 // Hauteur du bandeau patient collant, exposée en variable CSS : les en-têtes de tableau collants
 // et le défilement vers un élément focalisé (scroll-padding-top) se placent juste en dessous.
-const banner = document.querySelector('.bandeau-patient');
+const banner = document.querySelector('.patient-banner');
 function updateBannerHeight() {
     document.documentElement.style.setProperty('--bandeau-height', banner ? `${banner.offsetHeight}px` : '0px');
 }

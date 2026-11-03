@@ -3,7 +3,7 @@
 // signalée dans le menu (aria-current="location"). Sans JavaScript, les ancres fonctionnent seules.
 
 (function () {
-    const menu = document.querySelector('.dossier-menu');
+    const menu = document.querySelector('.record-menu');
     if (!menu) {
         return;
     }

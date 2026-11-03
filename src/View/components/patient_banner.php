@@ -11,12 +11,12 @@ use Aura\Core\View;
  * @var array<string, mixed> $bandeau vue-modèle de DossierPatientService::presenterBandeau()
  */
 ?>
-<header class="bandeau-patient" role="region" aria-label="Identité du patient et allergies connues">
-    <div class="identite">
-        <span class="nom"><?= View::e($banner['lastName']) ?></span>
+<header class="patient-banner" role="region" aria-label="Identité du patient et allergies connues">
+    <div class="identity">
+        <span class="last-name"><?= View::e($banner['lastName']) ?></span>
         <span class="prenom"><?= View::e($banner['firstName']) ?></span>
         <?php if ($banner['sex'] !== null) : ?>
-            <span class="sexe">(<?= View::e($banner['sex']) ?>)</span>
+            <span class="sex">(<?= View::e($banner['sex']) ?>)</span>
         <?php endif; ?>
     </div>
     <dl>
@@ -61,18 +61,18 @@ use Aura\Core\View;
     ?>
     <div class="allergies allergies--<?= View::e($allergiesStatus) ?>">
         <?php if ($allergiesStatus === 'unknown') : ?>
-            <span class="allergies-inconnues">
+            <span class="unknown-allergies">
                 <?= View::render('components/icon', ['name' => 'circle-alert']) ?>
                 Allergies non renseignées
             </span>
         <?php elseif ($banner['allergies'] === []) : ?>
             <?php /* État distinct, pas un bandeau vide : « aucune connue » n'est pas « non renseigné ». */ ?>
-            <span class="aucune-allergie">
+            <span class="no-allergy">
                 <?= View::render('components/icon', ['name' => 'circle-check']) ?>
                 Aucune allergie connue
             </span>
         <?php else : ?>
-            <span class="alerte">
+            <span class="alert">
                 <?= View::render('components/icon', ['name' => 'triangle-alert']) ?>
                 Allergies :
             </span>
@@ -80,7 +80,7 @@ use Aura\Core\View;
                 <?php foreach ($banner['allergies'] as $allergy) : ?>
                     <?php /* Couleur selon la criticité : rouge plein = élevée, orange = faible,
                              rouge pâle = non évaluée (le texte de la criticité est toujours affiché). */ ?>
-                    <li class="allergie allergie--<?= View::e($allergy['level'] ?? 'unknown') ?>">
+                    <li class="allergy-tag allergy-tag--<?= View::e($allergy['level'] ?? 'unknown') ?>">
                         <?= View::e($allergy['label']) ?>
                         (<?= View::e($allergy['criticality'] ?? 'criticité non évaluée') ?>)
                     </li>

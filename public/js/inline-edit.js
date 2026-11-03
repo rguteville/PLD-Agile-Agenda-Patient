@@ -102,7 +102,7 @@
         text.textContent = '';
         if (display === null) {
             const span = document.createElement('span');
-            span.className = 'non-renseigne';
+            span.className = 'not-recorded';
             span.textContent = EMPTY_LABEL;
             text.appendChild(span);
         } else {

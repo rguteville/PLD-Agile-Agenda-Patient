@@ -37,7 +37,7 @@ $lineValue = static function (array $row): string {
     if ($row['value'] !== null) {
         $html = View::e($row['value']);
     } else {
-        $html = '<span class="non-renseigne">' . ($row['computed'] ? 'Non calculable' : 'Non renseigné') . '</span>';
+        $html = '<span class="not-recorded">' . ($row['computed'] ? 'Non calculable' : 'Non renseigné') . '</span>';
     }
     if ($row['computed'] && $row['help'] !== null) {
         $html .= ' <small>' . View::e($row['help']) . '</small>';
@@ -52,7 +52,7 @@ $lineValue = static function (array $row): string {
     ['label' => 'Dossier du séjour n° ' . $banner['episodeNumber']],
 ]]) ?>
 
-<div class="dossier-layout">
+<div class="record-layout">
 <?php /* Menu figé à gauche (retours du 2026-11-02) : agenda en tête, puis les parties du dossier ; les
          sous-catégories du dossier complet ouvrent leur section (public/js/record-menu.js). */ ?>
 <?php
@@ -86,7 +86,7 @@ if ($editable) {
     ],
 ]) ?>
 
-<section class="dossier">
+<section class="record">
     <div class="page-header" id="dossier-resume">
         <h1 class="form-title">Dossier du séjour n° <?= View::e($banner['episodeNumber']) ?></h1>
         <?php if ($editable) : ?>
@@ -101,7 +101,7 @@ if ($editable) {
             </p>
         <?php endif; ?>
     </div>
-    <dl class="dossier-resume" data-part-view="<?= RecordSectionService::PART_SUMMARY ?>">
+    <dl class="record-summary" data-part-view="<?= RecordSectionService::PART_SUMMARY ?>">
         <dt>Patient</dt>
         <dd>
             <?= View::e(mb_strtoupper($banner['lastName']) . ' ' . $banner['firstName']) ?>
@@ -153,7 +153,7 @@ if ($editable) {
         ]) ?>
     <?php endif; ?>
 
-<section class="allergies-dossier" aria-labelledby="titre-allergies">
+<section class="record-allergies" aria-labelledby="titre-allergies">
     <h2 id="titre-allergies">Allergies connues</h2>
 
     <?php if ($allergyError !== null) : ?>
@@ -161,15 +161,15 @@ if ($editable) {
     <?php endif; ?>
 
     <?php if ($allergies === []) : ?>
-        <p class="aucune-allergie">
+        <p class="no-allergy">
             <?= View::render('components/icon', ['name' => 'circle-check']) ?>
             Aucune allergie connue
         </p>
     <?php else : ?>
-        <ul class="liste-allergies">
+        <ul class="allergy-list">
             <?php foreach ($allergies as $allergy) : ?>
                 <li>
-                    <span class="libelle allergie allergie--<?= View::e($allergy['level'] ?? 'unknown') ?>"
+                    <span class="label allergy-tag allergy-tag--<?= View::e($allergy['level'] ?? 'unknown') ?>"
                         ><?= View::e($allergy['label']) ?></span>
                     <?php
                     $details = $allergy['criticality'] !== null
@@ -182,7 +182,7 @@ if ($editable) {
                     <span class="details"><?= View::e($details) ?></span>
                     <?php /* Retrait en POST, jamais en lien GET : un GET peut être suivi par un robot,
                              préchargé par le navigateur ou relancé depuis l'historique. */ ?>
-                    <form method="post" action="/sejour/allergies/retirer" class="retirer-allergie"
+                    <form method="post" action="/sejour/allergies/retirer" class="remove-allergy"
                           data-confirm="<?= View::e(sprintf(
                               'Retirer l\'allergie « %s » du dossier de ce patient ? Elle disparaîtra du bandeau.',
                               $allergy['label']
@@ -199,11 +199,11 @@ if ($editable) {
     <?php endif; ?>
 
     <?php if ($substances === []) : ?>
-        <p class="referentiel-epuise">Tous les allergènes du référentiel sont déjà enregistrés pour ce patient.</p>
+        <p class="reference-exhausted">Tous les allergènes du référentiel sont déjà enregistrés pour ce patient.</p>
     <?php else : ?>
-        <form method="post" action="/sejour/allergies/ajouter" class="ajouter-allergie">
+        <form method="post" action="/sejour/allergies/ajouter" class="add-allergy">
             <input type="hidden" name="idSejour" value="<?= View::e($idEpisodeOfCare) ?>">
-            <div class="champ">
+            <div class="inline-field">
                 <label for="idSubstance">Allergène</label>
                 <select id="idSubstance" name="idSubstance" required>
                     <option value="">Choisir dans la liste</option>
@@ -212,7 +212,7 @@ if ($editable) {
                     <?php endforeach; ?>
                 </select>
             </div>
-            <div class="champ">
+            <div class="inline-field">
                 <label for="criticality">Criticité</label>
                 <select id="criticality" name="criticality">
                     <option value="">Non évaluée</option>
@@ -228,9 +228,9 @@ if ($editable) {
 
     <?php /* Dossier complet : mêmes sections que le formulaire d'admission. Une section vide reste
              visible (repliée) avec « Non renseigné » : l'information est absente, pas cachée. */ ?>
-    <h2 class="dossier-subtitle" id="titre-dossier-complet">Dossier complet</h2>
+    <h2 class="record-subtitle" id="titre-dossier-complet">Dossier complet</h2>
     <?php if ($editable) : ?>
-        <p class="dossier-aide">Pour modifier une valeur, cliquez sur le crayon qui apparaît au survol
+        <p class="record-help">Pour modifier une valeur, cliquez sur le crayon qui apparaît au survol
             (ou Entrée au clavier), corrigez-la puis cliquez sur « Confirmer ». Échap annule.</p>
     <?php endif; ?>
     <div class="dossier-sections" aria-labelledby="titre-dossier-complet"<?= $editable
@@ -240,12 +240,12 @@ if ($editable) {
     <?php /* Messages d'enregistrement et d'erreur annoncés aux lecteurs d'écran (aria-live). */ ?>
     <p class="inline-edit__status" id="inline-edit-status" aria-live="polite" hidden></p>
     <?php foreach ($sections as $section) : ?>
-        <details class="dossier-section"
+        <details class="record-section"
                  id="dossier-<?= View::e($section['id']) ?>"<?= $section['filled'] > 0 ? ' open' : '' ?>>
             <summary>
-                <span class="dossier-section__title"><?= View::e($section['title']) ?></span>
+                <span class="record-section__title"><?= View::e($section['title']) ?></span>
                 <?= $editable ? $partEditButton($section['id'], $section['title']) : '' ?>
-                <span class="dossier-section__count">
+                <span class="record-section__count">
                     <?= View::e($section['filled']) ?> sur <?= View::e($section['total']) ?>
                     renseigné<?= $section['filled'] > 1 ? 's' : '' ?>
                 </span>
@@ -297,18 +297,18 @@ if ($editable) {
 
     <?php if ($editable) : ?>
         <?php /* Traçabilité : qui a modifié quoi, de quelle valeur à quelle valeur (table AuditEvent). */ ?>
-        <details class="dossier-section dossier-historique" id="dossier-historique">
+        <details class="record-section record-history" id="dossier-historique">
             <summary>
                 <span>Historique des modifications</span>
-                <span class="dossier-section__count">
+                <span class="record-section__count">
                     <?= count($history) ?> dernière<?= count($history) > 1 ? 's' : '' ?>
                 </span>
             </summary>
             <?php if ($history === []) : ?>
-                <p class="dossier-historique__vide">Aucune modification enregistrée depuis le dossier.</p>
+                <p class="record-history__vide">Aucune modification enregistrée depuis le dossier.</p>
             <?php else : ?>
                 <div class="table-scroll">
-                <table class="dossier-historique__table" id="dossier-historique-table">
+                <table class="record-history__table" id="dossier-historique-table">
                     <thead>
                         <tr>
                             <th scope="col">Date</th>
@@ -331,10 +331,10 @@ if ($editable) {
                                 </td>
                                 <td><?= $event['oldValue'] !== null
                                     ? View::e($event['oldValue'])
-                                    : '<span class="non-renseigne">vide</span>' ?></td>
+                                    : '<span class="not-recorded">vide</span>' ?></td>
                                 <td><?= $event['newValue'] !== null
                                     ? View::e($event['newValue'])
-                                    : '<span class="non-renseigne">vide</span>' ?></td>
+                                    : '<span class="not-recorded">vide</span>' ?></td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
@@ -349,10 +349,10 @@ if ($editable) {
 
 <?php /* Prescriptions en cours dans une colonne à droite du dossier (retours du 2026-11-02) ; sous le
          dossier sur un écran plus étroit. RG5 : seules les lignes validées par un médecin et non arrêtées. */ ?>
-<aside class="dossier-aside" aria-labelledby="titre-prescriptions">
-    <div class="dossier-aside__header">
-        <h2 class="dossier-subtitle" id="titre-prescriptions">Prescriptions en cours</h2>
-        <p class="dossier-aside__actions">
+<aside class="record-aside" aria-labelledby="titre-prescriptions">
+    <div class="record-aside__header">
+        <h2 class="record-subtitle" id="titre-prescriptions">Prescriptions en cours</h2>
+        <p class="record-aside__actions">
             <?php if ($episodeOfCare['ongoing']) : ?>
                 <?php /* AURA-20 : vers l'écran B3 « Nouvelles prescriptions » (séjour en cours seulement). */ ?>
                 <a class="button"
@@ -384,7 +384,7 @@ if ($editable) {
             'timeConstraint' => '',
         ];
         ?>
-        <ul class="prescription-cards dossier-prescriptions">
+        <ul class="prescription-cards record-prescriptions">
             <?php foreach ($prescriptions as $line) : ?>
                 <li class="prescription-card">
                     <p class="prescription-card__label"><?= View::e($line['label']) ?></p>

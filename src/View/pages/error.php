@@ -7,7 +7,7 @@ use Aura\Core\View;
  * @var string $message
  */
 ?>
-<section class="erreur" role="alert">
+<section class="error" role="alert">
     <h1 class="form-title">
         <?= View::render('components/icon', ['name' => 'circle-alert']) ?>
         Erreur <?= View::e($code) ?>

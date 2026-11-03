@@ -30,7 +30,7 @@ $dayUrl = static fn (string $date): string => '/agenda-patient?id=' . $idEpisode
 // « Agenda du jour » dans le dossier (retours du 2026-11-02).
 $recordUrl = '/sejour?id=' . $idEpisodeOfCare;
 ?>
-<div class="dossier-layout">
+<div class="record-layout">
 <?= View::render('components/episode_menu', [
     'primary' => ['href' => $recordUrl, 'label' => 'Dossier du séjour', 'icon' => 'inbox'],
     'items' => [

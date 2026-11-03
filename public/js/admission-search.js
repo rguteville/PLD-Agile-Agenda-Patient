@@ -106,10 +106,10 @@
         closeList();
         results = data.results || [];
         if (results.length === 0) {
-            setStatus(statusTarget, isIpp ? MESSAGES.ippUnknown : MESSAGES.none, 'inconnu');
+            setStatus(statusTarget, isIpp ? MESSAGES.ippUnknown : MESSAGES.none, 'unknown');
             return;
         }
-        setStatus(statusTarget, MESSAGES.results(results.length), 'trouve');
+        setStatus(statusTarget, MESSAGES.results(results.length), 'found');
         if (data.homonyms) {
             const warning = document.createElement('li');
             warning.className = 'suggestions__warning';
@@ -152,11 +152,11 @@
         activeInput = input;
         if (q.length < MIN_LENGTH) {
             closeList();
-            setStatus(statusTarget, q.length === 0 ? '' : MESSAGES.tooShort, 'inconnu');
+            setStatus(statusTarget, q.length === 0 ? '' : MESSAGES.tooShort, 'unknown');
             return;
         }
         const isIpp = IPP_PATTERN.test(q);
-        setStatus(statusTarget, MESSAGES.searching, 'en-cours');
+        setStatus(statusTarget, MESSAGES.searching, 'searching');
         const current = ++requestId;
         let data;
         try {
@@ -167,7 +167,7 @@
         } catch (e) {
             if (current === requestId) {
                 closeList();
-                setStatus(statusTarget, MESSAGES.failure, 'erreur');
+                setStatus(statusTarget, MESSAGES.failure, 'error');
             }
             return;
         }
@@ -176,7 +176,7 @@
         }
         if (!data.ok) {
             closeList();
-            setStatus(statusTarget, (data.errors && Object.values(data.errors)[0]) || MESSAGES.failure, 'erreur');
+            setStatus(statusTarget, (data.errors && Object.values(data.errors)[0]) || MESSAGES.failure, 'error');
             return;
         }
         renderResults(data, statusTarget, isIpp);
@@ -295,7 +295,7 @@
         const crit = patientRecord.allergyCriticalities || {};
         if (labels.length === 0) {
             const none = document.createElement('span');
-            none.className = 'allergie allergie--none';
+            none.className = 'allergy-tag allergy-tag--none';
             none.textContent = MESSAGES.noAllergy;
             allergies.appendChild(none);
         } else {
@@ -306,7 +306,7 @@
             labels.forEach((label, i) => {
                 const chip = document.createElement('span');
                 const c = crit[ids2[i]] || null;
-                chip.className = `allergie allergie--${level(c)}`;
+                chip.className = `allergy-tag allergy-tag--${level(c)}`;
                 chip.textContent = `${label} (${c || 'criticité non évaluée'})`;
                 allergies.appendChild(chip);
             });
@@ -363,11 +363,11 @@
             });
             data = await response.json();
         } catch (e) {
-            setStatus(searchStatus, MESSAGES.loadFailure, 'erreur');
+            setStatus(searchStatus, MESSAGES.loadFailure, 'error');
             return;
         }
         if (!data.ok) {
-            setStatus(searchStatus, data.message || MESSAGES.loadFailure, 'erreur');
+            setStatus(searchStatus, data.message || MESSAGES.loadFailure, 'error');
             return;
         }
         fillForm(data);

@@ -17,7 +17,7 @@ use Aura\Core\View;
     </p>
 </div>
 
-<form class="recherche-patients" method="get" action="/patients" role="search">
+<form class="patient-search" method="get" action="/patients" role="search">
     <label for="q">Rechercher</label>
     <input type="search" id="q" name="q" value="<?= View::e($search ?? '') ?>"
            placeholder="Nom, prénom ou IPP" maxlength="50" autocomplete="off">
@@ -37,7 +37,7 @@ use Aura\Core\View;
         : ['title' => 'Aucun patient dans le service.', 'text' => 'Admettez le premier patient depuis l\'accueil.']) ?>
 <?php else : ?>
     <div class="table-scroll">
-    <table class="liste-patients">
+    <table class="patient-list">
         <caption><?= count($patients) ?> patient<?= count($patients) > 1 ? 's' : '' ?></caption>
         <thead>
             <tr>
@@ -60,7 +60,7 @@ use Aura\Core\View;
                         <?php if ($p['episodeNumber'] !== null) : ?>
                             n° <?= View::e($p['episodeNumber']) ?>
                         <?php else : ?>
-                            <span class="hors-service">aucun</span>
+                            <span class="no-service">aucun</span>
                         <?php endif; ?>
                     </td>
                     <td>
