@@ -42,6 +42,12 @@ final class AgendaService
         'NON_FAIT' => 'not_done',
     ];
 
+    /**
+     * Un soin prévu devient validable ce nombre de minutes avant son heure (HYPOTHÈSE à confirmer avec le
+     * service) ; le serveur applique la même règle (AppointmentService::VALIDATION_LEAD_MINUTES).
+     */
+    public const VALIDATION_LEAD_MINUTES = 60;
+
     /** Durée d'un créneau de la vue du service, en heures (0 h, 2 h… 22 h). */
     public const SERVICE_SLOT_HOURS = 2;
 
@@ -401,12 +407,12 @@ final class AgendaService
         foreach ($carePlans as $plan) {
             foreach ($plan['serviceRequests'] ?? [] as $line) {
                 foreach ($line['appointments'] ?? [] as $appointment) {
-                    $items[] = self::presentItem($appointment, $line, false, $day, $now);
+                    $items[] = self::presentItem($appointment, $line, false, $day, $now, $plan);
                 }
             }
             foreach ($plan['medicationRequests'] ?? [] as $line) {
                 foreach ($line['appointments'] ?? [] as $appointment) {
-                    $items[] = self::presentItem($appointment, $line, true, $day, $now);
+                    $items[] = self::presentItem($appointment, $line, true, $day, $now, $plan);
                 }
             }
         }
@@ -619,7 +625,8 @@ final class AgendaService
         array $line,
         bool $isMedication,
         DateTimeImmutable $day,
-        DateTimeImmutable $now
+        DateTimeImmutable $now,
+        array $plan = []
     ): ?array {
         $planned = $appointment['plannedTime'] ?? null;
         if (!$planned instanceof DateTimeInterface || $planned->format('Y-m-d') !== $day->format('Y-m-d')) {
@@ -629,7 +636,12 @@ final class AgendaService
         $raw = trim((string) ($appointment['status'] ?? ''));
         // Valeur inconnue en base : transmise telle quelle, le badge l'affiche en neutre plutôt que la cacher.
         $status = self::STATUS_KEYS[$raw] ?? ($raw === '' ? 'planned' : $raw);
-        if ($status === 'planned' && $planned < $now) {
+        // Ligne arrêtée (AURA-22) : ses soins futurs sont annulés à l'arrêt ; un soin passé encore prévu
+        // n'est plus « à faire » ni « en retard » : il s'affiche « Arrêtée » (badge stopped).
+        $lineStopped = ($line['stoppedAt'] ?? null) !== null;
+        if ($status === 'planned' && $lineStopped) {
+            $status = 'stopped';
+        } elseif ($status === 'planned' && $planned < $now) {
             $status = 'late';
         }
 
@@ -672,6 +684,14 @@ final class AgendaService
             'performedBy' => isset($appointment['performedBy']) ? (string) $appointment['performedBy'] : null,
             // Auteur de la note (AURA-28) ; null pour une note sans trace (données de démo).
             'noteBy' => isset($appointment['noteBy']) ? (string) $appointment['noteBy'] : null,
+            // RG5 / AURA-23 : ordonnance pas encore validée par un médecin (urgence, paramédicale) :
+            // ses soins entrent dans l'agenda avec un marqueur visible.
+            'notValidated' => $plan !== [] && array_key_exists('validatedAt', $plan) && $plan['validatedAt'] === null,
+            // Validable maintenant : en retard, ou prévu dans moins de VALIDATION_LEAD_MINUTES (un soin
+            // du soir ne se valide pas le matin) ; un soin d'une ligne arrêtée peut être tracé s'il a été fait.
+            'canValidate' => in_array($status, ['late', 'stopped'], true)
+                || ($status === 'planned'
+                    && $planned <= $now->modify('+' . self::VALIDATION_LEAD_MINUTES . ' minutes')),
         ];
     }
 

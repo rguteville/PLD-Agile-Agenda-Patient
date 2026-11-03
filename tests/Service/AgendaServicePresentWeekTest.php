@@ -106,6 +106,39 @@ final class AgendaServicePresentWeekTest extends TestCase
         self::assertFalse($service['patients'][2]['referentKnown'], 'source sans référent : rien n\'est affiché');
     }
 
+    public function testStoppedLineAndUnvalidatedPrescriptionAreFlagged(): void
+    {
+        $plans = [[
+            'idCarePlan' => '1',
+            'validatedAt' => null,
+            'serviceRequests' => [
+                ['idActivityDefinition' => 'Arrêtée', 'timeConstraint' => null, 'stoppedAt' => '2026-10-14 09:30',
+                    'appointments' => [$this->appointment('S', '2026-10-14 09:00:00', 'PLANIFIE')]],
+                ['idActivityDefinition' => 'Active', 'timeConstraint' => null, 'stoppedAt' => null,
+                    'appointments' => [
+                        $this->appointment('SOON', '2026-10-14 11:15:00', 'PLANIFIE'),
+                        $this->appointment('LATER', '2026-10-14 20:00:00', 'PLANIFIE'),
+                    ]],
+            ],
+            'medicationRequests' => [],
+        ]];
+
+        $agenda = AgendaService::presentDay($plans, new DateTimeImmutable('2026-10-14'), $this->now());
+        $items = [];
+        foreach ([$agenda['late'], ...array_column($agenda['shifts'], 'items')] as $list) {
+            foreach ($list as $item) {
+                $items[$item['id']] = $item;
+            }
+        }
+
+        self::assertSame('stopped', $items['S']['status'], 'ligne arrêtée : ni à faire ni en retard');
+        self::assertSame(0, $agenda['counts']['late']);
+        self::assertTrue($items['S']['canValidate'], 'une dose faite avant l\'arrêt reste traçable');
+        self::assertTrue($items['SOON']['canValidate'], 'à moins d\'une heure');
+        self::assertFalse($items['LATER']['canValidate'], 'le soin du soir ne se valide pas le matin');
+        self::assertTrue($items['LATER']['notValidated'], 'RG5 : ordonnance non validée signalée');
+    }
+
     /** @return array<string, mixed> */
     private function episode(int $id, string $lastName, array $appointments): array
     {

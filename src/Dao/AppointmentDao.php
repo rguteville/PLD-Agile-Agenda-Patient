@@ -64,14 +64,15 @@ class AppointmentDao
      * Soin planifié avec le séjour auquel il appartient (par sa ligne puis son ordonnance), pour
      * vérifier qu'une action vise bien un soin du séjour affiché ; null s'il n'existe pas.
      *
-     * @return array{appointment: Appointment, idEpisodeOfCare: int, ongoing: bool}|null
+     * @return array{appointment: Appointment, idEpisodeOfCare: int, ongoing: bool,
+     *               lineStoppedAt: ?DateTimeImmutable}|null
      */
     public function findWithEpisode(string $idAppointment): ?array
     {
         $stmt = $this->pdo->prepare(
             'SELECT a.idAppointment, a.idServiceRequest, a.idMedicationRequest, a.plannedTime, a.status,
                     a.timeOfCompletion, a.timeRecorded, a.comment,
-                    e.idEpisodeOfCare, e.dischargeDate
+                    e.idEpisodeOfCare, e.dischargeDate, COALESCE(s.stoppedAt, m.stoppedAt) AS lineStoppedAt
              FROM Appointment a
              LEFT JOIN ServiceRequest s ON s.idServiceRequest = a.idServiceRequest
              LEFT JOIN MedicationRequest m ON m.idMedicationRequest = a.idMedicationRequest
@@ -89,6 +90,7 @@ class AppointmentDao
             'appointment' => $this->mapToEntity($r),
             'idEpisodeOfCare' => (int) $r['idEpisodeOfCare'],
             'ongoing' => $r['dischargeDate'] === null,
+            'lineStoppedAt' => $r['lineStoppedAt'] !== null ? new DateTimeImmutable($r['lineStoppedAt']) : null,
         ];
     }
 

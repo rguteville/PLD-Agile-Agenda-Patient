@@ -59,6 +59,7 @@ $fullName = $identity['lastName'] . ' ' . $identity['firstName'];
         </p>
         <form method="post" action="/patients/supprimer?id=<?= View::e($identity['idPatient']) ?>"
               class="page-actions">
+            <input type="hidden" name="csrf" value="<?= View::e($csrfToken ?? '') ?>">
             <button type="submit" class="button button--danger">Confirmer la suppression</button>
             <a class="button button--secondary" href="/patients">Annuler</a>
         </form>

@@ -130,4 +130,35 @@ final class AppointmentIntegrationTest extends TestCase
         self::assertSame('invalid', $other['status'], 'note signée : un autre soignant ne la réécrit pas');
         self::assertArrayHasKey('comment', $other['errors']);
     }
+
+    public function testCareCannotBeValidatedHoursAhead(): void
+    {
+        $result = $this->service->apply(
+            1,
+            'ZZ_SOI',
+            ['action' => 'done', 'idPerformer' => 'PRA04', 'password' => 'x', 'completedAt' => '2026-10-14T05:00'],
+            new DateTimeImmutable('2026-10-14 05:00:00')
+        );
+
+        self::assertSame(AppointmentService::STATUS_INVALID, $result['status'], 'prévu à 8 h, validé à 5 h');
+        self::assertArrayHasKey('completedAt', $result['errors']);
+    }
+
+    public function testStoppedLineAcceptsOnlyCareDoneBeforeTheStop(): void
+    {
+        $this->pdo->exec(
+            "UPDATE MedicationRequest SET stoppedAt = '2026-10-14 08:30:00', idStoppedBy = 'PRA01'
+             WHERE idMedicationRequest = '1'"
+        );
+        $done = static fn (string $at): array => [
+            'action' => 'done', 'idPerformer' => 'PRA04', 'password' => 'x', 'completedAt' => $at,
+        ];
+        $now = new DateTimeImmutable('2026-10-14 09:00:00');
+
+        $after = $this->service->apply(1, 'ZZ_SOI', $done('2026-10-14T08:45'), $now);
+        self::assertSame(AppointmentService::STATUS_INVALID, $after['status'], 'fait après l\'arrêt : refusé');
+
+        $before = $this->service->apply(1, 'ZZ_SOI', $done('2026-10-14T08:05'), $now);
+        self::assertSame(AppointmentService::STATUS_SAVED, $before['status'], 'fait avant l\'arrêt : tracé');
+    }
 }

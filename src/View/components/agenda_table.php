@@ -47,6 +47,12 @@ $idEpisodeOfCare = $idEpisodeOfCare ?? null;
                     <td><?= View::e($item['responsible']) ?></td>
                     <td class="col-status">
                         <?= View::render('components/status_badge', ['status' => $item['status']]) ?>
+                        <?php if ($item['notValidated'] ?? false) : ?>
+                            <?= View::render('components/status_badge', [
+                                'status' => 'to_validate',
+                                'label' => 'Ordonnance non validée',
+                            ]) ?>
+                        <?php endif; ?>
                         <?php if ($item['completedAt'] !== null) : ?>
                             <span class="trace">à <?= View::e($item['completedAt']) ?></span>
                         <?php endif; ?>

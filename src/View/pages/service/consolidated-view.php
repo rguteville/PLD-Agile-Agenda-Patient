@@ -227,6 +227,12 @@ $slotLabel = static function (string $slot): string {
                                                     <?= View::render('components/status_badge', [
                                                         'status' => $item['status'],
                                                     ]) ?>
+                                                    <?php if ($item['notValidated'] ?? false) : ?>
+                                                        <?= View::render('components/status_badge', [
+                                                            'status' => 'to_validate',
+                                                            'label' => 'Ordonnance non validée',
+                                                        ]) ?>
+                                                    <?php endif; ?>
                                                     <?php if (($item['performedBy'] ?? null) !== null) : ?>
                                                         <span class="trace">par <?=
                                                             View::e($item['performedBy']) ?></span>

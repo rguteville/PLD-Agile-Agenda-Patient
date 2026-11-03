@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Aura\Controller;
 
+use Aura\Core\Csrf;
 use Aura\Core\DateInput;
 use Aura\Core\View;
 use Aura\Domain\RecordFields;
@@ -270,16 +271,21 @@ class PatientController
             return;
         }
 
-        View::page(self::DELETE_VIEW, $page, self::DELETE_TITLE);
+        View::page(self::DELETE_VIEW, ['csrfToken' => Csrf::token()] + $page, self::DELETE_TITLE);
     }
 
     /**
      * POST /patients/supprimer?id=… (AURA-12.3) : suppression logique confirmée, puis redirection vers la
      * liste (303, POST → redirect → GET). Refusée par la règle (RG10) : la page de confirmation est
-     * réaffichée en 409 avec le motif, rien n'est écrit. Pas de jeton CSRF (aucun dans le projet).
+     * réaffichée en 409 avec le motif, rien n'est écrit. Jeton CSRF obligatoire (403 sinon) : sans lui,
+     * une page tierce pourrait soumettre la suppression à l'insu du soignant.
      */
     public function delete(): void
     {
+        if (!Csrf::check(is_string($_POST['csrf'] ?? null) ? $_POST['csrf'] : null)) {
+            View::error(403, 'Session expirée : rechargez la page puis réessayez.');
+            return;
+        }
         $service = $this->patientDeletionService();
         $id = $this->readPatientId();
         if ($id === null) {
@@ -301,7 +307,11 @@ class PatientController
                 return;
             }
             http_response_code(409);
-            View::page(self::DELETE_VIEW, ['refusal' => $refusal] + $page, self::DELETE_TITLE);
+            View::page(
+                self::DELETE_VIEW,
+                ['csrfToken' => Csrf::token(), 'refusal' => $refusal] + $page,
+                self::DELETE_TITLE
+            );
             return;
         }
 
