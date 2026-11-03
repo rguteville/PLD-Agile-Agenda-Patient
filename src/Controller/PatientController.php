@@ -79,7 +79,7 @@ class PatientController
      * Les services qui lisent la base ne sont fournis que par les routes qui en ont besoin
      * (voir public/index.php), pour que l'admission reste utilisable sans connexion.
      *
-     * @param array<string, array<string, string>> $referentiels listes de l'admission lues en base :
+     * @param array<string, array<string, string>> $referenceDataSets listes de l'admission lues en base :
      *        'services' (idHealthcareService => nom) et 'substances' (idSubstance => libellé) ;
      *        vides si la base est injoignable (le formulaire reste affichable, sans ces listes).
      */
@@ -188,7 +188,7 @@ class PatientController
     public function searchByIpp(): void
     {
         if ($this->ippSearchService === null) {
-            throw new LogicException('PatientController::rechercherParIpp() requiert un RechercheIppService.');
+            throw new LogicException('PatientController::rechercherParIpp() requiert un IppSearchService.');
         }
 
         $input = $_GET['ipp'] ?? '';
@@ -226,7 +226,7 @@ class PatientController
     public function list(): void
     {
         if ($this->patientListService === null) {
-            throw new LogicException('PatientController::list() requiert un ListePatientsService.');
+            throw new LogicException('PatientController::list() requiert un PatientListService.');
         }
 
         $input = $_GET['q'] ?? null;
@@ -336,7 +336,7 @@ class PatientController
     private function patientUpdateService(): PatientUpdateService
     {
         if ($this->patientUpdateService === null) {
-            throw new LogicException('PatientController::edit() et update() requièrent un ModificationPatientService.');
+            throw new LogicException('PatientController::edit() et update() requièrent un PatientUpdateService.');
         }
 
         return $this->patientUpdateService;
@@ -466,7 +466,7 @@ class PatientController
      * afficher à côté du bon champ. Une clé sans correspondance (allergies) est reprise telle quelle ;
      * une erreur de criticité est affichée sous la liste des allergies.
      *
-     * @param array<string, string> $erreurs
+     * @param array<string, string> $errors
      * @return array<string, string>
      */
     private function toForm(array $errors): array
@@ -489,7 +489,7 @@ class PatientController
 
     /**
      * @param array<string, mixed> $saisie
-     * @param array<string, string> $erreurs
+     * @param array<string, string> $errors
      */
     private function respondWithErrors(array $input, array $errors): void
     {

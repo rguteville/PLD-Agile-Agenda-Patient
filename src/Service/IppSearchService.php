@@ -28,7 +28,7 @@ class IppSearchService
      * Patient portant cet IPP, avec ses allergies connues ; null si l'IPP est inconnu.
      * L'IPP est supposé déjà contrôlé (AdmissionService::validerIpp()).
      *
-     * @return array<string, mixed>|null vue-modèle de presenter()
+     * @return array<string, mixed>|null vue-modèle de present()
      */
     public function search(string $ipp): ?array
     {

@@ -56,7 +56,7 @@ class PatientDao
      */
     public function search(string $term): array
     {
-        $reason = '%' . addcslashes($term, '\\%_') . '%';
+        $pattern = '%' . addcslashes($term, '\\%_') . '%';
 
         // Sans émulation des requêtes préparées, un paramètre nommé ne peut servir qu'une fois.
         $stmt = $this->pdo->prepare(
@@ -66,7 +66,7 @@ class PatientDao
                 OR CAST(ipp AS CHAR) LIKE :ipp ESCAPE \'\\\\\'
              ORDER BY lastName, firstName'
         );
-        $stmt->execute(['lastName' => $reason, 'firstName' => $reason, 'ipp' => $reason]);
+        $stmt->execute(['lastName' => $pattern, 'firstName' => $pattern, 'ipp' => $pattern]);
 
         return array_map(fn(array $r) => $this->mapToEntity($r), $stmt->fetchAll(PDO::FETCH_ASSOC));
     }

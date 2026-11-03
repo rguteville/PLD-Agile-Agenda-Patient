@@ -23,10 +23,10 @@ final class AgendaService
      * tranches. Bornes 6 h / 14 h / 22 h = HYPOTHÈSE à confirmer avec le service (docs/ui.md).
      */
     public const SHIFTS = [
-        ['key' => 'nuit-fin', 'label' => 'Nuit (fin)', 'hours' => '0 h – 6 h', 'from' => 0, 'to' => 6],
+        ['key' => 'night-end', 'label' => 'Nuit (fin)', 'hours' => '0 h – 6 h', 'from' => 0, 'to' => 6],
         ['key' => 'morning', 'label' => 'Matin', 'hours' => '6 h – 14 h', 'from' => 6, 'to' => 14],
-        ['key' => 'apres-midi', 'label' => 'Après-midi', 'hours' => '14 h – 22 h', 'from' => 14, 'to' => 22],
-        ['key' => 'nuit-debut', 'label' => 'Nuit (début)', 'hours' => '22 h – 24 h', 'from' => 22, 'to' => 24],
+        ['key' => 'afternoon', 'label' => 'Après-midi', 'hours' => '14 h – 22 h', 'from' => 14, 'to' => 22],
+        ['key' => 'night-start', 'label' => 'Nuit (début)', 'hours' => '22 h – 24 h', 'from' => 22, 'to' => 24],
     ];
 
     /** Statut en base (Appointment.status) → clé du badge (components/status_badge.php). */

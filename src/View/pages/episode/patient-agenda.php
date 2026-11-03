@@ -7,7 +7,7 @@ use Aura\Core\View;
  * du jour choisi : retards épinglés en tête, puis les soins par rotation. Toute la logique
  * (filtre, tri, retard, rotations) est dans AgendaService::presentDay(), testée sans base.
  *
- * @var array<string, mixed> $bandeau vue-modèle de DossierPatientService::presenterBandeau()
+ * @var array<string, mixed> $banner vue-modèle de PatientRecordService::presentBanner()
  * @var int $idEpisodeOfCare
  * @var array<string, mixed> $agenda vue-modèle de AgendaService::presentDay()
  * @var bool $validationEnabled colonne « Valider » + dialogue (balisage seul, cf. validation_dialog.php)

@@ -71,7 +71,7 @@ final class AdmissionIntegrationTest extends TestCase
         self::assertGreaterThan(0, $episodeOfCare->getIdEpisodeOfCare());
         self::assertTrue($episodeOfCare->isOngoing());
 
-        // Le dossier est lisible comme le fera SejourController après la redirection.
+        // Le dossier est lisible comme le fera EpisodeOfCareController après la redirection.
         $reread = (new EpisodeOfCareDao($this->pdo))->findById((int) $episodeOfCare->getIdEpisodeOfCare());
         self::assertNotNull($reread);
         self::assertSame($episodeOfCare->getEpisodeNumber(), $reread->getEpisodeNumber());

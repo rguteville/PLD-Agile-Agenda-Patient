@@ -140,7 +140,7 @@ final class CarePlanService
         }
 
         return [
-            // Bandeau identité + allergies : vue-modèle de DossierPatientService (clés existantes).
+            // Bandeau identité + allergies : vue-modèle de PatientRecordService (clés existantes).
             'banner' => $record['banner'],
             'idEpisodeOfCare' => $idEpisodeOfCare,
             'isOpen' => $record['episodeOfCare']['ongoing'],

@@ -2689,7 +2689,7 @@ h2,
     color: var(--st-alert-fg);
 }
 
-.record-history__vide {
+.record-history__empty {
     margin: 0;
     padding: var(--sp-3) var(--sp-4);
     border-top: 1px solid var(--line);

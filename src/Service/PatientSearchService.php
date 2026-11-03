@@ -54,7 +54,7 @@ class PatientSearchService
     /** Une saisie composée uniquement de 6 à 9 chiffres est traitée comme un IPP. */
     public static function isIpp(string $query): bool
     {
-        return preg_match(AdmissionService::IPP_REASON, trim($query)) === 1;
+        return preg_match(AdmissionService::IPP_PATTERN, trim($query)) === 1;
     }
 
     /**

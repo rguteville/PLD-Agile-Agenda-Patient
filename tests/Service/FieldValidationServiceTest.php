@@ -58,7 +58,7 @@ final class FieldValidationServiceTest extends TestCase
         yield 'nom de naissance trop long' => [['birthLastName' => str_repeat('N', 51)], 'birthLastName', '50'];
     }
 
-    /** @param array<string, mixed> $valeurs */
+    /** @param array<string, mixed> $values */
     #[DataProvider('invalidValues')]
     public function testInvalidValueGivesErrorOnThatField(array $values, string $field, string $excerpt): void
     {
@@ -84,7 +84,7 @@ final class FieldValidationServiceTest extends TestCase
         yield 'notes multilignes avec CRLF' => [['medicalHistory' => "HTA\r\nDiabète de type 2"]];
     }
 
-    /** @param array<string, mixed> $valeurs */
+    /** @param array<string, mixed> $values */
     #[DataProvider('validValues')]
     public function testValidValueGivesNoError(array $values): void
     {

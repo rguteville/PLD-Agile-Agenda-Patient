@@ -10,10 +10,10 @@ use Aura\Service\AdmissionService;
  * L'essentiel reste visible en haut (identité, IPP, motif, service, allergies) ; le reste est réparti en
  * sections repliées par défaut (RecordFields::SECTIONS), toutes facultatives.
  *
- * @var array<string, mixed> $valeurs valeurs saisies après un refus serveur (vide à l'affichage initial)
- * @var array<string, string> $erreurs erreurs indexées par nom de champ
- * @var string $erreurFormulaire message hors champ (admission refusée)
- * @var array<string, array<string, string>> $referentiels 'services' et 'substances' (vides sans base)
+ * @var array<string, mixed> $values valeurs saisies après un refus serveur (vide à l'affichage initial)
+ * @var array<string, string> $errors erreurs indexées par nom de champ
+ * @var string $formError message hors champ (admission refusée)
+ * @var array<string, array<string, string>> $referenceDataSets 'services' et 'substances' (vides sans base)
  */
 $values = $values ?? [];
 $errors = $errors ?? [];

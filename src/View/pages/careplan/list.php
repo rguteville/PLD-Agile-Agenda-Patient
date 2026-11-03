@@ -7,7 +7,7 @@ use Aura\Domain\CarePlan;
  * Prescriptions d'un séjour (Epic 4, tableau des prescriptions, figure 10 du cahier des charges).
  * Vue minimale pour tester le back : le front peut la remplacer en gardant les mêmes données.
  *
- * @var array<string, mixed> $banner vue-modèle de DossierPatientService::presenterBandeau()
+ * @var array<string, mixed> $banner vue-modèle de PatientRecordService::presentBanner()
  * @var int $idEpisodeOfCare
  * @var bool $isOpen séjour en cours
  * @var list<array<string, mixed>> $lines vue-modèle de CarePlanService::presentLine()

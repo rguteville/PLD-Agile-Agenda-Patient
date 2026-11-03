@@ -13,15 +13,15 @@ function clearFormErrors(form) {
     });
 }
 
-function showFieldError(form, lastName, message) {
-    const input = form.querySelector(`[name="${CSS.escape(lastName)}"]`);
+function showFieldError(form, fieldName, message) {
+    const input = form.querySelector(`[name="${CSS.escape(fieldName)}"]`);
     const row = input ? input.closest('.form-row') : null;
     if (!row) {
         showFormError(form, message);
         return;
     }
 
-    const errorId = `${lastName}-error`;
+    const errorId = `${fieldName}-error`;
     const p = document.createElement('p');
     p.className = 'field-error';
     p.id = errorId;
@@ -30,7 +30,7 @@ function showFieldError(form, lastName, message) {
 
     row.classList.add('has-error');
     row.appendChild(p);
-    row.querySelectorAll(`[name="${CSS.escape(lastName)}"]`).forEach(field => {
+    row.querySelectorAll(`[name="${CSS.escape(fieldName)}"]`).forEach(field => {
         field.setAttribute('aria-invalid', 'true');
         field.setAttribute('aria-describedby', errorId);
     });
@@ -67,7 +67,7 @@ document.querySelectorAll('form[data-ajax]').forEach(form => {
 
         if (!data.ok) {
             const errors = data.errors || {};
-            Object.keys(errors).forEach(lastName => showFieldError(form, lastName, errors[lastName]));
+            Object.keys(errors).forEach(fieldName => showFieldError(form, fieldName, errors[fieldName]));
             if (Object.keys(errors).length === 0) {
                 showFormError(form, GENERIC_ERROR_MESSAGE);
             }

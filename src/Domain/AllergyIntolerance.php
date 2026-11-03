@@ -9,7 +9,7 @@ use DateTimeImmutable;
 /**
  * Allergie connue d'un patient, choisie dans le référentiel des allergènes (RG2, AURA-13).
  * Liée au patient et non au séjour. L'id est null tant que l'allergie n'est pas enregistrée
- * (AllergieDao::insert() le calcule).
+ * (AllergyIntoleranceDao::insert() le calcule).
  */
 class AllergyIntolerance
 {

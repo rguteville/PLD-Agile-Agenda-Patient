@@ -39,7 +39,7 @@ class AdmissionService
     public const FORMAT_DATE = 'Y-m-d';
 
     /** IPP : 6 à 9 chiffres (colonne Patient.ipp INT avec CHECK entre 100000 et 999999999). */
-    public const IPP_REASON = '/^\d{6,9}$/';
+    public const IPP_PATTERN = '/^\d{6,9}$/';
 
     /** Plus grande taille (cm) ou plus grand poids (kg) enregistrable : colonnes Sejour DECIMAL(5,2). */
     public const MEASURE_MAX = 999.99;
@@ -52,9 +52,9 @@ class AdmissionService
     /**
      * @param DateTimeImmutable|null $aujourdhui date de référence (injectable pour les tests)
      * @param PatientDao|null $patientDao accès aux patients, requis par admettre() seulement
-     * @param SejourService|null $sejourService ouverture du séjour, requis par admettre() seulement
+     * @param EpisodeOfCareService|null $sejourService ouverture du séjour, requis par admettre() seulement
      * @param Transaction|null $transaction patient + séjour validés ensemble, requis par admettre() seulement
-     * @param AllergieDao|null $allergieDao enregistrement des allergies choisies à l'admission (facultatif)
+     * @param AllergyIntoleranceDao|null $allergieDao enregistrement des allergies choisies à l'admission (facultatif)
      * @param AuditEventDao|null $auditEventDao trace du rattachement d'un séjour à un patient existant
      * @param RecordEditService|null $recordEditService mise à jour tracée, champ par champ, d'un patient existant
      */
@@ -92,7 +92,7 @@ class AdmissionService
      * les allergènes choisis qu'il n'a pas encore sont ajoutés, les autres ignorés.
      *
      * @param array<string, mixed> $donnees clés du domaine (voir valider())
-     * @param array<string, array<string, string>> $referentiels voir valider()
+     * @param array<string, array<string, string>> $referenceDataSets voir valider()
      * @return Sejour le séjour ouvert, avec son identifiant et son numéro
      * @throws InvalidArgumentException données invalides ou admission refusée (message affichable)
      * @throws LogicException si le service a été construit sans accès à la base
@@ -100,7 +100,9 @@ class AdmissionService
     public function admit(array $data, array $referenceDataSets = []): EpisodeOfCare
     {
         if ($this->patientDao === null || $this->episodeOfCareService === null || $this->transaction === null) {
-            throw new LogicException('AdmissionService::admettre() requiert PatientDao, SejourService et Transaction.');
+            throw new LogicException(
+                'AdmissionService::admit() requiert PatientDao, EpisodeOfCareService et Transaction.'
+            );
         }
 
         $errors = $this->validate($data, $referenceDataSets);
@@ -119,7 +121,7 @@ class AdmissionService
         $criticalities = $this->criticalities($data['allergyCriticalities'] ?? null);
         if ($allergies !== [] && $this->allergyIntoleranceDao === null) {
             throw new LogicException(
-                'AdmissionService::admettre() requiert AllergieDao pour enregistrer des allergies.'
+                'AdmissionService::admettre() requiert AllergyIntoleranceDao pour enregistrer des allergies.'
             );
         }
         $selectedId = $this->text($data['idPatient'] ?? null);
@@ -584,7 +586,7 @@ class AdmissionService
      * est traitée comme vide. Les messages ne reprennent jamais la valeur saisie (données de santé).
      *
      * @param array<string, mixed> $donnees
-     * @param array<string, array<string, string>> $referentiels listes autorisées, lues en base par
+     * @param array<string, array<string, string>> $referenceDataSets listes autorisées, lues en base par
      *        l'appelant : 'services' (idHealthcareService => nom) et 'substances' (idSubstance => libellé).
      *        Une liste absente désactive le contrôle d'appartenance correspondant (tests unitaires).
      * @return array<string, string> erreurs indexées par champ ; [] si les données sont valides
@@ -671,7 +673,7 @@ class AdmissionService
     public static function validateIpp(string $ipp): ?string
     {
         $ipp = trim($ipp);
-        if ($ipp !== '' && preg_match(self::IPP_REASON, $ipp) !== 1) {
+        if ($ipp !== '' && preg_match(self::IPP_PATTERN, $ipp) !== 1) {
             return "L'IPP doit contenir entre 6 et 9 chiffres.";
         }
 

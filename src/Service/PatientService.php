@@ -23,7 +23,7 @@ use InvalidArgumentException;
  *  1. rechercherPatientExistant($formulaire) ;
  *  2a. patient trouvé et lien validé par le personnel : admettrePatientExistant($idPatient, $lit, $box) ;
  *  2b. sinon : inscrirePatient($formulaire).
- * Le séjour (lit, box, sortie…) est ensuite géré par SejourService.
+ * Le séjour (lit, box, sortie…) est ensuite géré par EpisodeOfCareService.
  */
 class PatientService
 {

@@ -14,7 +14,7 @@ namespace Aura\Domain;
  * à maintenir pour ces champs.
  *
  * Ce catalogue est la liste blanche : un champ absent d'ici n'est jamais lu d'un formulaire
- * ni écrit en base (FieldValidationService, PatientDao, SejourDao).
+ * ni écrit en base (FieldValidationService, PatientDao, EpisodeOfCareDao).
  */
 final class RecordFields
 {

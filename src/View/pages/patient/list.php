@@ -5,9 +5,9 @@ use Aura\Core\View;
 /**
  * Liste des patients avec leur séjour en cours (AURA-12.1).
  *
- * @var list<array{idPatient: int, nom: string, prenom: string, ipp: ?string,
- *                 dateNaissance: ?string, idSejour: ?int, numeroSejour: ?string}> $patients
- * @var ?string $recherche terme saisi, null si aucun
+ * @var list<array{idPatient: int, lastName: string, firstName: string, ipp: ?string,
+ *                 birthDate: ?string, idEpisodeOfCare: ?int, episodeNumber: ?string}> $patients
+ * @var ?string $search terme saisi, null si aucun
  */
 ?>
 <div class="page-header">

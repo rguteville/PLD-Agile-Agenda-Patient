@@ -6,16 +6,16 @@ use Aura\Service\RecordSectionService;
 /**
  * Dossier du séjour (AURA-14) et gestion des allergies connues du patient (AURA-13.2).
  *
- * @var array<string, mixed> $bandeau
- * @var array<string, mixed> $sejour
- * @var int $idSejour
+ * @var array<string, mixed> $banner
+ * @var array<string, mixed> $episodeOfCare
+ * @var int $idEpisodeOfCare
  * @var list<array<string, mixed>> $prescriptions lignes validées, vue-modèle de CarePlanService::presentLine()
  * @var array<string, string> $doctors médecins pouvant arrêter une ligne : idPractitioner => « nom (rôle) »
  * @var list<array{idAllergy: ?int, label: string, criticality: ?string, recordedAt: ?string}> $allergies
  * @var array<string, string> $substances allergènes du référentiel non encore enregistrés, id => libellé
  * @var list<string> $criticalities
  * @var ?string $allergyError message d'un ajout ou d'un retrait refusé, null sinon
- * @var list<array<string, mixed>> $sections dossier complet, vue-modèle de DossierPatientService::presentSections()
+ * @var list<array<string, mixed>> $sections dossier complet, vue-modèle de PatientRecordService::presentSections()
  * @var bool $editable édition champ par champ active (inline-edit.js, endpoint /sejour/champ/modifier)
  * @var ?string $csrfToken jeton de session envoyé par le script dans X-CSRF-Token
  * @var list<array<string, mixed>> $history dernières modifications, vue-modèle de RecordEditService::history()
@@ -187,7 +187,7 @@ if ($editable) {
                               'Retirer l\'allergie « %s » du dossier de ce patient ? Elle disparaîtra du bandeau.',
                               $allergy['label']
                           )) ?>">
-                        <input type="hidden" name="idSejour" value="<?= View::e($idEpisodeOfCare) ?>">
+                        <input type="hidden" name="idEpisodeOfCare" value="<?= View::e($idEpisodeOfCare) ?>">
                         <input type="hidden" name="idAllergy" value="<?= View::e($allergy['idAllergy']) ?>">
                         <button type="submit" aria-label="Retirer l'allergie <?= View::e($allergy['label']) ?>">
                             Retirer
@@ -202,7 +202,7 @@ if ($editable) {
         <p class="reference-exhausted">Tous les allergènes du référentiel sont déjà enregistrés pour ce patient.</p>
     <?php else : ?>
         <form method="post" action="/sejour/allergies/ajouter" class="add-allergy">
-            <input type="hidden" name="idSejour" value="<?= View::e($idEpisodeOfCare) ?>">
+            <input type="hidden" name="idEpisodeOfCare" value="<?= View::e($idEpisodeOfCare) ?>">
             <div class="inline-field">
                 <label for="idSubstance">Allergène</label>
                 <select id="idSubstance" name="idSubstance" required>
@@ -233,9 +233,9 @@ if ($editable) {
         <p class="record-help">Pour modifier une valeur, cliquez sur le crayon qui apparaît au survol
             (ou Entrée au clavier), corrigez-la puis cliquez sur « Confirmer ». Échap annule.</p>
     <?php endif; ?>
-    <div class="dossier-sections" aria-labelledby="titre-dossier-complet"<?= $editable
+    <div class="record-sections" aria-labelledby="titre-dossier-complet"<?= $editable
         ? ' data-inline-edit data-endpoint="/sejour/champ/modifier" data-csrf="' . View::e($csrfToken) . '"'
-            . ' data-id-sejour="' . View::e($idEpisodeOfCare) . '"'
+            . ' data-id-episode-of-care="' . View::e($idEpisodeOfCare) . '"'
         : '' ?>>
     <?php /* Messages d'enregistrement et d'erreur annoncés aux lecteurs d'écran (aria-live). */ ?>
     <p class="inline-edit__status" id="inline-edit-status" aria-live="polite" hidden></p>
@@ -305,7 +305,7 @@ if ($editable) {
                 </span>
             </summary>
             <?php if ($history === []) : ?>
-                <p class="record-history__vide">Aucune modification enregistrée depuis le dossier.</p>
+                <p class="record-history__empty">Aucune modification enregistrée depuis le dossier.</p>
             <?php else : ?>
                 <div class="table-scroll">
                 <table class="record-history__table" id="dossier-historique-table">

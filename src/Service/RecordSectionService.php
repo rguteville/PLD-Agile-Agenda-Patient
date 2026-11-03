@@ -25,7 +25,7 @@ use InvalidArgumentException;
  * en plus de l'édition champ par champ. Règles :
  *  - liste blanche des champs par partie (partFields()) ; jamais une clé envoyée par le client ;
  *  - validation existante : identité (AdmissionService), catalogue et mesures (RecordEditService),
- *    lit et box (SejourService, contrôle d'occupation) ;
+ *    lit et box (EpisodeOfCareService, contrôle d'occupation) ;
  *  - concurrence optimiste : la valeur d'origine envoyée doit être celle en base ;
  *  - tout ou rien : la partie est écrite dans une transaction, annulée à la première erreur ;
  *  - traçabilité : chaque champ modifié écrit une ligne AuditEvent au nom du médecin qui valide.
@@ -464,7 +464,7 @@ class RecordSectionService
     }
 
     /**
-     * Lit et box : SejourService contrôle que l'emplacement est libre et le séjour en cours.
+     * Lit et box : EpisodeOfCareService contrôle que l'emplacement est libre et le séjour en cours.
      *
      * @param array<string, array{new: ?string, old: ?string, spec: array<string, mixed>}> $changes
      * @param array<string, string> $errors

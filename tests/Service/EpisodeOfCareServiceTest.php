@@ -14,7 +14,7 @@ use PHPUnit\Framework\TestCase;
 
 /**
  * AURA-10.3 : ouverture, emplacement et clôture d'un séjour.
- * Le numéro de séjour lui-même est généré par SejourDao (cf. SejourDaoTest).
+ * Le numéro de séjour lui-même est généré par EpisodeOfCareDao (cf. SejourDaoTest).
  */
 final class EpisodeOfCareServiceTest extends TestCase
 {

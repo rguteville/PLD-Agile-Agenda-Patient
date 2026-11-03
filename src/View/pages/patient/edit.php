@@ -7,8 +7,8 @@ use Aura\Core\View;
  * modifiables ici : taille, poids et précautions appartiennent au séjour.
  *
  * @var int $idPatient
- * @var array<string, string> $valeurs indexées par nom de champ (pré-remplies ou ressaisies)
- * @var array<string, string> $erreurs indexées par nom de champ, [] si aucune
+ * @var array<string, string> $values indexées par nom de champ (pré-remplies ou ressaisies)
+ * @var array<string, string> $errors indexées par nom de champ, [] si aucune
  */
 $idPatient = $_GET['id'] ?? null;
 $values = $values ?? [];

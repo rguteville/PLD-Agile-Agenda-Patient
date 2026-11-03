@@ -125,7 +125,7 @@ final class EpisodeOfCareController
     public function getAgenda(): void
     {
         $id = $_GET['id'] ?? null;
-        $episodeNumber = $_GET['episodeNumber'] ?? null;
+        $episodeNumber = $_GET['numSejour'] ?? null;
         if ($id === null && $episodeNumber === null) {
             View::error(404, 'Identifiant ou numéro de séjour manquant.');
             return;
@@ -141,7 +141,7 @@ final class EpisodeOfCareController
             return;
         }
 
-        // Bandeau identité + allergies : même vue-modèle que le dossier (DossierPatientService).
+        // Bandeau identité + allergies : même vue-modèle que le dossier (PatientRecordService).
         $record = $this->patientRecordService()->record($idEpisodeOfCare);
         if ($record === null) {
             View::error(404, sprintf('Aucun séjour ne porte l\'identifiant « %d ».', $idEpisodeOfCare));
@@ -226,7 +226,9 @@ final class EpisodeOfCareController
     private function patientRecordService(): PatientRecordService
     {
         if ($this->patientRecordService === null) {
-            throw new LogicException('SejourController : le dossier de séjour requiert un DossierPatientService.');
+            throw new LogicException(
+                'EpisodeOfCareController : le dossier de séjour requiert un PatientRecordService.'
+            );
         }
 
         return $this->patientRecordService;
@@ -235,7 +237,9 @@ final class EpisodeOfCareController
     private function allergyIntoleranceService(): AllergyIntoleranceService
     {
         if ($this->allergyIntoleranceService === null) {
-            throw new LogicException('SejourController : les allergies requièrent un AllergyIntoleranceService.');
+            throw new LogicException(
+                'EpisodeOfCareController : les allergies requièrent un AllergyIntoleranceService.'
+            );
         }
 
         return $this->allergyIntoleranceService;

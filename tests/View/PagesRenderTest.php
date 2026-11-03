@@ -321,7 +321,14 @@ final class PagesRenderTest extends TestCase
         self::assertStringContainsString('le mot de passe n\'est pas vérifié', $html, 'authentification factice');
         self::assertStringContainsString('<td>Non &lt;fumeur&gt;</td>', $html);
         self::assertStringContainsString('<small>précision &lt;x&gt;</small>', $html);
-        self::assertStringContainsString('data-id-sejour="1"', $html);
+        self::assertStringContainsString('data-id-episode-of-care="1"', $html);
+        foreach (['public/js/inline-edit.js', 'public/js/part-edit.js'] as $script) {
+            self::assertStringContainsString(
+                'dataset.idEpisodeOfCare',
+                (string) file_get_contents(__DIR__ . '/../../' . $script),
+                "$script lit l'attribut data-id-episode-of-care rendu par la vue"
+            );
+        }
         self::assertStringContainsString('<span class="not-recorded">vide</span>', $html);
     }
 

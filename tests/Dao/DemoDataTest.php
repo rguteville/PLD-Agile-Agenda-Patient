@@ -25,7 +25,7 @@ use PHPUnit\Framework\TestCase;
  * et couvrir les critères d'AURA-05 : au moins 3 patients, dont un avec des allergies
  * et un sans IPP.
  *
- * PatientDao et SejourDao lisent idPatient et idSejour en entiers : un identifiant
+ * PatientDao et EpisodeOfCareDao lisent idPatient et idSejour en entiers : un identifiant
  * non numérique dans test.sql (ex. « PAT01 ») donne 0 côté PHP et casse le dossier
  * patient (/sejour?id=…) et la liste des patients. Ce test tourne sur la base du CI,
  * où test.sql est chargé après schema.sql ; il est ignoré hors CI ou si la base est vide.
@@ -97,7 +97,7 @@ final class DemoDataTest extends TestCase
             $id = $episodeOfCare->getIdEpisodeOfCare();
             self::assertGreaterThan(0, $id, 'idSejour doit être numérique dans test.sql');
 
-            // Même parcours que SejourController::show() : séjour, puis patient, puis allergies.
+            // Même parcours que EpisodeOfCareController::show() : séjour, puis patient, puis allergies.
             $reread = $episodeOfCareDao->findById((int) $id);
             self::assertNotNull($reread, "le séjour $id doit être retrouvé par son identifiant");
             self::assertSame($episodeOfCare->getEpisodeNumber(), $reread->getEpisodeNumber());
