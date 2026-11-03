@@ -159,6 +159,47 @@ final class WorkflowsHttpTest extends HttpTestCase
         }
     }
 
+    public function testStoppingALineNeedsCsrfAndADoctorPasswordAndCancelsItsFutureCare(): void
+    {
+        $now = new DateTimeImmutable('now');
+        $this->pdo()->prepare(
+            "INSERT INTO ServiceRequest (idServiceRequest, idCarePlan, idActivityDefinition, startDate, frequencyHours)
+             VALUES ('900001', '1', 'TYP04', ?, 24)"
+        )->execute([$now->modify('-1 day')->format('Y-m-d H:i:s')]);
+        $this->pdo()->prepare(
+            "INSERT INTO Appointment (idAppointment, idServiceRequest, plannedTime, status)
+             VALUES ('ZZ_STOP', '900001', ?, 'PLANIFIE')"
+        )->execute([$now->modify('+2 hours')->format('Y-m-d H:i:s')]);
+        try {
+            $csrf = $this->csrfFrom($this->get('/sejour?id=1'));
+            $stop = ['idLine' => '900001', 'isMedication' => '0', 'idStoppedBy' => 'PRA01', 'password' => 'x'];
+            $path = '/care-plans/stop?idEpisodeOfCare=1';
+
+            self::assertSame(403, $this->postForm($path, $stop)->status, 'sans jeton CSRF');
+            self::assertSame(
+                422,
+                $this->postForm($path, ['csrf' => $csrf, 'password' => ''] + $stop)->status,
+                'mot de passe vide'
+            );
+            self::assertSame(
+                422,
+                $this->postForm($path, ['csrf' => $csrf, 'idStoppedBy' => 'PRA03'] + $stop)->status,
+                'une interne n\'arrête pas une prescription'
+            );
+
+            $stopped = $this->postForm($path, ['csrf' => $csrf] + $stop);
+            self::assertSame(303, $stopped->status, $stopped->body);
+            self::assertSame(
+                'ANNULE',
+                $this->pdo()->query("SELECT status FROM Appointment WHERE idAppointment = 'ZZ_STOP'")->fetchColumn(),
+                'AURA-22 : le soin futur de la ligne arrêtée est annulé'
+            );
+        } finally {
+            $this->pdo()->exec("DELETE FROM Appointment WHERE idServiceRequest = '900001'");
+            $this->pdo()->exec("DELETE FROM ServiceRequest WHERE idServiceRequest = '900001'");
+        }
+    }
+
     /** Supprime physiquement les patients de test d'un nom donné et ce qui en dépend (nettoyage). */
     private function deletePatients(string $lastName): void
     {

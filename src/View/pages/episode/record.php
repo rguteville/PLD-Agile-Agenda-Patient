@@ -480,12 +480,16 @@ if ($editable) {
                             <input type="hidden" name="idLine" value="<?= View::e($line['idLine']) ?>">
                             <input type="hidden" name="isMedication"
                                    value="<?= $line['isMedication'] ? '1' : '0' ?>">
+                            <input type="hidden" name="csrf" value="<?= View::e($csrfToken ?? '') ?>">
                             <select name="idStoppedBy" aria-label="Médecin qui arrête : <?= View::e($line['label']) ?>">
                                 <option value="">— médecin —</option>
                                 <?php foreach ($doctors as $value => $label) : ?>
                                     <option value="<?= View::e($value) ?>"><?= View::e($label) ?></option>
                                 <?php endforeach; ?>
                             </select>
+                            <?php /* Authentification FACTICE : mot de passe exigé, non vérifié (AURA-18). */ ?>
+                            <input type="password" name="password" autocomplete="off" placeholder="mot de passe"
+                                   aria-label="Mot de passe du médecin qui arrête : <?= View::e($line['label']) ?>">
                             <button type="submit">Arrêter</button>
                         </form>
                     <?php endif; ?>

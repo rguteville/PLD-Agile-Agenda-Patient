@@ -615,14 +615,24 @@ final class CarePlanService
      *
      * @throws InvalidArgumentException arrêt refusé (message affichable)
      */
-    public function stopLine(int $idEpisodeOfCare, bool $isMedication, int $idLine, string $idStoppedBy): void
-    {
+    public function stopLine(
+        int $idEpisodeOfCare,
+        bool $isMedication,
+        int $idLine,
+        string $idStoppedBy,
+        string $password
+    ): void {
+        // Arrêter un traitement engage le médecin comme la validation : même authentification factice.
+        $authError = self::checkValidatorAuth($idStoppedBy, $password, $this->doctors());
         $doctor = $idStoppedBy !== '' ? $this->referenceDataDao->practitioner($idStoppedBy) : null;
         if ($doctor === null) {
             throw new InvalidArgumentException('Choisissez le médecin qui arrête la prescription.');
         }
         if (!$doctor->canValidate()) {
             throw new InvalidArgumentException('Seul un médecin peut arrêter une prescription.');
+        }
+        if ($authError !== null) {
+            throw new InvalidArgumentException($authError);
         }
 
         $record = $this->patientRecordService->record($idEpisodeOfCare);

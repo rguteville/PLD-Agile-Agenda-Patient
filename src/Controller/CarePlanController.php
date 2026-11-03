@@ -159,7 +159,7 @@ final class CarePlanController
     public function stop(): void
     {
         $idEpisodeOfCare = $this->requestedEpisodeOfCare();
-        if ($idEpisodeOfCare === null) {
+        if ($idEpisodeOfCare === null || !$this->checkCsrf()) {
             return;
         }
 
@@ -173,7 +173,8 @@ final class CarePlanController
                 $idEpisodeOfCare,
                 $kind === '1',
                 $idLine,
-                self::text($_POST['idStoppedBy'] ?? null)
+                self::text($_POST['idStoppedBy'] ?? null),
+                is_string($_POST['password'] ?? null) ? $_POST['password'] : ''
             );
         } catch (InvalidArgumentException $e) {
             // Erreur affichée dans le formulaire du dossier par form.js ; sans JavaScript, page d'erreur.
