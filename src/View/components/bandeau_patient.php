@@ -48,9 +48,24 @@ use Aura\Core\View;
             <dt>Taille</dt>
             <dd><?= View::e($bandeau['taille'] ?? 'non renseignée') ?></dd>
         </div>
+        <div>
+            <dt>Groupe sanguin</dt>
+            <dd><?= View::e($bandeau['groupeSanguin'] ?? 'non renseigné') ?></dd>
+        </div>
     </dl>
-    <div class="allergies">
-        <?php if ($bandeau['allergies'] === []) : ?>
+    <?php
+    // Trois états distincts (identitovigilance) : allergies connues (rouge), « Aucune allergie connue »
+    // (vert : vérifié, aucune) et « Allergies non renseignées » (orange : l'information manque).
+    // Le service fournit allergiesStatus ; à défaut, l'absence de liste vaut « aucune connue ».
+    $allergiesStatus = $bandeau['allergiesStatus'] ?? ($bandeau['allergies'] === [] ? 'none' : 'known');
+    ?>
+    <div class="allergies allergies--<?= View::e($allergiesStatus) ?>">
+        <?php if ($allergiesStatus === 'unknown') : ?>
+            <span class="allergies-inconnues">
+                <?= View::render('components/icon', ['name' => 'circle-alert']) ?>
+                Allergies non renseignées
+            </span>
+        <?php elseif ($bandeau['allergies'] === []) : ?>
             <?php /* État distinct, pas un bandeau vide : « aucune connue » n'est pas « non renseigné ». */ ?>
             <span class="aucune-allergie">
                 <?= View::render('components/icon', ['name' => 'circle-check']) ?>
@@ -63,11 +78,11 @@ use Aura\Core\View;
             </span>
             <ul>
                 <?php foreach ($bandeau['allergies'] as $allergie) : ?>
-                    <li>
+                    <?php /* Couleur selon la criticité : rouge plein = élevée, orange = faible,
+                             rouge pâle = non évaluée (le texte de la criticité est toujours affiché). */ ?>
+                    <li class="allergie allergie--<?= View::e($allergie['niveau'] ?? 'unknown') ?>">
                         <?= View::e($allergie['libelle']) ?>
-                        <?php if ($allergie['criticite'] !== null) : ?>
-                            (<?= View::e($allergie['criticite']) ?>)
-                        <?php endif; ?>
+                        (<?= View::e($allergie['criticite'] ?? 'criticité non évaluée') ?>)
                     </li>
                 <?php endforeach; ?>
             </ul>

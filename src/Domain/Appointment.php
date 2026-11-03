@@ -6,6 +6,10 @@ namespace Aura\Domain;
 
 use DateTimeImmutable;
 
+/**
+ * Soin planifié (table Appointment) : occurrence datée d'une ligne de prescription (soin ou
+ * médicament, exactement l'un des deux), avec son statut et, le cas échéant, l'heure de réalisation.
+ */
 class Appointment
 {
     /** Statut d'un soin planifié pas encore réalisé (valeur de database/test.sql). */

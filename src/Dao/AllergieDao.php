@@ -72,6 +72,27 @@ class AllergieDao
     }
 
     /**
+     * Change la criticité d'une allergie déjà enregistrée pour ce patient (null = non évaluée).
+     * Le patient est exigé en plus de l'id, comme pour delete().
+     *
+     * @return bool true si une ligne a été modifiée
+     */
+    public function updateCriticality(int $idAllergy, int $idPatient, ?string $criticality): bool
+    {
+        $stmt = $this->pdo->prepare(
+            'UPDATE AllergyIntolerance SET criticality = :criticality
+             WHERE idAllergy = :idAllergy AND idPatient = :idPatient'
+        );
+        $stmt->execute([
+            'criticality' => $criticality,
+            'idAllergy' => (string) $idAllergy,
+            'idPatient' => (string) $idPatient,
+        ]);
+
+        return $stmt->rowCount() === 1;
+    }
+
+    /**
      * Retire une allergie du dossier (AURA-13.2). Suppression PHYSIQUE : décision d'équipe
      * du 21/10/2026, la suppression logique (removedAt) étant suspendue dans le schéma.
      * Dette technique : la trace « allergie connue au moment d'un soin » disparaît ; seule

@@ -47,7 +47,6 @@ use Aura\Core\View;
                 <th scope="col">Né(e) le</th>
                 <th scope="col">Séjour en cours</th>
                 <th scope="col">Dossier</th>
-                <th scope="col"></th>
             </tr>
         </thead>
         <tbody>
@@ -69,10 +68,6 @@ use Aura\Core\View;
                             <a href="/sejour?id=<?= View::e($p['idSejour']) ?>"
                                aria-label="Dossier de <?= View::e($p['nom'] . ' ' . $p['prenom']) ?>">Dossier</a>
                         <?php endif; ?>
-                    </td>
-                    <td>
-                        <a href="/patients/modifier?id=<?= View::e($p['idPatient']) ?>"
-                           aria-label="Modifier <?= View::e($p['nom'] . ' ' . $p['prenom']) ?>">Modifier</a>
                     </td>
                 </tr>
             <?php endforeach; ?>

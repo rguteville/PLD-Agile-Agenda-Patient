@@ -1,6 +1,7 @@
 <?php
 
 use Aura\Core\View;
+use Aura\Domain\Allergie;
 use Aura\Domain\RecordFields;
 use Aura\Service\AdmissionService;
 
@@ -27,6 +28,9 @@ $champCatalogue = static function (string $name, array $spec): array {
     if (isset($spec['help'])) {
         $champ['help'] = $spec['help'];
     }
+    if (isset($spec['placeholder'])) {
+        $champ['placeholder'] = $spec['placeholder'];
+    }
     if ($spec['type'] === 'select') {
         $champ['options'] = $spec['options'];
         $champ['empty'] = 'Non renseigné';
@@ -52,25 +56,47 @@ $champsSection = static function (string $section) use ($champCatalogue): array 
     return $champs;
 };
 
+$recherche = [
+    // Recherche d'un patient déjà venu (identitovigilance) : un seul champ en tête, qui reconnaît un IPP
+    // (6 à 9 chiffres) ou des mots du nom et du prénom (ordre libre). Recherche automatique à l'arrêt de
+    // la frappe ; la sélection demande une confirmation, puis l'identité s'affiche en carte en lecture
+    // seule et la fiche pré-remplit le formulaire (public/js/admission-search.js).
+    [
+        'name' => 'patientSearch',
+        'label' => 'Patient déjà venu ? IPP, nom ou prénom',
+        'status' => 'patient-search-status',
+        'listbox' => 'patient-suggestions',
+        'placeholder' => '100000001 ou dupont marie',
+        'attributes' => [
+            'autocomplete' => 'off', 'maxlength' => '100',
+            'role' => 'combobox', 'aria-autocomplete' => 'list', 'aria-expanded' => 'false',
+            'aria-controls' => 'patient-suggestions',
+        ],
+    ],
+    ['name' => 'idPatient', 'type' => 'hidden'],
+    ['name' => 'searchMode', 'type' => 'hidden'],
+];
+
+// Colonne de gauche : identité, admission et allergies ; à droite, les sections complémentaires.
 $essentiels = [
-    ['name' => 'lastname', 'label' => 'Nom', 'required' => true],
-    ['name' => 'firstname', 'label' => 'Prénom', 'required' => true],
+    ['name' => 'identite', 'label' => 'Identité', 'type' => 'heading'],
+    ['name' => 'lastname', 'label' => 'Nom', 'required' => true, 'placeholder' => 'DUPONT'],
+    ['name' => 'firstname', 'label' => 'Prénom', 'required' => true, 'placeholder' => 'Marie'],
+    ['name' => 'birthDate', 'label' => 'Date de naissance', 'type' => 'date'],
     [
         'name' => 'ipp',
         'label' => 'IPP (identifiant permanent du patient)',
-        // AURA-15 : un patient déjà connu est retrouvé par son IPP et son identité est reprise
-        // en lecture seule (public/js/admission-ipp.js) ; sinon la saisie reste manuelle.
-        'button' => ['id' => 'ipp-rechercher', 'label' => 'Rechercher'],
-        'status' => 'ipp-statut',
+        'help' => 'Nouveau patient : laissez vide, un IPP est attribué à l\'admission.',
+        'placeholder' => '100000123',
         'attributes' => ['inputmode' => 'numeric', 'autocomplete' => 'off'],
     ],
-    ['name' => 'birthDate', 'label' => 'Date de naissance', 'type' => 'date'],
     [
         'name' => 'gender',
         'label' => 'Sexe',
         'type' => 'radio',
         'options' => ['M' => 'M', 'F' => 'F']
     ],
+    $champCatalogue('bloodType', RecordFields::PATIENT['bloodType']),
     $champCatalogue('admissionReason', RecordFields::EPISODE['admissionReason']),
     [
         'name' => 'idHealthcareService',
@@ -82,12 +108,14 @@ $essentiels = [
     [
         'name' => 'allergies',
         'label' => 'Allergies connues (référentiel)',
-        'type' => 'checkbox-group',
+        'type' => 'allergy-picker',
         'options' => $substances,
+        'criticalities' => is_array($valeurs['allergyCriticality'] ?? null) ? $valeurs['allergyCriticality'] : [],
+        'criticalityOptions' => Allergie::CRITICALITIES,
         'emptyMessage' => 'Référentiel des allergènes indisponible : les allergies pourront être saisies '
             . 'depuis le dossier du séjour.',
-        'help' => 'Cochez les allergènes connus. Un patient retrouvé par son IPP conserve '
-            . 'ses allergies déjà enregistrées.',
+        'help' => 'Cochez chaque allergène connu et indiquez sa criticité. Un patient déjà connu conserve '
+            . 'ses allergies enregistrées.',
     ],
     $champCatalogue('allergyNote', RecordFields::PATIENT['allergyNote']),
 ];
@@ -99,12 +127,14 @@ $mesures = [
         'name' => 'taille',
         'label' => 'Taille (cm)',
         'type' => 'number',
+        'placeholder' => '172',
         'attributes' => ['min' => '0.01', 'max' => '999.99', 'step' => '0.01', 'inputmode' => 'decimal'],
     ],
     [
         'name' => 'poids',
         'label' => 'Poids à l\'admission (kg)',
         'type' => 'number',
+        'placeholder' => '68,5',
         'attributes' => ['min' => '0.01', 'max' => '999.99', 'step' => '0.01', 'inputmode' => 'decimal'],
     ],
 ];
@@ -138,13 +168,15 @@ $sections = [
 // Valeurs ressaisies, erreurs par champ et compteur « n sur m renseignés » de chaque section.
 $remplir = static function (array $champs) use ($valeurs, $erreurs): array {
     foreach ($champs as &$champ) {
-        $champ['value'] = $valeurs[$champ['name']] ?? (($champ['type'] ?? 'text') === 'checkbox-group' ? [] : '');
+        $champ['value'] = $valeurs[$champ['name']]
+            ?? (in_array($champ['type'] ?? 'text', ['checkbox-group', 'allergy-picker'], true) ? [] : '');
         $champ['error'] = $erreurs[$champ['name']] ?? '';
     }
     unset($champ);
 
     return $champs;
 };
+$recherche = $remplir($recherche);
 $essentiels = $remplir($essentiels);
 foreach ($sections as &$section) {
     $section['fields'] = $remplir($section['fields']);
@@ -163,6 +195,7 @@ unset($section);
     'title' => "Formulaire d'admission",
     'action' => '/patients/create',
     'submit' => 'Admettre',
+    'lead' => $recherche,
     'fields' => $essentiels,
     'sections' => $sections,
     'error' => $erreurFormulaire,

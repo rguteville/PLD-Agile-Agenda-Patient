@@ -22,7 +22,7 @@ final class PlanDefinitionService
     }
 
     /**
-     * Protocoles proposés dans la liste « 2. » quand « Groupes de prescriptions » est choisi.
+     * Protocoles proposés dans la liste « 2. » quand « Protocoles » est choisi.
      *
      * @return array<string, string> idPlanDefinition => « titre (pathologie) »
      */

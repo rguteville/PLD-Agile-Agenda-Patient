@@ -1,37 +1,16 @@
-// Menu latéral escamotable (bouton ☰ de la barre supérieure). Aucune logique métier ici.
-const sidenav = document.getElementById('mySidenav');
-const menuToggle = document.querySelector('.topbar .menu-toggle');
+// Mise en page commune (layouts/main.php). Aucune logique métier ici.
 
-function openNav() {
-    if (!sidenav) {
-        return;
-    }
-    sidenav.style.width = '250px';
-    document.getElementById('main').style.marginLeft = '250px';
-    if (menuToggle) {
-        menuToggle.setAttribute('aria-expanded', 'true');
+// Hauteur du bandeau patient collant, exposée en variable CSS : les en-têtes de tableau collants
+// et le défilement vers un élément focalisé (scroll-padding-top) se placent juste en dessous.
+const banner = document.querySelector('.bandeau-patient');
+function updateBannerHeight() {
+    document.documentElement.style.setProperty('--bandeau-height', banner ? `${banner.offsetHeight}px` : '0px');
+}
+if (banner) {
+    updateBannerHeight();
+    if (typeof ResizeObserver === 'function') {
+        new ResizeObserver(updateBannerHeight).observe(banner);
+    } else {
+        window.addEventListener('resize', updateBannerHeight);
     }
 }
-
-function closeNav() {
-    if (!sidenav) {
-        return;
-    }
-    sidenav.style.width = '0';
-    document.getElementById('main').style.marginLeft = '0';
-    if (menuToggle) {
-        menuToggle.setAttribute('aria-expanded', 'false');
-        menuToggle.focus();
-    }
-}
-
-if (menuToggle) {
-    menuToggle.addEventListener('click', openNav);
-}
-document.querySelectorAll('#mySidenav .closebtn').forEach(button => button.addEventListener('click', closeNav));
-// Échap ferme le menu, comme n'importe quel panneau.
-document.addEventListener('keydown', event => {
-    if (event.key === 'Escape' && sidenav && sidenav.style.width === '250px') {
-        closeNav();
-    }
-});
