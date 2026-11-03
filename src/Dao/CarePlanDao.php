@@ -11,6 +11,7 @@ use Aura\Domain\RequestLine;
 use Aura\Domain\ServiceRequest;
 use DateTimeImmutable;
 use DateTimeInterface;
+use LogicException;
 use PDO;
 
 /**
@@ -134,7 +135,7 @@ class CarePlanDao
                 $idLine = $isMedication
                     ? $this->insertMedicationRequest($idCarePlan, $line)
                     : $this->insertServiceRequest($idCarePlan, $line);
-                $this->insertAppointments($isMedication, $idLine, $line);
+                $this->insertAppointments($isMedication, $idLine, $line->plannedTimes());
             }
 
             return $idCarePlan;
@@ -234,18 +235,94 @@ class CarePlanDao
     }
 
     /**
-     * AURA-24.4 : les soins planifiés (Appointment) d'une ligne, un par heure prévue
-     * (RequestLine::plannedTimes()), en statut « PLANIFIE » : c'est ce que l'agenda du séjour
-     * affiche. Même transaction que la ligne : une prescription enregistrée a toujours son agenda.
+     * AURA-24.2 : lignes actives des prescriptions de tous les séjours en cours (dischargeDate NULL),
+     * avec le séjour de chacune : non arrêtées (stoppedAt NULL) et non terminées avant $from. Ce sont
+     * les lignes dont la génération quotidienne complète l'agenda (AgendaGenerationService).
+     *
+     * @return list<array{idEpisodeOfCare: int, line: RequestLine}>
      */
-    private function insertAppointments(bool $isMedication, int $idLine, RequestLine $line): void
+    public function findActiveLinesOfOngoingEpisodes(DateTimeInterface $from): array
     {
+        $lines = [];
+        foreach ([false, true] as $isMedication) {
+            // Noms fixés ici, jamais saisis : les concaténer ne permet aucune injection.
+            [$table, $columns, $key] = $isMedication
+                ? ['MedicationRequest', self::MEDICATION_COLUMNS, 'idMedicationRequest']
+                : ['ServiceRequest', self::SERVICE_COLUMNS, 'idServiceRequest'];
+            $stmt = $this->pdo->prepare(
+                "SELECT $columns,
+                        (SELECT c.idEpisodeOfCare FROM CarePlan c WHERE c.idCarePlan = l.idCarePlan)
+                            AS lineEpisodeOfCare
+                 FROM $table l
+                 WHERE l.stoppedAt IS NULL
+                   AND (l.endDate IS NULL OR l.endDate >= :from)
+                   AND l.idCarePlan IN (
+                       SELECT c.idCarePlan FROM CarePlan c
+                       JOIN EpisodeOfCare e ON e.idEpisodeOfCare = c.idEpisodeOfCare
+                       WHERE e.dischargeDate IS NULL
+                   )
+                 ORDER BY CAST(l.$key AS UNSIGNED)"
+            );
+            $stmt->execute(['from' => self::toSql($from)]);
+            foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
+                $lines[] = [
+                    'idEpisodeOfCare' => (int) $r['lineEpisodeOfCare'],
+                    'line' => $isMedication ? $this->mapToMedicationRequest($r) : $this->mapToServiceRequest($r),
+                ];
+            }
+        }
+
+        return $lines;
+    }
+
+    /**
+     * AURA-24.2 : verrouille la table Appointment jusqu'à la fin de la transaction en cours (lecture
+     * verrouillante de toutes ses lignes, qui bloque aussi les insertions). Deux générations lancées en
+     * même temps s'exécutent donc l'une après l'autre et la seconde voit les soins créés par la première.
+     * À appeler dans Transaction::run(), avant de lire les soins existants.
+     */
+    public function lockAppointments(): void
+    {
+        $this->pdo->query('SELECT idAppointment FROM Appointment FOR UPDATE')->fetchAll();
+    }
+
+    /**
+     * AURA-24.2 : ajoute à une ligne déjà enregistrée des soins planifiés aux heures données, en
+     * statut « PLANIFIE », et renvoie le nombre de soins créés. Aucun soin existant n'est lu ni
+     * modifié : c'est l'appelant (AgendaGenerationService) qui écarte les heures déjà planifiées.
+     *
+     * @param DateTimeImmutable[] $plannedTimes
+     */
+    public function addAppointments(RequestLine $line, array $plannedTimes): int
+    {
+        $idLine = $line->getId();
+        if ($idLine === null) {
+            throw new LogicException('CarePlanDao::addAppointments() requiert une ligne enregistrée (id non nul).');
+        }
+
+        return $this->insertAppointments($line instanceof MedicationRequest, $idLine, $plannedTimes);
+    }
+
+    /**
+     * AURA-24.4 : les soins planifiés (Appointment) d'une ligne, un par heure prévue, en statut
+     * « PLANIFIE » : c'est ce que l'agenda du séjour affiche. À l'enregistrement d'une prescription,
+     * les heures sont RequestLine::plannedTimes(), dans la même transaction que la ligne : une
+     * prescription enregistrée a toujours son agenda. Renvoie le nombre de soins créés.
+     *
+     * @param DateTimeImmutable[] $plannedTimes
+     */
+    private function insertAppointments(bool $isMedication, int $idLine, array $plannedTimes): int
+    {
+        if ($plannedTimes === []) {
+            return 0;
+        }
+
         $stmt = $this->pdo->prepare(
             'INSERT INTO Appointment (idAppointment, idServiceRequest, idMedicationRequest, plannedTime, status)
              VALUES (:id, :idServiceRequest, :idMedicationRequest, :plannedTime, :status)'
         );
         $id = $this->nextId('Appointment', 'idAppointment');
-        foreach ($line->plannedTimes() as $plannedTime) {
+        foreach ($plannedTimes as $plannedTime) {
             $stmt->execute([
                 'id' => (string) $id++,
                 'idServiceRequest' => $isMedication ? null : (string) $idLine,
@@ -254,6 +331,8 @@ class CarePlanDao
                 'status' => Appointment::STATUS_PLANNED,
             ]);
         }
+
+        return count($plannedTimes);
     }
 
     /**

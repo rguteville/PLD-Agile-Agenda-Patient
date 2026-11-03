@@ -39,6 +39,7 @@ use Aura\Dao\Transaction;
 use Aura\Service\AdmissionService;
 use Aura\Service\AllergyIntoleranceService;
 use Aura\Service\CarePlanService;
+use Aura\Service\PatientDeletionService;
 use Aura\Service\PatientRecordService;
 use Aura\Service\PatientListService;
 use Aura\Service\PatientUpdateService;
@@ -201,6 +202,20 @@ try {
             new AdmissionService()
         )
     );
+    // AURA-12.3 : suppression d'un patient ; le même contrôleur sert la confirmation (GET) et la suppression (POST).
+    $patientDeletionController = static function (): PatientController {
+        $pdo = Database::get();
+
+        return new PatientController(
+            patientDeletionService: new PatientDeletionService(
+                new PatientDao($pdo),
+                new EpisodeOfCareDao($pdo),
+                new AppointmentDao($pdo),
+                new AuditEventDao($pdo),
+                new Transaction($pdo)
+            )
+        );
+    };
     // AURA-15 : recherche d'un patient déjà connu par son IPP (JSON pour le formulaire d'admission).
     $searchByIpp = static function (): void {
         $pdo = Database::get();
@@ -294,6 +309,8 @@ try {
     $router->post('/patients/create', $admitPatient);
     $router->get('/patients/modifier', static fn () => $patientUpdateController()->edit());
     $router->post('/patients/modifier', static fn () => $patientUpdateController()->update());
+    $router->get('/patients/supprimer', static fn () => $patientDeletionController()->confirmDeletion());
+    $router->post('/patients/supprimer', static fn () => $patientDeletionController()->delete());
     $router->get('/patients/recherche-ipp', $searchByIpp);
     $router->get('/patients/recherche', static fn () => $patientSearchController()->search());
     $router->get('/patients/fiche', static fn () => $patientSearchController()->record());

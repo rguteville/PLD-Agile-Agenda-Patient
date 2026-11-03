@@ -4007,6 +4007,73 @@ form.form--columns .form-lead > .form-row {
     border-radius: var(--radius);
 }
 
+/* ===== AURA-12.3 : suppression d'un patient (confirmation, lien dans la liste) ===== */
+.patient-delete {
+    max-width: 640px;
+}
+
+.patient-delete__identity {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(140px, 100%), 1fr));
+    gap: var(--sp-3) var(--sp-4);
+    margin: var(--sp-4) 0;
+    padding: var(--sp-4);
+    background: var(--bg-raised);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+}
+
+.patient-delete__identity dt {
+    color: var(--fg-subtle);
+    font-size: 0.875rem;
+}
+
+.patient-delete__identity dd {
+    margin: 0;
+    font-weight: 600;
+}
+
+.patient-delete__notice,
+.patient-delete__refusal,
+.page-notice {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--sp-2);
+    margin: 0 0 var(--sp-4);
+    padding: var(--sp-3) var(--sp-4);
+    border-radius: var(--radius);
+}
+
+.patient-delete__notice {
+    border: 1px solid var(--st-warn-line);
+    background: var(--st-warn-bg);
+    color: var(--st-warn-fg);
+}
+
+.patient-delete__refusal {
+    border: 1px solid var(--st-alert-line);
+    background: var(--st-alert-bg);
+    color: var(--st-alert-fg);
+}
+
+.page-notice {
+    border: 1px solid var(--st-done-line);
+    background: var(--st-done-bg);
+    color: var(--st-done-fg);
+}
+
+.patient-delete__notice span,
+.patient-delete__refusal span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.patient-list__delete,
+.patient-edit__delete {
+    color: var(--st-alert-fg);
+}
+
+
 /* ===== AURA-25 / AURA-26 / AURA-28 : actions sur un soin, filtres, vue Semaine ===== */
 .care-buttons {
     display: inline-flex;

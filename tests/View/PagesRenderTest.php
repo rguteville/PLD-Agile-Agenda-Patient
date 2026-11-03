@@ -401,6 +401,40 @@ final class PagesRenderTest extends TestCase
         self::assertStringContainsString('aria-label="Dossier de DUPONT Test"', $full);
         self::assertStringNotContainsString('/patients/modifier', $full, 'modification depuis le dossier seulement');
         self::assertStringContainsString('<th scope="col">', $full);
+        // AURA-12.3 : suppression depuis la liste, nommée pour les lecteurs d'écran.
+        self::assertStringContainsString('href="/patients/supprimer?id=1"', $full);
+        self::assertStringContainsString('aria-label="Supprimer DUPONT Test"', $full);
+        self::assertStringNotContainsString('Patient supprimé', $full);
+
+        $afterDeletion = View::render('pages/patient/list', ['patients' => [], 'search' => null, 'deleted' => true]);
+        self::assertStringContainsString('role="status"', $afterDeletion);
+        self::assertStringContainsString('Patient supprimé', $afterDeletion);
+    }
+
+    /** AURA-12.3 : confirmation de suppression, identité échappée ; motif du refus sans bouton de confirmation. */
+    public function testPatientDeletionConfirmationAndRefusal(): void
+    {
+        $identity = [
+            'idPatient' => 4, 'lastName' => 'Par<ker>', 'firstName' => 'Peter', 'ipp' => null,
+            'birthDate' => '09/01/2001',
+        ];
+
+        $confirm = View::render('pages/patient/delete', ['identity' => $identity, 'episodes' => 2, 'refusal' => null]);
+        self::assertStringContainsString('Par&lt;ker&gt;', $confirm);
+        self::assertStringNotContainsString('Par<ker>', $confirm);
+        self::assertStringContainsString('sans IPP', $confirm);
+        self::assertStringContainsString('2 séjours dans le service', $confirm);
+        self::assertStringContainsString('method="post" action="/patients/supprimer?id=4"', $confirm);
+        self::assertStringContainsString('Confirmer la suppression', $confirm);
+        self::assertStringContainsString('href="/patients">Annuler', $confirm);
+
+        $refused = View::render('pages/patient/delete', [
+            'identity' => $identity, 'episodes' => 1, 'refusal' => 'Suppression impossible : <motif>',
+        ]);
+        self::assertStringContainsString('role="alert"', $refused);
+        self::assertStringContainsString('Suppression impossible : &lt;motif&gt;', $refused);
+        self::assertStringNotContainsString('<form', $refused, 'pas de confirmation possible');
+        self::assertStringContainsString('1 séjour dans le service', $refused);
     }
 
     public function testServiceAgendaIsVerticalWithLateAlertAllergiesAndActions(): void

@@ -147,6 +147,20 @@ final class AdmissionServiceAdmitTest extends TestCase
         $this->assertSame($episodeOfCare, $this->service->admit(self::DATA));
     }
 
+    /** AURA-12.3 : l'IPP d'un patient supprimé reste réservé ; l'admission est refusée, rien n'est écrit. */
+    public function testIppOfRemovedPatientIsRefused(): void
+    {
+        $this->patients->method('findByIpp')->with('123456')->willReturn(null);
+        $this->patients->method('existsByIpp')->with('123456')->willReturn(true);
+        $this->patients->expects($this->never())->method('insert');
+        $this->episodesOfCare->expects($this->never())->method('openEpisodeOfCare');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage(AdmissionService::REMOVED_PATIENT_IPP_MESSAGE);
+
+        $this->service->admit(self::DATA);
+    }
+
     public function testInvalidDataDoesNotTouchDatabase(): void
     {
         $this->patients->expects($this->never())->method('insert');

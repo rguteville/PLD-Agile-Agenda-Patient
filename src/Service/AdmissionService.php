@@ -49,6 +49,10 @@ class AdmissionService
     /** Longueur maximale des précautions, en caractères (colonne Sejour.precautions VARCHAR(500)). */
     public const PRECAUTIONS_MAX_LENGTH = 500;
 
+    /** AURA-12.3 : IPP saisi qui appartient à un patient supprimé (il reste réservé). */
+    public const REMOVED_PATIENT_IPP_MESSAGE =
+        'Cet IPP appartient à un patient supprimé de la liste : il ne peut pas être réutilisé.';
+
     private FieldValidationService $fields;
 
     /**
@@ -229,6 +233,12 @@ class AdmissionService
                         : 'rattachement après recherche par nom';
                 } else {
                     $existing = $patient->getIpp() !== null ? $patientDao->findByIpp($patient->getIpp()) : null;
+                    $removedOwner = $existing === null && $patient->getIpp() !== null
+                        && $patientDao->existsByIpp($patient->getIpp());
+                    if ($removedOwner) {
+                        // AURA-12.3 : IPP d'un patient supprimé, toujours réservé (colonne UNIQUE).
+                        throw new InvalidArgumentException(self::REMOVED_PATIENT_IPP_MESSAGE);
+                    }
                     if ($existing !== null) {
                         $idPatient = (int) $existing->getIdPatient();
                         $this->completePatient(
@@ -356,8 +366,9 @@ class AdmissionService
 
         if ($changes !== []) {
             if (isset($changes['ipp']) && $changes['ipp'] !== null) {
-                $carrier = $this->patientDao?->findByIpp($changes['ipp']);
-                if ($carrier !== null && $carrier->getIdPatient() !== $idPatient) {
+                // Patients supprimés compris (AURA-12.3) : leur IPP reste réservé.
+                $carrier = $this->patientDao?->ippOwnerId($changes['ipp']);
+                if ($carrier !== null && $carrier !== $idPatient) {
                     throw new InvalidArgumentException('Cet IPP est déjà utilisé par un autre patient.');
                 }
             }

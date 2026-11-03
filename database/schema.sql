@@ -67,6 +67,10 @@ CREATE TABLE Patient( -- Patient
     foreignTravel TEXT,
     comorbidities TEXT,
     currentTreatment TEXT,
+    -- AURA-12.3 : suppression logique (règle n° 8). NULL = patient actif ; sinon date de la suppression.
+    -- Un patient supprimé n'apparaît plus dans la liste ni dans les recherches (les DAO filtrent
+    -- removedAt IS NULL) ; sa ligne, ses séjours et son IPP restent en base (traçabilité, RG10).
+    removedAt DATETIME NULL,
 
     -- Recherche d'un patient existant à l'admission (PR « admission-recherche-patient ») : index pour le tri
     -- (ORDER BY lastName, firstName), l'égalité « nom exact » et findByIdentite() ; le filtre par début de mot
@@ -353,7 +357,11 @@ CREATE TABLE Appointment( -- SoinPlanifie
     comment VARCHAR(100),
 
     CONSTRAINT chk_appointment_ligne CHECK ((idServiceRequest IS NULL) <> (idMedicationRequest IS NULL)),
-
+    -- AURA-24.2 / 24.3 : une ligne n'a qu'un soin planifié par heure prévue. La génération quotidienne de
+    -- l'agenda (bin/generate-agenda.php) écarte déjà les heures existantes ; ces clés en sont la garantie
+    -- en base (NULL n'entre pas en conflit : chaque soin ne remplit qu'une des deux colonnes).
+    CONSTRAINT uq_appointment_service_time UNIQUE (idServiceRequest, plannedTime),
+    CONSTRAINT uq_appointment_medication_time UNIQUE (idMedicationRequest, plannedTime),
 
     CONSTRAINT fk_servicerequest_appointment FOREIGN KEY (idServiceRequest) REFERENCES ServiceRequest(idServiceRequest),
     CONSTRAINT fk_medicationrequest_appointment FOREIGN KEY (idMedicationRequest) REFERENCES MedicationRequest(idMedicationRequest)

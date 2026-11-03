@@ -8,7 +8,9 @@ use Aura\Core\View;
  * @var list<array{idPatient: int, lastName: string, firstName: string, ipp: ?string,
  *                 birthDate: ?string, idEpisodeOfCare: ?int, episodeNumber: ?string}> $patients
  * @var ?string $search terme saisi, null si aucun
+ * @var bool $deleted vrai juste après une suppression (AURA-12.3)
  */
+$deleted = $deleted ?? false;
 ?>
 <div class="page-header">
     <h1 class="form-title">Patients</h1>
@@ -16,6 +18,13 @@ use Aura\Core\View;
         <a class="button" href="/">Admettre un patient</a>
     </p>
 </div>
+
+<?php if ($deleted) : ?>
+    <p class="page-notice" role="status">
+        <?= View::render('components/icon', ['name' => 'circle-check']) ?>
+        Patient supprimé. Son dossier reste conservé (suppression logique).
+    </p>
+<?php endif; ?>
 
 <form class="patient-search" method="get" action="/patients" role="search">
     <label for="q">Rechercher</label>
@@ -47,6 +56,7 @@ use Aura\Core\View;
                 <th scope="col">Né(e) le</th>
                 <th scope="col">Séjour en cours</th>
                 <th scope="col">Dossier</th>
+                <th scope="col"><span class="sr-only">Actions</span></th>
             </tr>
         </thead>
         <tbody>
@@ -69,6 +79,10 @@ use Aura\Core\View;
                                aria-label="Dossier de <?= View::e($p['lastName'] . ' '
                                                       . $p['firstName']) ?>">Dossier</a>
                         <?php endif; ?>
+                    </td>
+                    <td>
+                        <a class="patient-list__delete" href="/patients/supprimer?id=<?= View::e($p['idPatient']) ?>"
+                           aria-label="Supprimer <?= View::e($p['lastName'] . ' ' . $p['firstName']) ?>">Supprimer</a>
                     </td>
                 </tr>
             <?php endforeach; ?>

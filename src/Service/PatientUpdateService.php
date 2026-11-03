@@ -48,11 +48,12 @@ final class PatientUpdateService
             return $errors;
         }
 
-        // L'IPP doit être unique : refusé seulement s'il est porté par un AUTRE patient.
+        // L'IPP doit être unique : refusé seulement s'il est porté par un AUTRE patient, même supprimé
+        // (AURA-12.3 : l'IPP d'un patient supprimé reste réservé).
         $ipp = $this->text($data['ipp'] ?? null);
         if ($ipp !== null) {
-            $carrier = $this->patientDao->findByIpp($ipp);
-            if ($carrier !== null && $carrier->getIdPatient() !== $idPatient) {
+            $carrier = $this->patientDao->ippOwnerId($ipp);
+            if ($carrier !== null && $carrier !== $idPatient) {
                 return ['ipp' => 'Cet IPP est déjà utilisé par un autre patient.'];
             }
         }

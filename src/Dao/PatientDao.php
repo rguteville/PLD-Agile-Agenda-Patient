@@ -14,9 +14,16 @@ use PDO;
 /**
  * Accès à la table Patient. Les colonnes suivent database/schema.sql (camelCase anglais,
  * cf. README « Convention de nommage ») ; les entités du domaine restent en français.
+ *
+ * AURA-12.3 : un patient supprimé (removedAt renseigné, suppression logique) n'est renvoyé par
+ * aucune lecture (liste, recherches, findById, findByIpp, findByIdentity). Seuls existsByIpp(),
+ * ippOwnerId() et nextIpp() le voient encore : son IPP reste réservé (colonne UNIQUE).
  */
 class PatientDao
 {
+    /** Condition des patients actifs (non supprimés, AURA-12.3), ajoutée à toutes les lectures. */
+    private const ACTIVE = 'removedAt IS NULL';
+
     /** Colonnes d'identité, lues et écrites par toutes les méthodes. */
     private const IDENTITY_COLUMNS = 'idPatient, ipp, lastName, firstName, birthDate, sex, phoneNumber, email';
 
@@ -40,8 +47,9 @@ class PatientDao
     public function findAll(): array
     {
         // Liste : l'identité suffit, les champs complémentaires (TEXT) ne sont pas chargés.
-        $rows = $this->pdo->query('SELECT ' . self::IDENTITY_COLUMNS . ' FROM Patient ORDER BY lastName, firstName')
-            ->fetchAll(PDO::FETCH_ASSOC);
+        $rows = $this->pdo->query(
+            'SELECT ' . self::IDENTITY_COLUMNS . ' FROM Patient WHERE ' . self::ACTIVE . ' ORDER BY lastName, firstName'
+        )->fetchAll(PDO::FETCH_ASSOC);
 
         return array_map(fn(array $r) => $this->mapToEntity($r), $rows);
     }
@@ -61,9 +69,10 @@ class PatientDao
         // Sans émulation des requêtes préparées, un paramètre nommé ne peut servir qu'une fois.
         $stmt = $this->pdo->prepare(
             'SELECT ' . self::IDENTITY_COLUMNS . ' FROM Patient
-             WHERE lastName LIKE :lastName ESCAPE \'\\\\\'
+             WHERE ' . self::ACTIVE . '
+               AND (lastName LIKE :lastName ESCAPE \'\\\\\'
                 OR firstName LIKE :firstName ESCAPE \'\\\\\'
-                OR CAST(ipp AS CHAR) LIKE :ipp ESCAPE \'\\\\\'
+                OR CAST(ipp AS CHAR) LIKE :ipp ESCAPE \'\\\\\')
              ORDER BY lastName, firstName'
         );
         $stmt->execute(['lastName' => $pattern, 'firstName' => $pattern, 'ipp' => $pattern]);
@@ -120,7 +129,7 @@ class PatientDao
                     (SELECT MAX(e.admissionDate) FROM EpisodeOfCare e WHERE e.idPatient = Patient.idPatient)
                         AS lastAdmission
              FROM Patient
-             WHERE ' . implode(' AND ', $conditions) . '
+             WHERE ' . self::ACTIVE . ' AND ' . implode(' AND ', $conditions) . '
              ORDER BY (' . implode(' OR ', $exact) . ') DESC, lastName, firstName, idPatient
              LIMIT ' . max(1, $limit)
         );
@@ -177,33 +186,68 @@ class PatientDao
         return "CONCAT(' ', REPLACE(REPLACE(REPLACE(COALESCE(" . $column . ", ''), '-', ' '), '\\'', ' '), '’', ' '))";
     }
 
-    /** Patient par identifiant interne, champs complémentaires compris ; null s'il n'existe pas. */
+    /** Patient par identifiant interne, champs complémentaires compris ; null s'il n'existe pas ou est supprimé. */
     public function findById(int $id): ?Patient
     {
-        $stmt = $this->pdo->prepare('SELECT ' . self::columns() . ' FROM Patient WHERE idPatient = :id');
+        $stmt = $this->pdo->prepare(
+            'SELECT ' . self::columns() . ' FROM Patient WHERE idPatient = :id AND ' . self::ACTIVE
+        );
         $stmt->execute(['id' => $id]);
         $r = $stmt->fetch(PDO::FETCH_ASSOC);
 
         return $r ? $this->mapToEntity($r) : null;
     }
 
-    /** Patient portant cet IPP (unique) ; null s'il n'existe pas. */
+    /**
+     * Patient actif portant cet IPP (unique) ; null s'il n'existe pas ou est supprimé. Pour savoir si
+     * l'IPP est libre (patients supprimés compris), utiliser existsByIpp() ou ippOwnerId().
+     */
     public function findByIpp(string $ipp): ?Patient
     {
-        $stmt = $this->pdo->prepare('SELECT ' . self::columns() . ' FROM Patient WHERE ipp = :ipp');
+        $stmt = $this->pdo->prepare('SELECT ' . self::columns() . ' FROM Patient WHERE ipp = :ipp AND ' . self::ACTIVE);
         $stmt->execute(['ipp' => $ipp]);
         $r = $stmt->fetch(PDO::FETCH_ASSOC);
 
         return $r ? $this->mapToEntity($r) : null;
     }
 
-    /** Vrai si un patient porte cet IPP. */
+    /** Vrai si un patient porte cet IPP, même supprimé : l'IPP reste réservé (colonne UNIQUE). */
     public function existsByIpp(string $ipp): bool
     {
         $stmt = $this->pdo->prepare('SELECT 1 FROM Patient WHERE ipp = :ipp');
         $stmt->execute(['ipp' => $ipp]);
 
         return $stmt->fetchColumn() !== false;
+    }
+
+    /**
+     * Identifiant du patient qui porte cet IPP, même supprimé ; null si l'IPP est libre. Sert aux
+     * contrôles d'unicité avant une modification : l'IPP d'un patient supprimé ne peut pas être
+     * réattribué (la base le refuserait).
+     */
+    public function ippOwnerId(string $ipp): ?int
+    {
+        $stmt = $this->pdo->prepare('SELECT idPatient FROM Patient WHERE ipp = :ipp');
+        $stmt->execute(['ipp' => $ipp]);
+        $id = $stmt->fetchColumn();
+
+        return $id === false ? null : (int) $id;
+    }
+
+    /**
+     * AURA-12.3 : suppression logique (règle n° 8) ; la date vient de l'horloge de la base, comme les
+     * autres horodatages. Renvoie false si le patient n'existe pas ou est déjà supprimé : la condition
+     * est dans la requête, deux suppressions simultanées ne comptent qu'une fois. Les règles (séjour en
+     * cours, soin réalisé) sont vérifiées avant, par PatientDeletionService.
+     */
+    public function markRemoved(int $idPatient): bool
+    {
+        $stmt = $this->pdo->prepare(
+            'UPDATE Patient SET removedAt = CURRENT_TIMESTAMP WHERE idPatient = :idPatient AND ' . self::ACTIVE
+        );
+        $stmt->execute(['idPatient' => (string) $idPatient]);
+
+        return $stmt->rowCount() === 1;
     }
 
     /**
@@ -216,7 +260,8 @@ class PatientDao
     {
         $stmt = $this->pdo->prepare(
             'SELECT ' . self::columns() . ' FROM Patient
-             WHERE lastName = :lastName AND firstName = :firstName AND birthDate = :birthDate'
+             WHERE lastName = :lastName AND firstName = :firstName AND birthDate = :birthDate
+               AND ' . self::ACTIVE
         );
         $stmt->execute([
             'lastName' => $lastName,

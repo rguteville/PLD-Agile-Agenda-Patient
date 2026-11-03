@@ -7,6 +7,7 @@ namespace Aura\Controller;
 use Aura\Core\DateInput;
 use Aura\Core\View;
 use Aura\Domain\RecordFields;
+use Aura\Service\PatientDeletionService;
 use Aura\Service\PatientUpdateService;
 use Aura\Service\AdmissionService;
 use Aura\Service\PatientListService;
@@ -17,7 +18,8 @@ use LogicException;
 
 /**
  * Écrans et endpoints autour du patient : admission (formulaire, création), liste, modification
- * de l'identité, recherche par IPP (AURA-15) et par nom / prénom, fiche pour pré-remplissage.
+ * de l'identité, suppression (AURA-12.3), recherche par IPP (AURA-15) et par nom / prénom, fiche pour
+ * pré-remplissage.
  * Le contrôleur lit la requête, mappe les champs du formulaire vers les clés du domaine, appelle
  * le service et répond (HTML ou JSON) ; il ne valide rien lui-même.
  */
@@ -77,6 +79,12 @@ class PatientController
     private const EDIT_VIEW = 'patient/edit';
     private const EDIT_TITLE = 'AURA - Modifier le patient';
 
+    private const DELETE_VIEW = 'patient/delete';
+    private const DELETE_TITLE = 'AURA - Supprimer le patient';
+
+    /** Paramètre de /patients après une suppression réussie (message de confirmation dans la liste). */
+    public const DELETED_PARAMETER = 'supprime';
+
     /**
      * Les services qui lisent la base ne sont fournis que par les routes qui en ont besoin
      * (voir public/index.php), pour que l'admission reste utilisable sans connexion.
@@ -92,7 +100,8 @@ class PatientController
         private ?PatientUpdateService $patientUpdateService = null,
         private ?IppSearchService $ippSearchService = null,
         private array $referenceDataSets = [],
-        private ?PatientSearchService $patientSearchService = null
+        private ?PatientSearchService $patientSearchService = null,
+        private ?PatientDeletionService $patientDeletionService = null
     ) {
     }
 
@@ -238,7 +247,65 @@ class PatientController
         View::page('patient/list', [
             'patients' => $this->patientListService->listAll($search),
             'search' => $search,
+            'deleted' => ($_GET[self::DELETED_PARAMETER] ?? null) === '1',
         ], 'AURA - Patients');
+    }
+
+    /**
+     * GET /patients/supprimer?id=… (AURA-12.3) : page de confirmation qui rappelle l'identité du
+     * patient et, si la suppression est impossible (séjour en cours, soin réalisé), le motif. 400 / 404 sinon.
+     */
+    public function confirmDeletion(): void
+    {
+        $service = $this->patientDeletionService();
+        $id = $this->readPatientId();
+        if ($id === null) {
+            View::error(400, 'Identifiant de patient manquant ou invalide.');
+            return;
+        }
+
+        $page = $service->prepare($id);
+        if ($page === null) {
+            View::error(404, 'Aucun patient ne porte cet identifiant.');
+            return;
+        }
+
+        View::page(self::DELETE_VIEW, $page, self::DELETE_TITLE);
+    }
+
+    /**
+     * POST /patients/supprimer?id=… (AURA-12.3) : suppression logique confirmée, puis redirection vers la
+     * liste (303, POST → redirect → GET). Refusée par la règle (RG10) : la page de confirmation est
+     * réaffichée en 409 avec le motif, rien n'est écrit. Pas de jeton CSRF (aucun dans le projet).
+     */
+    public function delete(): void
+    {
+        $service = $this->patientDeletionService();
+        $id = $this->readPatientId();
+        if ($id === null) {
+            View::error(400, 'Identifiant de patient manquant ou invalide.');
+            return;
+        }
+
+        try {
+            $refusal = $service->delete($id);
+        } catch (InvalidArgumentException) {
+            View::error(404, 'Aucun patient ne porte cet identifiant.');
+            return;
+        }
+
+        if ($refusal !== null) {
+            $page = $service->prepare($id);
+            if ($page === null) {
+                View::error(404, 'Aucun patient ne porte cet identifiant.');
+                return;
+            }
+            http_response_code(409);
+            View::page(self::DELETE_VIEW, ['refusal' => $refusal] + $page, self::DELETE_TITLE);
+            return;
+        }
+
+        header('Location: /patients?' . self::DELETED_PARAMETER . '=1', true, 303);
     }
 
     /** Clé d'erreur hors champ (admission refusée) : affichée en tête du formulaire. */
@@ -343,6 +410,17 @@ class PatientController
         }
 
         return $this->patientUpdateService;
+    }
+
+    private function patientDeletionService(): PatientDeletionService
+    {
+        if ($this->patientDeletionService === null) {
+            throw new LogicException(
+                'PatientController::confirmDeletion() et delete() requièrent un PatientDeletionService.'
+            );
+        }
+
+        return $this->patientDeletionService;
     }
 
     private function readPatientId(): ?int

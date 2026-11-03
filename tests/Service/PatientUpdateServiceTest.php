@@ -39,7 +39,7 @@ final class PatientUpdateServiceTest extends TestCase
     public function testValidUpdateUpdatesPatientWithoutErasingPhone(): void
     {
         $this->patients->method('findById')->with(7)->willReturn($this->patient(7, '100000007'));
-        $this->patients->method('findByIpp')->with('123456')->willReturn(null);
+        $this->patients->method('ippOwnerId')->with('123456')->willReturn(null);
         $this->patients->expects($this->once())->method('update')->with($this->callback(
             fn(Patient $p) => $p->getIdPatient() === 7
                 && $p->getLastName() === 'Durand'
@@ -64,7 +64,7 @@ final class PatientUpdateServiceTest extends TestCase
     public function testIppHeldByAnotherPatientIsRejected(): void
     {
         $this->patients->method('findById')->with(7)->willReturn($this->patient(7, '100000007'));
-        $this->patients->method('findByIpp')->with('123456')->willReturn($this->patient(99, '123456'));
+        $this->patients->method('ippOwnerId')->with('123456')->willReturn(99);
         $this->patients->expects($this->never())->method('update');
 
         $errors = $this->service->edit(7, self::DATA);
@@ -76,7 +76,7 @@ final class PatientUpdateServiceTest extends TestCase
     public function testIppAlreadyHeldByPatientItselfIsAccepted(): void
     {
         $this->patients->method('findById')->with(7)->willReturn($this->patient(7, '123456'));
-        $this->patients->method('findByIpp')->with('123456')->willReturn($this->patient(7, '123456'));
+        $this->patients->method('ippOwnerId')->with('123456')->willReturn(7);
         $this->patients->expects($this->once())->method('update');
 
         self::assertSame([], $this->service->edit(7, self::DATA));
