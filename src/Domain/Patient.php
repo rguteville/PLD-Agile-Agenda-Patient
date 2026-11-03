@@ -6,6 +6,11 @@ namespace Aura\Domain;
 
 use DateTimeInterface;
 
+/**
+ * Patient connu du service (table Patient). Identité (nom et prénom obligatoires, IPP facultatif
+ * à l'admission, RG1) et champs complémentaires facultatifs du catalogue RecordFields::PATIENT.
+ * Entité immuable : l'id est null tant que le patient n'est pas enregistré (PatientDao::insert()).
+ */
 class Patient
 {
     public function __construct(

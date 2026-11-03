@@ -158,6 +158,104 @@ final class ComponentsRenderTest extends TestCase
         self::assertMatchesRegularExpression('/value="II"\s+selected/', $html);
     }
 
+    public function testChampCacheEtTitreDeGroupe(): void
+    {
+        $cache = View::render('components/field', ['field' => [
+            'name' => 'idPatient', 'type' => 'hidden', 'value' => '9',
+        ]]);
+        self::assertSame('<input type="hidden" id="idPatient" name="idPatient" value="9">', trim($cache));
+
+        $titre = View::render('components/field', ['field' => [
+            'name' => 'identite', 'type' => 'heading', 'label' => 'Identité <x>', 'help' => 'Aide',
+        ]]);
+        self::assertStringContainsString('<h2 class="form-subtitle" id="identite">Identité &lt;x&gt;</h2>', $titre);
+        self::assertStringNotContainsString('<input', $titre);
+    }
+
+    public function testBandeauAllergiesNonRenseigneesEstUnEtatDistinct(): void
+    {
+        $html = View::render('components/bandeau_patient', [
+            'bandeau' => self::bandeau() + ['allergiesStatus' => 'unknown'],
+        ]);
+
+        self::assertStringContainsString('allergies--unknown', $html);
+        self::assertStringContainsString('Allergies non renseignées', $html);
+        self::assertStringNotContainsString('Aucune allergie connue', $html);
+
+        $none = View::render('components/bandeau_patient', [
+            'bandeau' => self::bandeau() + ['allergiesStatus' => 'none'],
+        ]);
+        self::assertStringContainsString('allergies--none', $none);
+        self::assertStringContainsString('Aucune allergie connue', $none);
+    }
+
+    public function testFilDArianeMarqueLaPageCourante(): void
+    {
+        $html = View::render('components/breadcrumb', ['items' => [
+            ['label' => 'Patients', 'href' => '/patients'],
+            ['label' => 'Dossier du séjour n° 2026-000001', 'href' => '/sejour?id=1'],
+            ['label' => 'Agenda <x>'],
+        ]]);
+
+        self::assertStringContainsString('<nav class="breadcrumb" aria-label="Fil d\'Ariane">', $html);
+        self::assertStringContainsString('<a href="/patients">Patients</a>', $html);
+        self::assertStringContainsString('href="/sejour?id=1"', $html);
+        self::assertStringContainsString('<li aria-current="page">', $html);
+        self::assertStringContainsString('Agenda &lt;x&gt;', $html);
+        self::assertSame(2, substr_count($html, '<a '), 'la page courante n\'est pas un lien');
+    }
+
+    public function testListeDesAllergiesAvecCriticiteParAllergene(): void
+    {
+        $html = View::render('components/field', ['field' => [
+            'name' => 'allergies', 'label' => 'Allergies', 'type' => 'allergy-picker',
+            'options' => ['ALG01' => 'Pénicilline', 'ALG02' => 'Latex <x>'], 'value' => ['ALG01'],
+            'criticalities' => ['ALG01' => 'Élevée'], 'criticalityOptions' => ['Faible', 'Élevée'], 'error' => '',
+        ]]);
+
+        self::assertStringContainsString('data-allergy-picker', $html);
+        self::assertStringContainsString('data-allergy-filter', $html);
+        self::assertMatchesRegularExpression('/value="ALG01"\s+checked/', $html);
+        self::assertStringContainsString('name="allergyCriticality[ALG01]"', $html);
+        self::assertMatchesRegularExpression('/<option value="Élevée"\s+selected>/', $html);
+        self::assertStringContainsString('Latex &lt;x&gt;', $html);
+        self::assertStringContainsString('1 allergène coché', $html);
+    }
+
+    public function testBandeauColoreChaqueAllergieSelonSaCriticite(): void
+    {
+        $html = View::render('components/bandeau_patient', ['bandeau' => self::bandeau([
+            ['libelle' => 'Pénicilline', 'criticite' => 'Élevée', 'niveau' => 'high'],
+            ['libelle' => 'Latex', 'criticite' => null, 'niveau' => 'unknown'],
+        ])]);
+
+        self::assertStringContainsString('allergie--high', $html);
+        self::assertStringContainsString('allergie--unknown', $html);
+        self::assertStringContainsString('(criticité non évaluée)', $html, 'jamais la couleur seule');
+    }
+
+    public function testChampDateEnJjMmAaaaAvecExempleGrise(): void
+    {
+        $html = View::render('components/field', ['field' => [
+            'name' => 'birthDate', 'label' => 'Date de naissance', 'type' => 'date', 'value' => '1958-03-14',
+            'error' => '',
+        ]]);
+
+        self::assertStringContainsString('type="text"', $html, 'le champ date natif n\'accepte pas d\'exemple');
+        self::assertStringContainsString('value="14/03/1958"', $html);
+        self::assertStringContainsString('placeholder="JJ/MM/AAAA"', $html);
+        self::assertStringContainsString('data-date-input', $html);
+    }
+
+    public function testExempleGriseDuChamp(): void
+    {
+        $html = View::render('components/field', ['field' => [
+            'name' => 'lastname', 'label' => 'Nom', 'placeholder' => 'Ex. : <DUPONT>', 'value' => '', 'error' => '',
+        ]]);
+
+        self::assertStringContainsString('placeholder="Ex. : &lt;DUPONT&gt;"', $html);
+    }
+
     public static function bandeau(array $allergies = []): array
     {
         return [

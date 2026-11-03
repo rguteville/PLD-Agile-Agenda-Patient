@@ -138,6 +138,22 @@ final class PatientDaoTest extends TestCase
         self::assertSame('Zzdupdate4', $this->dao->findById($id2)?->getNom());
     }
 
+    /** Écriture conditionnelle (concurrence optimiste) : n'écrit que si la valeur attendue est encore en base. */
+    public function testUpdateDetailIfUnchangedNEcritQueSiLaValeurAttendueEstEncoreLa(): void
+    {
+        $id = $this->dao->findByIpp('987654301')?->getIdPatient();
+        self::assertNotNull($id);
+
+        self::assertTrue($this->dao->updateDetailIfUnchanged($id, 'lifestyle', 'Non fumeur', null), 'NULL attendu');
+        self::assertFalse($this->dao->updateDetailIfUnchanged($id, 'lifestyle', 'Fumeur', null), 'valeur changée');
+        self::assertTrue($this->dao->updateDetailIfUnchanged($id, 'lifestyle', null, 'Non fumeur'), 'vidage');
+        self::assertNull($this->dao->findById($id)?->getDetail('lifestyle'));
+        self::assertFalse($this->dao->updateDetailIfUnchanged(999999, 'lifestyle', 'x', null), 'ligne absente');
+
+        $this->expectException(\LogicException::class);
+        $this->dao->updateDetailIfUnchanged($id, 'lastName', 'x', null);
+    }
+
     private function patient(string $nom, string $prenom, ?string $ipp): Patient
     {
         return new Patient(null, $ipp, $nom, $prenom, new DateTimeImmutable('1970-01-01'), 'F');

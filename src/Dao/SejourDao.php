@@ -8,6 +8,7 @@ use Aura\Domain\RecordFields;
 use Aura\Domain\Sejour;
 use DateTimeImmutable;
 use DateTimeInterface;
+use LogicException;
 use PDO;
 use PDOException;
 
@@ -43,6 +44,7 @@ class SejourDao
         return self::BASE_COLUMNS . ', ' . implode(', ', RecordFields::episodeColumns());
     }
 
+    /** Séjour par identifiant interne, champs complémentaires compris ; null s'il n'existe pas. */
     public function findById(int $id): ?Sejour
     {
         $stmt = $this->pdo->prepare('SELECT ' . self::columns() . ' FROM EpisodeOfCare WHERE idEpisodeOfCare = :id');
@@ -108,6 +110,7 @@ class SejourDao
         return array_map(fn(array $r) => $this->mapToEntity($r), $stmt->fetchAll(PDO::FETCH_ASSOC));
     }
 
+    /** Enregistre la date de sortie (clôture du séjour). */
     public function updateSortie(int $idSejour, DateTimeInterface $dateSortie): void
     {
         $stmt = $this->pdo->prepare(
@@ -116,6 +119,7 @@ class SejourDao
         $stmt->execute(['dischargeDate' => $dateSortie->format('Y-m-d H:i:s'), 'id' => $idSejour]);
     }
 
+    /** Change le lit et le box d'un séjour (null = non attribué). */
     public function updateEmplacement(int $idSejour, ?string $numLit, ?string $numBox): void
     {
         $stmt = $this->pdo->prepare(
@@ -202,14 +206,23 @@ class SejourDao
     }
 
     /**
-     * Met à jour seulement les champs complémentaires fournis (clés de RecordFields::EPISODE ;
-     * toute autre clé est ignorée).
+     * Colonnes de base modifiables champ par champ depuis le dossier (RecordEditService), en plus
+     * du catalogue RecordFields::EPISODE : mesures d'admission, précautions, service.
+     */
+    public const EDITABLE_BASE_COLUMNS = ['weight', 'height', 'precautions', 'idHealthcareService'];
+
+    /**
+     * Met à jour seulement les champs fournis : clés de RecordFields::EPISODE ou colonnes de
+     * EDITABLE_BASE_COLUMNS ; toute autre clé est ignorée (liste blanche).
      *
      * @param array<string, ?string> $details
      */
     public function updateDetails(int $idSejour, array $details): void
     {
-        $details = array_intersect_key($details, RecordFields::EPISODE);
+        $details = array_intersect_key(
+            $details,
+            RecordFields::EPISODE + array_fill_keys(self::EDITABLE_BASE_COLUMNS, true)
+        );
         if ($details === []) {
             return;
         }
@@ -220,6 +233,26 @@ class SejourDao
             . ' WHERE idEpisodeOfCare = :id'
         );
         $stmt->execute(['id' => (string) $idSejour] + $details);
+    }
+
+    /**
+     * Met à jour UN champ seulement si sa valeur en base est encore celle attendue (contrôle de
+     * concurrence optimiste, atomique : la comparaison est faite par l'UPDATE lui-même, <=> traite
+     * NULL). Renvoie false si la ligne n'existe pas ou si la valeur a changé entre-temps.
+     * Le nom de colonne doit appartenir à la liste blanche, sinon LogicException.
+     */
+    public function updateDetailIfUnchanged(int $id, string $column, ?string $new, ?string $expected): bool
+    {
+        if (!isset((RecordFields::EPISODE + array_fill_keys(self::EDITABLE_BASE_COLUMNS, true))[$column])) {
+            throw new LogicException('Colonne non modifiable : ' . $column);
+        }
+        $stmt = $this->pdo->prepare(
+            'UPDATE EpisodeOfCare SET ' . $column . ' = :new
+             WHERE idEpisodeOfCare = :id AND ' . $column . ' <=> :expected'
+        );
+        $stmt->execute(['new' => $new, 'id' => (string) $id, 'expected' => $expected]);
+
+        return $stmt->rowCount() === 1;
     }
 
     /**

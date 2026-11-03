@@ -6,8 +6,14 @@ use Aura\Dao\ActivityDefinitionDao;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
+// Heure du service (Lyon) quel que soit le réglage de PHP : sans cela, un PHP en UTC (Homebrew, Debian
+// sans date.timezone) décale d'une à deux heures l'heure d'admission, la fin de séjour et les retards
+// de l'agenda par rapport à l'heure affichée par le navigateur.
+date_default_timezone_set('Europe/Paris');
+
 use Aura\Controller\CarePlanController;
 use Aura\Controller\PatientController;
+use Aura\Controller\RecordController;
 use Aura\Controller\SejourController;
 use Aura\Controller\ServiceController;
 use Aura\Core\ConfigurationException;
@@ -16,6 +22,7 @@ use Aura\Core\Router;
 use Aura\Core\View;
 
 use Aura\Dao\AllergieDao;
+use Aura\Dao\AuditEventDao;
 use Aura\Dao\CarePlanDao;
 use Aura\Dao\PatientDao;
 use Aura\Dao\PlanDefinitionDao;
@@ -31,8 +38,11 @@ use Aura\Service\CarePlanService;
 use Aura\Service\DossierPatientService;
 use Aura\Service\ListePatientsService;
 use Aura\Service\ModificationPatientService;
+use Aura\Service\PatientSearchService;
 use Aura\Service\PlanDefinitionService;
 use Aura\Service\RechercheIppService;
+use Aura\Service\RecordEditService;
+use Aura\Service\RecordSectionService;
 use Aura\Service\SejourService;
 use Aura\Service\AgendaService;
 
@@ -80,17 +90,48 @@ try {
                 new PatientDao($pdo),
                 new SejourService(new SejourDao($pdo)),
                 new Transaction($pdo),
-                new AllergieDao($pdo)
+                new AllergieDao($pdo),
+                new AuditEventDao($pdo),
+                // Patient existant sélectionné : ses champs modifiés sont enregistrés et tracés un par un.
+                new RecordEditService(
+                    new PatientDao($pdo),
+                    new SejourDao($pdo),
+                    new AuditEventDao($pdo),
+                    new Transaction($pdo),
+                    new ReferenceDataDao($pdo)
+                )
             ),
             referentiels: $referentielsAdmission()
         );
         $controller->create();
     };
 
+    // Recherche d'un patient existant à l'admission (IPP ou nom / prénom) et fiche à la sélection.
+    $recherchePatients = static function (): PatientController {
+        $pdo = Database::get();
+
+        return new PatientController(
+            patientSearchService: new PatientSearchService(new PatientDao($pdo), new AllergieDao($pdo))
+        );
+    };
+
     // AURA-14 : le dossier de séjour lit la base ; la connexion n'est ouverte que pour ces routes.
     // Il affiche aussi les prescriptions validées du séjour (CarePlanService).
     // AURA-13.2 : le même contrôleur sert l'ajout et le retrait d'allergies (POST) depuis le dossier.
-    $controleurSejour = static function (): SejourController {
+    // Édition champ par champ du dossier (liste blanche, validation, concurrence optimiste, historique AuditEvent).
+    $recordEditService = static function (): RecordEditService {
+        $pdo = Database::get();
+
+        return new RecordEditService(
+            new PatientDao($pdo),
+            new SejourDao($pdo),
+            new AuditEventDao($pdo),
+            new Transaction($pdo),
+            new ReferenceDataDao($pdo)
+        );
+    };
+
+    $controleurSejour = static function () use ($recordEditService): SejourController {
         $pdo = Database::get();
         $dossierPatientService = new DossierPatientService(
             new SejourDao($pdo),
@@ -112,7 +153,8 @@ try {
                 new SejourDao($pdo),
                 new AllergieDao($pdo),
                 new SubstanceDao($pdo)
-            )
+            ),
+            recordEditService: $recordEditService()
         );
     };
 
@@ -137,7 +179,8 @@ try {
                     new PatientDao($pdo),
                     new AllergieDao($pdo),
                     new SubstanceDao($pdo),
-                    new DateTimeImmutable('today')
+                    new DateTimeImmutable('today'),
+                    new ReferenceDataDao($pdo)
                 )
             ),
             new PlanDefinitionService(new PlanDefinitionDao($pdo))
@@ -203,9 +246,32 @@ try {
     $router->get('/patients/modifier', static fn () => $controleurModification()->edit());
     $router->post('/patients/modifier', static fn () => $controleurModification()->update());
     $router->get('/patients/recherche-ipp', $rechercherParIpp);
-    $router->get('/sejour', static fn() => $controleurSejour()->show());
+    $router->get('/patients/recherche', static fn () => $recherchePatients()->search());
+    $router->get('/patients/fiche', static fn () => $recherchePatients()->record());
+    $router->get('/sejour', static fn () => $controleurSejour()->show());
     $router->post('/sejour/allergies/ajouter', static fn () => $controleurSejour()->addAllergy());
     $router->post('/sejour/allergies/retirer', static fn () => $controleurSejour()->removeAllergy());
+    $router->post('/sejour/champ/modifier', static fn () => (new RecordController($recordEditService()))->update());
+    // Retours du 2026-11-02 : modification d'une partie entière du dossier et fin de séjour, validées par
+    // un médecin (authentification factice en attendant AURA-18).
+    $recordController = static function () use ($recordEditService): RecordController {
+        $pdo = Database::get();
+
+        return new RecordController(
+            $recordEditService(),
+            new RecordSectionService(
+                new PatientDao($pdo),
+                new SejourDao($pdo),
+                new SejourService(new SejourDao($pdo)),
+                $recordEditService(),
+                new AuditEventDao($pdo),
+                new Transaction($pdo),
+                new ReferenceDataDao($pdo)
+            )
+        );
+    };
+    $router->post('/sejour/partie/modifier', static fn () => $recordController()->updatePart());
+    $router->post('/sejour/cloturer', static fn () => $recordController()->endStay());
     $router->get('/care-plans', static fn () => $carePlans()->list());
     $router->get('/care-plans/new', static fn () => $carePlans()->newForm());
     $router->post('/care-plans/create', static fn () => $carePlans()->create());
