@@ -6,7 +6,9 @@ namespace Aura\Tests\View;
 
 use Aura\Core\View;
 use Aura\Domain\CarePlan;
+use Aura\Service\AgendaService;
 use Aura\Service\CarePlanService;
+use DateTimeImmutable;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -627,63 +629,93 @@ final class PagesRenderTest extends TestCase
         self::assertStringContainsString('1 séjour dans le service', $refused);
     }
 
-    public function testServiceAgendaIsVerticalWithLateAlertAllergiesAndActions(): void
+    /** Agenda du service, refonte du 2026-11-04 : tableau des lits et panneau de détail (vue par défaut). */
+    public function testServiceAgendaShowsBedBoardAndDetailPanel(): void
+    {
+        $html = View::render('pages/service/consolidated-view', self::serviceAgendaModel('lits'));
+
+        self::assertStringContainsString('<table class="board-table">', $html);
+        self::assertStringContainsString('aria-current="page">Lits</a>', $html);
+        self::assertStringContainsString('1 soin en retard', $html, 'AURA-32 : retards du service');
+        self::assertStringContainsString('board-row is-selected', $html, 'premier lit détaillé par défaut');
+        self::assertStringContainsString('href="/agenda-service?idHealthcareService=SRV01&amp;date=2026-10-14'
+            . '&amp;patient=1#detail-lit"', $html);
+        self::assertStringContainsString('id="detail-lit"', $html);
+        self::assertStringContainsString('allergy-tag--high', $html, 'RG2 : allergies dans le panneau');
+        self::assertStringContainsString('Latex &lt;x&gt;', $html);
+        self::assertStringContainsString('Réf. Dr &lt;Ref&gt;', $html);
+        self::assertStringContainsString('Soin &lt;A&gt;', $html);
+        self::assertStringNotContainsString('Soin <A>', $html);
+        self::assertStringContainsString('par Soignant &lt;Test&gt;', $html);
+        self::assertStringContainsString('data-care-action="done" data-appointment="S1"', $html);
+        self::assertStringContainsString('action="/agenda-patient/soin"', $html);
+        self::assertStringContainsString('href="/agenda-patient?id=1&amp;date=2026-10-14"', $html);
+        self::assertStringNotContainsString('service-timeline', $html, 'l\'ancienne grille a disparu');
+    }
+
+    public function testServiceAgendaWorklistGroupsCaresBySection(): void
+    {
+        $html = View::render('pages/service/consolidated-view', self::serviceAgendaModel('liste'));
+
+        self::assertStringContainsString('aria-current="page">Liste de travail</a>', $html);
+        self::assertStringContainsString('class="worklist worklist--late" open', $html);
+        self::assertStringContainsString('class="worklist worklist--done">', $html, 'réalisés repliés');
+        self::assertStringContainsString('Lit L01 · DUPONT Test', $html);
+        self::assertStringContainsString(
+            '<input type="hidden" name="vue" value="liste">',
+            $html,
+            'la vue reste choisie'
+        );
+        self::assertStringContainsString('name="back" value="/agenda-service?idHealthcareService=SRV01&amp;'
+            . 'date=2026-10-14&amp;vue=liste&amp;patient=1"', $html);
+    }
+
+    public function testConsolidatedViewWithoutPatient(): void
+    {
+        $service = ['date' => '2026-10-14', 'dateLabel' => 'mercredi 14 octobre 2026', 'slots' => [], 'patients' => []];
+        $html = View::render('pages/service/consolidated-view', [
+            'service' => $service,
+            'board' => AgendaService::presentBoard($service, new DateTimeImmutable('2026-10-14 10:30')),
+        ]);
+
+        self::assertStringContainsString('Aucun patient en cours dans ce service.', $html);
+    }
+
+    /** @return array<string, mixed> */
+    private static function serviceAgendaModel(string $view): array
     {
         $late = [
             'id' => 'S1', 'time' => '06:30', 'datetime' => '2026-10-14T06:30', 'hour' => 6, 'label' => 'Soin <A>',
-            'details' => null, 'status' => 'late', 'performedBy' => null,
+            'details' => null, 'status' => 'late', 'performedBy' => null, 'canValidate' => true,
         ];
         $done = ['id' => 'S2', 'time' => '07:00', 'datetime' => '2026-10-14T07:00', 'status' => 'done',
-            'performedBy' => 'Soignant <Test>'] + $late;
-        $html = View::render('pages/service/consolidated-view', [
-            'service' => [
-                'date' => '2026-10-14',
-                'dateLabel' => 'mercredi 14 octobre 2026',
-                'isToday' => true,
-                'previous' => '2026-10-13',
-                'next' => '2026-10-15',
-                'slots' => ['06:00', '08:00'],
-                'currentSlot' => '06:00',
-                'late' => 1,
-                'lateItems' => [$late + ['idEpisodeOfCare' => 1, 'patient' => 'DUPONT Test', 'bed' => 'L01']],
-                'patients' => [[
-                    'idEpisodeOfCare' => 1, 'lastName' => 'DUPONT', 'firstName' => 'Test', 'bed' => 'L01',
-                    'episodeNumber' => '2026-000001', 'referent' => 'Dr <Ref>', 'late' => 1, 'total' => 2,
-                    'allergies' => [['label' => 'Latex <x>', 'level' => 'high']],
-                    'cells' => ['06:00' => ['late' => 1, 'done' => 1]],
-                    'items' => ['06:00' => [$late, $done]],
-                ]],
-            ],
+            'performedBy' => 'Soignant <Test>', 'completedAt' => '07:05', 'canValidate' => false] + $late;
+        $service = [
+            'date' => '2026-10-14',
+            'dateLabel' => 'mercredi 14 octobre 2026',
+            'isToday' => true,
+            'previous' => '2026-10-13',
+            'next' => '2026-10-15',
+            'slots' => ['06:00', '08:00'],
+            'patients' => [[
+                'idEpisodeOfCare' => 1, 'lastName' => 'DUPONT', 'firstName' => 'Test', 'bed' => 'L01',
+                'episodeNumber' => '2026-000001', 'referent' => 'Dr <Ref>', 'referentKnown' => true,
+                'deceased' => null, 'late' => 1, 'total' => 2,
+                'allergies' => [['label' => 'Latex <x>', 'level' => 'high']],
+                'items' => ['06:00' => [$late, $done]],
+            ]],
+        ];
+
+        return [
+            'service' => $service,
+            'board' => AgendaService::presentBoard($service, new DateTimeImmutable('2026-10-14 10:30')),
+            'view' => $view,
             'services' => ['SRV01' => 'Réanimation'],
             'idHealthcareService' => 'SRV01',
             'validationEnabled' => true,
             'validators' => ['PRA01' => 'Soignant Test (IDE)'],
             'csrfToken' => 'jeton',
-        ]);
-
-        self::assertStringContainsString('<table class="service-timeline">', $html);
-        self::assertStringContainsString('<th scope="col" class="service-patient">', $html, 'un patient par colonne');
-        self::assertStringContainsString('6 h – 8 h', $html, 'un créneau par ligne');
-        self::assertStringContainsString('class="service-slot is-now"', $html);
-        self::assertStringContainsString('1 soin en retard', $html, 'alerte du service (AURA-32)');
-        self::assertStringContainsString('allergy-tag--high', $html, 'RG2 : allergies du patient en colonne');
-        self::assertStringContainsString('Latex &lt;x&gt;', $html);
-        self::assertStringContainsString('Réf. Dr &lt;Ref&gt;', $html);
-        self::assertStringContainsString('par Soignant &lt;Test&gt;', $html);
-        self::assertStringContainsString('href="/agenda-patient?id=1&amp;date=2026-10-14"', $html);
-        self::assertStringContainsString('data-care-action="done" data-appointment="S1"', $html);
-        self::assertStringContainsString('Rien de prévu', $html, 'créneau vide annoncé aux lecteurs d\'écran');
-        self::assertStringContainsString('action="/agenda-patient/soin"', $html);
-        self::assertStringContainsString('aria-label="Légende"', $html);
-    }
-
-    public function testConsolidatedViewWithoutPatient(): void
-    {
-        $html = View::render('pages/service/consolidated-view', ['service' => [
-            'date' => '2026-10-14', 'dateLabel' => 'mercredi 14 octobre 2026', 'slots' => [], 'patients' => [],
-        ]]);
-
-        self::assertStringContainsString('Aucun patient dans le service ce jour.', $html);
+        ];
     }
 
     // ---- Fabriques ----

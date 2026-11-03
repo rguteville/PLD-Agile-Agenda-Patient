@@ -2,6 +2,22 @@
 
 Format : une entrée par pull request, de la plus récente à la plus ancienne.
 
+## 2026-11-04
+
+### Refonte de l'agenda du service (`feat/agenda-service-refonte`, AURA-29, AURA-32)
+
+- Retour de Raphaël : la grille créneaux × patients montrait trop d'informations. Trois maquettes comparées
+  (tableau des lits, liste de travail, grille compacte), A + B retenues.
+- « Lits » : une ligne par patient triée par urgence, panneau de détail du lit choisi (soins de la rotation,
+  allergies, référent, liens vers l'agenda et le dossier).
+- « Liste de travail » : en retard, maintenant (deux heures), plus tard dans la rotation, réalisés.
+- `AgendaService::presentBoard()` (pur, testé), composant `care_line`.
+
+### Retours des médecins du 2026-11-04 et audit IHM (`feat/retours-2026-11-04`, PR #54)
+
+- Validation anticipée jusqu'à la fin de la rotation en cours, décès déclarable, filtres derrière un bouton,
+  groupe sanguin verrouillé, écrans plus sobres (docs/audit/2026-11-04-audit-ihm.md), données de démo enrichies.
+
 ## 2026-11-03
 
 ### Suite de tests complète (`test/suite-complete`, AURA-35)

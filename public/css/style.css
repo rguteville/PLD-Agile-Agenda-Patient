@@ -5072,3 +5072,288 @@ form.form--columns .form-lead > .form-row {
 .agenda-table .care-buttons {
     flex-wrap: nowrap;
 }
+
+/* ===== Refonte de l'agenda du service (2026-11-04) : tableau des lits + panneau, liste de travail ===== */
+.view-tabs {
+    display: flex;
+    gap: var(--sp-1);
+    margin: var(--sp-4) 0 var(--sp-3);
+    border-bottom: 1px solid var(--line);
+}
+
+.view-tabs a {
+    padding: var(--sp-2) var(--sp-4);
+    border-bottom: 3px solid transparent;
+    color: var(--fg-muted);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.view-tabs a[aria-current="page"] {
+    border-bottom-color: var(--accent);
+    color: var(--fg);
+}
+
+.board-summary {
+    margin: 0 0 var(--sp-4);
+    color: var(--fg-muted);
+}
+
+.board-summary__late {
+    color: var(--st-alert-fg);
+}
+
+.board {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: var(--sp-5);
+}
+
+.board__table {
+    flex: 999 1 560px;
+    min-width: 0;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+}
+
+.board-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.board-table th,
+.board-table td {
+    padding: var(--sp-3);
+    border-top: 1px solid var(--line);
+    text-align: left;
+    vertical-align: middle;
+}
+
+.board-table thead th {
+    border-top: 0;
+    background: var(--bg-muted);
+    color: var(--fg-muted);
+    font-size: var(--fs-1);
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+
+.board-row__bed {
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.board-row__patient {
+    font-weight: 400;
+}
+
+.board-row__patient a {
+    font-weight: 600;
+}
+
+.board-row__allergies,
+.board-row__referent {
+    display: block;
+    font-size: var(--fs-1);
+}
+
+.board-row__allergies {
+    color: var(--st-late-fg);
+}
+
+.board-row__referent,
+.board-row__none {
+    color: var(--fg-muted);
+}
+
+.board-row.is-selected {
+    background: var(--accent-soft);
+    box-shadow: inset 4px 0 0 var(--accent);
+}
+
+.board-panel {
+    flex: 1 1 360px;
+    min-width: 0;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: var(--bg-raised);
+}
+
+.board-panel__header {
+    padding: var(--sp-4);
+    border-bottom: 1px solid var(--line);
+}
+
+.board-panel__header h2 {
+    margin: 0;
+    font-size: var(--fs-3);
+}
+
+.board-panel__links {
+    display: flex;
+    gap: var(--sp-3);
+    margin: var(--sp-1) 0 0;
+    font-size: var(--fs-1);
+}
+
+.board-panel__meta,
+.board-panel__foot,
+.board-panel__empty,
+.worklist__empty {
+    margin: var(--sp-1) 0 0;
+    color: var(--fg-muted);
+    font-size: var(--fs-1);
+}
+
+.board-panel__allergies {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-1);
+    margin: var(--sp-2) 0 0;
+}
+
+.board-panel__empty,
+.board-panel__foot {
+    padding: var(--sp-3) var(--sp-4);
+}
+
+.board-panel__foot {
+    border-top: 1px solid var(--line);
+}
+
+.care-lines {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.care-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-1) var(--sp-3);
+    padding: var(--sp-2) var(--sp-4);
+    border-top: 1px solid var(--line);
+}
+
+.care-lines > .care-line:first-child {
+    border-top: 0;
+}
+
+.care-line.is-late {
+    background: var(--st-late-bg);
+    box-shadow: inset 4px 0 0 var(--st-late-line);
+}
+
+.care-line__time {
+    width: 3.2em;
+    font-weight: 700;
+}
+
+.care-line__patient {
+    flex: 0 1 13em;
+    min-width: 0;
+    font-weight: 600;
+}
+
+.care-line__care {
+    display: flex;
+    flex: 1 1 12em;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.care-line__care .item-label {
+    font-weight: 600;
+}
+
+.care-line__care .item-details,
+.care-line__care .trace {
+    color: var(--fg-muted);
+    font-size: var(--fs-1);
+}
+
+.care-line__status,
+.care-line__actions {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-1);
+}
+
+.care-line__actions .care-buttons .button {
+    padding: 2px var(--sp-2);
+    font-size: var(--fs-1);
+}
+
+.worklist {
+    margin: 0 0 var(--sp-4);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: var(--bg-raised);
+}
+
+.worklist > summary {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    padding: var(--sp-3) var(--sp-4);
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.worklist[open] > summary {
+    border-bottom: 1px solid var(--line);
+}
+
+.worklist__count {
+    min-width: 1.6em;
+    padding: 0 var(--sp-2);
+    border-radius: 999px;
+    background: var(--bg-muted);
+    text-align: center;
+}
+
+.worklist--late {
+    border-color: var(--st-alert-line);
+}
+
+.worklist--late .worklist__title {
+    color: var(--st-alert-fg);
+}
+
+.worklist__empty {
+    padding: var(--sp-3) var(--sp-4);
+}
+
+@media print {
+    .view-tabs,
+    .care-line__actions {
+        display: none;
+    }
+}
+
+/* Agenda du service sur un écran étroit : en-tête et navigation passent à la ligne, rien ne déborde. */
+.service-view {
+    min-width: 0;
+}
+
+.service-view .page-header,
+.service-view .agenda-nav {
+    flex-wrap: wrap;
+}
+
+.service-view .agenda-nav select {
+    max-width: 100%;
+}
+
+@media (max-width: 600px) {
+    .care-line__patient {
+        flex-basis: 100%;
+    }
+
+    .care-line__care {
+        flex-basis: 100%;
+    }
+}

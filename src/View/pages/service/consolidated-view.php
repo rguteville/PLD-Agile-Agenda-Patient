@@ -3,14 +3,19 @@
 use Aura\Core\View;
 
 /**
- * Agenda du service (AURA-29, route GET /agenda-service), en vertical : les heures défilent de haut
- * en bas (un créneau par ligne), un patient en cours par colonne (lit, identité, allergies RG2,
- * référent, retards). Chaque case liste les soins du créneau avec leur statut et, pour un soin
- * prévu ou en retard, les actions de l'agenda (valider, non effectué, note : AURA-26, AURA-28).
- * En tête, les soins en retard de tout le service (AURA-32). Vue-modèle construit par
- * AgendaService::presentService() ; jamais la couleur seule (icône et texte sur chaque statut).
+ * Agenda du service (AURA-29, route GET /agenda-service). Refonte du 2026-11-04 (maquettes A + B
+ * choisies par Raphaël : https://claude.ai/artifact/CmNLWFne8QUYcPzGyUeUDn), l'ancienne grille
+ * créneaux × patients montrant trop d'informations à la fois :
+ *  - « Lits » (par défaut) : une ligne par patient, du plus urgent au moins urgent (retards, à faire dans
+ *    la rotation, prochain soin), et un panneau de détail du lit choisi (?patient=…) avec ses soins de la
+ *    rotation et les actions (valider, note : AURA-26, AURA-28) ;
+ *  - « Liste de travail » (?vue=liste) : les soins de la rotation de tout le service, en retard (AURA-32),
+ *    maintenant (deux heures), plus tard (replié), réalisés (replié).
+ * RG2 : allergies sur chaque ligne et dans le panneau. Vue-modèle : AgendaService::presentBoard().
  *
- * @var array<string, mixed> $service vue-modèle de AgendaService::presentService()
+ * @var array<string, mixed> $service vue-modèle de AgendaService::presentService() (jour, navigation)
+ * @var array<string, mixed> $board vue-modèle de AgendaService::presentBoard()
+ * @var string $view « lits » ou « liste »
  * @var array<string, string> $services référentiel des services (choix du service affiché)
  * @var string|null $idHealthcareService service affiché
  * @var bool $validationEnabled actions sur les soins + dialogue
@@ -21,16 +26,12 @@ $services = $services ?? [];
 $idHealthcareService = $idHealthcareService ?? null;
 $validationEnabled = $validationEnabled ?? false;
 $validators = $validators ?? [];
-$lateItems = $service['lateItems'] ?? [];
-$dayUrl = static fn (string $date): string => '/agenda-service?idHealthcareService='
-    . rawurlencode((string) $idHealthcareService) . '&date=' . $date;
+$view = $view ?? 'lits';
+$dayUrl = static fn (string $date, ?string $mode = null, ?int $patient = null): string
+    => '/agenda-service?idHealthcareService=' . rawurlencode((string) $idHealthcareService) . '&date=' . $date
+    . (($mode ?? $view) === 'liste' ? '&vue=liste' : '') . ($patient !== null ? '&patient=' . $patient : '');
 $agendaUrl = static fn (int $idEpisodeOfCare): string => '/agenda-patient?id=' . $idEpisodeOfCare
     . '&date=' . $service['date'];
-$slotLabel = static function (string $slot): string {
-    $end = (int) substr($slot, 0, 2) + \Aura\Service\AgendaService::SERVICE_SLOT_HOURS;
-
-    return (int) substr($slot, 0, 2) . ' h – ' . $end . ' h';
-};
 ?>
 <section class="service-view">
     <div class="page-header">
@@ -67,6 +68,9 @@ $slotLabel = static function (string $slot): string {
                 <?= View::render('components/icon', ['name' => 'chevron-right']) ?>
             </a>
             <input type="date" id="date" name="date" value="<?= View::e($service['date']) ?>">
+            <?php if ($view === 'liste') : ?>
+                <input type="hidden" name="vue" value="liste">
+            <?php endif; ?>
             <button type="submit" class="button button--secondary" data-submit-fallback>Afficher</button>
             <?php if (!($service['isToday'] ?? true)) : ?>
                 <a class="button button--secondary" href="<?= View::e($dayUrl('')) ?>">Aujourd'hui</a>
@@ -76,223 +80,210 @@ $slotLabel = static function (string $slot): string {
         <p class="agenda-day"><?= View::e(ucfirst($service['dateLabel'])) ?></p>
     <?php endif; ?>
 
-    <?php if ($lateItems !== []) : ?>
-        <?php /* AURA-32 : alerte des soins en retard sur tout le service, pour réaffecter un soignant. */ ?>
-        <section class="service-alert" role="region" aria-labelledby="service-alert-title">
-            <h2 id="service-alert-title">
-                <?= View::render('components/icon', ['name' => 'clock-alert']) ?>
-                <?= View::e(count($lateItems)) ?> soin<?= count($lateItems) > 1 ? 's' : '' ?> en retard
-                dans le service
-            </h2>
-            <ul class="service-alert__list">
-                <?php foreach ($lateItems as $item) : ?>
-                    <li>
-                        <time datetime="<?= View::e($item['datetime']) ?>"><?= View::e($item['time']) ?></time>
-                        <a href="<?= View::e($agendaUrl($item['idEpisodeOfCare'])) ?>">
-                            <?= $item['bed'] !== null ? 'Lit ' . View::e($item['bed']) . ' · ' : '' ?>
-                            <?= View::e($item['patient']) ?>
-                        </a>
-                        <span class="item-label"><?= View::e($item['label']) ?></span>
-                        <?php if ($validationEnabled) : ?>
-                            <?= View::render('components/care_buttons', [
-                                'item' => $item,
-                                'idEpisodeOfCare' => $item['idEpisodeOfCare'],
-                                'context' => $item['patient'],
-                                'withNote' => false,
-                            ]) ?>
-                        <?php endif; ?>
-                    </li>
-                <?php endforeach; ?>
-            </ul>
-        </section>
-    <?php endif; ?>
+    <?php
+    $rows = $board['rows'];
+    $totals = $board['totals'];
+    $rotation = $board['rotation'];
+    $plural = static fn (int $n, string $word): string => $n . ' ' . $word . ($n > 1 ? 's' : '');
+    ?>
+    <nav class="view-tabs" aria-label="Présentation">
+        <a href="<?= View::e($dayUrl($service['date'], 'lits')) ?>"<?= $view === 'lits'
+            ? ' aria-current="page"' : '' ?>>Lits</a>
+        <a href="<?= View::e($dayUrl($service['date'], 'liste')) ?>"<?= $view === 'liste'
+            ? ' aria-current="page"' : '' ?>>Liste de travail</a>
+    </nav>
 
-    <?php if ($service['patients'] === []) : ?>
+    <?php if ($rows === []) : ?>
         <?= View::render('components/empty_state', [
-            'title' => 'Aucun patient dans le service ce jour.',
+            'icon' => 'calendar',
+            'title' => 'Aucun patient en cours dans ce service.',
         ]) ?>
     <?php else : ?>
-        <?php
-        // AURA-29 : filtre par type de soin, sur les soins affichés ce jour.
-        $careLabels = [];
-        foreach ($service['patients'] as $patient) {
-            foreach ($patient['items'] ?? [] as $slotItems) {
-                foreach ($slotItems as $item) {
-                    $careLabels[$item['label']] = true;
-                }
-            }
-        }
-        $careLabels = array_keys($careLabels);
-        sort($careLabels);
-        ?>
-        <?php /* Retours du 2026-11-04 : filtres regroupés derrière un bouton (agenda.js). */ ?>
-        <details class="filter-menu" data-agenda-filters hidden>
-            <summary class="button button--secondary">
-                Filtres<span class="filter-menu__state" data-filter-state></span>
-            </summary>
-            <div class="agenda-filters" role="group" aria-label="Filtrer les soins">
-                <?php foreach (
-                ['all' => 'Tous', 'late' => 'En retard', 'planned' => 'À faire',
-                    'done' => 'Réalisés', 'not_done' => 'Non effectués'] as $filter => $label
-) : ?>
-                    <button type="button" class="button button--secondary" data-filter="<?= View::e($filter) ?>"
-                            aria-pressed="<?= $filter === 'all' ? 'true' : 'false' ?>"><?= View::e($label) ?></button>
-                <?php endforeach; ?>
-                <?php if (count($careLabels) > 1) : ?>
-                    <label for="care-type-filter" class="sr-only">Type de soin</label>
-                    <select id="care-type-filter" data-type-filter>
-                        <option value="">Tous les types de soin</option>
-                        <?php foreach ($careLabels as $careLabel) : ?>
-                            <option value="<?= View::e($careLabel) ?>"><?= View::e($careLabel) ?></option>
-                        <?php endforeach; ?>
-                    </select>
+        <p class="board-summary" aria-live="polite">
+            <?= View::e($plural($totals['patients'], 'patient')) ?>
+            <?php if ($totals['late'] > 0) : ?>
+                · <strong class="board-summary__late"><?= View::e($plural($totals['late'], 'soin') . ' en retard')
+                ?></strong>
+            <?php endif; ?>
+            · <?= View::e($totals['todo']) ?> à faire<?= $rotation !== null
+                ? ' d\'ici la fin de la rotation (' . View::e($rotation['label']) . ')' : ' ce jour' ?>
+        </p>
+
+        <?php if ($view === 'lits') : ?>
+            <div class="board">
+                <div class="table-scroll board__table">
+                    <table class="board-table">
+                        <caption class="sr-only">
+                            Patients du service, du plus urgent au moins urgent ; choisir un patient affiche
+                            ses soins à côté.
+                        </caption>
+                        <thead>
+                            <tr>
+                                <th scope="col">Lit</th>
+                                <th scope="col">Patient</th>
+                                <th scope="col">En retard</th>
+                                <th scope="col">À faire</th>
+                                <th scope="col">Prochain soin</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($rows as $row) : ?>
+                                <?php $isSelected = ($board['selected']['idEpisodeOfCare'] ?? null)
+                                    === $row['idEpisodeOfCare']; ?>
+                                <tr class="board-row<?= $isSelected ? ' is-selected' : '' ?>">
+                                    <td class="board-row__bed"><?= View::e($row['bed'] ?? '—') ?></td>
+                                    <th scope="row" class="board-row__patient">
+                                        <?php $rowUrl = $dayUrl($service['date'], 'lits', $row['idEpisodeOfCare']); ?>
+                                        <a href="<?= View::e($rowUrl) ?>#detail-lit"<?= $isSelected
+                                            ? ' aria-current="true"' : '' ?>>
+                                            <?= View::e($row['patient']) ?>
+                                        </a>
+                                        <?php if ($row['deceased'] !== null) : ?>
+                                            <?= View::render('components/deceased_tag', [
+                                                'label' => $row['deceased'],
+                                            ]) ?>
+                                        <?php endif; ?>
+                                        <?php if (is_array($row['allergies']) && $row['allergies'] !== []) : ?>
+                                            <span class="board-row__allergies">
+                                                <span class="sr-only">Allergies :</span>
+                                                <?= View::e(implode(', ', array_column($row['allergies'], 'label'))) ?>
+                                            </span>
+                                        <?php endif; ?>
+                                        <?php if ($row['referent'] === null && $row['referentKnown']) : ?>
+                                            <span class="board-row__referent">référent à désigner</span>
+                                        <?php endif; ?>
+                                    </th>
+                                    <td>
+                                        <?php if ($row['late'] > 0) : ?>
+                                            <?= View::render('components/status_badge', [
+                                                'status' => 'late',
+                                                'label' => (string) $row['late'],
+                                            ]) ?>
+                                        <?php else : ?>
+                                            <span class="board-row__none">—</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td><?= View::e($row['todo']) ?></td>
+                                    <td>
+                                        <?php if ($row['next'] !== null) : ?>
+                                            <?= View::e($row['next']['time'] . ' ' . $row['next']['label']) ?>
+                                        <?php else : ?>
+                                            <span class="board-row__none">—</span>
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+
+                <?php $selected = $board['selected']; ?>
+                <?php if ($selected !== null) : ?>
+                    <aside class="board-panel" id="detail-lit" aria-labelledby="detail-lit-title">
+                        <div class="board-panel__header">
+                            <h2 id="detail-lit-title">
+                                <?= $selected['bed'] !== null ? 'Lit ' . View::e($selected['bed']) . ' · ' : '' ?>
+                                <?= View::e($selected['patient']) ?>
+                            </h2>
+                            <p class="board-panel__links">
+                                <a href="<?= View::e($agendaUrl($selected['idEpisodeOfCare'])) ?>">Agenda du patient</a>
+                                <a href="/sejour?id=<?= View::e($selected['idEpisodeOfCare']) ?>">Dossier</a>
+                            </p>
+                            <p class="board-panel__meta">
+                                Séjour n° <?= View::e($selected['episodeNumber']) ?>
+                                <?php if ($selected['referent'] !== null) : ?>
+                                    · Réf. <?= View::e($selected['referent']) ?>
+                                <?php elseif ($selected['referentKnown']) : ?>
+                                    · <span class="referent-missing">Référent à désigner</span>
+                                <?php endif; ?>
+                            </p>
+                            <?php if ($selected['deceased'] !== null) : ?>
+                                <?= View::render('components/deceased_tag', ['label' => $selected['deceased']]) ?>
+                            <?php endif; ?>
+                            <?php if (is_array($selected['allergies'])) : ?>
+                                <p class="board-panel__allergies service-patient__allergies">
+                                    <?php if ($selected['allergies'] === []) : ?>
+                                        <span class="allergy-tag allergy-tag--none">Aucune allergie connue</span>
+                                    <?php else : ?>
+                                        <span class="sr-only">Allergies :</span>
+                                        <?php foreach ($selected['allergies'] as $allergy) : ?>
+                                            <span class="allergy-tag allergy-tag--<?= View::e($allergy['level']) ?>">
+                                                <?= View::e($allergy['label']) ?>
+                                            </span>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
+                                </p>
+                            <?php endif; ?>
+                        </div>
+                        <?php if ($selected['items'] === []) : ?>
+                            <p class="board-panel__empty">Aucun soin <?= $rotation !== null
+                                ? 'sur cette rotation' : 'ce jour' ?>.</p>
+                        <?php else : ?>
+                            <ol class="care-lines">
+                                <?php foreach ($selected['items'] as $item) : ?>
+                                    <?= View::render('components/care_line', [
+                                        'item' => $item,
+                                        'validationEnabled' => $validationEnabled,
+                                        'agendaUrl' => $agendaUrl($item['idEpisodeOfCare']),
+                                    ]) ?>
+                                <?php endforeach; ?>
+                            </ol>
+                        <?php endif; ?>
+                        <p class="board-panel__foot"><?= $rotation !== null
+                            ? 'Retards et soins de la rotation ' . View::e($rotation['label'])
+                                . ' ; le reste de la journée est dans l\'agenda du patient.'
+                            : 'Tous les soins du jour.' ?></p>
+                    </aside>
                 <?php endif; ?>
             </div>
-        </details>
-
-        <div class="table-scroll">
-            <table class="service-timeline">
-                <caption class="sr-only">
-                    Soins par créneau horaire (lignes) et par patient (colonnes), <?= View::e($service['dateLabel']) ?>
-                </caption>
-                <thead>
-                    <tr>
-                        <th scope="col" class="col-time">Heure</th>
-                        <?php foreach ($service['patients'] as $patient) : ?>
-                            <th scope="col" class="service-patient">
-                                <?php if ($patient['bed'] !== null) : ?>
-                                    <span class="patient-bed">Lit <?= View::e($patient['bed']) ?></span>
-                                <?php endif; ?>
-                                <a href="<?= View::e($agendaUrl($patient['idEpisodeOfCare'])) ?>">
-                                    <span class="patient-name"><?= View::e($patient['lastName']) ?></span>
-                                    <?= View::e($patient['firstName']) ?>
-                                </a>
-                                <span class="patient-bed">séjour n° <?= View::e($patient['episodeNumber']) ?></span>
-                                <?php if (($patient['deceased'] ?? null) !== null) : ?>
-                                    <?= View::render('components/deceased_tag', ['label' => $patient['deceased']]) ?>
-                                <?php endif; ?>
-                                <?php if (($patient['referent'] ?? null) !== null) : ?>
-                                    <span class="patient-bed">Réf. <?= View::e($patient['referent']) ?></span>
-                                <?php elseif ($patient['referentKnown'] ?? false) : ?>
-                                    <span class="referent-missing">
-                                        <?= View::render('components/icon', ['name' => 'info']) ?>
-                                        Référent à désigner
-                                    </span>
-                                <?php endif; ?>
-                                <?php if (is_array($patient['allergies'])) : ?>
-                                    <span class="service-patient__allergies">
-                                        <?php if ($patient['allergies'] === []) : ?>
-                                            <span class="allergy-tag allergy-tag--none">Aucune allergie connue</span>
-                                        <?php else : ?>
-                                            <span class="sr-only">Allergies :</span>
-                                            <?php foreach ($patient['allergies'] as $allergy) : ?>
-                                                <span class="allergy-tag allergy-tag--<?=
-                                                    View::e($allergy['level']) ?>">
-                                                    <?= View::e($allergy['label']) ?>
-                                                </span>
-                                            <?php endforeach; ?>
-                                        <?php endif; ?>
-                                    </span>
-                                <?php endif; ?>
-                                <?php if ($patient['late'] > 0) : ?>
-                                    <?= View::render('components/status_badge', [
-                                        'status' => 'late',
-                                        'label' => $patient['late'] . ' en retard',
-                                    ]) ?>
-                                <?php endif; ?>
-                            </th>
-                        <?php endforeach; ?>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($service['slots'] as $slot) : ?>
-                        <?php
-                        $isNow = ($service['currentSlot'] ?? null) === $slot;
-                        // Audit IHM du 2026-11-04 : un créneau sans aucun soin dans le service est resserré.
-                        $slotEmpty = in_array($slot, $service['emptySlots'] ?? [], true);
-                        ?>
-                        <tr class="service-slot<?= $isNow ? ' is-now' : '' ?><?= $slotEmpty ? ' is-empty' : '' ?>">
-                            <th scope="row" class="col-time">
-                                <?= View::e($slotLabel($slot)) ?>
-                                <?php if ($isNow) : ?>
-                                    <span class="now-marker">maintenant</span>
-                                <?php endif; ?>
-                            </th>
-                            <?php foreach ($service['patients'] as $patient) : ?>
-                                <?php $items = $patient['items'][$slot] ?? []; ?>
-                                <td class="cell-slot">
-                                    <?php if ($items === []) : ?>
-                                        <span class="sr-only">Rien de prévu</span>
-                                    <?php else : ?>
-                                        <ul class="slot-items">
-                                            <?php foreach ($items as $item) : ?>
-                                                <li class="slot-item is-<?= View::e($item['status']) ?>"
-                                                    data-appointment-row data-status="<?= View::e($item['status']) ?>"
-                                                    data-care-label="<?= View::e($item['label']) ?>">
-                                                    <span class="slot-item__head">
-                                                        <time datetime="<?= View::e($item['datetime']) ?>">
-                                                            <?= View::e($item['time']) ?>
-                                                        </time>
-                                                        <span class="item-label"><?= View::e($item['label']) ?></span>
-                                                    </span>
-                                                    <?php if ($item['details'] !== null) : ?>
-                                                        <span class="item-details"><?=
-                                                            View::e($item['details']) ?></span>
-                                                    <?php endif; ?>
-                                                    <?php /* Audit IHM du 2026-11-04 : « + », statut, auteur et
-                                                             boutons sur une seule ligne sous le libellé. */ ?>
-                                                    <span class="slot-item__foot">
-                                                    <?= View::render('components/prescription_details', [
-                                                        'item' => $item,
-                                                    ]) ?>
-                                                    <?= View::render('components/status_badge', [
-                                                        'status' => $item['status'],
-                                                    ]) ?>
-                                                    <?php if ($item['notValidated'] ?? false) : ?>
-                                                        <?= View::render('components/status_badge', [
-                                                            'status' => 'to_validate',
-                                                            'label' => 'Ordonnance non validée',
-                                                        ]) ?>
-                                                    <?php endif; ?>
-                                                    <?php if (($item['performedBy'] ?? null) !== null) : ?>
-                                                        <span class="trace">par <?=
-                                                            View::e($item['performedBy']) ?></span>
-                                                    <?php endif; ?>
-                                                    <?php
-                                                    $who = mb_strtoupper($patient['lastName']) . ' '
-                                                        . $patient['firstName'];
-                                                    ?>
-                                                    <?php if ($validationEnabled) : ?>
-                                                        <?= View::render('components/care_buttons', [
-                                                            'item' => $item,
-                                                            'idEpisodeOfCare' => $patient['idEpisodeOfCare'],
-                                                            'context' => $who,
-                                                        ]) ?>
-                                                    <?php endif; ?>
-                                                    </span>
-                                                </li>
-                                            <?php endforeach; ?>
-                                        </ul>
-                                    <?php endif; ?>
-                                </td>
+        <?php else : ?>
+            <?php
+            $worklist = $board['worklist'];
+            $sections = $rotation !== null ? [
+                ['key' => 'late', 'title' => 'En retard', 'open' => true],
+                ['key' => 'now', 'title' => 'Maintenant, jusqu\'à ' . $rotation['until'], 'open' => true],
+                ['key' => 'later', 'title' => 'Plus tard dans la rotation (jusqu\'à la fin, '
+                    . $rotation['label'] . ')', 'open' => false],
+                ['key' => 'done', 'title' => 'Réalisés ou non effectués pendant la rotation', 'open' => false],
+            ] : [
+                ['key' => 'later', 'title' => 'Soins prévus', 'open' => true],
+                ['key' => 'done', 'title' => 'Réalisés ou non effectués', 'open' => false],
+            ];
+            ?>
+            <?php foreach ($sections as $section) : ?>
+                <?php $items = $worklist[$section['key']]; ?>
+                <?php $open = $section['open'] ? ' open' : ''; ?>
+                <details class="worklist worklist--<?= View::e($section['key']) ?>"<?= $open ?>>
+                    <summary>
+                        <span class="worklist__title"><?= View::e($section['title']) ?></span>
+                        <span class="worklist__count"><?= View::e(count($items)) ?></span>
+                    </summary>
+                    <?php if ($items === []) : ?>
+                        <p class="worklist__empty">Rien ici.</p>
+                    <?php else : ?>
+                        <ol class="care-lines">
+                            <?php foreach ($items as $item) : ?>
+                                <?= View::render('components/care_line', [
+                                    'item' => $item,
+                                    'showPatient' => true,
+                                    // Le titre de la section dit déjà « en retard » ou « à faire ».
+                                    'showStatus' => $section['key'] === 'done',
+                                    'validationEnabled' => $validationEnabled,
+                                    'agendaUrl' => $agendaUrl($item['idEpisodeOfCare']),
+                                ]) ?>
                             <?php endforeach; ?>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        </div>
-        <ul class="service-legend" aria-label="Légende">
-            <?php foreach (['planned', 'late', 'done', 'not_done', 'cancelled'] as $status) : ?>
-                <li><?= View::render('components/status_badge', ['status' => $status]) ?></li>
+                        </ol>
+                    <?php endif; ?>
+                </details>
             <?php endforeach; ?>
-        </ul>
+        <?php endif; ?>
     <?php endif; ?>
 
     <?php if ($validationEnabled) : ?>
         <?= View::render('components/validation_dialog', [
             'validators' => $validators,
             'csrfToken' => $csrfToken ?? '',
-            'back' => $dayUrl($service['date']),
+            'back' => $dayUrl($service['date'], null, $board['selected']['idEpisodeOfCare'] ?? null),
         ]) ?>
     <?php endif; ?>
 </section>

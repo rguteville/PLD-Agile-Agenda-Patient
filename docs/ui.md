@@ -101,7 +101,10 @@ Une valeur inconnue en base s'affiche telle quelle, en neutre, avec l'icône `ci
   (`AgendaService::SHIFTS`). La colonne « Responsable » (IDE / IDE-AS) est déduite du type de ligne faute de
   donnée en base. Toute la logique est dans `AgendaService::presentDay()` (pur, testé).
 - **Prescriptions** (`pages/careplan/list.php`) : badge `to_validate` = « petit stylo » du SI réel (RG5).
-- **Vue du service** (`pages/service/consolidated-view.php`) : patients × créneaux avec compteur de retards.
+- **Vue du service** (`pages/service/consolidated-view.php`, refonte du 2026-11-04) : onglet « Lits » (une ligne par
+  patient, triée par urgence : retards, à faire dans la rotation, prochain soin ; panneau de détail du lit choisi,
+  `?patient=`) et onglet « Liste de travail » (`?vue=liste` : en retard, maintenant, plus tard, réalisés).
+  Vue-modèle pur `AgendaService::presentBoard()`, ligne de soin partagée `components/care_line`.
   **Balisage seul**, sans route : le contrat du vue-modèle est documenté en tête du fichier et couvert par un test.
 
 ## Vérifier

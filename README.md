@@ -400,9 +400,10 @@ Scénarios manuels avec les données de démo (`database/test.sql`), serveur lan
    Valider deux fois le même soin est refusé. « Semaine » affiche lundi → dimanche, un clic sur un jour y revient.
    Hypothèse « catégorie habilitée » : un(e) aide-soignant(e) valide un soin, pas un médicament. Une note se
    modifie par son auteur seulement. Arrêter une prescription annule ses soins encore prévus après l'arrêt.
-6. **Agenda du service (AURA-29, AURA-32)** : onglet « Agenda service », jour 14/10/2026 → créneaux de 2 h en
-   lignes, un patient par colonne avec ses allergies et son référent, retards du service en tête ; mêmes actions
-   et filtres, plus un filtre par type de soin.
+6. **Agenda du service (AURA-29, AURA-32)** : onglet « Agenda service ». « Lits » : un patient par ligne, du plus
+   urgent au moins urgent (retards, soins à faire dans la rotation, prochain soin) ; cliquer un patient ouvre à
+   côté ses soins de la rotation avec « Valider » et « Note ». « Liste de travail » : les soins de tout le service
+   en retard, maintenant (deux heures), plus tard (replié), réalisés (replié).
 7. **Équipes et « Mon planning » (AURA-30, AURA-31)** : onglet « Équipes », 14/10/2026, vacation Jour → équipes
    A et B de démo ; composer une équipe (un patient n'a qu'une équipe par vacation). « Mon planning », Thomas
    Girard → soins de Simpson et Skywalker pendant la vacation, avec les mêmes actions.

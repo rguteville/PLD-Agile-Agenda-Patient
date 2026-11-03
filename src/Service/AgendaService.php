@@ -224,6 +224,130 @@ final class AgendaService
         ];
     }
 
+    /**
+     * Agenda du service, refonte du 2026-11-04 (maquettes A + B choisies par Raphaël) : au lieu de la
+     * grille créneaux × patients, chargée,
+     *  - un TABLEAU DES LITS (une ligne par patient, du plus urgent au moins urgent : retards, puis soins à
+     *    faire dans la rotation) avec un PANNEAU DE DÉTAIL pour le patient choisi ;
+     *  - une LISTE DE TRAVAIL de la rotation, façon dossier de soins infirmiers : en retard, maintenant
+     *    (deux heures), plus tard dans la rotation, réalisés.
+     * Pur (sans base ni HTTP) : construit sur la sortie de presentService().
+     *
+     * Le jour affiché n'est pas aujourd'hui : pas de rotation en cours ; « à faire » = tous les soins prévus
+     * du jour, le panneau montre toute la journée et la liste de travail n'a que « prévus » et « réalisés ».
+     *
+     * @param array<string, mixed> $service sortie de presentService()
+     * @param int|null $selected séjour choisi pour le panneau (null : le premier du tableau)
+     * @return array<string, mixed>
+     */
+    public static function presentBoard(array $service, DateTimeImmutable $now, ?int $selected = null): array
+    {
+        $isToday = (bool) ($service['isToday'] ?? false);
+        $end = self::shiftEnd($now);
+        $start = $end->modify('-8 hours');
+        $soon = $now->modify('+2 hours');
+        $fmt = static fn (DateTimeImmutable $d): string => $d->format('Y-m-d\TH:i');
+        [$startKey, $endKey, $soonKey] = [$fmt($start), $fmt($end), $fmt($soon)];
+        $inShift = static fn (array $item): bool => !$isToday
+            || ($item['datetime'] >= $startKey && $item['datetime'] < $endKey);
+        $byTime = static fn (array $a, array $b): int => $a['datetime'] <=> $b['datetime'];
+
+        $rows = [];
+        $worklist = ['late' => [], 'now' => [], 'later' => [], 'done' => []];
+        $panels = [];
+        foreach ($service['patients'] ?? [] as $patient) {
+            $items = array_merge(...array_values($patient['items'] ?? [])) ?: [];
+            usort($items, $byTime);
+            $name = mb_strtoupper((string) $patient['lastName']) . ' ' . $patient['firstName'];
+            $who = [
+                'idEpisodeOfCare' => (int) $patient['idEpisodeOfCare'],
+                'bed' => $patient['bed'] ?? null,
+                'patient' => $name,
+            ];
+            $late = 0;
+            $todo = 0;
+            $next = null;
+            $panel = [];
+            foreach ($items as $item) {
+                $entry = $item + $who;
+                $status = $item['status'];
+                if ($status === 'late') {
+                    $late++;
+                    $worklist['late'][] = $entry;
+                    $panel[] = $entry;
+                    continue;
+                }
+                if ($status === 'planned') {
+                    $next ??= $item;
+                    if (!$isToday || $item['datetime'] < $endKey) {
+                        $todo++;
+                    }
+                    if (!$isToday) {
+                        $worklist['later'][] = $entry;
+                    } elseif ($item['datetime'] < $soonKey) {
+                        $worklist['now'][] = $entry;
+                    } elseif ($item['datetime'] < $endKey) {
+                        $worklist['later'][] = $entry;
+                    }
+                }
+                if (in_array($status, ['done', 'not_done'], true) && $inShift($item)) {
+                    $worklist['done'][] = $entry;
+                }
+                if ($inShift($item)) {
+                    $panel[] = $entry;
+                }
+            }
+            $rows[] = [
+                'idEpisodeOfCare' => (int) $patient['idEpisodeOfCare'],
+                'bed' => $patient['bed'] ?? null,
+                'patient' => $name,
+                'episodeNumber' => $patient['episodeNumber'] ?? null,
+                'allergies' => $patient['allergies'] ?? null,
+                'referent' => $patient['referent'] ?? null,
+                'referentKnown' => $patient['referentKnown'] ?? false,
+                'deceased' => $patient['deceased'] ?? null,
+                'late' => $late,
+                'todo' => $todo,
+                'next' => $next === null ? null : ['time' => $next['time'], 'label' => $next['label']],
+            ];
+            $panels[(int) $patient['idEpisodeOfCare']] = $panel;
+        }
+        // Le plus urgent en haut : retards, puis soins à faire ; à égalité, par lit (ordre naturel : L2 < L10).
+        usort($rows, static fn (array $a, array $b): int => [$b['late'], $b['todo']] <=> [$a['late'], $a['todo']]
+            ?: strnatcmp((string) $a['bed'], (string) $b['bed']));
+        foreach ($worklist as &$list) {
+            usort($list, $byTime);
+        }
+        unset($list);
+        $done = $worklist['done'];
+        usort($done, static fn (array $a, array $b): int => $b['datetime'] <=> $a['datetime']);
+        $worklist['done'] = $done;
+
+        $chosen = null;
+        foreach ($rows as $row) {
+            if ($row['idEpisodeOfCare'] === $selected) {
+                $chosen = $row;
+            }
+        }
+        $chosen ??= $rows[0] ?? null;
+
+        return [
+            'isToday' => $isToday,
+            'rotation' => $isToday ? [
+                'label' => sprintf('%d h – %d h', (int) $start->format('G'), (int) $end->format('G')),
+                'until' => $soon->format('H:i'),
+            ] : null,
+            'totals' => [
+                'patients' => count($rows),
+                'late' => array_sum(array_column($rows, 'late')),
+                'todo' => array_sum(array_column($rows, 'todo')),
+            ],
+            'rows' => $rows,
+            'selected' => $chosen === null ? null : $chosen + ['items' => $panels[$chosen['idEpisodeOfCare']]],
+            'worklist' => $worklist,
+        ];
+    }
+
     public function getAgenda(int $idEpisodeOfCare): array
     {
         $response = [];
