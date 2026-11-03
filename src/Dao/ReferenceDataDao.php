@@ -40,7 +40,7 @@ class ReferenceDataDao
     }
 
     /**
-     * Médicaments regroupés par DCI (listes « 2. » puis « 3. » de l'écran B3) :
+     * Médicaments regroupés par DCI (listes « Médicament (DCI) » puis « Forme galénique » de l'écran B3) :
      * DCI => [idMedication => forme]. Exemple : 'Paracétamol' => ['MED01' => 'Solution injectable'].
      *
      * @return array<string, array<string, string>>
@@ -54,6 +54,26 @@ class ReferenceDataDao
         foreach ($rows as $r) {
             $form = trim((string) $r['form']);
             $list[(string) $r['inn']][(string) $r['idMedication']] = $form !== '' ? $form : (string) $r['inn'];
+        }
+
+        return $list;
+    }
+
+    /**
+     * Allergène du principe actif de chaque médicament qui en a un (Medication.idSubstance) :
+     * idMedication => idSubstance. Sert à l'alerte allergie de l'écran B3 (retours du 2026-11-03).
+     *
+     * @return array<string, string>
+     */
+    public function medicationSubstances(): array
+    {
+        $rows = $this->pdo->query(
+            'SELECT idMedication, idSubstance FROM Medication WHERE idSubstance IS NOT NULL ORDER BY idMedication'
+        )->fetchAll(PDO::FETCH_ASSOC);
+
+        $list = [];
+        foreach ($rows as $r) {
+            $list[(string) $r['idMedication']] = (string) $r['idSubstance'];
         }
 
         return $list;

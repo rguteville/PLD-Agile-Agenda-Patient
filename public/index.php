@@ -155,7 +155,9 @@ try {
             carePlanService: new CarePlanService(
                 new CarePlanDao($pdo),
                 new ReferenceDataDao($pdo),
-                $patientRecordService
+                $patientRecordService,
+                new Transaction($pdo),
+                new AuditEventDao($pdo)
             ),
             allergyIntoleranceService: new AllergyIntoleranceService(
                 new EpisodeOfCareDao($pdo),
@@ -189,7 +191,9 @@ try {
                     new SubstanceDao($pdo),
                     new DateTimeImmutable('today'),
                     new ReferenceDataDao($pdo)
-                )
+                ),
+                new Transaction($pdo),
+                new AuditEventDao($pdo)
             ),
             new PlanDefinitionService(new PlanDefinitionDao($pdo))
         );

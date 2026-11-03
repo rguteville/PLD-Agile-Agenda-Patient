@@ -22,7 +22,7 @@ final class PlanDefinitionService
     }
 
     /**
-     * Protocoles proposés dans la liste « 2. » quand « Protocoles » est choisi.
+     * Protocoles proposés dans la deuxième liste (« Protocole ») quand la catégorie « Protocoles » est choisie.
      *
      * @return array<string, string> idPlanDefinition => « titre (pathologie) »
      */

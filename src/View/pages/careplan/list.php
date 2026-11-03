@@ -78,6 +78,15 @@ use Aura\Domain\CarePlan;
                                     <br><small><?= View::e($prefix . $line[$note]) ?></small>
                                 <?php endif; ?>
                             <?php endforeach; ?>
+                            <?php /* Retours du 2026-11-03 : allergène du patient et note de l'ordonnance. */ ?>
+                            <?php if (($line['allergen'] ?? null) !== null) : ?>
+                                <br><strong class="allergy-flag">Contient un allergène du patient :
+                                    <?= View::e($line['allergen']) ?></strong>
+                            <?php endif; ?>
+                            <?php if (($line['carePlanNote'] ?? null) !== null) : ?>
+                                <br><small class="care-plan-note">Note de l'ordonnance n°
+                                    <?= View::e($line['idCarePlan']) ?> : <?= View::e($line['carePlanNote']) ?></small>
+                            <?php endif; ?>
                         </td>
                         <td><?= View::e($line['frequency']) ?></td>
                         <td><?= View::e($line['period']) ?></td>

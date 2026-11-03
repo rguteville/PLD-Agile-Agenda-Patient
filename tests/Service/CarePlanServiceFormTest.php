@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace Aura\Tests\Service;
 
 use Aura\Dao\AllergyIntoleranceDao;
+use Aura\Dao\AuditEventDao;
 use Aura\Dao\CarePlanDao;
 use Aura\Dao\PatientDao;
 use Aura\Dao\ReferenceDataDao;
 use Aura\Dao\EpisodeOfCareDao;
 use Aura\Dao\SubstanceDao;
+use Aura\Dao\Transaction;
 use Aura\Domain\CarePlan;
 use Aura\Domain\MedicationRequest;
 use Aura\Domain\Patient;
@@ -85,7 +87,9 @@ final class CarePlanServiceFormTest extends TestCase
                 $allergies,
                 $substances,
                 new DateTimeImmutable('2026-10-14')
-            )
+            ),
+            $this->createStub(Transaction::class),
+            $this->createStub(AuditEventDao::class)
         );
     }
 }

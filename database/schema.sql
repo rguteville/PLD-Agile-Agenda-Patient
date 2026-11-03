@@ -272,6 +272,9 @@ CREATE TABLE CarePlan( -- Prescription
     validatedAt DATETIME,
     -- Traçabilité : protocole d'où vient l'ordonnance ; NULL = saisie ligne par ligne.
     idPlanDefinition VARCHAR(20),
+    -- Note libre du prescripteur sur l'ordonnance (retours médecins du 2026-11-03) ; NULL = aucune.
+    -- Longueur bornée par CarePlanService::NOTE_MAX_LENGTH.
+    note TEXT,
 
     CONSTRAINT chk_careplan_mode CHECK (mode IN ('MEDICAL', 'PARAMEDICAL', 'EMERGENCY')),
     CONSTRAINT chk_careplan_validation CHECK ((idValidator IS NULL) = (validatedAt IS NULL)),

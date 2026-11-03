@@ -412,6 +412,15 @@ if ($editable) {
                             <p class="prescription-card__note"><?= View::e($prefix . $line[$note]) ?></p>
                         <?php endif; ?>
                     <?php endforeach; ?>
+                    <?php /* Retours du 2026-11-03 : allergène du patient et note de l'ordonnance. */ ?>
+                    <?php if (($line['allergen'] ?? null) !== null) : ?>
+                        <p class="allergy-flag">Contient un allergène du patient :
+                            <?= View::e($line['allergen']) ?></p>
+                    <?php endif; ?>
+                    <?php if (($line['carePlanNote'] ?? null) !== null) : ?>
+                        <p class="prescription-card__note care-plan-note">Note de l'ordonnance :
+                            <?= View::e($line['carePlanNote']) ?></p>
+                    <?php endif; ?>
                     <dl class="prescription-card__meta">
                         <dt>Fréquence</dt>
                         <dd><?= View::e($line['frequency']) ?></dd>

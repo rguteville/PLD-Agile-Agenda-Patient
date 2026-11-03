@@ -4562,3 +4562,156 @@ form.form--columns .form-lead > .form-row {
 .prescription-details__card dd {
     margin: 0;
 }
+
+
+/* ===== AURA-PRESCRIPTION : retours des médecins du 2026-11-03 (libellés des listes, note, allergie, validation) ===== */
+/* Listes en cascade : libellés explicites (« Médicament (DCI) », « Forme galénique ») plus larges que « 1. » */
+.b3-row label {
+    flex-basis: 150px;
+}
+
+.b3-warning,
+.b3-message {
+    margin-left: 166px;
+}
+
+/* Alerte allergie : bloquante côté serveur sans confirmation, donc rouge plein (jamais la couleur seule) */
+.b3-allergy,
+.allergy-flag {
+    color: var(--st-alert-fg);
+    font-weight: 600;
+}
+
+.b3-allergy {
+    margin: var(--sp-1) var(--sp-2) var(--sp-2);
+    padding: var(--sp-2) var(--sp-3);
+    border: 1px solid var(--st-alert-line);
+    border-left: 4px solid var(--st-alert-fg);
+    border-radius: var(--radius);
+    background: var(--st-alert-bg);
+}
+
+.b3-pending .b3-allergy {
+    margin: 0 0 var(--sp-2);
+}
+
+.b3-cart-allergy td {
+    background: var(--st-alert-bg);
+}
+
+/* Confirmation explicite « Je prescris malgré l'allergie » */
+.b3-allergy-confirm {
+    margin: var(--sp-3) 0;
+    padding: var(--sp-2) var(--sp-3);
+    border: 1px solid var(--st-alert-line);
+    border-left: 4px solid var(--st-alert-fg);
+    border-radius: var(--radius);
+    background: var(--st-alert-bg);
+    color: var(--st-alert-fg);
+}
+
+.b3-allergy-confirm__title {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    margin: 0;
+    font-weight: 600;
+}
+
+.b3-allergy-confirm ul {
+    margin: var(--sp-1) 0 var(--sp-2);
+    padding-left: 18px;
+}
+
+.b3-allergy-confirm__check {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    min-height: var(--tap);
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.b3-allergy-confirm__check input {
+    width: 20px;
+    height: 20px;
+}
+
+/* Note de l'ordonnance */
+.b3-note {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-1);
+    margin: var(--sp-3) 0;
+}
+
+.b3-note label {
+    color: var(--fg-muted);
+    font-weight: 600;
+}
+
+.b3-optional {
+    font-weight: 400;
+}
+
+.b3-note textarea {
+    width: 100%;
+    padding: var(--sp-2) var(--sp-3);
+    font: inherit;
+    color: var(--fg-subtle);
+    background: var(--bg-raised);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    resize: vertical;
+}
+
+.b3-hint {
+    margin: 0;
+    color: var(--fg-muted);
+    font-size: var(--fs-1);
+}
+
+.b3-pending-note,
+.care-plan-note {
+    font-style: italic;
+}
+
+.b3-pending-note {
+    margin: 0 0 var(--sp-2);
+}
+
+/* Validation d'une ordonnance : médecin + mot de passe (authentification factice), libellés visibles,
+   une ligne par champ (libellé | champ), puis le bouton */
+.b3-validate {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    align-items: center;
+    gap: var(--sp-2) var(--sp-3);
+}
+
+.b3-validate button {
+    grid-column: 2;
+    justify-self: start;
+}
+
+.b3-validate .form-error {
+    grid-column: 1 / -1;
+}
+
+.b3-validate label {
+    color: var(--fg-muted);
+}
+
+.b3-validate input[type="password"] {
+    min-height: var(--tap);
+    padding: var(--sp-2) var(--sp-3);
+    font: inherit;
+    color: var(--fg-subtle);
+    background: var(--bg-raised);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+}
+
+.b3-validate .b3-hint {
+    grid-column: 1 / -1;
+}

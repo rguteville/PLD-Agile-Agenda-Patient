@@ -34,7 +34,8 @@ class CarePlan
         private ?DateTimeImmutable $recordedAt = null,
         private ?string $idValidator = null,
         private ?DateTimeImmutable $validatedAt = null,
-        private ?string $idPlanDefinition = null
+        private ?string $idPlanDefinition = null,
+        private ?string $note = null
     ) {
     }
 
@@ -89,6 +90,12 @@ class CarePlan
     public function getIdPlanDefinition(): ?string
     {
         return $this->idPlanDefinition;
+    }
+
+    /** Note libre du prescripteur sur l'ordonnance (retours du 2026-11-03) ; null = aucune. */
+    public function getNote(): ?string
+    {
+        return $this->note;
     }
 
     /** RG5 : validée si une date de validation est enregistrée. */

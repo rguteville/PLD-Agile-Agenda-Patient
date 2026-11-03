@@ -75,6 +75,8 @@ final class PatientRecordService
             'banner' => self::presentBanner($patient, $episodeOfCare, $allergies, $this->today),
             'episodeOfCare' => self::presentEpisodeOfCare($episodeOfCare, $patient, $services),
             'allergies' => self::presentAllergies($allergies),
+            // Allergènes du patient (idSubstance => libellé) : alerte allergie des prescriptions (B3).
+            'allergens' => self::allergens($allergies),
             'substances' => self::availableSubstances($this->substanceDao->findAll(), $allergies),
             'criticalities' => AllergyIntolerance::CRITICALITIES,
             // Sections du dossier complet (antécédents, histoire de la maladie, scores, mesures,
@@ -200,6 +202,22 @@ final class PatientRecordService
             ],
             $allergies
         ));
+    }
+
+    /**
+     * Allergènes connus du patient, indexés par idSubstance (alerte allergie de l'écran B3). Pure.
+     *
+     * @param AllergyIntolerance[] $allergies
+     * @return array<string, string> idSubstance => libellé
+     */
+    public static function allergens(array $allergies): array
+    {
+        $list = [];
+        foreach ($allergies as $allergy) {
+            $list[$allergy->getIdSubstance()] = trim($allergy->getSubstance());
+        }
+
+        return $list;
     }
 
     /**
