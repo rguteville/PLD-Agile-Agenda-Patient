@@ -11,7 +11,7 @@
 DROP TABLE IF EXISTS AuditEvent; -- Historique des modifications du dossier (aucune clé étrangère)
 DROP TABLE IF EXISTS CareTeamPatient; -- PatientÉquipe ->[CareTeam,EpisodeOfCare]
 DROP TABLE IF EXISTS CareTeamMember; -- MembreÉquipe ->[CareTeam,Practitioner]
-DROP TABLE IF EXISTS CareTeam; -- Équipe d'une vacation ->[HealthcareService]
+DROP TABLE IF EXISTS CareTeam; -- Équipe d'une rotation ->[HealthcareService]
 DROP TABLE IF EXISTS Appointment; -- SoinPlanifié ->[ServiceRequest,MedicationRequest]
 DROP TABLE IF EXISTS MedicationRequest; -- PrescriptionMedicament ->[Medication,ActivityDefinition,CarePlan,Practitioner]
 DROP TABLE IF EXISTS ServiceRequest; -- PrescriptionSoin ->[ActivityDefinition,CarePlan,Practitioner]
@@ -67,7 +67,8 @@ CREATE TABLE Patient( -- Patient
     foreignTravel TEXT,
     comorbidities TEXT,
     currentTreatment TEXT,
-    -- AURA-12.3 : suppression logique (règle n° 8). NULL = patient actif ; sinon date de la suppression.
+    -- Suppression logique d'un patient (convention « Suppression » du README). NULL = patient actif ; sinon
+    -- date de la suppression.
     -- Un patient supprimé n'apparaît plus dans la liste ni dans les recherches (les DAO filtrent
     -- removedAt IS NULL) ; sa ligne, ses séjours et son IPP restent en base (traçabilité, RG10).
     removedAt DATETIME NULL,
@@ -97,7 +98,7 @@ CREATE TABLE PractitionerRole( -- RôlePraticien
     canValidate BOOLEAN NOT NULL DEFAULT FALSE
 );
 
--- Référentiel des allergènes (AURA-13.1) : une substance n'y figure qu'une fois.
+-- Référentiel des allergènes : une substance n'y figure qu'une fois.
 CREATE TABLE Substance( -- Allergène
     idSubstance VARCHAR(20) PRIMARY KEY,
     name VARCHAR(100) NOT NULL UNIQUE
@@ -113,7 +114,7 @@ CREATE TABLE Medication( -- Medicament
     CONSTRAINT fk_substance_medication FOREIGN KEY (idSubstance) REFERENCES Substance(idSubstance)
 );
 
--- Allergie connue d'un patient (AURA-13.1, RG2).
+-- Allergie connue d'un patient (RG2).
 CREATE TABLE AllergyIntolerance( -- Allergie
     idAllergy VARCHAR(20) PRIMARY KEY,
     idPatient VARCHAR(20) NOT NULL,
@@ -124,7 +125,7 @@ CREATE TABLE AllergyIntolerance( -- Allergie
     -- l'insertion. Ce n'est pas la date d'apparition de l'allergie. L'allergie est liée
     -- au patient et non au séjour : la date distingue une allergie connue depuis un
     -- séjour antérieur d'une allergie découverte pendant le séjour en cours, et dira si
-    -- elle était connue au moment d'un soin (AURA-20/25).
+    -- elle était connue au moment d'un soin.
     recordedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     
     CONSTRAINT uq_substance_patient UNIQUE (idPatient, idSubstance),
@@ -156,7 +157,7 @@ CREATE TABLE EpisodeOfCare( -- Séjour
     bedNumber VARCHAR(20),
     boxNumber VARCHAR(20),
     admissionReason VARCHAR(1000),
-    -- Mesures relevées à l'admission (AURA-04, AURA-10.1), facultatives : poids en kg,
+    -- Mesures relevées à l'admission, facultatives : poids en kg,
     -- taille en cm, précautions en texte libre (isolement, risque de chute…).
     weight DECIMAL(5,2),
     height DECIMAL(5,2),
@@ -295,7 +296,7 @@ CREATE TABLE ServiceRequest( -- LignePrescriptionSoin
     frequencyHours SMALLINT,
     -- Contrainte horaire en texte libre (« à jeun », « 8 h et 20 h »).
     timeConstraint VARCHAR(200),
-    -- AURA-22 : arrêt de la ligne (suppression logique, règle n° 8), par qui et quand (RG10).
+    -- Arrêt de la ligne (suppression logique, convention « Suppression » du README), par qui et quand (RG10).
     idStoppedBy VARCHAR(20),
     stoppedAt DATETIME,
 
@@ -360,7 +361,7 @@ CREATE TABLE Appointment( -- SoinPlanifie
     comment VARCHAR(100),
 
     CONSTRAINT chk_appointment_ligne CHECK ((idServiceRequest IS NULL) <> (idMedicationRequest IS NULL)),
-    -- AURA-24.2 / 24.3 : une ligne n'a qu'un soin planifié par heure prévue. La génération quotidienne de
+    -- Une ligne n'a qu'un soin planifié par heure prévue. La génération quotidienne de
     -- l'agenda (bin/generate-agenda.php) écarte déjà les heures existantes ; ces clés en sont la garantie
     -- en base (NULL n'entre pas en conflit : chaque soin ne remplit qu'une des deux colonnes).
     CONSTRAINT uq_appointment_service_time UNIQUE (idServiceRequest, plannedTime),
@@ -373,7 +374,7 @@ CREATE TABLE Appointment( -- SoinPlanifie
 -- Historique des modifications champ par champ du dossier patient (PR « dossier-patient-edition-inline »,
 -- 2026-11-02, exigence de traçabilité du cahier des charges). Nom FHIR : AuditEvent. Une ligne par
 -- modification enregistrée depuis le dossier : entité (Patient ou EpisodeOfCare), identifiant, champ
--- (nom de colonne), ancienne et nouvelle valeur, auteur (« non identifié » tant qu'AURA-18 n'existe pas),
+-- (nom de colonne), ancienne et nouvelle valeur, auteur (« non identifié » tant que le praticien n'est pas identifié),
 -- horodatage. Pas de clé étrangère : l'historique survit à toute évolution des tables tracées et
 -- ne bloque jamais une écriture. AUTO_INCREMENT : table de journal, jamais lue par un id calculé.
 CREATE TABLE AuditEvent(
@@ -391,12 +392,12 @@ CREATE TABLE AuditEvent(
     INDEX idx_auditevent_entity (entity, entityId, recordedAt)
 );
 
--- Équipes et vacations (AURA-30, PROPOSITION 2026-11-03 à valider par le responsable BDD) : au début de
--- chaque vacation (JOUR 8 h – 20 h, NUIT 20 h – 8 h, hypothèse à confirmer avec le service), le cadre
--- compose les équipes et leur attribue des patients. Une équipe retirée garde sa ligne (removedAt) ;
--- activeKey rend le nom unique parmi les équipes actives de la vacation (convention de suppression
--- logique du README). Un patient n'appartient qu'à une équipe par vacation : contrôlé par le service
--- (CareTeamService), la base ne pouvant l'exprimer sans dupliquer la vacation dans CareTeamPatient.
+-- Équipes de rotation (PROPOSITION 2026-11-03 à valider par le responsable BDD) : au début de chaque
+-- rotation (MATIN 6 h à 14 h, APRES_MIDI 14 h à 22 h, NUIT 22 h à 6 h, bornes à confirmer avec le service),
+-- le cadre compose les équipes et leur attribue des patients. Une équipe retirée garde sa ligne (removedAt) ;
+-- activeKey rend le nom unique parmi les équipes actives de la rotation (convention « Suppression » du
+-- README). Un patient n'appartient qu'à une équipe par rotation : contrôlé par le service (CareTeamService),
+-- la base ne pouvant l'exprimer sans dupliquer la rotation dans CareTeamPatient.
 CREATE TABLE CareTeam( -- Équipe d'une rotation
     idCareTeam INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     idHealthcareService VARCHAR(20) NOT NULL,

@@ -1,4 +1,4 @@
--- Migration additive (2026-11-03, AURA-24.2 / 24.3) : un seul soin planifié par ligne et par heure prévue.
+-- Migration additive (2026-11-03) : un seul soin planifié par ligne et par heure prévue.
 -- À jouer sur une base EXISTANTE ; une installation neuve charge database/schema.sql.
 -- Rejouable (IF NOT EXISTS). Aucun DROP. Proposition à valider par le responsable BDD.
 -- Échoue si la base contient déjà des doublons ; pour les lister :

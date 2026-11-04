@@ -1,6 +1,8 @@
--- Migration additive (2026-11-03) : équipes et vacations (AURA-30), tables CareTeam, CareTeamMember,
--- CareTeamPatient. À jouer sur une base EXISTANTE ; une installation neuve charge database/schema.sql.
+-- Migration additive (2026-11-03) : équipes de rotation, tables CareTeam, CareTeamMember, CareTeamPatient.
+-- À jouer sur une base EXISTANTE ; une installation neuve charge database/schema.sql.
 -- Rejouable : CREATE TABLE IF NOT EXISTS. Aucun DROP.
+-- Le CHECK ci-dessous est celui de l'époque (JOUR, NUIT) : 2026-11-04-trois-rotations.sql, jouée ensuite,
+-- le remplace par les trois rotations MATIN, APRES_MIDI et NUIT.
 --   mariadb -u aura -p aura < database/migrations/2026-11-03-equipes-vacations.sql
 
 CREATE TABLE IF NOT EXISTS CareTeam(

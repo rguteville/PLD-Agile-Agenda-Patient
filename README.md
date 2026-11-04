@@ -1,6 +1,6 @@
 # AURA – Agenda patient et organisation des soins
 
-SI miroir du service de réanimation d'un hôpital (projet AGILE, 4IF INSA Lyon).
+SI miroir du service de réanimation d'un hôpital (projet PLD Agile, 4IF INSA Lyon).
 
 **Documentation du projet (dossier de cadrage, modèle de données, backlog)** : [🚑 PLD Agile – Agenda Patient (Notion)](https://app.notion.com/p/PLD-Agile-Agenda-Patient-3f04f190af9b80ceaae0c2f31cffa627?source=copy_link)
 
@@ -27,12 +27,6 @@ Documentation détaillée : [architecture](docs/ARCHITECTURE.md), [tests](docs/T
 
 ---
 
-Les bonnes pratiques
-
-- nom d'attributs SQL et noms de variables camelCase : exempleDeCamel
-- noms de classes et tables PascalCase : ExempleDePascal
-- code et BD en anglais (HL7) ; affichage et commentaires en français
-
 ## Stack et versions
 
 Il est préférable d'utiliser **les mêmes versions que la VM de démo**, pour qu'un code qui marche sur un poste marche aussi sur la machine virtuelle de démonstration.
@@ -50,7 +44,7 @@ Il est préférable d'utiliser **les mêmes versions que la VM de démo**, pour 
 bin/                scripts en ligne de commande : generate-agenda.php (génération quotidienne de l'agenda, cron)
 config/             config.example.php versionné ; config.php local, jamais commité
 database/           schema.sql (structure complète), test.sql (données fictives), demo-today.sql (démo recalée
-                    sur le jour courant), migrations/ (ALTER additifs pour une base existante)
+                    sur le jour courant), migrations/ (mises à jour rejouables d'une base existante)
 docs/               REPRISE.md (reprise du projet), ARCHITECTURE.md, TESTS.md, UI-GUIDE.md (interface)
 public/             racine web : index.php (routes), css/style.css (unique), js/ (vanilla), fonts/ (vendorisées)
 scripts/            deploy.sh (mise à jour de la VM de démo)
@@ -158,7 +152,7 @@ sudo apt install php8.4-cli php8.4-mysql php8.4-mbstring php8.4-xml php8.4-curl 
 php -v               # PHP 8.4.x
 mariadb --version    # 11.8.x
 composer --version   # doit indiquer « PHP version 8.4.x »
-php -m               # doit lister pdo_mysql, mbstring, openssl
+php -m               # doit lister pdo_mysql et mbstring, plus curl pour les tests HTTP
 ```
 
 ### 2. Récupérer le projet
@@ -172,7 +166,7 @@ cd aura
 composer install
 ```
 
-À la première connexion, Git ouvre le navigateur pour vous authentifier sur GitHub. Sur macOS, `gh auth login` fait la même chose.
+Le dépôt est public : le clonage ne demande aucune authentification. Elle ne sert qu'à pousser une branche : au premier `git push`, Git ouvre le navigateur pour vous authentifier sur GitHub (`gh auth login` fait la même chose).
 
 ### 3. Créer la base de données locale
 
@@ -196,7 +190,7 @@ FLUSH PRIVILEGES;
 EXIT;
 ```
 
-Chargez la structure, puis les données de démonstration quand le fichier existe :
+Chargez la structure, puis les données de démonstration :
 
 ```bash
 # macOS / Linux
@@ -215,6 +209,13 @@ mariadb -u aura -p -e "DROP DATABASE aura; CREATE DATABASE aura CHARACTER SET ut
 ```
 
 puis rechargez `schema.sql` et `test.sql` comme ci-dessus.
+
+**Pour garder les données d'une base existante**, rejouez plutôt tous les fichiers de `database/migrations/` dans
+l'ordre de leurs noms, qui commencent par la date (`ls database/migrations/` les liste dans cet ordre), un par un :
+`mariadb -u aura -p aura < database/migrations/<fichier>.sql`. Chaque fichier se rejoue sans
+erreur : la plupart n'ajoutent que ce qui manque (`IF NOT EXISTS`) ; `2026-11-03-check-binaire.sql` et
+`2026-11-04-trois-rotations.sql` suppriment puis recréent une contrainte `CHECK` (`DROP CONSTRAINT IF EXISTS`, puis
+`ADD CONSTRAINT`), et la seconde transforme les équipes `JOUR` en équipes `MATIN`.
 
 **Pour une démonstration**, recalez les données de démo sur le jour courant (le 14 octobre 2026 du jeu de démo
 devient aujourd'hui ; rejouable sans effet) : `mariadb -u aura -p aura < database/demo-today.sql`. Ne le faites pas
@@ -272,8 +273,6 @@ curl -fsS http://localhost/ > /dev/null && echo OK
 ```
 
 Aucun accès internet n'est nécessaire à l'exécution : police, icônes et scripts sont dans le dépôt.
-**Base existante** après une mise à jour qui ajoute des colonnes : rejouer les fichiers de `database/migrations/`
-dans l'ordre des dates (`mariadb -u aura -p aura < database/migrations/<fichier>.sql`), ou recréer la base.
 
 ### 7. Génération quotidienne de l'agenda (cron)
 
@@ -285,9 +284,8 @@ passé (RG9). Relancé deux fois de suite, le second passage affiche « 0 soin c
 
 ```bash
 php bin/generate-agenda.php
-# Exemple sur les données de démo le 03/11/2026 au soir :
-# 11 soins créés pour 2 séjours (3 séjours en cours avec une prescription active, 5 lignes examinées).
-# Relancé aussitôt : 0 soin créé pour 0 séjour (...).
+# Affiche le nombre de soins créés, de séjours concernés et de lignes examinées.
+# Ces chiffres dépendent du jour et de l'heure du lancement ; relancé aussitôt : 0 soin créé.
 ```
 
 Même configuration que le site (`config/config.php`, ou variables `DB_*`). Code de sortie 0 si tout va bien, 1 en
@@ -382,7 +380,7 @@ La VM de démo est la machine **Debian-HCL-LAMP-git-Docker** (VM « fille » lan
 Points d'attention :
 
 - une seule connexion à la fois sur la VM mère : **déconnectez-vous** en partant ;
-- au démarrage, le clavier peut être en QWERTY (chiffres sans Maj, A↔Q, Z↔W) (j'en ai fait les frais ahah);
+- au démarrage, le clavier peut être en QWERTY (chiffres sans Maj, A↔Q, Z↔W) ;
 
 ### Déployer une nouvelle version
 
@@ -480,14 +478,14 @@ courant (`database/demo-today.sql`, voir l'installation) : les dates ci-dessous 
 
 | Problème                                                                          | Solution                                                                                                                                                                                          |
 | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `php -m` ne liste pas `pdo_mysql` / `openssl` (Windows)                           | `php --ini` doit afficher `C:\php\php.ini`. Sinon le fichier s'appelle peut-être `php.ini.txt` (affichez les extensions de fichiers). Utilisez un chemin absolu : `extension_dir = "C:\php\ext"`. |
+| `php -m` ne liste pas `pdo_mysql` / `mbstring` (Windows)                          | `php --ini` doit afficher `C:\php\php.ini`. Sinon le fichier s'appelle peut-être `php.ini.txt` (affichez les extensions de fichiers). Utilisez un chemin absolu : `extension_dir = "C:\php\ext"`. |
 | `mysql: command not found`                                                        | Avec MariaDB 11, utilisez la commande `mariadb`.                                                                                                                                                  |
 | `Access denied for user 'aura'@'localhost'`                                       | Vérifiez le mot de passe dans `config/config.php` et `'host' => 'localhost'`. Sous Windows, créez aussi l'utilisateur `'aura'@'127.0.0.1'` avec les mêmes droits.                                 |
 | `composer --version` n'indique pas PHP 8.4                                        | Un autre PHP passe avant dans le PATH : vérifiez `which php` (macOS/Linux) ou `where php` (Windows).                                                                                              |
-| `Repository not found` au clonage                                                 | Invitation au dépôt non acceptée, ou mauvais compte GitHub connecté.                                                                                                                              |
+| `Repository not found` ou `403` au `git push`                                     | Invitation au dépôt non acceptée, ou mauvais compte GitHub connecté. Le clonage, lui, ne demande aucune authentification (dépôt public). |
 | `git pull` refusé sur la VM (`untracked working tree files would be overwritten`) | Un fichier a été créé à la main sur la VM (souvent `composer.lock`) : supprimez-le, puis relancez le déploiement.                                                                                 |
 | Le CI échoue sur « Style de code »                                                | Lancez `composer cs:fix` en local, committez, poussez. Un simple avertissement (ligne > 120 caractères) suffit.                                                                                   |
-| `Unknown column 'medicalHistory'` ou page d'accueil sans liste de services        | Base locale non migrée : rejouez `database/migrations/*.sql` dans l'ordre, ou recréez la base avec `schema.sql` + `test.sql`.                                                                     |
+| `Unknown column 'medicalHistory'` ou page d'accueil sans liste de services        | Base locale non migrée : rejouez tous les fichiers `database/migrations/*.sql` dans l'ordre de leurs noms (section Installation, étape 3), ou recréez la base avec `schema.sql` + `test.sql`. |
 | « Session expirée » lors d'une modification en place du dossier                   | Le jeton de session a changé (cookies effacés, `session.save_path` illisible sur la VM) : rechargez la page. Vérifiez que PHP peut écrire dans son dossier de sessions.                            |
 | Les tests avec base sont tous « skipped »                                         | Normal sans `DB_HOST` : créez la base `aura_test` et exportez les variables `DB_*` (voir `docs/TESTS.md`).                                                                                        |
 | La police ou les icônes ne s'affichent pas sur la VM                              | Vérifiez que `public/fonts/` est déployé et servi (`curl -I http://localhost/fonts/source-sans-3-latin.woff2`). Aucun CDN n'est utilisé.                                                        |
@@ -508,10 +506,11 @@ courant (`database/demo-today.sql`, voir l'installation) : les dates ci-dessous 
 
 ## Conventions
 
-- **Nommage** : SQL en camelCase anglais HL7 (`Patient.lastName`), traduction uniquement dans `src/Dao/`. **Tout le code
-  en anglais HL7** (`EpisodeOfCare`, `PatientRecordService`, `CarePlan`), décision du 2026-11-03 qui remplace
-  celle du 2026-10-21 (classes historiques en français). Commentaires, messages
-  utilisateur, URL, commits et PR en français.
+- **Nommage** : SQL en anglais HL7, traduction uniquement dans `src/Dao/`. **Tout le code en anglais HL7**
+  (`EpisodeOfCare`, `PatientRecordService`, `CarePlan`), décision du 2026-11-03 qui remplace celle du 2026-10-21
+  (classes historiques en français). Colonnes SQL et variables en camelCase (`Patient.lastName`, `$admissionDate`),
+  tables et classes en PascalCase (`EpisodeOfCare`). Commentaires, messages utilisateur, URL, commits et PR en
+  français.
 - **Branches** : une par fonctionnalité, depuis `main` à jour : `feature/nom-court`, `fix/…`, `docs/…`, `chore/…`, `ci/…`.
   Pour des changements dépendants, PR empilées (`gh pr create --base <branche précédente>`), fusionnées dans l'ordre.
   Attention : une PR empilée se fusionne dans sa branche de base, pas dans `main`. Après chaque fusion, supprimer
@@ -526,7 +525,9 @@ courant (`database/demo-today.sql`, voir l'installation) : les dates ci-dessous 
   unicité sur les seules lignes actives par une colonne générée `activeKey = IF(removedAt IS NULL, 1, NULL)`.
   Exception connue : le retrait d'une allergie est physique (dette tracée).
 - **Schéma** : `database/schema.sql` est géré par le responsable BDD ; une PR propose un diff et, pour les bases
-  existantes, un fichier additif dans `database/migrations/` (jamais de `DROP`, rejouable).
+  existantes, un fichier `database/migrations/AAAA-MM-JJ-sujet.sql` rejouable, appliqué après les précédents dans
+  l'ordre des noms. Il n'efface aucune donnée ; seul le changement d'une contrainte la supprime puis la recrée
+  (`DROP CONSTRAINT IF EXISTS`, puis `ADD CONSTRAINT`).
 - **IHM** : `style.css` unique, bloc ajouté en fin de fichier sous un commentaire `/* ===== Sujet du bloc ===== */` ; composants de
   `src/View/components/` réutilisés avant tout HTML à la main ; tout échappé par `View::e()` ; voir `docs/UI-GUIDE.md`.
 - **Tests** : une fonctionnalité sans test de sa règle métier n'est pas terminée ; voir `docs/TESTS.md`.
@@ -544,6 +545,8 @@ Les acronymes et les termes techniques ou métier employés dans ce document.
 | Aide-soignant(e) | Soignant qui assiste l'infirmier pour les soins d'hygiène et de confort. Hypothèse du projet : un aide-soignant peut valider un soin, pas l'administration d'un médicament. |
 | Allergène | Substance à laquelle un patient est allergique. Dans AURA, les allergènes sont choisis dans un référentiel (table `Substance`). |
 | Apache | Serveur web utilisé sur la VM de démonstration (pile LAMP). Il sert le dossier `public/` et envoie toute adresse sans fichier vers `index.php`. |
+| apt | Gestionnaire de paquets de Debian et d'Ubuntu (`sudo apt install …`). |
+| ARDSNet | ARDS Network : réseau américain de recherche clinique sur le syndrome de détresse respiratoire aiguë (SDRA). Son protocole de ventilation fournit la formule du poids théorique. |
 | Artefact | Fichier produit par une exécution du CI et téléchargeable depuis GitHub, ici le rapport de couverture HTML. |
 | ASA | Classification de l'état de santé d'un patient avant une anesthésie, de I (bonne santé) à VI, publiée par l'American Society of Anesthesiologists. Valeurs et source dans `ClinicalScales`. |
 | ATCD | Abréviation médicale d'« antécédents » (maladies, opérations, traitements passés du patient). Exemple : « ATCD médicaux ». |
@@ -572,11 +575,13 @@ Les acronymes et les termes techniques ou métier employés dans ce document.
 | Debian | Distribution Linux de la VM de démonstration (Debian 13 fournit PHP 8.4 et MariaDB 11.8). |
 | Déclaration du décès | Action réservée à un médecin (authentification factice) : le patient est marqué décédé, le séjour en cours se termine à l'heure du décès et ses soins encore prévus sont annulés (`POST /sejour/deces`). |
 | Diagramme de classes | Schéma des classes du code, de leurs méthodes publiques et de leurs dépendances. |
+| Docker | Outil qui fait tourner des applications dans des conteneurs isolés. Il est installé sur la VM de démonstration (d'où son nom), mais AURA ne s'en sert pas : le site tourne directement sous Apache. |
 | Données de démo | Jeu de données fictives de `database/test.sql`, dont le jour de référence est le mercredi 14 octobre 2026. `database/demo-today.sql` le recale sur le jour courant pour une démonstration. |
 | Échappement | Transformation des caractères spéciaux (`<`, `>`, `&`, guillemets) avant de les afficher dans une page, pour qu'une donnée ne soit jamais interprétée comme du HTML ou du JavaScript. Fait par `View::e()`. |
 | Édition en ligne | Modification d'un seul champ du dossier directement dans la page (crayon, puis « Confirmer »). Elle passe par l'authentification factice d'un médecin et est tracée. |
 | Entité immuable | Objet de `src/Domain/` qui représente une ligne de données (patient, séjour…). Ses valeurs sont fixées à la création et lues par des accesseurs (`get…()`). |
 | Équipe de rotation | Groupe de soignants composé pour une rotation donnée, avec les patients dont il a la charge. Un patient n'appartient qu'à une équipe par rotation. |
+| FHIR | Fast Healthcare Interoperability Resources : norme de HL7 pour l'échange de données de santé, découpée en ressources (`Patient`, `EpisodeOfCare`, `CarePlan`, `Appointment`…) dont AURA reprend les noms. |
 | Fuseau horaire | Zone d'heure légale. AURA fixe Europe/Paris, quel que soit le réglage de PHP. |
 | Fusion (merge) | Intégration des changements d'une branche dans une autre, ici d'une branche de fonctionnalité dans `main`, par une pull request. |
 | GET, POST | Méthodes HTTP. GET lit une page sans rien modifier ; POST envoie des données à enregistrer. |
@@ -584,10 +589,12 @@ Les acronymes et les termes techniques ou métier employés dans ce document.
 | Git | Logiciel de gestion de versions : il garde l'historique de chaque fichier et permet de travailler à plusieurs sur des branches. |
 | GitHub Flow | Façon de travailler avec Git : `main` toujours fonctionnelle, une branche par changement, fusion par pull request après vérification. |
 | GitHub, GitHub Actions | Site qui héberge le dépôt Git, les pull requests et le CI (GitHub Actions, onglet « Actions » du dépôt). |
+| HCL | Sigle présent dans le nom de la VM de démonstration fournie pour le projet (`Debian-HCL-LAMP-git-Docker`). AURA n'en dépend pas. |
 | HL7 | Health Level Seven : famille de normes d'échange de données de santé. AURA reprend les noms anglais des ressources de sa norme FHIR (`Patient`, `EpisodeOfCare`, `CarePlan`, `Appointment`…) pour ses tables et classes. |
 | Homebrew | Gestionnaire de paquets de macOS, utilisé pour installer PHP, MariaDB et Composer. |
 | HTML | Langage des pages web. Les vues PHP de `src/View/` produisent du HTML. |
 | HTTP | Protocole d'échange entre le navigateur et le serveur web. Un code de réponse dit le résultat : 200 réussi, 303 redirection, 400 requête invalide, 403 refusé, 404 introuvable, 409 conflit, 422 saisie invalide. |
+| HTTPS | Version chiffrée de HTTP. La VM de démonstration est servie en HTTP simple ; un cookie marqué `Secure` ne serait envoyé que sur une connexion HTTPS. |
 | Hypothèse | Choix fait faute de réponse du service ou du PO, signalé « HYPOTHÈSE » dans le code et à confirmer. |
 | Idempotent | Se dit d'une opération qu'on peut relancer sans changer le résultat : un second passage de `bin/generate-agenda.php` ne crée aucun soin. |
 | IHM | Interface homme-machine : les écrans de l'application. |
@@ -596,13 +603,14 @@ Les acronymes et les termes techniques ou métier employés dans ce document.
 | IPP | Identifiant permanent du patient dans l'établissement. Dans AURA : 6 à 9 chiffres, facultatif à la saisie (patient admis en urgence), attribué automatiquement s'il manque ; celui d'un patient supprimé reste réservé. |
 | JavaScript (JS) | Langage exécuté par le navigateur. Dans AURA, un fichier par fonctionnalité dans `public/js/`, sans bibliothèque ; il n'est qu'un confort, le serveur revalide tout. |
 | Jeton CSRF | Valeur secrète liée à la session du navigateur, envoyée avec chaque POST (champ `csrf` ou en-tête `X-CSRF-Token`). Sans jeton valide, le serveur refuse l'écriture (403). |
+| JJ/MM/AAAA | Format de saisie des dates (jour, mois, année), converti par le serveur (`DateInput`). |
 | JSON | Format texte d'échange de données (`{"ok": true}`), utilisé par les réponses aux requêtes envoyées en JavaScript. |
 | LAMP | Linux, Apache, MariaDB (ou MySQL), PHP : pile logicielle de la VM de démonstration. |
 | Ligne arrêtée | Ligne de prescription stoppée par un médecin (`stoppedAt`) : ses soins encore prévus sont annulés, rien n'est effacé. |
 | Liste de travail | Onglet de l'agenda du service : les soins de tout le service regroupés par urgence (en retard, doses de lignes arrêtées à tracer, maintenant, plus tard, réalisés). |
 | MariaDB | Système de base de données SQL (version 11.8), compatible avec MySQL. |
 | Médecin référent | Médecin désigné responsable du patient pendant son séjour, choisi à l'admission. |
-| Migration | Script SQL de `database/migrations/` qui ajoute à une base existante ce qu'un changement de `schema.sql` a introduit (colonnes, index, contraintes), sans effacer les données. |
+| Migration | Script SQL de `database/migrations/` qui met à jour une base existante après un changement de `schema.sql` (colonnes, index, contraintes), sans effacer les données. Les fichiers se jouent dans l'ordre de leurs noms et chacun se rejoue sans erreur. |
 | Mon planning | Écran d'un soignant : les soins des patients de ses équipes pendant une rotation, avec les mêmes actions que l'agenda. |
 | Notion | Outil de documentation en ligne où se trouvent le cahier des charges, le dossier de cadrage et le backlog (lien en tête du README). |
 | NULL | Absence de valeur dans une colonne SQL. Par exemple `removedAt` vaut NULL tant que la ligne n'est pas supprimée, `dischargeDate` tant que le séjour est en cours. |
@@ -611,10 +619,12 @@ Les acronymes et les termes techniques ou métier employés dans ce document.
 | pcov | Extension PHP qui mesure la couverture de code pendant les tests (`composer test:coverage`). |
 | PDO | PHP Data Objects : interface de PHP pour parler à une base de données. AURA ouvre une seule connexion PDO (`Database::get()`), seulement quand une page en a besoin. |
 | PHP | Langage du serveur (version 8.4). AURA n'utilise aucun framework. |
+| PHP-FIG | PHP Framework Interop Group : groupe qui publie les recommandations PSR suivies par le code (PSR-4 pour le chargement des classes, PSR-12 pour la présentation). |
 | PHPUnit | Outil de tests automatiques pour PHP (version 10). Configuration dans `phpunit.xml.dist`. |
 | PLD Agile, hexanôme | Cadre pédagogique du projet à l'INSA Lyon : projet de 4e année mené en méthode agile par un hexanôme, l'équipe d'étudiants qui a réalisé AURA. |
 | PO (Product Owner) | Personne qui porte le besoin, priorise le backlog et valide ce qui est livré. |
 | Poids théorique | Poids prédit à partir du sexe et de la taille (formule du protocole ARDSNet). Il sert à régler le volume courant d'un patient ventilé. |
+| ppa | Personal Package Archive : dépôt de paquets complémentaire pour Ubuntu. `ppa:ondrej/php` fournit des versions de PHP absentes des dépôts officiels. |
 | PR (pull request) | Demande de fusion d'une branche dans une autre sur GitHub. Elle est relue par un autre membre et doit avoir un CI vert avant d'être fusionnée. |
 | Prescription | Décision d'un prescripteur de donner un médicament ou de faire un soin à un patient, avec une date de début, une fréquence éventuelle et une date de fin facultative. Chaque ligne de prescription génère des soins planifiés. |
 | Principe actif | Substance d'un médicament qui produit son effet. AURA relie chaque médicament à sa substance pour alerter si elle est un allergène du patient. |
@@ -647,3 +657,4 @@ Les acronymes et les termes techniques ou métier employés dans ce document.
 | VS Code | Visual Studio Code, éditeur de code de Microsoft. |
 | VS17 x64 Non Thread Safe | Variante de PHP pour Windows à télécharger : compilée avec Visual Studio 2022 (VS17), 64 bits, sans sûreté des fils d'exécution (Non Thread Safe), adaptée à l'usage en ligne de commande. |
 | Vt (volume courant) | Volume d'air insufflé à chaque cycle par le respirateur. AURA affiche une plage de 6 à 8 ml par kg de poids théorique, à titre indicatif. |
+| woff2 | Format de fichier de police compressé pour le web. La police Source Sans 3 est servie dans ce format depuis `public/fonts/`. |
