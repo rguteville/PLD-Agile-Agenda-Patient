@@ -38,7 +38,7 @@ $ariaError = ($error !== '' ? ' aria-invalid="true"' : '')
     . ($describedBy !== [] ? ' aria-describedby="' . View::e(implode(' ', $describedBy)) . '"' : '');
 // Attributs HTML supplémentaires (min, step, maxlength…), échappés : ['step' => '0.1']
 $extra = $field['attributes'] ?? [];
-// Exemple grisé (retours du 2026-11-02) : « placeholder » du champ, sauf s'il est déjà dans attributes.
+// Exemple grisé : « placeholder » du champ, sauf s'il est déjà dans attributes.
 if (isset($field['placeholder']) && !isset($extra['placeholder'])) {
     $extra['placeholder'] = $field['placeholder'];
 }

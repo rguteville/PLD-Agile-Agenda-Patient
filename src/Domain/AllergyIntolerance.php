@@ -11,6 +11,8 @@ use DateTimeImmutable;
  * choisie dans le référentiel des allergènes (RG2, AURA-13). Liée au patient et non au séjour.
  * L'id (colonne idAllergy) est null tant que l'allergie n'est pas enregistrée
  * (AllergyIntoleranceDao::insert() le calcule). Retirer une allergie efface la ligne (pas de removedAt).
+ *
+ * Accesseurs get*() : un par colonne, sans logique ni validation.
  */
 class AllergyIntolerance
 {

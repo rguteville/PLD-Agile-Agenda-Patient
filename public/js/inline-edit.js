@@ -1,4 +1,4 @@
-// Édition champ par champ du dossier complet (PR « dossier-patient-edition-inline »).
+// Édition champ par champ du dossier complet.
 //
 // Chaque <dd class="inline-edit"> porte l'entité, l'identifiant, le champ, le type et la valeur brute.
 // Au survol (ou au focus clavier), un crayon apparaît sur la valeur. Clic ou Entrée : la valeur est
@@ -16,8 +16,8 @@
 // (data-entity, data-id, data-field, data-type, data-label, data-raw, data-placeholder, data-options)
 // avec son bouton .inline-edit__value et .inline-edit__text ; #inline-edit-status ;
 // #dossier-historique-table (facultatif).
-// Retours du 2026-11-04 : « Confirmer » ouvre d'abord la fenêtre de validation par un médecin, comme
-// « Modifier » (authentification FACTICE : médecin + mot de passe non vérifié, window.AuraAuth de
+// « Confirmer » ouvre d'abord la fenêtre de validation par un médecin, comme « Modifier »
+// (authentification FACTICE : médecin + mot de passe non vérifié, window.AuraAuth de
 // part-edit.js) ; l'historique porte alors son nom au lieu de « non identifié ».
 // Appel réseau : POST data-endpoint (/sejour/champ/modifier) en JSON {entity, id, episodeOfCare, field,
 // value, oldValue, validator, password}, en-têtes X-CSRF-Token et X-Requested-With. Réponse : {ok, saved,
@@ -188,6 +188,7 @@
         return m ? `${m[3]}/${m[2]}/${m[1]}` : value;
     }
 
+    // Sens inverse (14/03/1958 → 1958-03-14) ; une saisie mal formée part telle quelle, le serveur la refuse.
     function frToIso(value) {
         const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value);
         return m ? `${m[3]}-${m[2]}-${m[1]}` : value;

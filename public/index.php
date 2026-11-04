@@ -1,5 +1,16 @@
 <?php
 
+/**
+ * Contrôleur frontal : toute requête HTTP passe par ce fichier (php -S … public/index.php en local,
+ * réécriture vers index.php sur la VM).
+ *
+ * Dans l'ordre : fuseau horaire du service, fichiers statiques servis tels quels par le serveur de
+ * développement, refus des saisies qui ne sont pas de l'UTF-8 valide, câblage des dépendances (une closure
+ * par écran, qui construit DAO, services et contrôleur ; la connexion à la base n'est ouverte que par les
+ * routes qui en ont besoin), table des routes (chemins exacts, Aura\Core\Router), puis filet d'erreurs :
+ * configuration absente (message clair) ou erreur imprévue (journalisée, page ou JSON d'erreur sans trace).
+ */
+
 declare(strict_types=1);
 
 use Aura\Dao\ActivityDefinitionDao;
@@ -53,17 +64,16 @@ use Aura\Service\AgendaService;
 use Aura\Service\AppointmentService;
 use Aura\Service\CareTeamService;
 
-// Récupération de l'url
+// Chemin demandé, sans la query string.
 $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?: '/';
 
-// Fichiers statiques existants (css, js, images)
+// Fichiers statiques existants (css, js, polices) : servis directement par le serveur de développement.
 if (PHP_SAPI === 'cli-server' && is_file(__DIR__ . $path)) {
     return false;
 }
 
-// Relecture adversariale du 2026-11-04 : une saisie qui n'est pas de l'UTF-8 valide (octet %FF) ferait échouer
-// l'écriture en base (erreur 1366). Refusée ici, une fois pour toutes les routes (les corps JSON invalides sont
-// déjà refusés par json_decode).
+// Une saisie qui n'est pas de l'UTF-8 valide (octet %FF) ferait échouer l'écriture en base (erreur 1366).
+// Refusée ici, une fois pour toutes les routes (les corps JSON invalides sont déjà refusés par json_decode).
 $validUtf8 = static function (mixed $value) use (&$validUtf8): bool {
     if (is_array($value)) {
         foreach ($value as $key => $item) {
@@ -106,7 +116,7 @@ try {
         }
     };
 
-    //Page par défaut : formulaire d'admission
+    // Page d'accueil : formulaire d'admission, affichable même sans base (hors routeur).
     if ($path === '/') {
         (new PatientController(referenceDataSets: $admissionReferenceData()))->showAdmissionForm();
         exit;
@@ -205,7 +215,7 @@ try {
         $controller->list();
     };
 
-    // Epic 4 : prescriptions d'un séjour (liste, écran B3, validation) ; même principe que le dossier.
+    // Prescriptions d'un séjour (AURA-20 à 23) (liste, écran B3, validation) ; même principe que le dossier.
     $carePlans = static function (): CarePlanController {
         $pdo = Database::get();
         return new CarePlanController(
@@ -348,7 +358,7 @@ try {
         (new CareController($appointmentService(Database::get())))->act();
     };
 
-    // Le Router traite les requetes HTTP
+    // Table des routes : méthode + chemin exact (identifiants en query string ou dans le corps du POST).
     $router = new Router();
     $router->get('/patients', $listPatients);
     $router->post('/patients/create', $admitPatient);
@@ -362,8 +372,8 @@ try {
     $router->get('/sejour', static fn () => $episodeOfCareController()->show());
     $router->post('/sejour/allergies/ajouter', static fn () => $episodeOfCareController()->addAllergy());
     $router->post('/sejour/allergies/retirer', static fn () => $episodeOfCareController()->removeAllergy());
-    // Retours du 2026-11-02 : modification d'une partie entière du dossier et fin de séjour, validées par
-    // un médecin (authentification factice en attendant AURA-18).
+    // Modification d'une partie entière du dossier, fin de séjour et décès, validées par un médecin
+    // (authentification factice en attendant AURA-50).
     $recordController = static function () use ($recordEditService): RecordController {
         $pdo = Database::get();
 
@@ -382,7 +392,7 @@ try {
         );
     };
     $router->post('/sejour/partie/modifier', static fn () => $recordController()->updatePart());
-    // Édition en ligne d'un champ : même contrôleur que les parties, pour l'authentification factice (2026-11-04).
+    // Édition en ligne d'un champ : même contrôleur que les parties, pour l'authentification factice.
     $router->post('/sejour/champ/modifier', static fn () => $recordController()->update());
     $router->post('/sejour/cloturer', static fn () => $recordController()->endStay());
     $router->post('/sejour/deces', static fn () => $recordController()->declareDeath());
@@ -412,7 +422,7 @@ try {
     }
     echo $e->getMessage();
 } catch (Throwable $e) {
-    // Relecture adversariale du 2026-11-04 : filet de sécurité. Une erreur imprévue (base, type, règle) est
+    // Filet de sécurité : une erreur imprévue (base, type, règle) est
     // journalisée pour l'équipe ; l'utilisateur reçoit une page ou un JSON d'erreur, jamais la trace (chemins,
     // SQL). Les erreurs prévues sont traitées avant, par les contrôleurs, avec un message précis.
     error_log('AURA : ' . $e::class . ' : ' . $e->getMessage() . ' (' . $e->getFile() . ':' . $e->getLine() . ')');

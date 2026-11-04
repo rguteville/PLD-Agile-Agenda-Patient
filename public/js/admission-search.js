@@ -1,7 +1,6 @@
-// Recherche d'un patient existant à l'admission (PR « admission-recherche-patient ») : un seul champ
-// en tête (« IPP, nom ou prénom », retours du 2026-11-02), qui reconnaît un IPP ; recherche par IPP
-// (AURA-15, prioritaire) ou par nom / prénom. Un seul chemin de code pour les deux modes :
-// le serveur (/patients/recherche?q=…) reconnaît un IPP (6 à 9 chiffres) et renvoie 0 ou 1 résultat.
+// Recherche d'un patient existant à l'admission : un seul champ en tête (« IPP, nom ou prénom »).
+// Recherche par IPP (AURA-15, prioritaire) ou par nom / prénom, par un seul chemin de code : le
+// serveur (/patients/recherche?q=…) reconnaît un IPP (6 à 9 chiffres) et renvoie alors 0 ou 1 résultat.
 //
 // Identitovigilance : rien n'est sélectionné automatiquement. Les résultats affichent nom, prénom,
 // nom de naissance, date de naissance et âge, sexe, IPP, dernier séjour ; un avertissement
@@ -203,8 +202,8 @@
     }
 
     // ---- Sélection : chargement direct de la fiche ----
-    // Pas de confirmation intermédiaire (retours du 2026-11-02) : la carte affichée après la sélection
-    // montre l'identité complète, et « Ce n'est pas ce patient » annule le rattachement.
+    // Pas de confirmation intermédiaire : la carte affichée après la sélection montre l'identité
+    // complète, et « Ce n'est pas ce patient » annule le rattachement.
 
     // Sélection d'une suggestion (clic ou Entrée) : charge sa fiche ; mode « ipp » ou « name ».
     function select(index) {
@@ -250,12 +249,12 @@
         form.dispatchEvent(new CustomEvent('aura:allergies-filled'));
     }
 
-    // ---- Carte du patient existant (retours du 2026-11-02) ----
-    // L'identité d'un patient retrouvé s'affiche en lecture seule, comme le bandeau : on ne la modifie
-    // pas depuis l'admission (retours du 2026-11-03 : plus de « Corriger l'identité », la correction se
-    // fait dans le dossier, tracée). « Ce n'est pas ce patient » détache.
+    // ---- Carte du patient existant ----
+    // L'identité d'un patient retrouvé s'affiche en lecture seule, comme le bandeau : elle ne se corrige
+    // pas depuis l'admission mais dans le dossier, où la modification est tracée. « Ce n'est pas ce
+    // patient » détache.
 
-    // Le groupe sanguin d'un patient connu est sur sa carte, en lecture seule (retours du 2026-11-04).
+    // Le groupe sanguin d'un patient connu est sur sa carte, en lecture seule.
     const IDENTITY_FIELDS = ['lastname', 'firstname', 'birthDate', 'gender', 'ipp', 'bloodType'];
 
     // Lignes .form-row des champs d'identité, masquées tant que la carte est affichée.
@@ -279,6 +278,7 @@
         return criticality === 'Faible' ? 'low' : 'unknown';
     }
 
+    // Retire la carte du patient sélectionné.
     function removeCard() {
         form.querySelectorAll('.patient-card').forEach(el => el.remove());
     }
@@ -305,7 +305,7 @@
             ? `, né(e) le ${p.birthDate}${p.age !== null ? ` (${p.age} ans)` : ''}`
             : ', date de naissance inconnue';
         name.append(birth);
-        // Groupe sanguin du patient connu (retours du 2026-11-03), comme dans le bandeau.
+        // Groupe sanguin du patient connu, comme dans le bandeau.
         const bloodType = (patientRecord.patient || {}).bloodType;
         if (bloodType) {
             name.append(`, groupe ${bloodType}`);

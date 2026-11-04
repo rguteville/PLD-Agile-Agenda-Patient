@@ -3,9 +3,9 @@
 use Aura\Core\View;
 
 /**
- * Une ligne de soin compacte (agenda du service, refonte du 2026-11-04) : heure, patient et décès
- * (facultatif), soin avec le « + » de sa prescription à droite du titre, dose, trace et note, statut,
- * actions. Pas d'allergies ici depuis le 2026-11-04 : elles sont dans le panneau du patient choisi
+ * Une ligne de soin compacte (agenda du service) : heure, patient et décès (facultatif), soin avec le
+ * « + » de sa prescription à droite du titre, dose, trace et note, statut, actions. Pas d'allergies
+ * ici : elles sont dans le panneau du patient choisi
  * (pages/service/consolidated-view.php). Jamais la couleur seule : le statut a son badge (icône et texte).
  * Inclus par pages/service/consolidated-view.php : panneau de détail d'un lit et liste de travail.
  *
@@ -34,7 +34,7 @@ $who = ($item['bed'] !== null ? 'Lit ' . $item['bed'] . ', ' : '') . $item['pati
         </span>
     <?php endif; ?>
     <span class="care-line__care">
-        <?php /* Le « + » de la prescription à droite du titre (2026-11-04). */ ?>
+        <?php /* Le « + » de la prescription à droite du titre. */ ?>
         <span class="care-title">
             <span class="item-label"><?= View::e($item['label']) ?></span>
             <?= View::render('components/prescription_details', ['item' => $item]) ?>

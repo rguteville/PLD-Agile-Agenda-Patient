@@ -29,7 +29,7 @@ class EpisodeOfCareDao
          idReferringPractitioner, referrer.firstName AS referrerFirstName, referrer.lastName AS referrerLastName';
 
     /**
-     * Séjour + nom de son médecin référent (retours du 2026-11-03), pour l'afficher sans autre requête.
+     * Séjour + nom de son médecin référent, pour l'afficher sans autre requête.
      * Practitioner n'a aucune colonne homonyme de EpisodeOfCare : les colonnes non préfixées restent univoques.
      */
     private const FROM =
@@ -164,7 +164,7 @@ class EpisodeOfCareDao
      */
     public function updateDischarge(int $idEpisodeOfCare, DateTimeInterface $dischargeDate): bool
     {
-        // Conditionnel (relecture adversariale du 2026-11-04) : deux fins de séjour simultanées, la seconde
+        // Conditionnel : deux fins de séjour simultanées, la seconde
         // ne réécrit pas la date de la première ; l'appelant reçoit false.
         $stmt = $this->pdo->prepare(
             'UPDATE EpisodeOfCare SET dischargeDate = :dischargeDate

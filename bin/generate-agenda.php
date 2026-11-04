@@ -7,7 +7,7 @@
  * la fin du jour J + AgendaGenerationService::HORIZON_DAYS. Idempotent : relancé deux fois de suite,
  * le second passage ne crée rien. Aucun soin n'est créé dans le passé ni modifié (RG9).
  *
- * Usage : php bin/generate-agenda.php     (cron quotidien : voir README, « Génération de l'agenda »)
+ * Usage : php bin/generate-agenda.php     (cron quotidien : voir README, « Génération quotidienne de l'agenda »)
  * Même configuration que le site (config/config.php, ou variables DB_* comme le CI).
  * Code de sortie : 0 si tout s'est bien passé, 1 en cas d'erreur (rien n'est alors enregistré).
  */

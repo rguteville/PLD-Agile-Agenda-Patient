@@ -13,10 +13,9 @@ use PDOException;
 
 /**
  * Équipes par rotation (AURA-30) : au début de chaque rotation, le cadre compose les équipes et leur attribue
- * les patients du service. Trois rotations par jour, celles de l'agenda (décision de Raphaël du 2026-11-04 :
- * un seul découpage fait foi, CareTeam::SHIFTS) : matin de 6 h à 14 h, après-midi de 14 h à 22 h, nuit de
- * 22 h à 6 h le lendemain. La rotation de nuit porte la date de son début : à 3 h le 15, on est dans la nuit
- * du 14.
+ * les patients du service. Trois rotations par jour, celles de l'agenda (un seul découpage fait foi,
+ * CareTeam::SHIFTS) : matin de 6 h à 14 h, après-midi de 14 h à 22 h, nuit de 22 h à 6 h le lendemain.
+ * La rotation de nuit porte la date de son début : à 3 h le 15, on est dans la nuit du 14.
  */
 final class CareTeamService
 {

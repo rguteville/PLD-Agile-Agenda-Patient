@@ -94,7 +94,7 @@ class CarePlan
     }
 
     /**
-     * Note libre du prescripteur sur l'ordonnance (retours du 2026-11-03) ; null = aucune.
+     * Note libre du prescripteur sur l'ordonnance ; null = aucune.
      * Longueur bornée par CarePlanService::NOTE_MAX_LENGTH.
      */
     public function getNote(): ?string

@@ -11,6 +11,8 @@ use DateTimeImmutable;
  * prescription (soin ou médicament, exactement l'un des deux), avec son statut et, le cas échéant,
  * l'heure de réalisation. Statuts stockés en français : PLANIFIE, REALISE, NON_FAIT, et ANNULE
  * (ligne arrêtée ou décès, écrit par CarePlanDao et AppointmentDao, sans constante ici).
+ *
+ * Accesseurs get*() : un par colonne, sans logique ni validation.
  */
 class Appointment
 {

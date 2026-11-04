@@ -136,8 +136,8 @@ $medicationParams = [
                 <input type="password" id="prescriberPassword" name="prescriberPassword" autocomplete="off">
             </div>
 
-            <?php /* Listes en cascade (retours du 2026-11-03 : « 1. 2. 3. » remplacés par leur rôle).
-                     Le libellé de la deuxième suit la catégorie choisie (care-plan.js). */ ?>
+            <?php /* Listes en cascade, chacune nommée par son rôle. Le libellé de la deuxième suit la
+                     catégorie choisie (care-plan.js). */ ?>
             <div class="b3-row">
                 <label for="category">Catégorie</label>
                 <select id="category">
@@ -193,7 +193,7 @@ $medicationParams = [
                     </div>
 
                     <?php foreach ($medicationParams as [$id, $label, $required, $type]) : ?>
-                        <?php /* Dates (2026-11-04) : jour et heure séparés (#…-date, #…-time) ; « Une fois » n'a qu'une
+                        <?php /* Dates : jour et heure séparés (#…-date, #…-time) ; « Une fois » n'a qu'une
                                  ligne « Le » (care-plan.js masque la ligne de fin, data-row). */ ?>
                         <label for="<?= View::e($type === 'date' ? $id . '-date' : $id) ?>"
                                id="<?= View::e($id) ?>-label" data-row="<?= View::e($id) ?>"
@@ -294,8 +294,7 @@ $medicationParams = [
                     <span class="b3-required">*</span>
                     <div class="b3-value"><input type="text" id="group-name" readonly tabindex="-1"></div>
 
-                    <?php /* Retours du 2026-11-04 : un protocole n'a qu'un début (chaque ligne a sa durée) ;
-                             « Du » sans « Au » prêtait à confusion. */ ?>
+                    <?php /* Un protocole n'a qu'un début : chaque ligne porte sa propre durée. */ ?>
                     <label for="group-start">Début du protocole</label>
                     <span class="b3-required">*</span>
                     <div class="b3-value"><input type="datetime-local" id="group-start"></div>
@@ -324,7 +323,7 @@ $medicationParams = [
                 <tbody id="b3-cart"></tbody>
             </table>
 
-            <?php /* Note libre de l'ordonnance (retours du 2026-11-03) : envoyée avec le formulaire
+            <?php /* Note libre de l'ordonnance : envoyée avec le formulaire
                      (attribut form), affichée dans la liste des prescriptions et dans le dossier. */ ?>
             <div class="b3-note">
                 <label for="care-plan-note">Note de l'ordonnance <span class="b3-optional">(facultative)</span></label>
@@ -382,7 +381,7 @@ $medicationParams = [
                     <?php foreach ($carePlan['allergyAlerts'] ?? [] as $alert) : ?>
                         <p class="b3-allergy"><?= View::e($alert) ?></p>
                     <?php endforeach; ?>
-                    <?php /* Authentification FACTICE du médecin (mot de passe non vérifié, AURA-18), comme la
+                    <?php /* Authentification FACTICE du médecin (mot de passe non vérifié, AURA-50), comme la
                              fenêtre de validation du dossier. */ ?>
                     <?php $formId = 'validate-' . $carePlan['idCarePlan']; ?>
                     <form class="b3-validate" action="/care-plans/validate<?= View::e($episodeQuery) ?>"

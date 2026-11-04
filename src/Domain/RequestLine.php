@@ -15,6 +15,8 @@ use DateTimeImmutable;
  * des tables ServiceRequest / MedicationRequest ; $id est leur clé (idServiceRequest ou
  * idMedicationRequest). Une ligne n'est jamais supprimée : elle est arrêtée (stoppedAt, AURA-22).
  * Immuable, sauf setIdActivityDefinition() (voir sa note).
+ *
+ * Accesseurs get*() : un par colonne, sans logique ni validation.
  */
 abstract class RequestLine
 {
@@ -98,9 +100,9 @@ abstract class RequestLine
      */
     public function plannedTimes(): array
     {
-        // Relecture adversariale du 2026-11-04 : même avec une date de fin, seuls les PLANNING_HORIZON_DAYS
-        // premiers jours sont générés à l'enregistrement ; la génération quotidienne (AgendaGenerationService)
-        // complète ensuite, jour après jour. Une ligne de plusieurs mois ne crée donc pas des milliers de soins.
+        // Même avec une date de fin, seuls les PLANNING_HORIZON_DAYS premiers jours sont générés à
+        // l'enregistrement ; la génération quotidienne (AgendaGenerationService) complète ensuite, jour après
+        // jour. Une ligne de plusieurs mois ne crée donc pas des milliers de soins.
         $horizon = $this->startDate->modify(sprintf('+%d days', self::PLANNING_HORIZON_DAYS));
         $until = $this->frequencyHours === null
             ? $this->startDate

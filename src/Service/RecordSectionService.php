@@ -20,9 +20,9 @@ use InvalidArgumentException;
 use PDOException;
 
 /**
- * Modification d'une partie entière du dossier patient et fin de séjour (retours du 2026-11-02, routes
- * POST /sejour/partie/modifier et /sejour/cloturer), déclaration du décès (retours du 2026-11-04, POST
- * /sejour/deces) : le décès termine le séjour en cours et annule ses soins prévus après l'heure du décès.
+ * Modification d'une partie entière du dossier patient et fin de séjour (routes POST /sejour/partie/modifier
+ * et /sejour/cloturer), déclaration du décès (POST /sejour/deces) : le décès termine le séjour en cours et
+ * annule ses soins prévus après l'heure du décès.
  *
  * Chaque partie du dossier (le résumé « Dossier » avec l'identité, le séjour et les coordonnées, puis
  * Admission, Antécédents, Histoire de la maladie, Scores, Mesures, Administratif) se modifie d'un bloc,
@@ -37,11 +37,11 @@ use PDOException;
  * Les champs réservés au médecin (RecordFields, 'validatedByDoctor' : groupe sanguin, décès) ne se
  * modifient que par ce service : RecordEditService les refuse sans médecin authentifié.
  *
- * Médecin référent du séjour (retours des médecins du 2026-11-03) : modifiable dans la partie « Dossier »
+ * Médecin référent du séjour : modifiable dans la partie « Dossier »
  * et dans « Admission », comme le service ; contrôlé contre la liste des médecins (RecordEditService).
  *
  * AUTHENTIFICATION FACTICE : le médecin est choisi dans la liste des praticiens habilités (RG5) et le
- * mot de passe est exigé mais NON vérifié. Elle prépare l'authentification réelle (AURA-18) ; la
+ * mot de passe est exigé mais NON vérifié. Elle prépare l'authentification réelle (AURA-50) ; la
  * trace le dit explicitement (« authentification factice »).
  */
 class RecordSectionService
@@ -322,9 +322,8 @@ class RecordSectionService
                     // Annule toute la partie (rien n'est écrit), puis renvoie les erreurs par champ.
                     throw new PartRejected($errors, $conflict);
                 }
-                // Retours du 2026-11-04 : déclarer le décès met fin au séjour en cours, dans la même transaction.
-                // Relecture adversariale : le séjour en cours DU PATIENT, même si le décès est déclaré depuis
-                // le dossier d'un séjour clos.
+                // Déclarer le décès met fin au séjour en cours DU PATIENT, dans la même transaction, même si le
+                // décès est déclaré depuis le dossier d'un séjour clos.
                 if (($changes['deceased']['new'] ?? null) === '1') {
                     foreach ($this->episodeOfCareDao->findByPatient((int) $patient->getIdPatient()) as $stay) {
                         if ($stay->isOngoing()) {
@@ -403,7 +402,7 @@ class RecordSectionService
     }
 
     /**
-     * Déclaration du décès (retours du 2026-11-04), validée par un médecin (authentification factice) et
+     * Déclaration du décès, validée par un médecin (authentification factice) et
      * tracée : le patient est déclaré décédé et, si le séjour est en cours, il se termine à l'heure du décès
      * (JJ/MM/AAAA, HH:MM ; maintenant si vides), ses soins prévus après cette heure sont annulés. Tout ou rien.
      * Heure du décès dans le futur ou avant l'admission : refusée avant toute écriture. Passe par
@@ -512,18 +511,18 @@ class RecordSectionService
     private const AUTH_ERROR = 'Choisissez le médecin qui valide et saisissez son mot de passe.';
 
     /**
-     * Authentification FACTICE : un médecin habilité et un mot de passe non vide (non vérifié).
-     * Renvoie l'auteur à tracer, ou null si refusée.
-     */
-    /**
-     * Auteur d'une modification en ligne du dossier (retours du 2026-11-04) : même authentification FACTICE que
-     * « Modifier » (un médecin de la liste, mot de passe non vide, non vérifié). null si refusée.
+     * Auteur d'une modification en ligne du dossier : même authentification FACTICE que « Modifier » (un
+     * médecin de la liste, mot de passe non vide, non vérifié). null si refusée.
      */
     public function inlineAuthor(string $idValidator, string $password): ?string
     {
         return $this->authenticate($idValidator, $password);
     }
 
+    /**
+     * Authentification FACTICE : un médecin habilité et un mot de passe non vide (non vérifié).
+     * Renvoie l'auteur à tracer, ou null si refusée.
+     */
     private function authenticate(string $idValidator, string $password): ?string
     {
         $validators = $this->validators();

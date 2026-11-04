@@ -136,8 +136,7 @@ if (dialog && careForm && typeof dialog.showModal === 'function') {
         submit.disabled = true;
         try {
             // getAttribute et non careForm.action : le formulaire a des champs nommés « action » (Réalisé /
-            // Non effectué), et careForm.action renvoie alors ces champs au lieu de l'URL (la requête partait
-            // vers « /agenda-patient/[object RadioNodeList] » : 404, « Enregistrement impossible »).
+            // Non effectué), et careForm.action renverrait ces champs au lieu de l'URL.
             const response = await fetch(careForm.getAttribute('action'), {
                 method: 'POST',
                 headers: {
@@ -169,8 +168,8 @@ if (dialog && careForm && typeof dialog.showModal === 'function') {
     });
 }
 
-// ---- Agenda du service, onglet « Lits » (retours du 2026-11-04) : un clic n'importe où sur la ligne d'un patient
-// ouvre son panneau à droite, comme le lien sur son nom (qui reste le chemin au clavier et sans JavaScript). ----
+// ---- Agenda du service, onglet « Lits » : un clic n'importe où sur la ligne d'un patient ouvre son
+// panneau à droite, comme le lien sur son nom (qui reste le chemin au clavier et sans JavaScript). ----
 document.querySelectorAll('tr[data-row-link]').forEach(row => {
     const link = row.querySelector('a[href]');
     if (!link) {

@@ -135,7 +135,7 @@ class AppointmentDao
     }
 
     /**
-     * Annule les soins encore prévus d'un séjour après $after (décès : retours du 2026-11-04). Suppression
+     * Annule les soins encore prévus d'un séjour après $after (déclaration de décès). Suppression
      * logique : statut ANNULE, motif en commentaire s'il n'y en a pas, heure d'enregistrement $after.
      * Appelée dans la transaction de la déclaration de décès (RecordSectionService, POST /sejour/deces),
      * avec $after = heure de sortie du séjour. Les soins prévus avant $after restent PLANIFIE.

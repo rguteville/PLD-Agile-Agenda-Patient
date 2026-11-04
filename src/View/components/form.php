@@ -81,7 +81,7 @@ $lead = $lead ?? [];
 
     <div class="form-actions">
         <button type="submit"><?= View::e($submit ?? 'Enregistrer') ?></button>
-        <?php /* Erreur hors champ à côté du bouton (retours du 2026-11-03), comme form.js. */ ?>
+        <?php /* Erreur hors champ à côté du bouton, comme form.js. */ ?>
         <?php if (!empty($error)) : ?>
             <p class="form-error" role="alert"><?= View::e($error) ?></p>
         <?php endif; ?>

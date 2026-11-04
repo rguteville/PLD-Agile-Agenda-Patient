@@ -5,13 +5,12 @@ declare(strict_types=1);
 namespace Aura\Core;
 
 /**
- * Jeton anti-CSRF minimal, fondé sur la session PHP (introduit par la PR #44, édition en ligne du dossier).
+ * Jeton anti-CSRF minimal, fondé sur la session PHP.
  *
  * Un seul jeton par session, envoyé en en-tête X-CSRF-Token (appels JSON) ou en champ « csrf »
- * (formulaires). Il protège aujourd'hui les écritures du dossier (champ, partie, fin de séjour, décès,
- * allergies), des prescriptions (enregistrement, validation, arrêt d'une ligne), des soins
- * (POST /agenda-patient/soin), des équipes et la suppression d'un patient. Exceptions connues : l'admission
- * (POST /patients/create) et la modification de l'identité (POST /patients/modifier) n'ont pas de jeton.
+ * (formulaires). Toutes les routes POST le vérifient : admission, modification et suppression d'un
+ * patient, écritures du dossier (champ, partie, fin de séjour, décès, allergies), prescriptions
+ * (enregistrement, validation, arrêt d'une ligne), soins (POST /agenda-patient/soin) et équipes.
  * La session n'est ouverte que par les pages qui appellent token() ou check().
  */
 final class Csrf

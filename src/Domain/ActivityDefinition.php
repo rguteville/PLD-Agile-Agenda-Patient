@@ -7,6 +7,8 @@ namespace Aura\Domain;
 /**
  * Type de soin du référentiel (ressource HL7 ActivityDefinition, table ActivityDefinition, RG6) :
  * identifiant, nom, description. Lu par ActivityDefinitionDao.
+ *
+ * Accesseurs get*() : un par colonne, sans logique ni validation.
  */
 class ActivityDefinition
 {

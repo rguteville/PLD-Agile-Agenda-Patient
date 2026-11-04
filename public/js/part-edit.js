@@ -1,5 +1,4 @@
-// Modification d'une partie entière du dossier, fin de séjour (retours du 2026-11-02) et déclaration du
-// décès (retours du 2026-11-04).
+// Modification d'une partie entière du dossier, fin de séjour et déclaration du décès.
 //
 // Crayon « Modifier » à côté du titre d'une partie : les valeurs de la partie sont remplacées par un
 // formulaire (components/part_form.php). « Enregistrer » ouvre la fenêtre de validation par un médecin
@@ -19,9 +18,9 @@
 // - /sejour/deces {episodeOfCare, oldDeceased, date, time}.
 // Réponse : {ok: true, redirect} ou {ok: false, errors: {champ ou auth: message}, message}.
 //
-// Retours du 2026-11-04 : l'édition en ligne (inline-edit.js) passe aussi par cette fenêtre. window.AuraAuth.ask
-// (résumé) l'ouvre sans envoyer de requête et renvoie une promesse : { validator, password, name } une fois la
-// fenêtre validée, null si elle est annulée (Annuler, Échap). inline-edit.js envoie lui-même le champ.
+// L'édition en ligne (inline-edit.js) passe aussi par cette fenêtre : window.AuraAuth.ask(résumé) l'ouvre
+// sans envoyer de requête et renvoie une promesse : { validator, password, name } une fois la fenêtre
+// validée, null si elle est annulée (Annuler, Échap). inline-edit.js envoie lui-même le champ.
 
 (function () {
     const root = document.querySelector('[data-inline-edit]');
@@ -174,6 +173,7 @@
         dialog.querySelector('[name="validator"]').focus();
     }
 
+    // Ferme la fenêtre de validation.
     function closeDialog() {
         // Fenêtre ouverte par AuraAuth.ask : une fermeture sans validation répond null à l'appelant.
         const closed = pending;
@@ -313,7 +313,7 @@
     // ── Déclaration du décès : POST /sejour/deces (date et heure du décès, valeur actuelle du décès) ──
     const death = document.querySelector('[data-declare-death]');
     if (death) {
-        // Retours du 2026-11-04 : le décès met fin au séjour à l'heure saisie ; les soins prévus après sont annulés.
+        // Le décès met fin au séjour à l'heure saisie ; les soins prévus après sont annulés (serveur).
         death.addEventListener('click', () => openDialog({
             url: '/sejour/deces',
             form: null,

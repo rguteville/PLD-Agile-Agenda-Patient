@@ -8,6 +8,8 @@ namespace Aura\Domain;
  * Médicament du référentiel (ressource HL7 Medication, table Medication), lu par MedicationDao :
  * DCI (inn) et forme galénique (form). Medication.idSubstance (allergène du principe actif) n'est
  * pas porté ici : voir ReferenceDataDao::medicationSubstances().
+ *
+ * Accesseurs get*() : un par colonne, sans logique ni validation.
  */
 class Medication
 {

@@ -135,28 +135,12 @@ form {
     /* aligné avec les champs */
 }
 
-.form-actions input[type="submit"] {
-    padding: 8px 24px;
-    border: 1px solid #2b7bb9;
-    background: #2b7bb9;
-    color: #fff;
-    font: inherit;
-    cursor: pointer;
-}
-
-.form-actions input[type="submit"]:hover {
-    background: #236699;
-}
-
 #main {
-  transition: margin-left .5s;
   padding: 16px;
 }
 
-/* TOP BAR */
-* {box-sizing: border-box}
-
-/* Set height of body and the document to 100% */
+/* Règles de base historiques, redéfinies par les blocs AURA-UI et AURA-POLISH plus bas. Pleine hauteur pour
+   html et body. */
 body, html {
   height: 100%;
   margin: 0;
@@ -530,8 +514,8 @@ body, html {
 }
 
 /* ---------- AURA-20 : écran « Nouvelles prescriptions » (B3 du sujet, figures 7, 8 et 9) ---------- */
-/* Même charte que le dossier du séjour : titre .form-title, bouton .episode-actions, champs et tableaux
-   identiques aux formulaires d'admission. Les classes b3-* sont lues par public/js/care-plan.js. */
+/* Même charte que le dossier du séjour : titre .form-title, champs et tableaux identiques aux
+   formulaires d'admission. Les classes b3-* sont lues par public/js/care-plan.js. */
 .b3 {
     max-width: 1100px;
 }
@@ -552,7 +536,7 @@ body, html {
     gap: 32px;
 }
 
-/* Colonne de gauche : Mode, prescripteur, listes 1. 2. 3., puis la fiche de paramètres */
+/* Colonne de gauche : mode, prescripteur, listes en cascade, puis la fiche de paramètres */
 .b3-entry {
     flex: 0 0 520px;
     max-width: none;
@@ -859,15 +843,15 @@ body, html {
     background: #f3f6fa;
 }
 
-/* ===== AURA-UI : refonte IHM (tokens, thème sombre, composants, impression) =====
-   Ce bloc est ajouté EN FIN de fichier (règle d'équipe) : il définit les jetons de design (:root) puis
-   surcharge les règles historiques ci-dessus pour qu'elles lisent ces jetons. Les sélecteurs existants
-   ne sont pas réordonnés. Documentation : docs/ui.md. */
+/* ===== AURA-UI : système de design (jetons, thème sombre, composants, impression) =====
+   Définit les jetons de design (:root) puis surcharge les règles historiques ci-dessus pour qu'elles
+   lisent ces jetons. Les blocs suivants (AURA-POLISH, puis un bloc par ticket) surchargent à leur tour
+   celui-ci. Documentation : docs/ui.md. */
 
 /* ---------- 1. Jetons de design ---------- */
 :root {
-    /* Typographie : police système (Segoe UI sur les postes Windows du service), chiffres tabulaires
-       pour aligner heures et doses. Tailles pensées pour un poste 1366×768 et une tablette. */
+    /* Typographie : police système (remplacée par Source Sans 3 dans le bloc AURA-POLISH), chiffres
+       tabulaires pour aligner heures et doses. Tailles pensées pour un poste 1366×768 et une tablette. */
     --font-ui: system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
     --fs-0: 12px;
@@ -1083,7 +1067,7 @@ a:hover {
     border: 0;
 }
 
-/* ---------- 3. Barre supérieure et menu latéral ---------- */
+/* ---------- 3. Barre supérieure ---------- */
 .topbar {
     display: flex;
     align-items: center;
@@ -1873,7 +1857,7 @@ h2,
     color: var(--fg-muted);
 }
 
-/* ---------- 12. Dialogue de validation (balisage ; l'écriture en base viendra avec son ticket) ---------- */
+/* ---------- 12. Dialogue de validation d'un soin (components/validation_dialog.php) ---------- */
 .dialog {
     width: min(480px, calc(100vw - 2 * var(--sp-4)));
     padding: 0;
@@ -1937,7 +1921,7 @@ h2,
     gap: var(--sp-2);
 }
 
-/* ---------- 14. Petits écrans : tableaux défilants, formulaires en colonne ---------- */
+/* ---------- 13. Petits écrans : tableaux défilants, formulaires en colonne ---------- */
 .table-scroll {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
@@ -1989,7 +1973,7 @@ h2,
     }
 }
 
-/* ---------- 15. Impression : vue du jour pour les transmissions ---------- */
+/* ---------- 14. Impression : vue du jour pour les transmissions ---------- */
 @media print {
     :root {
         --bg: #fff;
@@ -2282,7 +2266,7 @@ h2,
     }
 }
 
-/* ===== AURA-SEARCH : recherche d'un patient existant à l'admission (combobox, confirmation, bandeau) ===== */
+/* ===== AURA-SEARCH : recherche d'un patient existant à l'admission (en-têtes, suggestions, homonymes) ===== */
 .form-heading {
     margin: var(--sp-4) 0 var(--sp-2);
     padding: 0 8px;
@@ -2495,7 +2479,7 @@ h2,
 }
 
 /* ===== AURA-POLISH : finition visuelle (police vendorisée, base 16 px, fond chaud, cibles 44 px, tableaux) =====
-   Bloc ajouté en fin de fichier : il redéfinit les jetons du bloc AURA-UI et surcharge les règles au-dessus.
+   Redéfinit les jetons du bloc AURA-UI et surcharge les règles au-dessus.
    Principes et sources : docs/UI-GUIDE.md. Aucune logique métier, aucun CDN. */
 
 /* ---------- 1. Police : Source Sans 3 (Adobe, licence SIL OFL 1.1, public/fonts/), variable 200–900 ---------- */
@@ -2998,7 +2982,7 @@ form[data-ajax] {
     }
 }
 
-/* ===== AURA-RETOURS : retours du 2026-11-02 (prescriptions, allergies, admission deux colonnes, menu du dossier) ===== */
+/* ===== AURA-RETOURS : prescriptions, allergies, admission en deux colonnes, menu du dossier ===== */
 /* Prescriptions : avertissement non bloquant (médicament déjà prescrit) */
 .b3-notice {
     margin: var(--sp-1) var(--sp-2) var(--sp-2);
@@ -3314,8 +3298,8 @@ form.form--columns > .form-row {
     padding: calc(var(--sp-1) + 1px) calc(var(--sp-2) + 1px);
 }
 
-/* Base : l'attribut hidden l'emporte toujours sur un display posé par une classe. Sans cette règle, la
-   valeur d'une cellule éditée restait affichée sous le champ de saisie (bouton en display: flex). */
+/* Base : l'attribut hidden l'emporte toujours sur un display posé par une classe (sinon la valeur d'une
+   cellule éditée, bouton en display: flex, resterait affichée sous le champ de saisie). */
 [hidden] {
     display: none !important;
 }
@@ -3345,9 +3329,8 @@ form.form--columns > .form-row {
     outline-offset: var(--focus-offset);
 }
 
-/* Retours du 2026-11-02 (2) : bandeau patient sans fond coloré autour des allergies, seules les
-   étiquettes portent la couleur (criticité) ; « Aucune allergie connue » et « Allergies non renseignées »
-   deviennent elles aussi des étiquettes. */
+/* Bandeau patient : pas de fond coloré autour des allergies, seules les étiquettes portent la couleur
+   (criticité) ; « Aucune allergie connue » et « Allergies non renseignées » sont aussi des étiquettes. */
 .patient-banner .allergies--known,
 .patient-banner .allergies--none,
 .patient-banner .allergies--unknown {
@@ -3393,8 +3376,8 @@ form.form--columns > .form-row {
     justify-content: center;
 }
 
-/* Fil d'Ariane : chaque élément a la hauteur de la cible des liens (32 px), centré verticalement ;
-   sinon le lien « Patients » descendait plus bas que les éléments sans lien. */
+/* Fil d'Ariane : chaque élément a la hauteur de la cible des liens (32 px), centré verticalement, pour
+   que liens et éléments sans lien restent alignés. */
 .breadcrumb ol {
     align-items: center;
 }
@@ -3405,7 +3388,7 @@ form.form--columns > .form-row {
     min-height: 32px;
 }
 
-/* Exemples grisés dans les champs (retours du 2026-11-02) : gris lisible (contraste ≥ 4,5:1 sur le fond
+/* Exemples grisés dans les champs : gris lisible (contraste ≥ 4,5:1 sur le fond
    des champs), jamais confondu avec une valeur saisie grâce à l'italique. */
 input::placeholder,
 textarea::placeholder {
@@ -3522,7 +3505,7 @@ form.form--columns .form-lead > .form-row {
     min-height: 40px;
 }
 
-/* Dossier : crayon « Modifier » d'une partie entière, à côté du titre (retours du 2026-11-02). */
+/* Dossier : crayon « Modifier » d'une partie entière, à côté du titre. */
 .part-edit {
     display: inline-flex;
     align-items: center;
@@ -3667,8 +3650,8 @@ form.form--columns .form-lead > .form-row {
     font: inherit;
 }
 
-/* Admission (retours du 2026-11-02, 3) : un seul champ de recherche « IPP, nom ou prénom » sur toute la
-   largeur en tête ; carte en lecture seule du patient existant sélectionné. */
+/* Admission : un seul champ de recherche « IPP, nom ou prénom » sur toute la largeur en tête ; carte en
+   lecture seule du patient existant sélectionné. */
 .form-lead {
     grid-template-columns: minmax(0, 1fr) !important;
 }
@@ -3958,7 +3941,8 @@ form.form--columns .form-lead > .form-row {
     }
 }
 
-/* AURA-29 : allergies en tête de chaque colonne patient (RG2), mêmes étiquettes que la carte patient. */
+/* RG2 : allergies d'un patient (panneau du lit de l'agenda du service, « Mon planning »), mêmes étiquettes
+   que la carte patient. */
 .service-patient__allergies .allergy-tag {
     padding: 1px var(--sp-2);
     font-size: var(--fs-1);
@@ -3999,7 +3983,7 @@ form.form--columns .form-lead > .form-row {
     color: #1c0a0a;
 }
 
-/* ===== AURA-REFERENT : médecin référent du séjour (retours des médecins du 2026-11-03) ===== */
+/* ===== AURA-REFERENT : médecin référent du séjour ===== */
 /* « Référent à désigner » : icône + texte + cadre pointillé, lisible sans la couleur (bandeau et dossier). */
 .referent-missing {
     display: inline-flex;
@@ -4133,7 +4117,7 @@ form.form--columns .form-lead > .form-row {
     gap: var(--sp-2);
 }
 
-/* ===== Retours du 2026-11-03 : calendrier à droite, erreur à côté du bouton d'envoi ===== */
+/* ===== Navigation par date : calendrier à droite, erreur à côté du bouton d'envoi ===== */
 .agenda-nav input[type="date"] {
     margin-left: auto;
 }
@@ -4149,7 +4133,7 @@ form.form--columns .form-lead > .form-row {
     margin: 0;
 }
 
-/* ===== Retours du 2026-11-03 : carte de la prescription d'un soin (« + ») ===== */
+/* ===== Agendas : carte de la prescription d'un soin (« + ») ===== */
 .prescription-details {
     margin-top: var(--sp-1);
 }
@@ -4197,7 +4181,7 @@ form.form--columns .form-lead > .form-row {
     margin: 0;
 }
 
-/* ===== AURA-PRESCRIPTION : retours des médecins du 2026-11-03 (libellés des listes, note, allergie, validation) ===== */
+/* ===== AURA-PRESCRIPTION : libellés des listes, note, alerte allergie, validation ===== */
 /* Listes en cascade : libellés explicites (« Médicament (DCI) », « Forme galénique ») plus larges que « 1. » */
 .b3-row label {
     flex-basis: 150px;
@@ -4349,7 +4333,7 @@ form.form--columns .form-lead > .form-row {
     grid-column: 1 / -1;
 }
 
-/* ===== AURA-PATIENTS : retours des médecins du 2026-11-03 (dossier toujours accessible, historique des séjours, séjour courant, décès) ===== */
+/* ===== AURA-PATIENTS : dossier toujours accessible, historique des séjours, séjour courant, décès ===== */
 /* Décès : icône + texte + cadre plein, lisible sans la couleur (bandeau, dossier, liste). */
 .deceased-tag {
     display: inline-flex;
@@ -4526,7 +4510,7 @@ form.form--columns .form-lead > .form-row {
     white-space: nowrap;
 }
 
-/* ===== Retours du 2026-11-04 : dialogue de soin plus large, champs à l'horizontale ===== */
+/* ===== Dialogue de soin : plus large, champs à l'horizontale ===== */
 #validation-dialog {
     width: min(760px, 95vw);
 }
@@ -4546,7 +4530,7 @@ form.form--columns .form-lead > .form-row {
     flex-direction: row;
 }
 
-/* ===== Retours du 2026-11-04 : filtres regroupés derrière un bouton ===== */
+/* ===== Agendas : filtres regroupés derrière un bouton ===== */
 .filter-menu {
     margin: var(--sp-3) 0;
 }
@@ -4573,7 +4557,7 @@ form.form--columns .form-lead > .form-row {
     font-weight: 400;
 }
 
-/* ===== Retours du 2026-11-04 : écran de prescription, une liste longue ne déborde plus à droite ===== */
+/* ===== Écran de prescription : une liste longue ne déborde pas à droite ===== */
 .b3-entry {
     min-width: 0;
 }
@@ -4591,7 +4575,7 @@ form.form--columns .form-lead > .form-row {
     text-overflow: ellipsis;
 }
 
-/* ===== Audit IHM du 2026-11-04 : écrans plus sobres, détails à la demande ===== */
+/* ===== Écrans sobres : détails à la demande ===== */
 /* Prescription : le mot de passe du médecin a l'allure des listes voisines. */
 .b3-row input[type="password"] {
     flex: 1;
@@ -4678,7 +4662,7 @@ form.form--columns .form-lead > .form-row {
     flex-wrap: nowrap;
 }
 
-/* ===== AURA-29 : refonte de l'agenda du service (2026-11-04), tableau des lits et liste de travail ===== */
+/* ===== AURA-29 : agenda du service, tableau des lits et liste de travail ===== */
 .view-tabs {
     display: flex;
     gap: var(--sp-1);
@@ -4951,7 +4935,8 @@ form.form--columns .form-lead > .form-row {
     }
 }
 
-/* AURA-29 (relecture) : chevron ouvert / replié des sections, allergies compactes sur les lignes. */
+/* AURA-29 : chevron ouvert / replié des sections de la liste de travail, étiquettes d'allergies, patient
+   d'une ligne de soin. */
 .worklist > summary {
     list-style: none;
 }
@@ -4987,7 +4972,7 @@ form.form--columns .form-lead > .form-row {
     font-weight: 600;
 }
 
-/* ===== Retours du 2026-11-04 (2) : « + » à droite du titre, filtres à droite du bouton, cœur barré ===== */
+/* ===== Agendas et liste des patients : « + » à droite du titre, filtres à droite du bouton, cœur barré ===== */
 .care-title {
     display: block;
 }
@@ -5046,14 +5031,14 @@ form.form--columns .form-lead > .form-row {
     white-space: nowrap;
 }
 
-/* ===== Relecture adversariale du 2026-11-04 : allergies dans la fenêtre de validation d'un soin (RG2) ===== */
+/* ===== RG2 : allergies dans la fenêtre de validation d'un soin ===== */
 .dialog-allergies {
     margin: 0 0 var(--sp-3);
     color: var(--st-alert-fg);
     font-weight: 600;
 }
 
-/* ===== Retours du 2026-11-04 (3) : badge cliquable, ligne de lit cliquable, date et heure séparées ===== */
+/* ===== Badge cliquable, ligne de lit cliquable, date et heure séparées ===== */
 .badge--link {
     text-decoration: none;
     cursor: pointer;

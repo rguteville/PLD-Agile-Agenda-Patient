@@ -3,16 +3,14 @@
 use Aura\Core\View;
 
 /**
- * Agenda du service (AURA-29, route GET /agenda-service). Refonte du 2026-11-04 (maquettes A + B
- * choisies par Raphaël), l'ancienne grille créneaux × patients montrant trop d'informations à la fois :
+ * Agenda du service (AURA-29, route GET /agenda-service), en deux onglets :
  *  - « Lits » (par défaut) : une ligne par patient, du plus urgent au moins urgent (retards, à faire dans
  *    la rotation, prochain soin), et un panneau de détail du lit choisi (?sejour=…) avec ses soins de la
  *    rotation et les actions (valider, note : AURA-26, AURA-28) ;
  *  - « Liste de travail » (?vue=liste) : les soins de tout le service, en retard (AURA-32, quel que soit le
  *    jour), doses de lignes arrêtées à tracer, maintenant (deux heures), plus tard (replié), réalisés (replié).
  * RG2 : allergies (ou « Aucune allergie connue ») dans le panneau du patient choisi ; ni le tableau ni la liste
- * de travail ne les répètent (choix de Raphaël du 2026-11-04 : écran plus léger). Vue-modèle :
- * AgendaService::presentBoard().
+ * de travail ne les répètent, pour rester lisibles. Vue-modèle : AgendaService::presentBoard().
  * Rendue par ServiceController::getAgenda() (GET /agenda-service?idHealthcareService=…&date=…, &vue=liste,
  * &sejour=idEpisodeOfCare pour le lit détaillé). Scripts : agenda.js (impression, dialogue),
  * auto-submit.js (choix du service et du jour).
@@ -136,8 +134,8 @@ $agendaUrl = static fn (int $idEpisodeOfCare): string => '/agenda-patient?id=' .
                             <?php foreach ($rows as $row) : ?>
                                 <?php $isSelected = ($board['selected']['idEpisodeOfCare'] ?? null)
                                     === $row['idEpisodeOfCare']; ?>
-                                <?php /* Retours du 2026-11-04 : toute la ligne ouvre le panneau du patient (agenda.js,
-                                         data-row-link) ; le lien sur le nom reste pour le clavier et sans JS. */ ?>
+                                <?php /* Toute la ligne ouvre le panneau du patient (agenda.js, data-row-link) ;
+                                         le lien sur le nom reste pour le clavier et sans JS. */ ?>
                                 <tr class="board-row<?= $isSelected ? ' is-selected' : '' ?>" data-row-link>
                                     <td class="board-row__bed"><?= View::e($row['bed'] ?? 'sans lit') ?></td>
                                     <th scope="row" class="board-row__patient">
@@ -234,8 +232,8 @@ $agendaUrl = static fn (int $idEpisodeOfCare): string => '/agenda-patient?id=' .
         <?php else : ?>
             <?php
             $worklist = $board['worklist'];
-            // Les retards et les doses de lignes arrêtées sont toujours montrés, quel que soit le jour
-            // (relecture du 2026-11-04) ; une section vide autre que « En retard » est omise.
+            // Les retards et les doses de lignes arrêtées sont toujours montrés, quel que soit le jour ;
+            // une section vide autre que « En retard » est omise.
             $sections = [
                 ['key' => 'late', 'title' => 'En retard', 'open' => true],
                 ['key' => 'stopped', 'title' => 'Lignes arrêtées : doses à tracer si faites avant l\'arrêt',

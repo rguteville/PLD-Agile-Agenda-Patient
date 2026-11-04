@@ -4,8 +4,8 @@ use Aura\Core\View;
 use Aura\Domain\CarePlan;
 
 /**
- * Prescriptions d'un séjour (Epic 4, tableau des prescriptions, figure 10 du cahier des charges).
- * Vue minimale pour tester le back : le front peut la remplacer en gardant les mêmes données.
+ * Prescriptions d'un séjour (Epic 4, tableau des prescriptions, figure 10 du cahier des charges) :
+ * une ligne par soin ou médicament prescrit, avec son statut de validation (RG5) et son arrêt éventuel.
  * Rendue par CarePlanController::list() (GET /care-plans?idEpisodeOfCare=…), données de
  * CarePlanService::listing(). Aucun script propre à la page.
  *
@@ -82,7 +82,7 @@ use Aura\Domain\CarePlan;
                                     <br><small><?= View::e($prefix . $line[$note]) ?></small>
                                 <?php endif; ?>
                             <?php endforeach; ?>
-                            <?php /* Retours du 2026-11-03 : allergène du patient et note de l'ordonnance. */ ?>
+                            <?php /* Allergène du patient (RG2) et note de l'ordonnance. */ ?>
                             <?php if (($line['allergen'] ?? null) !== null) : ?>
                                 <br><strong class="allergy-flag">Contient un allergène du patient :
                                     <?= View::e($line['allergen']) ?></strong>
@@ -105,7 +105,7 @@ use Aura\Domain\CarePlan;
                                 <span class="trace">par <?= View::e($line['validation']) ?></span>
                             <?php else : ?>
                                 <?php /* Le « petit stylo » du SI réel (RG5) : visible mais non validée. */ ?>
-                                <?php /* Cliquable : mène à la validation de l'ordonnance (2026-11-04). */ ?>
+                                <?php /* Cliquable : mène à la validation de l'ordonnance. */ ?>
                                 <?= View::render('components/to_validate_link', [
                                     'idEpisodeOfCare' => $idEpisodeOfCare,
                                     'idCarePlan' => $line['idCarePlan'] ?? null,

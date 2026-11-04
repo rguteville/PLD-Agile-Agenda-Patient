@@ -43,7 +43,7 @@ $idEpisodeOfCare = $idEpisodeOfCare ?? null;
                     </td>
                     <td class="col-kind"><?= View::e($item['kindLabel']) ?></td>
                     <td>
-                        <?php /* Le « + » de la prescription à droite du titre (2026-11-04). */ ?>
+                        <?php /* Le « + » de la prescription à droite du titre. */ ?>
                         <span class="care-title">
                             <span class="item-label"><?= View::e($item['label']) ?></span>
                             <?= View::render('components/prescription_details', ['item' => $item]) ?>

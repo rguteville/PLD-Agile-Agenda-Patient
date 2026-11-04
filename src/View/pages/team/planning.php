@@ -161,7 +161,7 @@ $url = static fn (string $date, string $shift): string => '/mon-planning?idPract
                         'title' => 'Aucun soin prévu pour vos patients pendant cette rotation.',
                     ]) ?>
                 <?php else : ?>
-                    <?php /* Retours du 2026-11-04 : filtres regroupés derrière un bouton (agenda.js). */ ?>
+                    <?php /* Filtres regroupés derrière un bouton (agenda.js). */ ?>
                     <details class="filter-menu" data-agenda-filters hidden>
                         <summary class="button button--secondary">
                             Filtres<span class="filter-menu__state" data-filter-state></span>
@@ -212,7 +212,7 @@ $url = static fn (string $date, string $shift): string => '/mon-planning?idPract
                                             <?= View::e($item['patient']) ?>
                                         </td>
                                         <td>
-                                            <?php /* Le « + » de la prescription à droite du titre (2026-11-04). */ ?>
+                                            <?php /* Le « + » de la prescription à droite du titre. */ ?>
                                             <span class="care-title">
                                                 <span class="item-label"><?= View::e($item['label']) ?></span>
                                                 <?= View::render('components/prescription_details', [

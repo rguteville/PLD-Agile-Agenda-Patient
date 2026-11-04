@@ -3,10 +3,9 @@
 use Aura\Core\View;
 
 /**
- * Liste des patients (AURA-12.1). Retours des médecins du 2026-11-03 : séjour en cours mis en avant,
- * dossier toujours accessible (séjour en cours, sinon dernier séjour), historique des séjours dépliable.
- * Décès : cœur barré à côté du nom (components/deceased_tag, iconOnly, 2026-11-04), libellé en infobulle
- * et en texte alternatif.
+ * Liste des patients (AURA-12.1) : séjour en cours mis en avant, dossier toujours accessible (séjour en
+ * cours, sinon dernier séjour), historique des séjours dépliable. Décès : cœur barré à côté du nom
+ * (components/deceased_tag, iconOnly), libellé en infobulle et en texte alternatif.
  * Rendue par PatientController::list() (GET /patients?q=…). Aucun script propre à la page.
  *
  * @var list<array<string, mixed>> $patients vue-modèle de PatientListService::presentLine() (idPatient,
@@ -68,7 +67,7 @@ $deleted = $deleted ?? false;
             <?php foreach ($patients as $p) : ?>
                 <?php $name = $p['lastName'] . ' ' . $p['firstName']; ?>
                 <tr<?= $p['current'] !== null ? ' class="patient-list__row--current"' : '' ?>>
-                    <?php /* Décès (2026-11-04) : cœur barré À GAUCHE du nom, libellé en infobulle et alternative. */ ?>
+                    <?php /* Décès : cœur barré À GAUCHE du nom, libellé en infobulle et alternative. */ ?>
                     <td><?= $p['deceased']
                         ? View::render('components/deceased_tag', [
                             'label' => $p['deceasedLabel'],
@@ -81,8 +80,7 @@ $deleted = $deleted ?? false;
                     <td>
                         <?php if ($p['current'] !== null) : ?>
                             <?php $current = $p['current']; ?>
-                            <?php /* Audit IHM du 2026-11-04 : deux lignes au lieu de quatre ; la colonne dit déjà
-                                     « en cours ». */ ?>
+                            <?php /* Deux lignes seulement : la colonne dit déjà « en cours ». */ ?>
                             <div class="current-episode">
                                 <span>Lit <?= View::e($current['bed'] ?? 'non attribué') ?>,
                                     <?= View::e($current['service'] ?? 'service non renseigné') ?></span>
