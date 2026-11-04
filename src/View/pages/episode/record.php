@@ -524,7 +524,7 @@ if ($editable) {
                                 <?php /* Authentification FACTICE : mot de passe exigé, non vérifié (AURA-18). */ ?>
                                 <input type="password" name="password" autocomplete="off" placeholder="mot de passe"
                                        aria-label="Mot de passe du médecin qui arrête : <?= View::e($line['label']) ?>">
-                                <button type="submit">Arrêter la ligne</button>
+                                <button type="submit">Arrêter</button>
                             </form>
                         </details>
                     <?php endif; ?>
