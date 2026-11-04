@@ -7,14 +7,34 @@ namespace Aura\Domain;
 use DateTimeImmutable;
 
 /**
- * Équipe d'une vacation (AURA-30, ressource HL7 CareTeam, table CareTeam et ses tables de liaison
- * CareTeamMember, CareTeamPatient) : soignants et patients attribués, pour un
- * service, une date et une vacation (JOUR ou NUIT). Immuable : on recompose en retirant l'équipe.
+ * Équipe d'une rotation (AURA-30, ressource HL7 CareTeam, table CareTeam et ses tables de liaison
+ * CareTeamMember, CareTeamPatient) : soignants et patients attribués, pour un service, une date et une
+ * rotation (MATIN, APRES_MIDI ou NUIT). Immuable : on recompose en retirant l'équipe.
+ *
+ * SHIFTS est LA référence des horaires de travail d'AURA (décision de Raphaël du 2026-11-04 : on garde les trois
+ * rotations, plus de vacations de 12 h) : équipes et « Mon planning » (CareTeamService), rotations affichées dans
+ * l'agenda et fin de la rotation en cours pour la validation anticipée d'un soin (AgendaService::shiftEnd()).
+ * Bornes 6 h, 14 h, 22 h : hypothèse à confirmer avec le service.
  */
 final class CareTeam
 {
-    public const SHIFT_DAY = 'JOUR';
+    public const SHIFT_MORNING = 'MATIN';
+    public const SHIFT_AFTERNOON = 'APRES_MIDI';
     public const SHIFT_NIGHT = 'NUIT';
+
+    /**
+     * Rotations dans l'ordre de la journée : code (colonne CareTeam.shift) => libellé, heures de début et de fin
+     * (la nuit se termine le lendemain à 6 h). Une rotation porte la date de son début : à 3 h le 15, on est dans
+     * la nuit du 14.
+     */
+    public const SHIFTS = [
+        self::SHIFT_MORNING => ['label' => 'Matin', 'from' => 6, 'to' => 14],
+        self::SHIFT_AFTERNOON => ['label' => 'Après-midi', 'from' => 14, 'to' => 22],
+        self::SHIFT_NIGHT => ['label' => 'Nuit', 'from' => 22, 'to' => 6],
+    ];
+
+    /** Durée d'une rotation, en heures. */
+    public const SHIFT_HOURS = 8;
 
     /**
      * @param array<string, string> $members idPractitioner => « Prénom Nom »
@@ -46,7 +66,7 @@ final class CareTeam
         return $this->shiftDate;
     }
 
-    /** SHIFT_DAY ou SHIFT_NIGHT. */
+    /** Une des clés de SHIFTS (MATIN, APRES_MIDI, NUIT). */
     public function getShift(): string
     {
         return $this->shift;

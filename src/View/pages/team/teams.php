@@ -5,16 +5,16 @@ use Aura\Domain\CareTeam;
 use Aura\Service\CareTeamService;
 
 /**
- * Équipes d'une vacation (AURA-30) : équipes composées (soignants, patients), patients encore sans
+ * Équipes d'une rotation (AURA-30) : équipes composées (soignants, patients), patients encore sans
  * équipe, et formulaire de composition d'une équipe. Contrôles côté serveur (CareTeamService).
- * Rendue par TeamController::teams() (GET /equipes?idHealthcareService=…&date=…&vacation=…) et, en 422
+ * Rendue par TeamController::teams() (GET /equipes?idHealthcareService=…&date=…&rotation=…) et, en 422
  * après un refus, par TeamController::create() (POST /equipes/creer). Scripts : confirm.js (retrait
- * d'une équipe, POST /equipes/retirer), auto-submit.js (choix du service et de la vacation).
+ * d'une équipe, POST /equipes/retirer), auto-submit.js (choix du service et de la rotation).
  *
  * @var array<string, string> $services référentiel des services
  * @var string $idHealthcareService service affiché
- * @var array<string, mixed> $shiftView vacation affichée (date, shift, label, previous, next)
- * @var list<CareTeam> $teams équipes actives de la vacation
+ * @var array<string, mixed> $shiftView rotation affichée (date, shift, label, previous, next)
+ * @var list<CareTeam> $teams équipes actives de la rotation
  * @var list<array<string, mixed>> $episodes séjours en cours du service (AgendaService::getAgendaService())
  * @var array<string, string> $practitioners soignants proposés
  * @var array<string, string> $errors erreurs du formulaire de composition, [] par défaut
@@ -24,7 +24,7 @@ use Aura\Service\CareTeamService;
 $errors = $errors ?? [];
 $values = $values ?? [];
 $url = static fn (string $date, string $shift): string => '/equipes?idHealthcareService='
-    . rawurlencode($idHealthcareService) . '&date=' . $date . '&vacation=' . strtolower($shift);
+    . rawurlencode($idHealthcareService) . '&date=' . $date . '&rotation=' . CareTeamService::urlValue($shift);
 $episodeLabel = [];
 foreach ($episodes as $e) {
     $episodeLabel[(int) $e['idEpisodeOfCare']] = ($e['bed'] !== null ? 'Lit ' . $e['bed'] . ', ' : '')
@@ -39,11 +39,11 @@ foreach ($teams as $team) {
 $unassigned = array_diff_key($episodeLabel, $assigned);
 $checkedMembers = array_map('strval', (array) ($values['members'] ?? []));
 $checkedPatients = array_map('strval', (array) ($values['patients'] ?? []));
-// Contexte renvoyé avec chaque formulaire, pour revenir à la même vacation.
+// Contexte renvoyé avec chaque formulaire, pour revenir à la même rotation.
 $contextFields = '<input type="hidden" name="csrf" value="' . View::e($csrfToken) . '">'
     . '<input type="hidden" name="idHealthcareService" value="' . View::e($idHealthcareService) . '">'
     . '<input type="hidden" name="date" value="' . View::e($shiftView['date']) . '">'
-    . '<input type="hidden" name="vacation" value="' . View::e(strtolower($shiftView['shift'])) . '">';
+    . '<input type="hidden" name="rotation" value="' . View::e(CareTeamService::urlValue($shiftView['shift'])) . '">';
 ?>
 <section class="team-view">
     <div class="page-header">
@@ -51,7 +51,7 @@ $contextFields = '<input type="hidden" name="csrf" value="' . View::e($csrfToken
     </div>
 
     <form class="agenda-nav" data-auto-submit-form
-          method="get" action="/equipes" aria-label="Choisir le service et la vacation">
+          method="get" action="/equipes" aria-label="Choisir le service et la rotation">
         <label for="service-select" class="sr-only">Service</label>
         <select id="service-select" name="idHealthcareService">
             <?php foreach ($services as $id => $name) : ?>
@@ -60,7 +60,7 @@ $contextFields = '<input type="hidden" name="csrf" value="' . View::e($csrfToken
                 </option>
             <?php endforeach; ?>
         </select>
-        <a class="nav-day" aria-label="Vacation précédente"
+        <a class="nav-day" aria-label="Rotation précédente"
            href="<?= View::e($url($shiftView['previous']['date'], $shiftView['previous']['shift'])) ?>">
             <?= View::render('components/icon', ['name' => 'chevron-left']) ?>
         </a>
@@ -68,16 +68,17 @@ $contextFields = '<input type="hidden" name="csrf" value="' . View::e($csrfToken
             <?= View::render('components/icon', ['name' => 'calendar']) ?>
             <?= View::e(ucfirst($shiftView['label'])) ?>
         </span>
-        <a class="nav-day" aria-label="Vacation suivante"
+        <a class="nav-day" aria-label="Rotation suivante"
            href="<?= View::e($url($shiftView['next']['date'], $shiftView['next']['shift'])) ?>">
             <?= View::render('components/icon', ['name' => 'chevron-right']) ?>
         </a>
         <label for="team-date" class="sr-only">Date</label>
         <input type="date" id="team-date" name="date" value="<?= View::e($shiftView['date']) ?>">
-        <label for="team-shift" class="sr-only">Vacation</label>
-        <select id="team-shift" name="vacation">
+        <label for="team-shift" class="sr-only">Rotation</label>
+        <select id="team-shift" name="rotation">
             <?php foreach (CareTeamService::SHIFTS as $key => $shift) : ?>
-                <option value="<?= View::e(strtolower($key)) ?>"<?= $key === $shiftView['shift'] ? ' selected' : '' ?>>
+                <?php $selected = $key === $shiftView['shift'] ? ' selected' : ''; ?>
+                <option value="<?= View::e(CareTeamService::urlValue($key)) ?>"<?= $selected ?>>
                     <?= View::e($shift['label'] . ' (' . $shift['hours'] . ')') ?>
                 </option>
             <?php endforeach; ?>
@@ -95,8 +96,8 @@ $contextFields = '<input type="hidden" name="csrf" value="' . View::e($csrfToken
     <?php if ($teams === []) : ?>
         <?= View::render('components/empty_state', [
             'icon' => 'info',
-            'title' => 'Aucune équipe composée pour cette vacation.',
-            'text' => 'Composez les équipes ci-dessous, au début de la vacation.',
+            'title' => 'Aucune équipe composée pour cette rotation.',
+            'text' => 'Composez les équipes ci-dessous, au début de la rotation.',
         ]) ?>
     <?php else : ?>
         <ul class="team-cards">
@@ -110,7 +111,8 @@ $contextFields = '<input type="hidden" name="csrf" value="' . View::e($csrfToken
                                 <?= View::e($name) ?>
                                 <?php $planningUrl = '/mon-planning?idPractitioner='
                                     . rawurlencode((string) $idPractitioner)
-                                    . '&date=' . $shiftView['date'] . '&vacation=' . strtolower($shiftView['shift']); ?>
+                                    . '&date=' . $shiftView['date']
+                                    . '&rotation=' . CareTeamService::urlValue($shiftView['shift']); ?>
                                 <a href="<?= View::e($planningUrl) ?>">
                                     planning
                                 </a>
@@ -181,7 +183,7 @@ $contextFields = '<input type="hidden" name="csrf" value="' . View::e($csrfToken
                 </label>
             <?php endforeach; ?>
             <?php if ($unassigned === []) : ?>
-                <p>Tous les patients du service ont une équipe pour cette vacation.</p>
+                <p>Tous les patients du service ont une équipe pour cette rotation.</p>
             <?php endif; ?>
             <?php if (isset($errors['patients'])) : ?>
                 <p class="field-error" id="team-patients-error" role="alert"><?= View::e($errors['patients']) ?></p>

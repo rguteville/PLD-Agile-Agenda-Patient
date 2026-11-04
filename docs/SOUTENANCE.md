@@ -229,13 +229,14 @@ détail s'ouvre à la demande. Le tri et les sections sont calculés par une fon
 
 ### Étape 7. Équipes et « Mon planning » (1 min)
 
-À faire : onglet « Équipes », vacation de jour ; puis « Mon planning » d'une infirmière.
+À faire : onglet « Équipes », rotation en cours ; puis « Mon planning » d'une infirmière.
 
 À expliquer :
 
-Une équipe de vacation (jour 8 h à 20 h, nuit 20 h à 8 h) regroupe des soignants et des patients ; un patient n'a
-qu'une équipe par vacation. « Mon planning » montre à un soignant les soins de ses patients pendant sa vacation, avec
-les mêmes actions que l'agenda.
+Une équipe de rotation regroupe des soignants et des patients ; un patient n'a qu'une équipe par rotation. Les
+rotations sont les mêmes partout dans AURA (matin 6 h à 14 h, après-midi 14 h à 22 h, nuit 22 h à 6 h) : sections
+de l'agenda, limite de validation d'un soin, équipes. « Mon planning » montre à un soignant les soins de ses
+patients pendant sa rotation, avec les mêmes actions que l'agenda.
 
 ### Étape 8. Fin de séjour par décès (1 min)
 
@@ -282,8 +283,8 @@ service, fenêtre « maintenant » de deux heures, horizon de génération de l'
 Les changements d'heure (fin mars, fin octobre) décalent les soins « toutes les N heures » : la règle (heure
 murale ou durée réelle) est à décider avec le service.
 
-Deux découpages coexistent : les rotations (6 h, 14 h, 22 h) pour l'agenda et la validation, les vacations (8 h à
-20 h, 20 h à 8 h) pour les équipes. Un seul devrait faire foi.
+Les bornes des rotations (6 h, 14 h, 22 h) sont une hypothèse : elles font foi partout (agenda, validation, équipes)
+et se changent en un seul endroit (`CareTeam::SHIFTS`) si le service travaille autrement.
 
 Un aide-soignant peut saisir une prescription paramédicale de médicament (elle reste « non validée » jusqu'à un
 médecin) ; le dossier d'un séjour clos reste modifiable : deux règles à trancher avec les médecins.

@@ -284,7 +284,7 @@ final class ComponentsRenderTest extends TestCase
         self::assertStringContainsString('name="allergyCriticality[ALG01]"', $html);
         self::assertMatchesRegularExpression('/<option value="Élevée"\s+selected>/', $html);
         self::assertStringContainsString('Latex &lt;x&gt;', $html);
-        self::assertStringContainsString('1 allergène coché', $html);
+        self::assertStringNotContainsString('allergène coché', $html, 'plus de compteur (retours du 2026-11-04)');
     }
 
     public function testBannerColorsEachAllergyByCriticality(): void

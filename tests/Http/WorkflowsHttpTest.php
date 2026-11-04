@@ -109,8 +109,8 @@ final class WorkflowsHttpTest extends HttpTestCase
 
     public function testTeamIsComposedAndRemovedForAShift(): void
     {
-        $context = ['idHealthcareService' => 'SRV01', 'date' => '2031-03-04', 'vacation' => 'nuit'];
-        $page = $this->get('/equipes?idHealthcareService=SRV01&date=2031-03-04&vacation=nuit');
+        $context = ['idHealthcareService' => 'SRV01', 'date' => '2031-03-04', 'rotation' => 'nuit'];
+        $page = $this->get('/equipes?idHealthcareService=SRV01&date=2031-03-04&rotation=nuit');
         $csrf = $this->csrfFrom($page);
         try {
             $team = $context + ['name' => 'Zz équipe', 'members' => ['PRA05'], 'patients' => ['1', '2']];
@@ -122,7 +122,7 @@ final class WorkflowsHttpTest extends HttpTestCase
             self::assertStringContainsString('Zz équipe', $list);
 
             $twice = $this->postForm('/equipes/creer', ['csrf' => $csrf, 'name' => 'Zz autre'] + $team);
-            self::assertSame(422, $twice->status, 'un patient n\'a qu\'une équipe par vacation');
+            self::assertSame(422, $twice->status, 'un patient n\'a qu\'une équipe par rotation');
 
             $id = (int) $this->pdo()->query("SELECT idCareTeam FROM CareTeam WHERE name = 'Zz équipe'")->fetchColumn();
             $removed = $this->postForm('/equipes/retirer', ['csrf' => $csrf, 'idCareTeam' => (string) $id] + $context);

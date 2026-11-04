@@ -60,9 +60,9 @@ l'authentification des praticiens (AURA-50 ; praticiens et rôles : AURA-18).
 | `GET /agenda-patient?id=` ou `?numSejour=`, `&date=`, `&vue=semaine` | Agenda du séjour, jour (retards épinglés, rotations) ou semaine (lundi à dimanche). |
 | `POST /agenda-patient/soin` | Action sur un soin (AURA-26, AURA-28) : réalisé, non effectué (motif obligatoire) ou note. JSON ou formulaire, CSRF, auth. factice du soignant ; validation possible jusqu'à la fin de la rotation en cours, une seule fois. |
 | `GET /agenda-service?idHealthcareService=&date=&vue=&sejour=` | Agenda du service (AURA-29, AURA-32) : « Lits » (`vue=lits`, par défaut ; `sejour=` choisit le patient du panneau de détail) ou « Liste de travail » (`vue=liste`). |
-| `GET /equipes?idHealthcareService=&date=&vacation=` | Équipes de la vacation (jour ou nuit) et formulaire de composition (AURA-30). |
-| `POST /equipes/creer`, `POST /equipes/retirer` | Composer une équipe ou la retirer (suppression logique), CSRF, retour à la vacation. |
-| `GET /mon-planning?idPractitioner=&date=&vacation=` | Soins des patients des équipes d'un soignant pendant la vacation (AURA-31), avec les mêmes actions que l'agenda. |
+| `GET /equipes?idHealthcareService=&date=&rotation=` | Équipes de la rotation (matin, après-midi ou nuit) et formulaire de composition (AURA-30). |
+| `POST /equipes/creer`, `POST /equipes/retirer` | Composer une équipe ou la retirer (suppression logique), CSRF, retour à la rotation. |
+| `GET /mon-planning?idPractitioner=&date=&rotation=` | Soins des patients des équipes d'un soignant pendant la rotation (AURA-31), avec les mêmes actions que l'agenda. |
 
 Toute autre adresse : page 404 (`View::error()`).
 
@@ -334,7 +334,7 @@ Lecture : `EpisodeOfCare` = séjour (numéro `AAAA-NNNNNN` généré), `CarePlan
 `AllergyIntolerance` = allergie d'un patient à une `Substance` du référentiel, `Medication.idSubstance` = principe
 actif d'un médicament (alerte allergie), `PlanDefinition` = protocole (groupe de prescriptions modèle) et
 `PlanDefinitionAction` ses lignes, `Pathology` = référentiel des pathologies d'un protocole, `CareTeam` = équipe
-d'une vacation avec ses soignants (`CareTeamMember`) et ses patients (`CareTeamPatient`), `AuditEvent` = journal des
+d'une rotation avec ses soignants (`CareTeamMember`) et ses patients (`CareTeamPatient`), `AuditEvent` = journal des
 modifications (sans clé étrangère). Les colonnes `activeKey` sont générées (unicité sur les seules lignes actives).
 Régénérer le diagramme : parser les `CREATE TABLE` et `FOREIGN KEY` de `schema.sql` (version régénérée ainsi le
 2026-11-04 ; les clés uniques sur plusieurs colonnes ne sont pas marquées `UK`).
@@ -351,10 +351,10 @@ Régénérer le diagramme : parser les `CREATE TABLE` et `FOREIGN KEY` de `schem
 - **Soin planifié = rendez-vous de soin** (`Appointment`), généré à l'enregistrement d'une prescription (AURA-24.4) ;
   le retard est un calcul d'affichage (`AgendaService::presentDay()`), pas une donnée. Chaque jour,
   `bin/generate-agenda.php` prolonge l'agenda jusqu'à J + 7 sans doublon (RG9).
-- **Rotations et vacations (hypothèses)** : l'agenda découpe la journée en rotations qui commencent à 0 h, 6 h,
-  14 h et 22 h (`AgendaService::SHIFTS`) ; un soin se valide s'il est en retard ou prévu avant la fin de la
-  rotation en cours (`AgendaService::shiftEnd()`). Les équipes suivent des vacations de 8 h à 20 h et de 20 h à
-  8 h (`CareTeamService::SHIFTS`). Les deux découpages sont à confirmer avec le service.
+- **Trois rotations, une seule référence** (décision du 2026-11-04) : matin 6 h à 14 h, après-midi 14 h à 22 h,
+  nuit 22 h à 6 h (`CareTeam::SHIFTS`). Elles bornent l'agenda (sections), la validation anticipée d'un soin
+  (jusqu'à la fin de la rotation en cours, `AgendaService::shiftEnd()`), les équipes et « Mon planning »
+  (`CareTeamService`). Bornes à confirmer avec le service.
 - **Validation médicale** (RG5) : une ordonnance est validée dans son ensemble par un praticien dont le rôle a
   `canValidate` ; seules les lignes validées et non arrêtées apparaissent au dossier et à l'agenda.
 - **Suppression** : logique en principe (`removedAt`, voir README, « Conventions ») : `Patient`, `CareTeam`.

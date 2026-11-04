@@ -114,7 +114,7 @@ Une valeur inconnue en base s'affiche telle quelle, en neutre, avec l'icône `ci
   lendemain). Vue-modèle pur `AgendaService::presentBoard()`, ligne de soin partagée `components/care_line`. Le
   contrat du vue-modèle est documenté en tête du fichier et couvert par un test.
 - **Équipes et « Mon planning »** (`pages/team/teams.php`, `pages/team/planning.php`, `GET /equipes`,
-  `GET /mon-planning`) : vacations de 8 h à 20 h et de 20 h à 8 h (`CareTeamService::SHIFTS`, hypothèse).
+  `GET /mon-planning`) : les trois rotations de l'agenda, 6 h, 14 h, 22 h (`CareTeam::SHIFTS`, hypothèse).
 
 ## Vérifier
 

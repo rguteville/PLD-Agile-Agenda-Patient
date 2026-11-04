@@ -12,6 +12,7 @@ use Aura\Dao\CarePlanDao;
 use Aura\Dao\MedicationDao;
 use Aura\Dao\EpisodeOfCareDao;
 use Aura\Dao\PatientDao;
+use Aura\Domain\CareTeam;
 use Aura\Domain\AllergyIntolerance;
 use Aura\Domain\CarePlan;
 use Aura\Domain\MedicationRequest;
@@ -50,18 +51,21 @@ final class AgendaService
     /**
      * Fin de la rotation en cours à l'instant $now (6 h, 14 h, 22 h, ou 6 h le lendemain pour la nuit
      * commencée à 22 h). Un soin prévu avant cette heure peut être validé ou déclaré non effectué ; un
-     * soin d'une rotation à venir, non (retours du 2026-11-04). Bornes : HYPOTHÈSE de SHIFTS.
+     * soin d'une rotation à venir, non (retours du 2026-11-04). Bornes lues dans CareTeam::SHIFTS, la seule
+     * référence des rotations (équipes comprises).
      */
     public static function shiftEnd(DateTimeImmutable $now): DateTimeImmutable
     {
         $hour = (int) $now->format('G');
-        foreach ([6, 14, 22] as $end) {
+        $starts = array_column(CareTeam::SHIFTS, 'from');
+        sort($starts);
+        foreach ($starts as $end) {
             if ($hour < $end) {
                 return $now->setTime($end, 0);
             }
         }
 
-        return $now->modify('+1 day')->setTime(6, 0);
+        return $now->modify('+1 day')->setTime($starts[0], 0);
     }
 
     /** Statut en base (Appointment.status) → clé du badge (components/status_badge.php). */

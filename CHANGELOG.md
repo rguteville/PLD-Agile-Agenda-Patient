@@ -6,6 +6,12 @@ Format : une entrée par pull request, de la plus récente à la plus ancienne.
 
 ### Retours du 2026-11-04 (3)
 
+- Trois rotations, une seule référence (décision de Raphaël) : les équipes et « Mon planning » suivent les rotations
+  de l'agenda (matin 6 h à 14 h, après-midi 14 h à 22 h, nuit 22 h à 6 h, `CareTeam::SHIFTS`) au lieu de vacations
+  de 12 h. Paramètre `rotation` (l'ancien `vacation` est encore lu). Schéma : `CareTeam.shift` VARCHAR(10), CHECK
+  sur MATIN, APRES_MIDI, NUIT (proposition pour Didac, migration `2026-11-04-trois-rotations.sql`). Démo : équipes
+  pour les trois rotations.
+
 - Édition en ligne du dossier : « Confirmer » passe par la fenêtre de validation par un médecin (authentification
   factice, comme « Modifier ») ; l'historique porte le nom du médecin au lieu de « non identifié ». La route
   `/sejour/champ/modifier` est câblée avec le service des parties (l'authentification y est vérifiée).
