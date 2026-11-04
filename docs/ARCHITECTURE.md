@@ -71,264 +71,291 @@ Toute autre adresse : page 404 (`View::error()`).
 Diagramme tiré de `database/schema.sql` (branche `main` du 2026-11-04) : 20 tables, 29 clés étrangères.
 
 ```mermaid
-erDiagram
-    Patient {
-        VARCHAR(20) idPatient PK
-        INT ipp UK
-        VARCHAR(50) firstName
-        VARCHAR(50) lastName
-        VARCHAR(10) phoneNumber
-        VARCHAR(50) email
-        VARCHAR(1) sex
-        DATE birthDate
-        BOOLEAN deceased
-        VARCHAR(100) generalPractitioner
-        VARCHAR(100) address
-        VARCHAR(3) bloodType
-        VARCHAR(50) birthLastName
-        VARCHAR(50) birthFirstName
-        VARCHAR(20) insNumber
-        VARCHAR(100) trustedPersonName
-        VARCHAR(20) trustedPersonPhone
-        VARCHAR(100) trustedPersonEmail
-        VARCHAR(100) dmpIdentifier
-        TEXT advanceDirectives
-        TEXT allergyNote
-        TEXT medicalHistory
-        TEXT surgicalHistory
-        TEXT obstetricHistory
-        TEXT transfusionHistory
-        TEXT vaccinationHistory
-        TEXT anestheticHistory
-        TEXT toxicHistory
-        TEXT familySocialHistory
-        TEXT lifestyle
-        TEXT foreignTravel
-        TEXT comorbidities
-        TEXT currentTreatment
-        DATETIME removedAt "suppression logique, NULL si actif"
-    }
-    HealthcareService {
-        VARCHAR(20) idHealthcareService PK
-        VARCHAR(50) serviceName
-    }
-    ActivityDefinition {
-        VARCHAR(20) idActivityDefinition PK
-        VARCHAR(100) name
-        VARCHAR(200) description
-    }
-    PractitionerRole {
-        VARCHAR(20) idPractitionerRole PK
-        VARCHAR(50) title
-        BOOLEAN canValidate
-    }
-    Substance {
-        VARCHAR(20) idSubstance PK
-        VARCHAR(100) name UK
-    }
-    Medication {
-        VARCHAR(20) idMedication PK
-        VARCHAR(100) inn UK "UK composite uq_inn_form"
-        VARCHAR(100) form UK "UK composite uq_inn_form"
-        VARCHAR(20) idSubstance FK
-    }
-    AllergyIntolerance {
-        VARCHAR(20) idAllergy PK
-        VARCHAR(20) idPatient FK, UK "UK composite uq_substance_patient"
-        VARCHAR(20) idSubstance FK, UK "UK composite uq_substance_patient"
-        VARCHAR(100) manifestation
-        VARCHAR(100) criticality
-        DATETIME recordedAt "date d'enregistrement"
-    }
-    Practitioner {
-        VARCHAR(20) idPractitioner PK
-        VARCHAR(20) idPractitionerRole FK
-        VARCHAR(50) firstName
-        VARCHAR(50) lastName
-        VARCHAR(10) phoneNumber
-        VARCHAR(50) email
-    }
-    EpisodeOfCare {
-        VARCHAR(20) idEpisodeOfCare PK
-        VARCHAR(20) idPatient FK
-        VARCHAR(20) idHealthcareService FK
-        VARCHAR(20) episodeNumber UK "AAAA-NNNNNN, généré"
-        DATETIME admissionDate
-        DATETIME dischargeDate "NULL si séjour en cours"
-        VARCHAR(20) bedNumber
-        VARCHAR(20) boxNumber
-        VARCHAR(1000) admissionReason
-        DECIMAL weight "DECIMAL(5,2), kg"
-        DECIMAL height "DECIMAL(5,2), cm"
-        VARCHAR(500) precautions
-        VARCHAR(100) specialStatus
-        TEXT whitePlan
-        TEXT diseaseHistory1
-        TEXT diseaseHistory2
-        TEXT diseaseHistory3
-        TEXT diseaseHistory4
-        TEXT diseaseHistory5
-        VARCHAR(5) asaScore
-        VARCHAR(5) nyhaClass
-        VARCHAR(5) mcCabeScore
-        VARCHAR(5) knausScore
-        VARCHAR(5) girScore
-        VARCHAR(5) intermacsProfile
-        TEXT intubationCriteria
-        DATE surgeryDate
-        TEXT materialLeftInPlace
-        VARCHAR(200) removableProstheses
-        VARCHAR(100) completedBy
-        VARCHAR(20) idReferringPractitioner FK "NULL si à désigner"
-    }
-    Pathology {
-        VARCHAR(20) idPathology PK
-        VARCHAR(100) label UK
-    }
-    PlanDefinition {
-        VARCHAR(20) idPlanDefinition PK
-        VARCHAR(100) title
-        VARCHAR(20) idPathology FK
-        BOOLEAN active "FALSE si retiré"
-    }
-    PlanDefinitionAction {
-        VARCHAR(20) idPlanDefinitionAction PK
-        VARCHAR(20) idPlanDefinition FK
-        VARCHAR(20) kind "MEDICATION ou CARE"
-        VARCHAR(20) idActivityDefinition FK
-        VARCHAR(20) idMedication FK
-        VARCHAR(50) dose
-        VARCHAR(50) route
-        VARCHAR(200) important
-        VARCHAR(200) nurseInstructions
-        VARCHAR(50) maxDose
-        VARCHAR(50) dilutionVolume
-        VARCHAR(200) solvent
-        VARCHAR(50) administrationDuration
-        VARCHAR(200) antibioticReason
-        VARCHAR(200) germ
-        VARCHAR(200) renalAdjustment
-        VARCHAR(200) adjustmentCriterion
-        VARCHAR(200) offGhsReason
-        SMALLINT startOffsetHours
-        SMALLINT durationHours
-        SMALLINT frequencyHours
-        VARCHAR(200) timeConstraint
-    }
-    CarePlan {
-        VARCHAR(20) idCarePlan PK
-        VARCHAR(20) idEpisodeOfCare FK
-        VARCHAR(20) idPrescriber FK "prescripteur"
-        VARCHAR(20) mode "MEDICAL, PARAMEDICAL ou EMERGENCY"
-        DATETIME recordedAt
-        VARCHAR(20) idValidator FK "NULL si non validée"
-        DATETIME validatedAt "NULL si non validée"
-        VARCHAR(20) idPlanDefinition FK
-        TEXT note
-    }
-    ServiceRequest {
-        VARCHAR(20) idServiceRequest PK
-        VARCHAR(20) idCarePlan FK
-        VARCHAR(20) idActivityDefinition FK
-        DATETIME startDate
-        DATETIME endDate
-        SMALLINT frequencyHours
-        VARCHAR(200) timeConstraint
-        VARCHAR(20) idStoppedBy FK "NULL si ligne active"
-        DATETIME stoppedAt "arrêt de la ligne"
-    }
-    MedicationRequest {
-        VARCHAR(20) idMedicationRequest PK
-        VARCHAR(20) idCarePlan FK
-        VARCHAR(20) idActivityDefinition FK
-        VARCHAR(20) idMedication FK
-        VARCHAR(50) dose
-        VARCHAR(50) route
-        VARCHAR(200) important
-        VARCHAR(200) nurseInstructions
-        VARCHAR(50) maxDose
-        VARCHAR(50) dilutionVolume
-        VARCHAR(200) solvent
-        VARCHAR(50) administrationDuration
-        VARCHAR(200) antibioticReason
-        VARCHAR(200) germ
-        VARCHAR(200) renalAdjustment
-        VARCHAR(200) adjustmentCriterion
-        VARCHAR(200) offGhsReason
-        DATETIME startDate
-        DATETIME endDate
-        SMALLINT frequencyHours
-        VARCHAR(200) timeConstraint
-        VARCHAR(20) idStoppedBy FK "NULL si ligne active"
-        DATETIME stoppedAt "arrêt de la ligne"
-    }
-    Appointment {
-        VARCHAR(20) idAppointment PK
-        VARCHAR(20) idServiceRequest FK, UK "UK avec plannedTime, exclusif avec idMedicationRequest"
-        VARCHAR(20) idMedicationRequest FK, UK "UK avec plannedTime, exclusif avec idServiceRequest"
-        DATETIME plannedTime UK "UK avec la ligne de prescription"
-        VARCHAR(20) status "PLANIFIE, REALISE, NON_FAIT, ANNULE"
-        DATETIME timeOfCompletion
-        DATETIME timeRecorded
-        VARCHAR(100) comment
-    }
-    AuditEvent {
-        INT idAuditEvent PK "UNSIGNED AUTO_INCREMENT"
-        VARCHAR(20) entity "table tracée, sans FK"
-        VARCHAR(20) entityId "id de la ligne tracée, sans FK"
-        VARCHAR(50) field
-        TEXT oldValue
-        TEXT newValue
-        VARCHAR(100) author
-        VARCHAR(200) detail
-        DATETIME recordedAt
-    }
-    CareTeam {
-        INT idCareTeam PK "UNSIGNED AUTO_INCREMENT"
-        VARCHAR(20) idHealthcareService FK, UK "UK composite uq_careteam_name"
-        DATE shiftDate UK "UK composite uq_careteam_name"
-        VARCHAR(10) shift UK "UK composite uq_careteam_name, MATIN, APRES_MIDI ou NUIT"
-        VARCHAR(30) name UK "UK composite uq_careteam_name"
-        DATETIME removedAt "suppression logique, NULL si active"
-        TINYINT activeKey UK "UK composite uq_careteam_name, générée, 1 si active, sinon NULL"
-    }
-    CareTeamMember {
-        INT idCareTeam PK, FK
-        VARCHAR(20) idPractitioner PK, FK
-    }
-    CareTeamPatient {
-        INT idCareTeam PK, FK
-        VARCHAR(20) idEpisodeOfCare PK, FK
-    }
-    Substance |o--o{ Medication : "idSubstance"
-    Patient ||--o{ AllergyIntolerance : "idPatient"
-    Substance ||--o{ AllergyIntolerance : "idSubstance"
-    PractitionerRole |o--o{ Practitioner : "idPractitionerRole"
-    Patient |o--o{ EpisodeOfCare : "idPatient"
-    HealthcareService |o--o{ EpisodeOfCare : "idHealthcareService"
-    Practitioner |o--o{ EpisodeOfCare : "idReferringPractitioner"
-    Pathology |o--o{ PlanDefinition : "idPathology"
-    PlanDefinition ||--o{ PlanDefinitionAction : "idPlanDefinition"
-    ActivityDefinition ||--o{ PlanDefinitionAction : "idActivityDefinition"
-    Medication |o--o{ PlanDefinitionAction : "idMedication"
-    EpisodeOfCare ||--o{ CarePlan : "idEpisodeOfCare"
-    Practitioner ||--o{ CarePlan : "idPrescriber"
-    Practitioner |o--o{ CarePlan : "idValidator"
-    PlanDefinition |o--o{ CarePlan : "idPlanDefinition"
-    CarePlan ||--o{ ServiceRequest : "idCarePlan"
-    ActivityDefinition ||--o{ ServiceRequest : "idActivityDefinition"
-    Practitioner |o--o{ ServiceRequest : "idStoppedBy"
-    CarePlan ||--o{ MedicationRequest : "idCarePlan"
-    ActivityDefinition ||--o{ MedicationRequest : "idActivityDefinition"
-    Medication ||--o{ MedicationRequest : "idMedication"
-    Practitioner |o--o{ MedicationRequest : "idStoppedBy"
-    ServiceRequest |o--o{ Appointment : "idServiceRequest"
-    MedicationRequest |o--o{ Appointment : "idMedicationRequest"
-    HealthcareService ||--o{ CareTeam : "idHealthcareService"
-    CareTeam ||--o{ CareTeamMember : "idCareTeam"
-    Practitioner ||--o{ CareTeamMember : "idPractitioner"
-    CareTeam ||--o{ CareTeamPatient : "idCareTeam"
-    EpisodeOfCare ||--o{ CareTeamPatient : "idEpisodeOfCare"
+classDiagram
+direction LR
+
+class Patient {
+	* idPatient VARCHAR[20]
+	ipp INT UNIQUE CHECK [ipp BETWEEN 100000 AND 999999999]
+	firstName VARCHAR[50]
+	lastName VARCHAR[50] NOT NULL
+	phoneNumber VARCHAR[10]
+	email VARCHAR[50]
+	sex VARCHAR[1]
+	birthDate DATE
+	deceased BOOLEAN
+	generalPractitioner VARCHAR[100]
+	address VARCHAR[100]
+	bloodType VARCHAR[3]
+	birthLastName VARCHAR[50]
+	birthFirstName VARCHAR[50]
+	insNumber VARCHAR[20]
+	trustedPersonName VARCHAR[100]
+	trustedPersonPhone VARCHAR[20]
+	trustedPersonEmail VARCHAR[100]
+	dmpIdentifier VARCHAR[100]
+	advanceDirectives TEXT
+	allergyNote TEXT
+	medicalHistory TEXT
+	surgicalHistory TEXT
+	obstetricHistory TEXT
+	transfusionHistory TEXT
+	vaccinationHistory TEXT
+	anestheticHistory TEXT
+	toxicHistory TEXT
+	familySocialHistory TEXT
+	lifestyle TEXT
+	foreignTravel TEXT
+	comorbidities TEXT
+	currentTreatment TEXT
+	removedAt DATETIME NULL
+	INDEX idx_patient_lastname [lastName]
+	INDEX idx_patient_firstname [firstName]
+	INDEX idx_patient_birthlastname [birthLastName]
+}
+class HealthcareService {
+	* idHealthcareService VARCHAR[20]
+	serviceName VARCHAR[50]
+}
+class ActivityDefinition {
+	* idActivityDefinition VARCHAR[20]
+	name VARCHAR[100]
+	description VARCHAR[200]
+}
+class PractitionerRole {
+	* idPractitionerRole VARCHAR[20]
+	title VARCHAR[50]
+	canValidate BOOLEAN NOT NULL DEFAULT FALSE
+}
+class Substance {
+	* idSubstance VARCHAR[20]
+	name VARCHAR[100] NOT NULL UNIQUE
+}
+class Medication {
+	* idMedication VARCHAR[20]
+	inn VARCHAR[100]
+	form VARCHAR[100]
+	#idSubstance VARCHAR[20]
+	UNIQUE [inn form]
+}
+class AllergyIntolerance {
+	* idAllergy VARCHAR[20]
+	#idPatient VARCHAR[20] NOT NULL
+	#idSubstance VARCHAR[20] NOT NULL
+	manifestation VARCHAR[100]
+	criticality VARCHAR[100]
+	recordedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	UNIQUE [idPatient idSubstance]
+}
+class Practitioner {
+	* idPractitioner VARCHAR[20]
+	#idPractitionerRole VARCHAR[20]
+	firstName VARCHAR[50]
+	lastName VARCHAR[50]
+	phoneNumber VARCHAR[10]
+	email VARCHAR[50]
+}
+class EpisodeOfCare {
+	* idEpisodeOfCare VARCHAR[20]
+	#idPatient VARCHAR[20]
+	#idHealthcareService VARCHAR[20]
+	episodeNumber VARCHAR[20] NOT NULL UNIQUE
+	admissionDate DATETIME NOT NULL
+	dischargeDate DATETIME
+	bedNumber VARCHAR[20]
+	boxNumber VARCHAR[20]
+	admissionReason VARCHAR[1000]
+	weight DECIMAL[52]
+	height DECIMAL[52]
+	precautions VARCHAR[500]
+	specialStatus VARCHAR[100]
+	whitePlan TEXT
+	diseaseHistory1 TEXT
+	diseaseHistory2 TEXT
+	diseaseHistory3 TEXT
+	diseaseHistory4 TEXT
+	diseaseHistory5 TEXT
+	asaScore VARCHAR[5]
+	nyhaClass VARCHAR[5]
+	mcCabeScore VARCHAR[5]
+	knausScore VARCHAR[5]
+	girScore VARCHAR[5]
+	intermacsProfile VARCHAR[5]
+	intubationCriteria TEXT
+	surgeryDate DATE
+	materialLeftInPlace TEXT
+	removableProstheses VARCHAR[200]
+	completedBy VARCHAR[100]
+	#idReferringPractitioner VARCHAR[20]
+}
+class Pathology {
+	* idPathology VARCHAR[20]
+	label VARCHAR[100] NOT NULL UNIQUE
+}
+class PlanDefinition {
+	* idPlanDefinition VARCHAR[20]
+	title VARCHAR[100] NOT NULL
+	#idPathology VARCHAR[20]
+	active BOOLEAN NOT NULL DEFAULT TRUE
+}
+class PlanDefinitionAction {
+	* idPlanDefinitionAction VARCHAR[20]
+	#idPlanDefinition VARCHAR[20] NOT NULL
+	kind VARCHAR[20] NOT NULL
+	#idActivityDefinition VARCHAR[20] NOT NULL
+	#idMedication VARCHAR[20]
+	dose VARCHAR[50]
+	route VARCHAR[50]
+	important VARCHAR[200]
+	nurseInstructions VARCHAR[200]
+	maxDose VARCHAR[50]
+	dilutionVolume VARCHAR[50]
+	solvent VARCHAR[200]
+	administrationDuration VARCHAR[50]
+	antibioticReason VARCHAR[200]
+	germ VARCHAR[200]
+	renalAdjustment VARCHAR[200]
+	adjustmentCriterion VARCHAR[200]
+	offGhsReason VARCHAR[200]
+	startOffsetHours SMALLINT NOT NULL DEFAULT 0
+	durationHours SMALLINT
+	frequencyHours SMALLINT
+	timeConstraint VARCHAR[200]
+	CHECK [BINARY kind IN [MEDICATION CARE]]
+	CHECK [ [kind = MEDICATION AND idMedication IS NOT NULL AND dose IS NOT NULL AND route IS NOT NULL] OR [kind = CARE AND idMedication IS NULL AND dose IS NULL AND route IS NULL] ]
+	CHECK [startOffsetHours >= 0]
+	CHECK [frequencyHours IS NULL OR frequencyHours > 0]
+	CHECK [ durationHours IS NULL OR [durationHours > 0 AND frequencyHours IS NOT NULL] ]
+}
+class CarePlan {
+	* idCarePlan VARCHAR[20]
+	#idEpisodeOfCare VARCHAR[20] NOT NULL
+	#idPrescriber VARCHAR[20] NOT NULL
+	mode VARCHAR[20] NOT NULL
+	recordedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	#idValidator VARCHAR[20]
+	validatedAt DATETIME
+	#idPlanDefinition VARCHAR[20]
+	note TEXT
+	CHECK [BINARY mode IN [MEDICAL PARAMEDICAL EMERGENCY]]
+	CHECK [[idValidator IS NULL] = [validatedAt IS NULL]]
+}
+class ServiceRequest {
+	* idServiceRequest VARCHAR[20]
+	#idCarePlan VARCHAR[20] NOT NULL
+	#idActivityDefinition VARCHAR[20] NOT NULL
+	startDate DATETIME NOT NULL
+	endDate DATETIME
+	frequencyHours SMALLINT
+	timeConstraint VARCHAR[200]
+	#idStoppedBy VARCHAR[20]
+	stoppedAt DATETIME
+	CHECK [frequencyHours IS NULL OR frequencyHours > 0]
+	CHECK [endDate IS NULL OR endDate >= startDate]
+	CHECK [[idStoppedBy IS NULL] = [stoppedAt IS NULL]]
+}
+class MedicationRequest {
+	* idMedicationRequest VARCHAR[20]
+	#idCarePlan VARCHAR[20] NOT NULL
+	#idActivityDefinition VARCHAR[20] NOT NULL
+	#idMedication VARCHAR[20] NOT NULL
+	dose VARCHAR[50] NOT NULL
+	route VARCHAR[50] NOT NULL
+	important VARCHAR[200]
+	nurseInstructions VARCHAR[200]
+	maxDose VARCHAR[50]
+	dilutionVolume VARCHAR[50]
+	solvent VARCHAR[200]
+	administrationDuration VARCHAR[50]
+	antibioticReason VARCHAR[200]
+	germ VARCHAR[200]
+	renalAdjustment VARCHAR[200]
+	adjustmentCriterion VARCHAR[200]
+	offGhsReason VARCHAR[200]
+	startDate DATETIME NOT NULL
+	endDate DATETIME
+	frequencyHours SMALLINT
+	timeConstraint VARCHAR[200]
+	#idStoppedBy VARCHAR[20]
+	stoppedAt DATETIME
+	CHECK [frequencyHours IS NULL OR frequencyHours > 0]
+	CHECK [endDate IS NULL OR endDate >= startDate]
+	CHECK [[idStoppedBy IS NULL] = [stoppedAt IS NULL]]
+}
+class Appointment {
+	* idAppointment VARCHAR[20]
+	#idServiceRequest VARCHAR[20]
+	#idMedicationRequest VARCHAR[20]
+	plannedTime DATETIME NOT NULL
+	status VARCHAR[20]
+	timeOfCompletion DATETIME
+	timeRecorded DATETIME
+	comment VARCHAR[100]
+	CHECK [[idServiceRequest IS NULL] différent de [idMedicationRequest IS NULL]]
+	UNIQUE [idServiceRequest plannedTime]
+	UNIQUE [idMedicationRequest plannedTime]
+}
+class AuditEvent {
+	* idAuditEvent INT UNSIGNED AUTO_INCREMENT
+	entity VARCHAR[20] NOT NULL
+	entityId VARCHAR[20] NOT NULL
+	field VARCHAR[50] NOT NULL
+	oldValue TEXT NULL
+	newValue TEXT NULL
+	author VARCHAR[100] NOT NULL
+	detail VARCHAR[200] NULL
+	recordedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	INDEX idx_auditevent_entity [entity entityId recordedAt]
+}
+class CareTeam {
+	* idCareTeam INT UNSIGNED AUTO_INCREMENT
+	#idHealthcareService VARCHAR[20] NOT NULL
+	shiftDate DATE NOT NULL
+	shift VARCHAR[10] NOT NULL
+	name VARCHAR[30] NOT NULL
+	removedAt DATETIME
+	activeKey TINYINT GÉNÉRÉE [IF[removedAt IS NULL 1 NULL]]
+	CHECK [BINARY shift IN [MATIN APRES_MIDI NUIT]]
+	UNIQUE [idHealthcareService shiftDate shift name activeKey]
+}
+class CareTeamMember {
+	* #idCareTeam INT UNSIGNED NOT NULL
+	* #idPractitioner VARCHAR[20] NOT NULL
+}
+class CareTeamPatient {
+	* #idCareTeam INT UNSIGNED NOT NULL
+	* #idEpisodeOfCare VARCHAR[20] NOT NULL
+}
+
+Medication --> Substance
+AllergyIntolerance --> Patient
+AllergyIntolerance --> Substance
+Practitioner --> PractitionerRole
+EpisodeOfCare --> Patient
+EpisodeOfCare --> HealthcareService
+EpisodeOfCare --> Practitioner
+PlanDefinition --> Pathology
+PlanDefinitionAction --> PlanDefinition
+PlanDefinitionAction --> ActivityDefinition
+PlanDefinitionAction --> Medication
+CarePlan --> EpisodeOfCare
+CarePlan --> Practitioner
+CarePlan --> Practitioner
+CarePlan --> PlanDefinition
+ServiceRequest --> CarePlan
+ServiceRequest --> ActivityDefinition
+ServiceRequest --> Practitioner
+MedicationRequest --> CarePlan
+MedicationRequest --> ActivityDefinition
+MedicationRequest --> Medication
+MedicationRequest --> Practitioner
+Appointment --> ServiceRequest
+Appointment --> MedicationRequest
+CareTeam --> HealthcareService
+CareTeamMember --> CareTeam
+CareTeamMember --> Practitioner
+CareTeamPatient --> CareTeam
+CareTeamPatient --> EpisodeOfCare
 ```
 
 Lecture : `EpisodeOfCare` = séjour (numéro `AAAA-NNNNNN` généré), `CarePlan` = ordonnance, `ServiceRequest` /
@@ -341,10 +368,12 @@ modifications.
 
 Notation :
 
-- Une relation = une clé étrangère, nommée par sa colonne. Côté parent, `||` si la colonne est `NOT NULL`, `|o` si
-  elle accepte NULL (13 relations sur 29). Côté enfant, toujours `o{` (zéro ou plusieurs).
-- `UK` marque une colonne unique seule, ou une colonne d'une clé unique composée (nom de la contrainte en commentaire).
-- `CareTeamMember` et `CareTeamPatient` ont une clé primaire composée de leurs deux clés étrangères.
+- Une classe par table, ses colonnes avec leur type SQL (crochets au lieu de parenthèses : `VARCHAR[20]`) et leurs
+  contraintes, puis les contraintes de la table (`CHECK`, `UNIQUE`, `INDEX`).
+- `*` marque la clé primaire, `#` une clé étrangère, `* #` une colonne qui est les deux (`CareTeamMember`,
+  `CareTeamPatient` : clé primaire composée de leurs deux clés étrangères).
+- Une flèche `A --> B` = une clé étrangère de la table A vers la table B. Deux flèches identiques = deux clés
+  étrangères vers la même table (`CarePlan` : prescripteur et validateur).
 - `AuditEvent` n'a aucune clé étrangère, par choix : `entity` et `entityId` désignent la ligne tracée (`Patient`,
   `EpisodeOfCare`, `Appointment` ou `CarePlan`). Elle n'est donc reliée à aucune table.
 - `removedAt` marque la suppression logique (`Patient`, `CareTeam`). `CareTeam.activeKey` est une colonne générée qui
@@ -352,8 +381,8 @@ Notation :
 - `idAuditEvent` et `idCareTeam` sont des `INT UNSIGNED AUTO_INCREMENT` ; les autres identifiants sont des
   `VARCHAR(20)` calculés par l'application.
 
-Régénérer le diagramme : parser les `CREATE TABLE`, `PRIMARY KEY`, `UNIQUE` et `FOREIGN KEY` de `schema.sql`, puis
-relire les commentaires de colonnes.
+Régénérer le diagramme : reprendre chaque `CREATE TABLE` de `schema.sql` (colonnes, `PRIMARY KEY`, `UNIQUE`,
+`CHECK`) et ajouter une flèche par `FOREIGN KEY`.
 
 ## Diagramme de classes
 
