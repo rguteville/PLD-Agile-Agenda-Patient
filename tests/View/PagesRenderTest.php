@@ -83,6 +83,7 @@ final class PagesRenderTest extends TestCase
         self::assertStringContainsString('Soignant Test (IDE)', $html);
         self::assertStringContainsString('action="/agenda-patient/soin"', $html, 'le dialogue enregistre');
         self::assertStringContainsString('<time datetime="2026-10-14T08:00">08:00</time>', $html);
+        self::assertStringNotContainsString('>Responsable</th>', $html, 'colonne retirée (retours du 2026-11-04)');
     }
 
     public function testPrescriptionListWithThreeStatuses(): void
