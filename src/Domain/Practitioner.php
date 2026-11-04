@@ -6,7 +6,7 @@ namespace Aura\Domain;
 
 /**
  * Professionnel de santé (ressource HL7 Practitioner, tables Practitioner et PractitionerRole) :
- * prescripteur, membre d'une équipe de vacation, médecin référent d'un séjour,
+ * prescripteur, membre d'une équipe de rotation, médecin référent d'un séjour,
  * médecin qui valide une modification du dossier (fenêtre d'authentification factice).
  *
  * Accesseurs get*() : un par colonne, sans logique ni validation.

@@ -655,8 +655,8 @@ final class AgendaService
     }
 
     /**
-     * Vue-modèle d'une vacation pour un soignant (« Mon planning ») : les soins des patients
-     * de son équipe dont l'heure prévue tombe dans la vacation [début, fin[, par ordre chronologique,
+     * Vue-modèle d'une rotation pour un soignant (« Mon planning ») : les soins des patients
+     * de son équipe dont l'heure prévue tombe dans la rotation [début, fin[, par ordre chronologique,
      * avec le patient de chaque soin, et un résumé par patient (allergies RG2, retards, à faire).
      * Mêmes règles que presentDay(). Pure : la fenêtre et l'heure courante sont injectées.
      *
@@ -675,8 +675,8 @@ final class AgendaService
         foreach ($episodes as $episode) {
             $name = mb_strtoupper((string) $episode['lastName']) . ' ' . $episode['firstName'];
             $own = [];
-            // Une vacation de nuit chevauche deux jours civils : on lit chaque jour qu'elle touche.
-            // Un retard de la vacation précédente (avant $start) est repris en tête, sinon il n'est plus
+            // La rotation de nuit chevauche deux jours civils : on lit chaque jour qu'elle touche.
+            // Un retard de la rotation précédente (avant $start) est repris en tête, sinon il n'est plus
             // visible de personne à la relève. Dédoublonné par soin.
             $seen = [];
             for ($day = $start->setTime(0, 0); $day < $end; $day = $day->modify('+1 day')) {

@@ -1,4 +1,4 @@
-// Barres de navigation des agendas et des équipes : choisir une date (ou un service, une vacation, un
+// Barres de navigation des agendas et des équipes : choisir une date (ou un service, une rotation, un
 // soignant) affiche directement la page, sans bouton « Afficher ». Sans JavaScript, le bouton reste
 // visible et le formulaire GET fonctionne seul.
 // Chargé par l'agenda du patient, l'agenda du service, « Mon planning » et « Équipes ».

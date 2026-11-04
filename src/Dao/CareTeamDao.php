@@ -10,10 +10,10 @@ use DateTimeInterface;
 use PDO;
 
 /**
- * Accès aux équipes de vacation : CareTeam (ressource HL7 du même nom), CareTeamMember,
+ * Accès aux équipes de rotation : CareTeam (ressource HL7 du même nom), CareTeamMember,
  * CareTeamPatient. Seules les équipes actives (removedAt NULL) sont lues ; retirer une équipe garde
  * sa ligne (suppression logique, colonne générée activeKey pour l'unicité du nom). idCareTeam est
- * un AUTO_INCREMENT. La règle « un patient dans une seule équipe par vacation » est dans CareTeamService.
+ * un AUTO_INCREMENT. La règle « un patient dans une seule équipe par rotation » est dans CareTeamService.
  */
 class CareTeamDao
 {
@@ -22,7 +22,7 @@ class CareTeamDao
     }
 
     /**
-     * Équipes actives d'une vacation, par nom.
+     * Équipes actives d'une rotation, par nom.
      *
      * @return list<CareTeam>
      */
@@ -39,7 +39,7 @@ class CareTeamDao
     }
 
     /**
-     * Équipes actives d'une vacation dont le soignant fait partie (« mon planning »).
+     * Équipes actives d'une rotation dont le soignant fait partie (« mon planning »).
      *
      * @return list<CareTeam>
      */
@@ -72,8 +72,8 @@ class CareTeamDao
     /**
      * Crée l'équipe, ses membres et ses patients, et renvoie son id ; à appeler dans Transaction::run().
      *
-     * @throws \PDOException nom déjà pris par une équipe active de la vacation (uq_careteam_name),
-     *                       vacation hors JOUR / NUIT, soignant ou séjour inconnu
+     * @throws \PDOException nom déjà pris par une équipe active de la rotation (uq_careteam_name),
+     *                       rotation hors MATIN / APRES_MIDI / NUIT, soignant ou séjour inconnu
      */
     public function insert(CareTeam $team): int
     {
