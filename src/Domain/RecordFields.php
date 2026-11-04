@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Aura\Domain;
 
 /**
- * Catalogue des champs complémentaires du dossier patient (PR « admission-champs-complets »).
+ * Catalogue des champs complémentaires du dossier patient (admission, dossier, édition en ligne).
  *
  * Chaque entrée décrit un champ facultatif : sa section d'affichage, son type de saisie, ses
  * bornes et, pour les échelles, ses valeurs autorisées (ClinicalScales). Le nom de la clé est
@@ -42,7 +42,7 @@ final class RecordFields
     ];
 
     /**
-     * Décès du patient (colonne existante Patient.deceased BOOLEAN, retours des médecins du 2026-11-03).
+     * Décès du patient (colonne Patient.deceased BOOLEAN).
      * '0' / '1' tels que relus en base ; null = non renseigné (patients admis avant ce champ).
      */
     public const DECEASED_OPTIONS = ['0' => 'Non', '1' => 'Oui'];
@@ -55,7 +55,7 @@ final class RecordFields
      *                          admission?: bool, validatedByDoctor?: bool}>
      */
     public const PATIENT = [
-        // Donnée vitale (retours du 2026-11-04) : comme le décès, elle ne change que par « Modifier » sur
+        // Donnée vitale : comme le décès, elle ne change que par « Modifier » sur
         // sa partie, validé par un médecin et tracé ; l'admission peut seulement compléter un groupe inconnu.
         'bloodType' => [
             'label' => 'Groupe sanguin',
@@ -217,7 +217,7 @@ final class RecordFields
         ],
         // Absent du formulaire d'admission ('admission' => false) et jamais modifiable champ par champ :
         // seulement par « Modifier » sur la partie, validé par un médecin et tracé ('validatedByDoctor').
-        // Passer à « Oui » termine le séjour en cours (RecordSectionService, retours du 2026-11-04).
+        // Passer à « Oui » termine le séjour en cours (RecordSectionService).
         'deceased' => [
             'label' => 'Patient(e) décédé(e)',
             'type' => 'select',

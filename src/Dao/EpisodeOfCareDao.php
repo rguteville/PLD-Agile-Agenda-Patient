@@ -29,7 +29,7 @@ class EpisodeOfCareDao
          idReferringPractitioner, referrer.firstName AS referrerFirstName, referrer.lastName AS referrerLastName';
 
     /**
-     * Séjour + nom de son médecin référent (retours du 2026-11-03), pour l'afficher sans autre requête.
+     * Séjour + nom de son médecin référent, pour l'afficher sans autre requête.
      * Practitioner n'a aucune colonne homonyme de EpisodeOfCare : les colonnes non préfixées restent univoques.
      */
     private const FROM =
@@ -164,7 +164,7 @@ class EpisodeOfCareDao
      */
     public function updateDischarge(int $idEpisodeOfCare, DateTimeInterface $dischargeDate): bool
     {
-        // Conditionnel (relecture adversariale du 2026-11-04) : deux fins de séjour simultanées, la seconde
+        // Conditionnel : deux fins de séjour simultanées, la seconde
         // ne réécrit pas la date de la première ; l'appelant reçoit false.
         $stmt = $this->pdo->prepare(
             'UPDATE EpisodeOfCare SET dischargeDate = :dischargeDate
@@ -273,30 +273,6 @@ class EpisodeOfCareDao
     public const EDITABLE_BASE_COLUMNS = [
         'weight', 'height', 'precautions', 'idHealthcareService', 'idReferringPractitioner',
     ];
-
-    /**
-     * Met à jour seulement les champs fournis : clés de RecordFields::EPISODE ou colonnes de
-     * EDITABLE_BASE_COLUMNS ; toute autre clé est ignorée (liste blanche).
-     *
-     * @param array<string, ?string> $details
-     */
-    public function updateDetails(int $idEpisodeOfCare, array $details): void
-    {
-        $details = array_intersect_key(
-            $details,
-            RecordFields::EPISODE + array_fill_keys(self::EDITABLE_BASE_COLUMNS, true)
-        );
-        if ($details === []) {
-            return;
-        }
-
-        $stmt = $this->pdo->prepare(
-            'UPDATE EpisodeOfCare SET '
-            . implode(', ', array_map(static fn (string $c): string => $c . ' = :' . $c, array_keys($details)))
-            . ' WHERE idEpisodeOfCare = :id'
-        );
-        $stmt->execute(['id' => (string) $idEpisodeOfCare] + $details);
-    }
 
     /**
      * Met à jour UN champ seulement si sa valeur en base est encore celle attendue (contrôle de

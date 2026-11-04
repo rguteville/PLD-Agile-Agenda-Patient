@@ -10,6 +10,7 @@ namespace Aura\Domain;
  */
 class ServiceRequest extends RequestLine
 {
+    /** Clé de la ligne (idServiceRequest), null tant qu'elle n'est pas enregistrée. */
     public function getIdServiceRequest(): ?int
     {
         return $this->getId();

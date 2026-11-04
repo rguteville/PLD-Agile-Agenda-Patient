@@ -7,7 +7,6 @@ namespace Aura\Dao;
 use Aura\Domain\Patient;
 use Aura\Domain\RecordFields;
 use DateTimeImmutable;
-use DateTimeInterface;
 use LogicException;
 use PDO;
 
@@ -17,7 +16,7 @@ use PDO;
  * (MAX + 1, FOR UPDATE) ; IPP calculé par nextIpp() quand l'admission n'en fournit pas.
  *
  * AURA-12.3 : un patient supprimé (removedAt renseigné, suppression logique) n'est renvoyé par
- * aucune lecture (liste, recherches, findById, findByIpp, findByIdentity). Seuls existsByIpp(),
+ * aucune lecture (liste, recherches, findById, findByIpp). Seuls existsByIpp(),
  * ippOwnerId() et nextIpp() le voient encore : son IPP reste réservé (colonne UNIQUE).
  */
 class PatientDao
@@ -30,7 +29,7 @@ class PatientDao
 
     /**
      * Colonnes de la liste des patients (findAll(), search()) : l'identité et le décès, affiché dans la
-     * liste (retours des médecins du 2026-11-03) ; deceased arrive dans les champs complémentaires.
+     * liste ; deceased arrive dans les champs complémentaires.
      */
     private const LIST_COLUMNS = self::IDENTITY_COLUMNS . ', deceased';
 
@@ -97,7 +96,7 @@ class PatientDao
 
     /**
      * Patients dont chaque mot recherché commence un mot du nom d'usage, du nom de naissance ou du
-     * prénom (PR « admission-recherche-patient »). Les mots sont déjà découpés et nettoyés par
+     * prénom (recherche d'un patient connu à l'admission). Les mots sont déjà découpés et nettoyés par
      * PatientSearchService ; ici ils sont passés en paramètres préparés, jokers échappés.
      *
      * Casse et accents : la table est en utf8mb4_unicode_ci (vérifié sur MariaDB 11.8), LIKE et =
@@ -106,7 +105,7 @@ class PatientDao
      * des mots d'abord, puis nom, prénom. Avec la date du dernier séjour (admission la plus récente).
      * Performance : l'expression calculée empêche l'usage d'un index pour le filtre (balayage de la
      * table Patient, quelques milliers de lignes au plus dans un service) ; les index sur lastName et
-     * firstName servent au tri et à findByIdentity(). Patients supprimés exclus.
+     * firstName servent au tri. Patients supprimés exclus.
      *
      * @param list<string> $words mots non vides
      * @param int $limit nombre maximal de résultats (au moins 1)
@@ -252,9 +251,8 @@ class PatientDao
 
     /**
      * Verrouille la ligne du patient jusqu'à la fin de la transaction en cours (SELECT … FOR UPDATE).
-     * Relecture adversariale du 2026-11-04 : l'admission d'un patient connu et sa suppression prennent ce
-     * verrou toutes les deux, elles ne peuvent donc plus s'entrelacer (patient supprimé avec un séjour en
-     * cours). À appeler dans une transaction.
+     * L'admission d'un patient connu et sa suppression prennent ce verrou toutes les deux : elles ne peuvent
+     * donc pas s'entrelacer (patient supprimé avec un séjour en cours). À appeler dans une transaction.
      */
     public function lockForUpdate(int $idPatient): void
     {
@@ -277,29 +275,6 @@ class PatientDao
         $stmt->execute(['idPatient' => (string) $idPatient]);
 
         return $stmt->rowCount() === 1;
-    }
-
-    /**
-     * Patients actifs portant exactement ce nom, ce prénom et cette date de naissance
-     * (reconnaissance d'un patient déjà venu dans le service, sans IPP). Comparaison selon la
-     * collation de la table : casse et accents ignorés.
-     *
-     * @return Patient[]
-     */
-    public function findByIdentity(string $lastName, string $firstName, DateTimeInterface $birthDate): array
-    {
-        $stmt = $this->pdo->prepare(
-            'SELECT ' . self::columns() . ' FROM Patient
-             WHERE lastName = :lastName AND firstName = :firstName AND birthDate = :birthDate
-               AND ' . self::ACTIVE
-        );
-        $stmt->execute([
-            'lastName' => $lastName,
-            'firstName' => $firstName,
-            'birthDate' => $birthDate->format('Y-m-d'),
-        ]);
-
-        return array_map(fn(array $r) => $this->mapToEntity($r), $stmt->fetchAll(PDO::FETCH_ASSOC));
     }
 
     /**

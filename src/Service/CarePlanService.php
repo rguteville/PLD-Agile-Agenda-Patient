@@ -28,7 +28,7 @@ use InvalidArgumentException;
  * frequencyHours…), et ce sont aussi les noms des champs envoyés : un seul vocabulaire.
  * checkInput() est pure (aucun accès à la base) ; prescribe() applique ensuite les règles qui
  * demandent la base : séjour en cours, prescripteur et référentiels existants, droits (RG5),
- * allergies du patient (retours du 2026-11-03 : refus sauf confirmation explicite, tracée).
+ * allergies du patient (refus sauf confirmation explicite, tracée).
  */
 final class CarePlanService
 {
@@ -374,7 +374,7 @@ final class CarePlanService
      * urgence ou en paramédical, son ordonnance est enregistrée « non validée » et reste
      * visible jusqu'à la validation par un médecin (validateCarePlan()).
      *
-     * Allergies (retours du 2026-11-03) : une ligne de médicament dont le principe actif est un
+     * Allergies : une ligne de médicament dont le principe actif est un
      * allergène du patient fait refuser l'ordonnance (PrescriptionRejected, clé allergyOverride),
      * sauf si le prescripteur a coché « Je prescris malgré l'allergie ». La confirmation est alors
      * tracée (AuditEvent, une ligne par médicament concerné) dans la même transaction que l'ordonnance.
@@ -432,8 +432,8 @@ final class CarePlanService
         $medicationActivity = array_search(self::MEDICATION_ACTIVITY, $activityDefinitions, true);
         $medications = $this->referenceDataDao->medications();
 
-        // Relecture adversariale du 2026-11-04 : une ligne ne commence pas avant l'admission (une date en 2020
-        // créait des milliers de soins « en retard »).
+        // Une ligne ne commence pas avant l'admission (une date en 2020 créerait des milliers de soins
+        // « en retard »).
         $admission = DateTimeImmutable::createFromFormat('d/m/Y H:i', (string) ($record['admissionDate'] ?? ''));
 
         // Chaque soin et chaque médicament doit exister ; RG6 : chaque ligne a un type de soin.
@@ -518,11 +518,10 @@ final class CarePlanService
     /**
      * Allergènes du patient portés par les médicaments du référentiel (Medication.idSubstance). Pure.
      *
-     * Relecture adversariale du 2026-11-04 : le référentiel ne relie un médicament qu'à UNE substance
-     * (Medication.idSubstance, l'amoxicilline à la pénicilline). Un patient allergique à l'« Amoxicilline »
-     * elle-même passait donc sans alerte. En plus du lien, un allergène dont le nom est celui du médicament
-     * (DCI, sans accents ni casse) est signalé. Le vrai remède est un lien médicament ↔ substances multiple,
-     * proposé au responsable de la base.
+     * Le référentiel ne relie un médicament qu'à UNE substance (Medication.idSubstance, l'amoxicilline à la
+     * pénicilline) : un patient allergique à l'« Amoxicilline » elle-même passerait sans alerte. En plus du
+     * lien, un allergène dont le nom est celui du médicament (DCI, sans accents ni casse) est signalé. Le vrai
+     * remède est un lien médicament ↔ substances multiple, proposé au responsable de la base.
      *
      * @param array<string, string> $allergens allergies du patient : idSubstance => libellé
      * @param array<string, string> $medicationSubstances idMedication => idSubstance
@@ -640,7 +639,7 @@ final class CarePlanService
     /**
      * Authentification FACTICE du médecin qui valide, pure : il doit être dans la liste des médecins
      * habilités (canValidate) et avoir saisi un mot de passe non vide, qui n'est PAS vérifié (en
-     * attendant l'identification des praticiens, AURA-18). Même règle que la fenêtre du dossier.
+     * attendant l'identification des praticiens, AURA-50). Même règle que la fenêtre du dossier.
      *
      * @param array<string, string> $doctors médecins habilités : idPractitioner => libellé (doctors())
      * @return string|null AUTH_ERROR si refusée, null si acceptée
@@ -819,7 +818,7 @@ final class CarePlanService
         } elseif ($start === null) {
             $errors['startDate'] = 'la date de début est invalide.';
         } elseif ($start->format('Y') < self::YEAR_MIN || $start->format('Y') > self::YEAR_MAX) {
-            // Relecture adversariale du 2026-11-04 : une date en 9999 faisait planter l'enregistrement.
+            // Une date en 9999 ferait planter l'enregistrement.
             $errors['startDate'] = 'la date de début est hors des limites (vérifiez l\'année).';
         }
 
@@ -1029,7 +1028,7 @@ final class CarePlanService
 
     /**
      * Période d'une ligne : « du D au F », « du D, sans date de fin » si l'arrêt n'est pas prévu, ou « le D » pour
-     * une prescription « Une fois » (retours du 2026-11-04 : pas de « du » sans « au »).
+     * une prescription « Une fois » (pas de « du » sans « au »).
      */
     public static function period(string $start, ?string $end, bool $once = false): string
     {

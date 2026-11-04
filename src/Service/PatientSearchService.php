@@ -12,7 +12,7 @@ use Aura\Domain\RecordFields;
 use DateTimeImmutable;
 
 /**
- * Recherche d'un patient déjà connu du service à l'admission (PR « admission-recherche-patient »),
+ * Recherche d'un patient déjà connu du service à l'admission (GET /patients/recherche et /patients/fiche),
  * par IPP (prioritaire, résultat unique) ou par nom / prénom (liste à choisir explicitement).
  *
  * Identitovigilance : la recherche ne sélectionne jamais un patient ; elle renvoie de quoi
@@ -50,8 +50,8 @@ class PatientSearchService
      */
     public static function words(string $query): array
     {
-        // Relecture adversariale du 2026-11-04 : saisie et nombre de mots bornés (des milliers de mots dépassaient
-        // le nombre de paramètres d'une requête préparée). Un nom et un prénom tiennent dans MAX_WORDS mots.
+        // Saisie et nombre de mots bornés (des milliers de mots dépasseraient le nombre de paramètres d'une
+        // requête préparée). Un nom et un prénom tiennent dans MAX_WORDS mots.
         $parts = preg_split('/[\s\-\'’]+/u', trim(mb_substr($query, 0, self::MAX_QUERY_LENGTH))) ?: [];
         $words = array_values(array_filter(array_map('trim', $parts), static fn (string $w): bool => $w !== ''));
 

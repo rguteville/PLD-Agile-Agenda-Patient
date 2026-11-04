@@ -47,7 +47,7 @@ function showFieldError(form, fieldName, message) {
 }
 
 // Erreur hors champ (ex. « patient déjà hospitalisé ») : à côté du bouton d'envoi, là où l'on regarde
-// au moment d'admettre (retours du 2026-11-03) ; en tête du formulaire s'il n'a pas de zone d'actions.
+// au moment d'envoyer ; en tête du formulaire s'il n'a pas de zone d'actions.
 function showFormError(form, message) {
     const p = document.createElement('p');
     p.className = 'form-error';
@@ -64,8 +64,8 @@ function showFormError(form, message) {
 document.querySelectorAll('form[data-ajax]').forEach(form => {
     form.addEventListener('submit', async event => {
         event.preventDefault();
-        // Relecture adversariale du 2026-11-04 : un double clic envoyait deux fois l'ordonnance (soins en
-        // double dans l'agenda) ou l'admission (deux patients). Un seul envoi à la fois, boutons désactivés.
+        // Un seul envoi à la fois, boutons désactivés : un double clic enverrait deux fois l'ordonnance
+        // (soins en double dans l'agenda) ou l'admission (deux patients).
         if (form.dataset.sending === '1') {
             return;
         }

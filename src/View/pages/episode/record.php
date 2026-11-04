@@ -49,7 +49,7 @@ $services = $services ?? [];
 $referringDoctors = $referringDoctors ?? [];
 $episodeHistory = $episodeHistory ?? [];
 $currentEpisode = $currentEpisode ?? null;
-// Crayon « Modifier » d'une partie entière (retours du 2026-11-02), à côté du titre de la partie.
+// Crayon « Modifier » d'une partie entière, à côté du titre de la partie.
 $partEditButton = static fn (string $part, string $title): string =>
     '<button type="button" class="part-edit" data-part-edit="' . View::e($part) . '" aria-label="Modifier la partie : '
     . View::e($title) . '" title="Modifier toute la partie">'
@@ -74,8 +74,8 @@ $lineValue = static function (array $row): string {
     ['label' => 'Patients', 'href' => '/patients'],
     ['label' => 'Dossier du séjour n° ' . $banner['episodeNumber']],
 ]]) ?>
-<?php /* Retours des médecins du 2026-11-03 : dossier d'un séjour antérieur alors que le patient est
-         hospitalisé, le séjour en cours est signalé et lié en tête de page. */ ?>
+<?php /* Dossier d'un séjour antérieur alors que le patient est hospitalisé : le séjour en cours est
+         signalé et lié en tête de page. */ ?>
 <?php if ($currentEpisode !== null) : ?>
     <aside class="current-episode-notice" aria-labelledby="current-episode-title">
         <?= View::render('components/icon', ['name' => 'info']) ?>
@@ -97,7 +97,7 @@ $lineValue = static function (array $row): string {
 <?php endif; ?>
 
 <div class="record-layout">
-<?php /* Menu figé à gauche (retours du 2026-11-02) : agenda en tête, puis les parties du dossier ; les
+<?php /* Menu figé à gauche : agenda en tête, puis les parties du dossier ; les
          sous-catégories du dossier complet ouvrent leur section (public/js/record-menu.js). */ ?>
 <?php
 $subParts = array_map(
@@ -144,8 +144,7 @@ if ($editable) {
                     </button>
                 <?php endif; ?>
                 <?php if (empty($banner['deceased'])) : ?>
-                    <?php /* Retours du 2026-11-04 : le décès se déclare d'un bouton visible (il était caché dans
-                             la partie « Administratif complémentaire »), validé par un médecin et tracé. Il met
+                    <?php /* Le décès se déclare d'un bouton visible, validé par un médecin et tracé. Il met
                              fin au séjour à l'heure du décès (POST /sejour/deces, part-edit.js). */ ?>
                     <button type="button" class="button button--danger" data-declare-death
                             data-current="<?= View::e($partValues['admin']['deceased'] ?? '') ?>">
@@ -156,8 +155,8 @@ if ($editable) {
         <?php endif; ?>
     </div>
     <dl class="record-summary" data-part-view="<?= RecordSectionService::PART_SUMMARY ?>">
-        <?php /* Audit IHM du 2026-11-04 : nom, naissance et IPP sont déjà dans le bandeau patient (RG2), au-dessus ;
-                 le résumé ne les répète plus. */ ?>
+        <?php /* Nom, naissance et IPP sont déjà dans le bandeau patient (RG2), au-dessus : le résumé ne les
+                 répète pas. */ ?>
         <dt>Statut</dt>
         <dd>
             <?php if ($episodeOfCare['ongoing']) : ?>
@@ -166,7 +165,7 @@ if ($editable) {
                 <?= View::render('components/status_badge', ['status' => 'stopped', 'label' => 'Clos']) ?>
                 le <?= View::e($episodeOfCare['dischargeDate']) ?>
             <?php endif; ?>
-            <?php /* Le décès reste affiché dans le résumé, en plus du bandeau (retours du 2026-11-03). */ ?>
+            <?php /* Le décès reste affiché dans le résumé, en plus du bandeau. */ ?>
             <?php if (!empty($banner['deceased'])) : ?>
                 <?= View::render('components/deceased_tag', ['label' => $banner['deceasedLabel'] ?? null]) ?>
             <?php endif; ?>
@@ -267,7 +266,7 @@ if ($editable) {
     <?php if ($substances === []) : ?>
         <p class="reference-exhausted">Tous les allergènes du référentiel sont déjà enregistrés pour ce patient.</p>
     <?php else : ?>
-        <?php /* Audit IHM du 2026-11-04 : le formulaire d'ajout s'ouvre à la demande (ouvert après une erreur). */ ?>
+        <?php /* Le formulaire d'ajout s'ouvre à la demande (ouvert d'office après une erreur). */ ?>
         <details class="add-allergy-menu"<?= empty($allergyError) ? '' : ' open' ?>>
             <summary>Ajouter une allergie</summary>
             <form method="post" action="/sejour/allergies/ajouter" class="add-allergy">
@@ -418,7 +417,7 @@ if ($editable) {
     <?php endif; ?>
     </div>
 
-    <?php /* Historique des séjours (retours des médecins du 2026-11-03) : chacun mène à son dossier. */ ?>
+    <?php /* Historique des séjours : chacun mène à son dossier. */ ?>
     <section class="record-episodes" aria-labelledby="titre-sejours">
         <h2 class="record-subtitle" id="titre-sejours">Séjours du patient</h2>
         <?php if ($episodeHistory === []) : ?>
@@ -433,7 +432,7 @@ if ($editable) {
 
 </section>
 
-<?php /* Prescriptions en cours dans une colonne à droite du dossier (retours du 2026-11-02) ; sous le
+<?php /* Prescriptions en cours dans une colonne à droite du dossier ; sous le
          dossier sur un écran plus étroit. RG5 : seules les lignes validées par un médecin et non arrêtées. */ ?>
 <aside class="record-aside" aria-labelledby="titre-prescriptions">
     <div class="record-aside__header">
@@ -478,7 +477,7 @@ if ($editable) {
                     <p class="prescription-card__summary">
                         <?= View::e($line['frequency']) ?>, <?= View::e($line['period']) ?>
                     </p>
-                    <?php /* Sécurité du patient (relecture du 2026-11-04) : allergène, consignes, dose maximale,
+                    <?php /* Sécurité du patient : allergène, consignes, dose maximale,
                              contrainte horaire et note de l'ordonnance restent visibles ; seuls les champs
                              administratifs (motif antibiotique, germe, hors GHS…) et la validation se replient. */ ?>
                     <?php if (($line['allergen'] ?? null) !== null) : ?>
@@ -505,7 +504,7 @@ if ($editable) {
                     </details>
                     <?php if ($episodeOfCare['ongoing']) : ?>
                         <?php /* AURA-22 : un médecin arrête la ligne ; elle quitte alors cette liste. Le formulaire
-                                 ne s'ouvre qu'à la demande (audit IHM du 2026-11-04). */ ?>
+                                 ne s'ouvre qu'à la demande. */ ?>
                         <details class="prescription-card__stop">
                             <summary>Arrêter…<span class="sr-only"> : <?= View::e($line['label']) ?></span></summary>
                             <form class="stop-form" method="post" data-ajax
@@ -521,7 +520,7 @@ if ($editable) {
                                         <option value="<?= View::e($value) ?>"><?= View::e($label) ?></option>
                                     <?php endforeach; ?>
                                 </select>
-                                <?php /* Authentification FACTICE : mot de passe exigé, non vérifié (AURA-18). */ ?>
+                                <?php /* Authentification FACTICE : mot de passe exigé, non vérifié (AURA-50). */ ?>
                                 <input type="password" name="password" autocomplete="off" placeholder="mot de passe"
                                        aria-label="Mot de passe du médecin qui arrête : <?= View::e($line['label']) ?>">
                                 <button type="submit">Arrêter</button>
@@ -538,7 +537,7 @@ if ($editable) {
 
 <?php if ($editable) : ?>
     <?php /* Fenêtre de validation par un médecin : AUTHENTIFICATION FACTICE (le mot de passe n'est pas
-             vérifié) en attendant l'identification des praticiens (AURA-18). Elle sert aux modifications
+             vérifié) en attendant l'identification des praticiens (AURA-50). Elle sert aux modifications
              d'une partie, à la fin du séjour et à la déclaration du décès (public/js/part-edit.js) : pour ces
              deux dernières, la date et l'heure (de sortie ou du décès) s'affichent. */ ?>
     <dialog id="auth-dialog" class="auth-dialog" aria-labelledby="auth-dialog-title">

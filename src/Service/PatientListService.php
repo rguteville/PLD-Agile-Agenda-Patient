@@ -11,9 +11,9 @@ use Aura\Domain\Patient;
 use Aura\Domain\EpisodeOfCare;
 
 /**
- * Liste des patients du service (AURA-12.1), avec, depuis les retours des médecins du 2026-11-03 :
- * le séjour en cours mis en avant (numéro, lit, service, depuis le …), un lien vers le dossier pour
- * chaque patient (séjour en cours, sinon dernier séjour), l'historique de ses séjours et le décès.
+ * Liste des patients du service (AURA-12.1), avec le séjour en cours mis en avant (numéro, lit, service,
+ * depuis le …), un lien vers le dossier pour chaque patient (séjour en cours, sinon dernier séjour),
+ * l'historique de ses séjours et le décès.
  *
  * Tous les patients actifs apparaissent, avec ou sans séjour ; la recherche (nom, prénom ou IPP) est
  * faite en base par PatientDao::search(). Les séjours de tous les patients affichés sont lus en une

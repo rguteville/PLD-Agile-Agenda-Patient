@@ -41,7 +41,7 @@ class PatientController
         'weight' => 'weight',
         'precautions' => 'precautions',
         'idHealthcareService' => 'idService',
-        // Médecin référent du séjour (retours du 2026-11-03), facultatif : vide = « à désigner ».
+        // Médecin référent du séjour, facultatif : vide = « à désigner ».
         'idReferringPractitioner' => 'idReferringPractitioner',
         // Patient sélectionné dans la recherche (champ caché posé par admission-search.js) et mode de recherche.
         'idPatient' => 'idPatient',
@@ -334,7 +334,7 @@ class PatientController
      */
     public function create(): void
     {
-        // Relecture adversariale du 2026-11-04 : l'admission exige le jeton CSRF, comme les autres POST.
+        // L'admission exige le jeton CSRF, comme les autres POST.
         if (!$this->checkCsrf()) {
             return;
         }
@@ -394,7 +394,7 @@ class PatientController
     /**
      * POST /patients/modifier?id=… : enregistre l'identité modifiée puis redirige vers la liste (303) ;
      * réaffiche le formulaire en 422 avec les erreurs par champ en cas de refus ; 404 si le patient est
-     * inconnu. Pas de jeton CSRF sur cette route, contrairement aux autres POST (dette signalée).
+     * inconnu ; 403 sans jeton CSRF valide.
      */
     public function update(): void
     {

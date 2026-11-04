@@ -4,6 +4,16 @@ Format : une entrée par pull request, de la plus récente à la plus ancienne.
 
 ## 2026-11-04
 
+### Nettoyage pour la reprise (`chore/nettoyage-code`)
+
+- Code sans usage réel supprimé : `PatientService` (jamais câblé), méthodes sans appelant, clés de vue-modèle de
+  l'ancienne grille de l'agenda du service (`slots`, `cells`, `lateItems`…), filtre par type de soin d'`agenda.js`,
+  paramètres de vue jamais passés, règles CSS des anciennes vues. Aucun changement de comportement :
+  pages comparées à `main` par capture.
+- Commentaires : historique retiré (la règle reste), commentaires faux corrigés, en-têtes complétés.
+- Nouveau document [docs/REPRISE.md](docs/REPRISE.md) : lancer, architecture, admission de bout en bout,
+  fonctionnalités, RG1 à RG10, conventions, hypothèses, dette, ajouter une page ou une règle.
+
 ### Retours du 2026-11-04 (3)
 
 - Agenda du patient : colonne « Responsable » retirée.

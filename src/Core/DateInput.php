@@ -6,8 +6,8 @@ namespace Aura\Core;
 
 /**
  * Dates saisies à la française (JJ/MM/AAAA) dans les formulaires, converties à l'entrée vers le format
- * des services et de la base (AAAA-MM-JJ). Retours d'usage du 2026-11-02 : le champ date natif du
- * navigateur n'accepte ni exemple grisé ni format imposé ; les formulaires utilisent un champ texte.
+ * des services et de la base (AAAA-MM-JJ). Le champ date natif du navigateur n'accepte ni exemple grisé
+ * ni format imposé : les formulaires utilisent donc un champ texte.
  *
  * Aucune validation ici : une saisie mal formée est rendue telle quelle, et le service la refuse
  * avec un message qui rappelle le format attendu.

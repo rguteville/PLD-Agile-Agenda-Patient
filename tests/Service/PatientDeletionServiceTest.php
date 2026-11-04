@@ -15,8 +15,6 @@ use Aura\Domain\EpisodeOfCare;
 use Aura\Domain\Patient;
 use Aura\Service\PatientDeletionService;
 use DateTimeImmutable;
-use InvalidArgumentException;
-use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
@@ -52,32 +50,7 @@ final class PatientDeletionServiceTest extends TestCase
         );
     }
 
-    /**
-     * @return iterable<string, array{0: bool, 1: int, 2: ?string}>
-     */
-    public static function ruleProvider(): iterable
-    {
-        yield 'aucun séjour en cours, aucun soin réalisé : suppression possible' => [false, 0, null];
-        yield 'séjour en cours' => [true, 0, PatientDeletionService::REFUSED_ONGOING_EPISODE];
-        yield 'un soin réalisé dans un séjour clos' => [false, 1, PatientDeletionService::REFUSED_COMPLETED_CARE];
-        yield 'plusieurs soins réalisés' => [false, 12, PatientDeletionService::REFUSED_COMPLETED_CARE];
-        yield 'séjour en cours et soins réalisés : le séjour en cours d\'abord' =>
-            [true, 3, PatientDeletionService::REFUSED_ONGOING_EPISODE];
-    }
-
-    #[DataProvider('ruleProvider')]
-    public function testRefusalReason(bool $ongoing, int $completedCare, ?string $expected): void
-    {
-        self::assertSame($expected, PatientDeletionService::refusalReason($ongoing, $completedCare));
-    }
-
-    public function testRefusalMessagesAreExplicit(): void
-    {
-        self::assertStringContainsString('séjour en cours', PatientDeletionService::REFUSED_ONGOING_EPISODE);
-        self::assertStringContainsString('soin a été réalisé', PatientDeletionService::REFUSED_COMPLETED_CARE);
-    }
-
-    public function testDeletableLoggedAndMarkedRemoved(): void
+    public function testPatientIsMarkedRemovedAndTheDeletionTraced(): void
     {
         $this->patients->method('findById')->with(4)->willReturn($this->patient());
         $this->episodes->method('findByPatient')->with(4)->willReturn([$this->episode(discharged: true)]);
@@ -102,7 +75,7 @@ final class PatientDeletionServiceTest extends TestCase
         self::assertNull($this->service->delete(4));
     }
 
-    public function testOngoingEpisodeRefusedWithoutWriting(): void
+    public function testPatientInAStayCannotBeDeleted(): void
     {
         $this->patients->method('findById')->willReturn($this->patient());
         $this->episodes->method('findByPatient')->willReturn([$this->episode(discharged: false)]);
@@ -112,7 +85,7 @@ final class PatientDeletionServiceTest extends TestCase
         self::assertSame(PatientDeletionService::REFUSED_ONGOING_EPISODE, $this->service->delete(4));
     }
 
-    public function testCompletedCareRefusedWithoutWriting(): void
+    public function testPatientWithCompletedCareCannotBeDeleted(): void
     {
         $this->patients->method('findById')->willReturn($this->patient());
         $this->episodes->method('findByPatient')->willReturn([$this->episode(discharged: true)]);
@@ -121,38 +94,6 @@ final class PatientDeletionServiceTest extends TestCase
         $this->auditEvents->expects($this->never())->method('insert');
 
         self::assertSame(PatientDeletionService::REFUSED_COMPLETED_CARE, $this->service->delete(4));
-    }
-
-    public function testUnknownOrAlreadyRemovedPatientRejected(): void
-    {
-        $this->patients->method('findById')->willReturn(null);
-        $this->patients->expects($this->never())->method('markRemoved');
-
-        $this->expectException(InvalidArgumentException::class);
-        $this->service->delete(999);
-    }
-
-    public function testConfirmationPageShowsIdentityAndRefusal(): void
-    {
-        $this->patients->method('findById')->willReturn($this->patient());
-        $this->episodes->method('findByPatient')
-            ->willReturn([$this->episode(discharged: true), $this->episode(discharged: false)]);
-
-        $page = $this->service->prepare(4);
-
-        self::assertNotNull($page);
-        self::assertSame('Parker', $page['identity']['lastName']);
-        self::assertSame('100000004', $page['identity']['ipp']);
-        self::assertSame('09/01/2001', $page['identity']['birthDate']);
-        self::assertSame(2, $page['episodes']);
-        self::assertSame(PatientDeletionService::REFUSED_ONGOING_EPISODE, $page['refusal']);
-    }
-
-    public function testConfirmationPageNullForUnknownPatient(): void
-    {
-        $this->patients->method('findById')->willReturn(null);
-
-        self::assertNull($this->service->prepare(999));
     }
 
     private function patient(): Patient

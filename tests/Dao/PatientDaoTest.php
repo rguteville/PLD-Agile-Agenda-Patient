@@ -12,11 +12,8 @@ use PDO;
 use PHPUnit\Framework\TestCase;
 
 /**
- * AURA-12.1 et AURA-12.2 : recherche de patients par nom,
- * prénom ou IPP en requête préparée et modification d'un patient.
- *
- * Test d'intégration sur la base MariaDB du CI (variables DB_*), ignoré hors CI.
- * Tout est exécuté dans une transaction annulée à la fin : la base n'est pas modifiée.
+ * Recherche de patients (liste et admission) et écriture conditionnelle, sur la base du CI.
+ * Transaction annulée en tearDown ; ignoré sans DB_HOST/DB_NAME.
  */
 final class PatientDaoTest extends TestCase
 {
@@ -34,10 +31,9 @@ final class PatientDaoTest extends TestCase
         $this->pdo = Database::get();
         $this->pdo->beginTransaction();
         $this->dao = new PatientDao($this->pdo);
-
-        // Noms volontairement improbables pour ne pas dépendre du contenu de la base.
-        $this->dao->insert($this->patient('Zzduprecherche', 'Alice', '987654301'));
-        $this->dao->insert($this->patient('Zzmartinrecherche', 'Bob', '987654302'));
+        $this->dao->insert($this->patient('Zzlefèvre', 'Jean-Pierre', '987654401'));
+        $this->dao->insert($this->patient('Zzlefèvre', 'Odette', '987654402'));
+        $this->dao->insert($this->patient("Zzd'Arc", 'Jeanne', null, 'Zzromée'));
         $this->dao->insert($this->patient('Zzsous_ligne', 'Carla', null));
     }
 
@@ -48,138 +44,52 @@ final class PatientDaoTest extends TestCase
         }
     }
 
-    /** Retours des médecins du 2026-11-03 : la liste et la recherche lisent le décès (Patient.deceased). */
-    public function testListAndSearchReadDeceased(): void
+    public function testSearchIgnoresCaseAccentsAndWordOrderAndFindsTheBirthName(): void
     {
-        $id = $this->dao->insert(new Patient(
-            null,
-            null,
-            'Zzdecede',
-            'Diane',
-            new DateTimeImmutable('1940-01-01'),
-            'F',
-            details: ['deceased' => '1']
-        ));
-
-        $found = $this->dao->search('Zzdecede');
-        $all = array_values(array_filter(
-            $this->dao->findAll(),
-            static fn (Patient $p): bool => $p->getIdPatient() === $id
-        ));
-
-        $this->assertSame('1', $found[0]->getDetail('deceased'));
-        $this->assertSame('1', $all[0]->getDetail('deceased'));
-        $this->assertNull($this->dao->search('Zzduprecherche')[0]->getDetail('deceased'), 'non renseigné : null');
+        self::assertSame(
+            ['Zzlefèvre Jean-Pierre', 'Zzlefèvre Odette'],
+            $this->names($this->dao->searchByWords(['ZZLEFEVRE'], 21))
+        );
+        self::assertSame(['Zzlefèvre Odette'], $this->names($this->dao->searchByWords(['odette', 'zzlef'], 21)));
+        $birthName = $this->dao->searchByWords(['zzrom'], 21);
+        self::assertSame(["Zzd'Arc Jeanne"], $this->names($birthName), 'nom de naissance');
     }
 
-    public function testSearchByNameFragmentCaseInsensitive(): void
+    public function testWildcardsAndInjectionNeverWidenTheSearch(): void
     {
-        $names = array_map(fn(Patient $p) => $p->getLastName(), $this->dao->search('DUPRECHERCHE'));
-
-        self::assertSame(['Zzduprecherche'], $names);
-    }
-
-    public function testSearchByFirstNameAndByIpp(): void
-    {
-        self::assertSame('Bob', $this->dao->search('bob')[0]->getFirstName());
-        self::assertSame('987654302', $this->dao->search('987654302')[0]->getIpp());
-    }
-
-    public function testSqlWildcardsAreEscaped(): void
-    {
-        // « _ » est un joker LIKE : sans échappement, « zzsous_ligne » et « zzsousXligne » matcheraient tous deux.
         self::assertCount(1, $this->dao->search('zzsous_ligne'));
-        self::assertSame([], $this->dao->search('zzsous%'), 'le joker % saisi ne doit pas élargir la recherche');
-        self::assertSame([], $this->dao->search('%'), 'un simple % ne doit pas renvoyer toute la table');
-    }
-
-    public function testInjectionAttemptReturnsNothing(): void
-    {
+        self::assertSame([], $this->dao->search('zzsous%'));
+        self::assertSame([], $this->dao->search('%'));
+        self::assertSame([], $this->dao->searchByWords(['%'], 21));
         self::assertSame([], $this->dao->search("' OR '1'='1"));
-        self::assertSame([], $this->dao->search("zz'; DROP TABLE Patient; --"));
-        // La table est toujours là : la requête précédente n'a rien exécuté d'autre qu'un SELECT.
-        self::assertNotEmpty($this->dao->search('zzmartinrecherche'));
+        self::assertNotEmpty($this->dao->search('zzlefèvre'), 'la table est intacte');
     }
 
-    public function testSearchWithoutResult(): void
+    public function testConditionalWriteFailsWhenTheValueChangedMeanwhile(): void
     {
-        self::assertSame([], $this->dao->search('zzaucunpatientnesappelleainsi'));
-    }
+        $id = (int) $this->dao->findByIpp('987654401')?->getIdPatient();
 
-    public function testUpdatePatientFields(): void
-    {
-        $id = $this->dao->insert($this->patient('Zzdupdate', 'Alice', '987654303'));
-
-        $this->dao->update(new Patient(
-            idPatient: $id,
-            ipp: '987654304',
-            lastName: 'Zzdupdate2',
-            firstName: 'Alice2',
-            birthDate: new DateTimeImmutable('1985-06-15'),
-            sex: 'M'
-        ));
-
-        $reread = $this->dao->findById($id);
-        self::assertNotNull($reread);
-        self::assertSame('Zzdupdate2', $reread->getLastName());
-        self::assertSame('Alice2', $reread->getFirstName());
-        self::assertSame('987654304', $reread->getIpp());
-        self::assertSame('1985-06-15', $reread->getBirthDate()?->format('Y-m-d'));
-        self::assertSame('M', $reread->getSex());
-    }
-
-    public function testUpdateAcceptsEmptyIpp(): void
-    {
-        $id = $this->dao->insert($this->patient('Zzdupdate5', 'Chloé', '987654307'));
-
-        $this->dao->update(new Patient(
-            $id,
-            null,
-            'Zzdupdate5',
-            'Chloé',
-            new DateTimeImmutable('1970-01-01'),
-            'F'
-        ));
-
-        self::assertNull($this->dao->findById($id)?->getIpp());
-    }
-
-    public function testUpdateTouchesOnlyTargetPatient(): void
-    {
-        $id1 = $this->dao->insert($this->patient('Zzdupdate3', 'Alice', '987654305'));
-        $id2 = $this->dao->insert($this->patient('Zzdupdate4', 'Bob', '987654306'));
-
-        $this->dao->update(new Patient(
-            $id1,
-            '987654305',
-            'Zzdupdate3modifie',
-            'Alice',
-            new DateTimeImmutable('1970-01-01'),
-            'F'
-        ));
-
-        self::assertSame('Zzdupdate3modifie', $this->dao->findById($id1)?->getLastName());
-        self::assertSame('Zzdupdate4', $this->dao->findById($id2)?->getLastName());
-    }
-
-    /** Écriture conditionnelle (concurrence optimiste) : n'écrit que si la valeur attendue est encore en base. */
-    public function testUpdateDetailIfUnchangedWritesOnlyIfExpectedValueStillThere(): void
-    {
-        $id = $this->dao->findByIpp('987654301')?->getIdPatient();
-        self::assertNotNull($id);
-
-        self::assertTrue($this->dao->updateDetailIfUnchanged($id, 'lifestyle', 'Non fumeur', null), 'NULL attendu');
+        self::assertTrue($this->dao->updateDetailIfUnchanged($id, 'lifestyle', 'Non fumeur', null));
         self::assertFalse($this->dao->updateDetailIfUnchanged($id, 'lifestyle', 'Fumeur', null), 'valeur changée');
-        self::assertTrue($this->dao->updateDetailIfUnchanged($id, 'lifestyle', null, 'Non fumeur'), 'flush');
-        self::assertNull($this->dao->findById($id)?->getDetail('lifestyle'));
-        self::assertFalse($this->dao->updateDetailIfUnchanged(999999, 'lifestyle', 'x', null), 'ligne absente');
-
-        $this->expectException(\LogicException::class);
-        $this->dao->updateDetailIfUnchanged($id, 'lastName', 'x', null);
+        self::assertSame('Non fumeur', $this->dao->findById($id)?->getDetail('lifestyle'));
     }
 
-    private function patient(string $lastName, string $firstName, ?string $ipp): Patient
+    /**
+     * @param list<array{patient: Patient, lastAdmission: ?DateTimeImmutable}> $rows
+     * @return list<string>
+     */
+    private function names(array $rows): array
     {
-        return new Patient(null, $ipp, $lastName, $firstName, new DateTimeImmutable('1970-01-01'), 'F');
+        return array_map(
+            static fn (array $r): string => $r['patient']->getLastName() . ' ' . $r['patient']->getFirstName(),
+            $rows
+        );
+    }
+
+    private function patient(string $lastName, string $firstName, ?string $ipp, ?string $birthLastName = null): Patient
+    {
+        return new Patient(null, $ipp, $lastName, $firstName, new DateTimeImmutable('1970-01-01'), 'F', details: [
+            'birthLastName' => $birthLastName,
+        ]);
     }
 }

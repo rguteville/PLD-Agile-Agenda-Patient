@@ -20,12 +20,9 @@ use DateTimeInterface;
 
 /**
  * Prépare l'affichage du dossier d'un séjour (AURA-14) : le bandeau identité + allergies
- * imposé par RG2 en tête de tout écran lié au séjour, les informations du séjour et,
- * depuis AURA-13.2, la section de gestion des allergies (liste avec retrait, ajout
- * depuis le référentiel).
- *
- * Depuis les retours des médecins (2026-11-03 et 04) : dossier complet par sections, historique des
- * séjours, médecin référent, décès et groupe sanguin dans le bandeau.
+ * imposé par RG2 en tête de tout écran lié au séjour (avec médecin référent, décès et groupe sanguin),
+ * le dossier complet par sections, l'historique des séjours et la gestion des allergies (AURA-13.2 :
+ * liste avec retrait, ajout depuis le référentiel).
  *
  * Les données viennent de la base via les DAO (AURA-11) ; les méthodes present*()
  * et availableSubstances() sont pures (pas d'accès aux données) pour être testables sans base.
@@ -80,7 +77,7 @@ final class PatientRecordService
             $doctors[$idReferent] = self::referent($episodeOfCare) ?? $idReferent;
         }
 
-        // Tous les séjours du patient (retours des médecins du 2026-11-03) : historique dans le dossier et,
+        // Tous les séjours du patient : historique dans le dossier et,
         // si le séjour affiché est clos alors qu'un autre est en cours, encart qui mène au séjour en cours.
         $episodes = $this->episodeOfCareDao->findByPatient($episodeOfCare->getIdPatient());
         $ongoing = EpisodeHistoryService::ongoing($episodes);
@@ -156,7 +153,7 @@ final class PatientRecordService
             'lastName' => trim($patient->getLastName()),
             'firstName' => trim($patient->getFirstName()),
             'sex' => self::textOrNull($patient->getSex()),
-            // Décès (retours des médecins du 2026-11-03) : texte + icône dans le bandeau, jamais la couleur seule.
+            // Décès : texte + icône dans le bandeau, jamais la couleur seule.
             'deceased' => $deceased,
             'deceasedLabel' => $deceased ? self::deceasedLabel($patient->getSex()) : null,
             'birthDate' => $birth?->format('d/m/Y'),

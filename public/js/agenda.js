@@ -3,7 +3,7 @@
 // Chargé par EpisodeOfCareController::getAgenda() (GET /agenda-patient), ServiceController::getAgenda()
 // (GET /agenda-service) et TeamController::planning() (GET /mon-planning).
 // Attend : #print-page ; [data-agenda-filters] avec ses boutons [data-filter] et [data-filter-state] ;
-// des lignes [data-appointment-row] (data-status, data-care-label) ; des boutons [data-care-action]
+// des lignes [data-appointment-row] (data-status) ; des boutons [data-care-action]
 // (data-appointment, data-episode, data-label, components/care_buttons.php) ; #validation-dialog et son
 // formulaire [data-care-form] (data-csrf, components/validation_dialog.php).
 // Appel réseau : POST /agenda-patient/soin en JSON, en-têtes Accept: application/json et X-CSRF-Token.
@@ -14,42 +14,27 @@ if (printButton) {
     printButton.addEventListener('click', () => window.print());
 }
 
-// ---- Filtres (agenda du patient, « Mon planning ») : statut (« Tous », « En retard »…) ----
-// Le filtre par type de soin ([data-type-filter]) n'est plus fourni par aucune vue : code inactif.
+// ---- Filtres par statut (agenda du patient, « Mon planning ») : « Tous », « En retard »… ----
 const filters = document.querySelector('[data-agenda-filters]');
 if (filters) {
     filters.hidden = false;
     const rows = document.querySelectorAll('[data-appointment-row]');
-    const typeFilter = filters.querySelector('[data-type-filter]');
+    const state = filters.querySelector('[data-filter-state]');
     let status = 'all';
 
-    const state = filters.querySelector('[data-filter-state]');
-
-    // Masque les lignes hors filtre et rappelle le filtre actif sur le bouton « Filtres ».
+    // Masque les lignes hors filtre et rappelle le filtre actif sur le bouton replié (« Filtres : En retard »).
     function apply() {
-        const type = typeFilter ? typeFilter.value : '';
-        // Rappel du filtre actif sur le bouton replié (« Filtres : En retard, Paracétamol »).
         if (state) {
             const pressed = filters.querySelector('[data-filter][aria-pressed="true"]');
-            const parts = [];
-            if (status !== 'all' && pressed) {
-                parts.push(pressed.textContent.trim());
-            }
-            if (type !== '') {
-                parts.push(type);
-            }
-            state.textContent = parts.length ? ` : ${parts.join(', ')}` : '';
+            state.textContent = status !== 'all' && pressed ? ` : ${pressed.textContent.trim()}` : '';
         }
         rows.forEach(row => {
-            row.hidden = (status !== 'all' && row.dataset.status !== status)
-                || (type !== '' && row.dataset.careLabel !== type);
+            row.hidden = status !== 'all' && row.dataset.status !== status;
         });
-        // Une rotation (.agenda-section, agenda du patient) dont tous les soins sont filtrés se replie sur
-        // son titre ; .service-slot (ancienne grille du service) n'existe plus dans aucune vue.
-        const filtering = status !== 'all' || type !== '';
-        document.querySelectorAll('.agenda-section, .service-slot').forEach(section => {
+        // Une rotation (.agenda-section) dont tous les soins sont filtrés se replie sur son titre.
+        document.querySelectorAll('.agenda-section').forEach(section => {
             const visible = section.querySelectorAll('[data-appointment-row]:not([hidden])').length;
-            section.classList.toggle('is-filtered-out', filtering && visible === 0);
+            section.classList.toggle('is-filtered-out', status !== 'all' && visible === 0);
         });
     }
 
@@ -62,9 +47,6 @@ if (filters) {
             apply();
         });
     });
-    if (typeFilter) {
-        typeFilter.addEventListener('change', apply);
-    }
 }
 
 // ---- Dialogue d'action sur un soin ----
@@ -154,8 +136,7 @@ if (dialog && careForm && typeof dialog.showModal === 'function') {
         submit.disabled = true;
         try {
             // getAttribute et non careForm.action : le formulaire a des champs nommés « action » (Réalisé /
-            // Non effectué), et careForm.action renvoie alors ces champs au lieu de l'URL (la requête partait
-            // vers « /agenda-patient/[object RadioNodeList] » : 404, « Enregistrement impossible »).
+            // Non effectué), et careForm.action renverrait ces champs au lieu de l'URL.
             const response = await fetch(careForm.getAttribute('action'), {
                 method: 'POST',
                 headers: {
@@ -187,8 +168,8 @@ if (dialog && careForm && typeof dialog.showModal === 'function') {
     });
 }
 
-// ---- Agenda du service, onglet « Lits » (retours du 2026-11-04) : un clic n'importe où sur la ligne d'un patient
-// ouvre son panneau à droite, comme le lien sur son nom (qui reste le chemin au clavier et sans JavaScript). ----
+// ---- Agenda du service, onglet « Lits » : un clic n'importe où sur la ligne d'un patient ouvre son
+// panneau à droite, comme le lien sur son nom (qui reste le chemin au clavier et sans JavaScript). ----
 document.querySelectorAll('tr[data-row-link]').forEach(row => {
     const link = row.querySelector('a[href]');
     if (!link) {

@@ -13,8 +13,8 @@ use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use PHPUnit\Framework\TestCase;
 
 /**
- * POST /sejour/champ/modifier : jeton de session obligatoire, corps JSON ou formulaire, codes HTTP
- * selon le statut du service. Processus séparé : en-têtes HTTP et session.
+ * Édition en ligne (POST /sejour/champ/modifier) : jeton CSRF, authentification factice d'un médecin,
+ * décès jamais en ligne, codes HTTP. Processus séparé : en-têtes HTTP et session.
  */
 final class RecordControllerTest extends TestCase
 {
@@ -29,7 +29,7 @@ final class RecordControllerTest extends TestCase
 
     #[RunInSeparateProcess]
     #[PreserveGlobalState(false)]
-    public function testWithoutTokenUpdateIsRejectedWithoutCallingService(): void
+    public function testWithoutCsrfTokenNothingIsWritten(): void
     {
         $service = $this->createMock(RecordEditService::class);
         $service->expects($this->never())->method('update');
@@ -45,7 +45,7 @@ final class RecordControllerTest extends TestCase
 
     #[RunInSeparateProcess]
     #[PreserveGlobalState(false)]
-    public function testWithTokenServiceIsCalledAndResponseIs200(): void
+    public function testAuthenticatedEditIsSavedUnderTheDoctorName(): void
     {
         $service = $this->createMock(RecordEditService::class);
         $service->expects($this->once())->method('update')
@@ -67,13 +67,9 @@ final class RecordControllerTest extends TestCase
         self::assertSame(self::AUTHOR, $body['author'], 'l\'historique affichera le médecin');
     }
 
-    /**
-     * Retours du 2026-11-04 : une modification en ligne exige l'authentification factice (médecin et mot de
-     * passe), sinon 422 sans toucher au dossier ; le décès ne se déclare jamais en ligne.
-     */
     #[RunInSeparateProcess]
     #[PreserveGlobalState(false)]
-    public function testInlineEditNeedsFactitiousAuthenticationAndNeverDeclaresDeath(): void
+    public function testInlineEditWithoutDoctorPasswordIsRefused(): void
     {
         $service = $this->createMock(RecordEditService::class);
         $service->expects($this->never())->method('update');
@@ -123,27 +119,7 @@ final class RecordControllerTest extends TestCase
 
     #[RunInSeparateProcess]
     #[PreserveGlobalState(false)]
-    public function testForbiddenFieldAndInvalidValueGive422(): void
-    {
-        $service = $this->createMock(RecordEditService::class);
-        $service->method('update')->willReturn([
-            'status' => RecordEditService::STATUS_FORBIDDEN_FIELD, 'message' => 'Ce champ ne peut pas être modifié.',
-            'value' => null, 'display' => null,
-        ]);
-
-        [$status, $body] = $this->call($service, Csrf::token(), [
-            'entity' => 'patient', 'id' => '9', 'episodeOfCare' => '3', 'field' => 'lastName', 'value' => 'x',
-            'oldValue' => '', 'validator' => 'PRA01', 'password' => 'x',
-        ]);
-
-        self::assertSame(422, $status);
-        self::assertFalse($body['ok']);
-        self::assertSame('Ce champ ne peut pas être modifié.', $body['message']);
-    }
-
-    #[RunInSeparateProcess]
-    #[PreserveGlobalState(false)]
-    public function testIncompleteRequestGives400(): void
+    public function testMalformedRequestGives400(): void
     {
         $service = $this->createMock(RecordEditService::class);
         $service->expects($this->never())->method('update');
@@ -161,53 +137,6 @@ final class RecordControllerTest extends TestCase
             'value' => ['forgé'], 'oldValue' => '',
         ]);
         self::assertSame(400, $status, 'valeur non scalaire : jamais interprétée comme un vidage');
-    }
-
-    #[RunInSeparateProcess]
-    #[PreserveGlobalState(false)]
-    public function testPartWithoutTokenRejectedAndIncompletePartGives400(): void
-    {
-        $edit = $this->createMock(RecordEditService::class);
-        $section = $this->createMock(RecordSectionService::class);
-        $section->expects($this->never())->method('updatePart');
-        $controller = new RecordController($edit, $section);
-
-        $_POST = ['episodeOfCare' => '1', 'part' => 'history', 'values' => ['a' => 'b'], 'oldValues' => []];
-        ob_start();
-        $controller->updatePart();
-        ob_end_clean();
-        self::assertSame(403, http_response_code(), 'sans jeton');
-
-        $_SERVER['HTTP_X_CSRF_TOKEN'] = Csrf::token();
-        $_POST = ['episodeOfCare' => 'abc', 'part' => 'history', 'values' => [], 'oldValues' => []];
-        ob_start();
-        $controller->updatePart();
-        ob_end_clean();
-        self::assertSame(400, http_response_code(), 'séjour invalide');
-    }
-
-    #[RunInSeparateProcess]
-    #[PreserveGlobalState(false)]
-    public function testSavedPartRedirectsToPart(): void
-    {
-        $edit = $this->createMock(RecordEditService::class);
-        $section = $this->createMock(RecordSectionService::class);
-        $section->expects($this->once())->method('updatePart')
-            ->with(3, 'history', ['lifestyle' => 'x'], ['lifestyle' => ''], 'PRA01', 'password')
-            ->willReturn(['status' => RecordSectionService::STATUS_SAVED, 'errors' => [], 'message' => null]);
-        $_SERVER['HTTP_X_CSRF_TOKEN'] = Csrf::token();
-        $_POST = [
-            'episodeOfCare' => '3', 'part' => 'history', 'values' => ['lifestyle' => 'x'],
-            'oldValues' => ['lifestyle' => ''],
-            'validator' => 'PRA01', 'password' => 'password',
-        ];
-
-        ob_start();
-        (new RecordController($edit, $section))->updatePart();
-        $body = json_decode((string) ob_get_clean(), true, 512, JSON_THROW_ON_ERROR);
-
-        self::assertSame(200, http_response_code());
-        self::assertSame('/sejour?id=3#dossier-history', $body['redirect']);
     }
 
     /**

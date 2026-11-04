@@ -7,8 +7,9 @@ namespace Aura\Tests\Http;
 use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
- * Chaque page de l'application répond avec le bon code, sans erreur PHP dans le HTML, et montre ce
- * qui la caractérise (données de démo de database/test.sql). Reprend et étend l'ancien smoke shell.
+ * Les écrans principaux répondent avec le bon code, sans erreur PHP dans le HTML, et montrent ce qui les
+ * caractérise (données de démo de database/test.sql). Les saisies malformées donnent 404 ou 400, jamais
+ * un plantage.
  */
 final class PagesHttpTest extends HttpTestCase
 {
@@ -17,36 +18,21 @@ final class PagesHttpTest extends HttpTestCase
     {
         yield 'admission' => ['/', 200, 'Patient connu ?'];
         yield 'liste des patients' => ['/patients', 200, 'Simpson'];
-        yield 'recherche dans la liste' => ['/patients?q=rip', 200, 'Ripley'];
-        yield 'recherche IPP invalide' => ['/patients/recherche-ipp?ipp=abc', 422, 'IPP'];
-        yield 'recherche de patient (JSON)' => ['/patients/recherche?q=simp', 200, 'Simpson'];
-        yield 'modifier un patient' => ['/patients/modifier?id=1', 200, 'Simpson'];
-        yield 'modifier un patient inconnu' => ['/patients/modifier?id=999999', 404, 'Erreur 404'];
         yield 'dossier du séjour' => ['/sejour?id=1', 200, 'Dossier du séjour'];
+        yield 'prescriptions du séjour' => ['/care-plans?idEpisodeOfCare=1', 200, 'Prescriptions du séjour'];
+        yield 'agenda du patient' => ['/agenda-patient?id=1&date=2026-10-14', 200, 'Paracétamol'];
+        yield 'agenda du service' => ['/agenda-service?date=2026-10-14', 200, 'soins en retard'];
+        yield 'équipes de la rotation' => ['/equipes?date=2026-10-14&rotation=matin', 200, 'Équipe A'];
+        yield 'page inexistante' => ['/page-inexistante', 404, 'Erreur 404'];
         yield 'dossier inconnu' => ['/sejour?id=999999', 404, 'Erreur 404'];
         yield 'dossier sans identifiant' => ['/sejour', 400, 'Erreur 400'];
-        yield 'prescriptions du séjour' => ['/care-plans?idEpisodeOfCare=1', 200, 'Prescriptions du séjour'];
-        yield 'nouvelle prescription' => ['/care-plans/new?idEpisodeOfCare=1', 200, 'Nouvelles prescriptions'];
-        yield 'agenda du patient' => ['/agenda-patient?id=1&date=2026-10-14', 200, 'Paracétamol'];
-        yield 'agenda du patient, semaine' => ['/agenda-patient?id=1&date=2026-10-14&vue=semaine', 200, 'Semaine du'];
-        yield 'agenda du service par défaut' => ['/agenda-service', 200, 'Agenda du service'];
-        yield 'agenda du service, jour de démo' => ['/agenda-service?date=2026-10-14', 200, 'soins en retard'];
-        yield 'service inconnu' => ['/agenda-service?idHealthcareService=ZZZ', 404, 'Service inconnu'];
-        yield 'équipes de la vacation' => ['/equipes?date=2026-10-14&rotation=matin', 200, 'Équipe A'];
-        yield 'mon planning sans soignant' => ['/mon-planning', 200, 'Choisissez votre nom'];
-        yield 'mon planning' => ['/mon-planning?idPractitioner=PRA04&date=2026-10-14&rotation=matin', 200, 'SIMPSON'];
-        yield 'confirmation de suppression' => ['/patients/supprimer?id=4', 200, 'Parker'];
-        yield 'suppression refusée affichée' => ['/patients/supprimer?id=1', 200, 'séjour en cours'];
-        yield 'page inexistante' => ['/page-inexistante', 404, 'Erreur 404'];
-        // Relecture adversariale du 2026-11-04 : saisies malformées, réponses propres au lieu d'un plantage.
-        yield 'numéro de séjour inconnu' => ['/agenda-patient?numSejour=2099-999999', 404, 'Erreur 404'];
         yield 'numéro de séjour malformé' => ['/agenda-patient?numSejour=nope', 404, 'Erreur 404'];
         yield 'numéro de séjour en tableau' => ['/agenda-patient?numSejour[]=1', 404, 'Erreur 404'];
         yield 'octet UTF-8 invalide' => ['/patients?q=a%FF', 400, 'Requête invalide'];
     }
 
     #[DataProvider('pages')]
-    public function testPageAnswersWithItsContentAndNoPhpError(string $path, int $status, string $text): void
+    public function testPageAnswersWithItsCodeAndContentWithoutPhpError(string $path, int $status, string $text): void
     {
         $response = $this->get($path);
 

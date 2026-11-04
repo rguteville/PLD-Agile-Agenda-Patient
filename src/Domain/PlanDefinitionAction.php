@@ -9,6 +9,8 @@ namespace Aura\Domain;
  * soin ou de médicament (RequestLine), mais des durées à la place des dates. Appliqué à une date,
  * le protocole donne une ligne qui commence startOffsetHours heures après et dure durationHours
  * heures (null = sans date d'arrêt). Ressource HL7 PlanDefinition.action, lue par PlanDefinitionDao.
+ *
+ * Accesseurs get*() : un par colonne, sans logique ni validation.
  */
 class PlanDefinitionAction
 {
@@ -61,12 +63,7 @@ class PlanDefinitionAction
         return $this->idPlanDefinition;
     }
 
-    /** Une des constantes KIND_*. */
-    public function getKind(): string
-    {
-        return $this->kind;
-    }
-
+    /** Ligne de médicament (kind = KIND_MEDICATION), sinon ligne de soin. */
     public function isMedication(): bool
     {
         return $this->kind === self::KIND_MEDICATION;

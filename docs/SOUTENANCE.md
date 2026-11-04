@@ -37,16 +37,17 @@ La démonstration se fait sur la VM de démo, qui sert la branche `main`. Tout c
 
 ### Ce qu'il faut dire
 
-Le projet a 902 tests PHPUnit répartis en deux suites, définies dans `phpunit.xml.dist`.
+Le projet a 244 tests PHPUnit répartis en deux suites, définies dans `phpunit.xml.dist`. La suite est volontairement
+courte : chaque test protège une règle de gestion, la sécurité du patient ou un défaut réel déjà rencontré.
 
-La suite `aura` (866 tests) couvre tout sauf le HTTP. Les services métier sont testés sans base : la date est
+La suite `aura` (224 tests) couvre tout sauf le HTTP. Les services métier sont testés sans base : la date est
 injectée (`new DateTimeImmutable('2026-10-14')`) et les variantes passent par des `#[DataProvider]`. Les DAO et les
 tests d'intégration tournent sur une vraie base MariaDB, chacun dans une transaction annulée à la fin, avec des
 données aux noms improbables (`Zz…`) pour ne jamais toucher aux données de démo. Les vues sont testées par leur
-rendu HTML (échappement, accessibilité, éléments attendus). Le fichier `tests/Dao/SchemaConstraintsTest.php`
-vérifie chaque contrainte de `schema.sql` (unicité, CHECK, clés étrangères) directement par la base.
+rendu HTML (bandeau patient, retards, échappement). Le fichier `tests/Dao/SchemaConstraintsTest.php` vérifie les
+contraintes essentielles de `schema.sql` (unicité, CHECK, clés étrangères) directement par la base.
 
-La suite `http` (36 tests) lance un vrai serveur PHP sur l'application et enchaîne de vraies requêtes, comme un
+La suite `http` (20 tests) lance un vrai serveur PHP sur l'application et enchaîne de vraies requêtes, comme un
 navigateur : session et cookie, jeton CSRF, POST, redirections. Elle refuse de tourner si la base ouverte n'est pas
 une base de test, parce qu'elle écrit pour de vrai.
 
@@ -70,7 +71,7 @@ qu'avec un CI vert et la relecture d'un autre membre.
    composer test:fast
    ```
 
-   Résultat attendu : « OK, but some tests were skipped », 866 tests dont 306 sautés (ceux qui demandent la base).
+   Résultat attendu : « OK, but some tests were skipped », 224 tests dont 71 sautés (ceux qui demandent la base).
 
 2. Avec la base de test, la suite complète (environ dix secondes) :
 
@@ -79,22 +80,24 @@ qu'avec un CI vert et la relecture d'un autre membre.
    composer test
    ```
 
-   Résultat attendu : « OK (902 tests, … assertions) ».
+   Résultat attendu : « OK (244 tests, … assertions) ».
 
 3. Un test lisible à l'écran, pour montrer comment une règle s'écrit en test. Bon exemple court :
-   `tests/Service/AgendaServiceShiftEndTest.php`. Un `#[DataProvider]` donne six instants (après minuit, dernière
-   minute de la nuit, début du matin…) et la fin de rotation attendue ; une seule méthode de test les vérifie tous.
+   `testShiftEndFollowsTheRotations` dans `tests/Service/AgendaServiceTest.php`. Un `#[DataProvider]` donne trois
+   instants (après minuit, après-midi, fin de mois) et la fin de rotation attendue ; une seule méthode de test les
+   vérifie tous.
 
-4. Un test qui échoue, pour montrer que les tests protègent vraiment. Dans `src/Service/AgendaService.php`,
-   méthode `shiftEnd()`, remplacer `22` par `23` dans `[6, 14, 22]`, puis :
+4. Un test qui échoue, pour montrer que les tests protègent vraiment. Dans `src/Domain/CareTeam.php`, constante
+   `SHIFTS` (la seule référence des rotations, lue par `AgendaService::shiftEnd()`), remplacer `'from' => 22` par
+   `'from' => 23` sur la ligne de la nuit, puis :
 
    ```bash
-   vendor/bin/phpunit --filter AgendaServiceShiftEndTest
+   vendor/bin/phpunit --filter testShiftEndFollowsTheRotations
    ```
 
    Deux cas échouent, « après-midi » (attendu 22:00, obtenu 23:00) et « fin de mois » (attendu le 01/11 à 06:00,
    obtenu le 31/10 à 23:00), avec la valeur attendue et la valeur obtenue côte à côte. Annuler la modification
-   (`git checkout src/Service/AgendaService.php`) et relancer : vert. (Répété le 2026-11-04 : c'est exactement ce
+   (`git checkout src/Domain/CareTeam.php`) et relancer : vert. (Répété le 2026-11-04 : c'est exactement ce
    qui s'affiche.)
 
 5. Si on a encore une minute : l'onglet Actions de GitHub, une exécution du CI, l'étape des tests et l'artefact

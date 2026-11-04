@@ -99,7 +99,7 @@ $medicationParams = [
     <?php endif; ?>
 
     <div class="b3-body">
-        <!-- Colonne de gauche : Mode, Prescripteur, listes en cascade, puis les paramètres -->
+        <?php /* Colonne de gauche : Mode, Prescripteur, listes en cascade, puis les paramètres */ ?>
         <form id="care-plan-form" class="b3-entry" action="/care-plans/create<?= View::e($episodeQuery) ?>"
               method="post" data-ajax
               data-lists="<?= View::e(json_encode($lists, JSON_UNESCAPED_UNICODE | JSON_FORCE_OBJECT)) ?>">
@@ -136,8 +136,8 @@ $medicationParams = [
                 <input type="password" id="prescriberPassword" name="prescriberPassword" autocomplete="off">
             </div>
 
-            <?php /* Listes en cascade (retours du 2026-11-03 : « 1. 2. 3. » remplacés par leur rôle).
-                     Le libellé de la deuxième suit la catégorie choisie (care-plan.js). */ ?>
+            <?php /* Listes en cascade, chacune nommée par son rôle. Le libellé de la deuxième suit la
+                     catégorie choisie (care-plan.js). */ ?>
             <div class="b3-row">
                 <label for="category">Catégorie</label>
                 <select id="category">
@@ -169,7 +169,7 @@ $medicationParams = [
                 &#9998; Prescripteur non médecin : l'ordonnance devra être validée par un médecin.
             </p>
 
-            <!-- Paramètres d'un médicament (figure 9) -->
+            <?php /* Paramètres d'un médicament (figure 9) */ ?>
             <div id="b3-medication-params" class="b3-params" hidden>
                 <div class="b3-params-title">&#8863; <span class="b3-params-category"></span></div>
                 <div class="b3-grid">
@@ -193,7 +193,7 @@ $medicationParams = [
                     </div>
 
                     <?php foreach ($medicationParams as [$id, $label, $required, $type]) : ?>
-                        <?php /* Dates (2026-11-04) : jour et heure séparés (#…-date, #…-time) ; « Une fois » n'a qu'une
+                        <?php /* Dates : jour et heure séparés (#…-date, #…-time) ; « Une fois » n'a qu'une
                                  ligne « Le » (care-plan.js masque la ligne de fin, data-row). */ ?>
                         <label for="<?= View::e($type === 'date' ? $id . '-date' : $id) ?>"
                                id="<?= View::e($id) ?>-label" data-row="<?= View::e($id) ?>"
@@ -224,13 +224,12 @@ $medicationParams = [
                     <?php endforeach; ?>
                 </div>
                 <div class="b3-buttons">
-                    <!-- <button type="button" disabled>Nutriments</button> -->
                     <button type="button" id="med-ok" class="b3-primary">OK</button>
                     <button type="button" class="b3-cancel">Annuler</button>
                 </div>
             </div>
 
-            <!-- Paramètres d'un soin -->
+            <?php /* Paramètres d'un soin */ ?>
             <div id="b3-care-params" class="b3-params" hidden>
                 <div class="b3-params-title">&#8863; <span class="b3-params-category"></span></div>
                 <div class="b3-grid">
@@ -287,7 +286,7 @@ $medicationParams = [
                 </div>
             </div>
 
-            <!-- Groupe de prescriptions (protocole) : « OK » ajoute toutes ses lignes à l'ordonnance -->
+            <?php /* Groupe de prescriptions (protocole) : « OK » ajoute toutes ses lignes à l'ordonnance */ ?>
             <div id="b3-group-params" class="b3-params" hidden>
                 <div class="b3-params-title">&#8863; <span class="b3-params-category"></span></div>
                 <div class="b3-grid">
@@ -295,8 +294,7 @@ $medicationParams = [
                     <span class="b3-required">*</span>
                     <div class="b3-value"><input type="text" id="group-name" readonly tabindex="-1"></div>
 
-                    <?php /* Retours du 2026-11-04 : un protocole n'a qu'un début (chaque ligne a sa durée) ;
-                             « Du » sans « Au » prêtait à confusion. */ ?>
+                    <?php /* Un protocole n'a qu'un début : chaque ligne porte sa propre durée. */ ?>
                     <label for="group-start">Début du protocole</label>
                     <span class="b3-required">*</span>
                     <div class="b3-value"><input type="datetime-local" id="group-start"></div>
@@ -311,11 +309,11 @@ $medicationParams = [
                 </div>
             </div>
 
-            <!-- Lignes ajoutées par « OK », envoyées avec le formulaire : lines[n][…] -->
+            <?php /* Lignes ajoutées par « OK », envoyées avec le formulaire : lines[n][…] */ ?>
             <div id="b3-lines" hidden></div>
         </form>
 
-        <!-- Colonne de droite : l'ordonnance en cours de saisie -->
+        <?php /* Colonne de droite : l'ordonnance en cours de saisie */ ?>
         <div class="b3-summary">
             <h2 class="b3-summary-title">Prescriptions non sauvegardées</h2>
             <table class="b3-cart">
@@ -325,7 +323,7 @@ $medicationParams = [
                 <tbody id="b3-cart"></tbody>
             </table>
 
-            <?php /* Note libre de l'ordonnance (retours du 2026-11-03) : envoyée avec le formulaire
+            <?php /* Note libre de l'ordonnance : envoyée avec le formulaire
                      (attribut form), affichée dans la liste des prescriptions et dans le dossier. */ ?>
             <div class="b3-note">
                 <label for="care-plan-note">Note de l'ordonnance <span class="b3-optional">(facultative)</span></label>
@@ -358,7 +356,7 @@ $medicationParams = [
                 <button type="submit" form="care-plan-form" class="b3-primary">Enregistrer l'ordonnance</button>
             </div>
 
-            <!-- RG5 : ordonnances saisies par un non-médecin, à valider par un médecin (AURA-23) -->
+            <?php /* RG5 : ordonnances saisies par un non-médecin, à valider par un médecin (AURA-23) */ ?>
             <h2 class="b3-summary-title">En attente de validation par un médecin</h2>
             <?php if ($pendingCarePlans === []) : ?>
                 <p class="b3-empty">Aucune prescription en attente.</p>
@@ -383,7 +381,7 @@ $medicationParams = [
                     <?php foreach ($carePlan['allergyAlerts'] ?? [] as $alert) : ?>
                         <p class="b3-allergy"><?= View::e($alert) ?></p>
                     <?php endforeach; ?>
-                    <?php /* Authentification FACTICE du médecin (mot de passe non vérifié, AURA-18), comme la
+                    <?php /* Authentification FACTICE du médecin (mot de passe non vérifié, AURA-50), comme la
                              fenêtre de validation du dossier. */ ?>
                     <?php $formId = 'validate-' . $carePlan['idCarePlan']; ?>
                     <form class="b3-validate" action="/care-plans/validate<?= View::e($episodeQuery) ?>"

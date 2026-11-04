@@ -125,7 +125,7 @@ final class AllergyIntoleranceService
         if ($episodeOfCare === null) {
             throw new InvalidArgumentException(sprintf('Aucun séjour ne porte l\'identifiant %d.', $idEpisodeOfCare));
         }
-        // Relecture adversariale du 2026-11-04 : le dossier d'un patient supprimé de la liste n'est plus modifiable.
+        // Le dossier d'un patient supprimé de la liste n'est plus modifiable.
         if ($this->patientDao !== null && $this->patientDao->findById($episodeOfCare->getIdPatient()) === null) {
             throw new InvalidArgumentException(
                 'Ce patient a été supprimé de la liste : son dossier n\'est plus modifiable.'

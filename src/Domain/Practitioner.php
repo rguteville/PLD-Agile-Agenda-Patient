@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Aura\Domain;
 
 /**
- * Professionnel de santé (ressource HL7 Practitioner, tables Practitioner et PractitionerRole) :
+ * Professionnel de santé (AURA-18, ressource HL7 Practitioner, tables Practitioner et PractitionerRole) :
  * prescripteur (Epic 4), membre d'une équipe de vacation (AURA-30), médecin référent d'un séjour,
- * médecin qui valide une modification du dossier (fenêtre d'authentification factice, AURA-18).
+ * médecin qui valide une modification du dossier (fenêtre d'authentification factice, AURA-50).
+ *
+ * Accesseurs get*() : un par colonne, sans logique ni validation.
  */
 class Practitioner
 {

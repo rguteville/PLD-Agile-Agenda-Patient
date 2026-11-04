@@ -11,6 +11,7 @@
         return;
     }
 
+    // Champ renseigné : case cochée, ou valeur non vide.
     function isFilled(control) {
         if (control.type === 'checkbox' || control.type === 'radio') {
             return control.checked;
@@ -37,6 +38,7 @@
         return filled;
     }
 
+    // Met à jour « n sur m renseignés » dans l'en-tête de la section.
     function updateCount(section) {
         const counter = section.querySelector('[data-section-count]');
         if (!counter) {

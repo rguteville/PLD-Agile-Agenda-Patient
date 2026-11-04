@@ -18,6 +18,9 @@ SI miroir du service de réanimation d'un hôpital (projet AGILE, 4IF INSA Lyon)
 10. [Règles de l'équipe](#règles-de-léquipe)
 11. [Conventions](#conventions)
 
+**Reprendre le projet** : [docs/REPRISE.md](docs/REPRISE.md) (lancement, cheminement d'une requête, où trouver
+chaque fonctionnalité, règles RG1 à RG10, hypothèses, dette, ajouter une page ou une règle).
+
 Documentation détaillée : [architecture](docs/ARCHITECTURE.md), [tests](docs/TESTS.md),
 [interface](docs/UI-GUIDE.md), [système de design initial](docs/ui.md), [audits](docs/audit/),
 [journal des changements](CHANGELOG.md).

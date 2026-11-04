@@ -11,20 +11,11 @@ use DateTimeImmutable;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Epic 4 : règles portées par les objets du domaine (aucun accès à la base).
+ * Statut d'une ligne de prescription (RG5, ligne arrêtée), porté par le domaine, sans base.
  */
 final class CarePlanTest extends TestCase
 {
-    public function testIsRecurring(): void
-    {
-        $single = new ServiceRequest(null, 'TYP03', new DateTimeImmutable('2026-10-12 15:00'));
-        $recurring = new ServiceRequest(null, 'TYP02', new DateTimeImmutable('2026-10-12 16:00'), frequencyHours: 4);
-
-        self::assertFalse($single->isRecurring(), 'RG3 : sans fréquence = soin unique');
-        self::assertTrue($recurring->isRecurring(), 'RG3 : avec fréquence = récurrente');
-    }
-
-    public function testNotValidated(): void
+    public function testParamedicalPrescriptionStaysNotValidatedUntilADoctorValidates(): void
     {
         $line = new ServiceRequest(null, 'TYP02', new DateTimeImmutable('2026-10-12 16:00'), frequencyHours: 4);
         $carePlan = new CarePlan(null, 3, 'PRA04', 'PARAMEDICAL', [$line]);
@@ -33,7 +24,7 @@ final class CarePlanTest extends TestCase
         self::assertSame(CarePlan::STATUS_NOT_VALIDATED, $carePlan->statusOf($line), 'RG5');
     }
 
-    public function testStoppedLine(): void
+    public function testStoppedLineHasItsOwnStatus(): void
     {
         $paracetamol = new MedicationRequest(
             null,

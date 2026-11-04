@@ -1,5 +1,6 @@
 // Liste des allergies de l'admission (components/allergy_picker.php) : filtre par libellé (sans tenir
-// compte des accents ni de la casse). Plus de compteur « N allergènes cochés » (retours du 2026-11-04).
+// compte des accents ni de la casse) ; un allergène décoché perd sa criticité, un allergène coché donne
+// le focus à sa liste de criticité.
 // La criticité de chaque allergène coché s'affiche par CSS ; ce script ne fait que du confort :
 // le serveur valide les identifiants et les criticités (AdmissionService::validate()).
 // Chargé par l'admission (GET /, PatientController::SCRIPTS_ADMISSION). Attend : [data-allergy-picker]
@@ -15,6 +16,7 @@
         // Texte comparable : sans accents, en minuscules.
         const fold = text => text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 
+        // Masque les allergènes dont le libellé ne contient pas la saisie ; message si plus rien n'est visible.
         function applyFilter() {
             const query = fold(filter.value);
             let visible = 0;

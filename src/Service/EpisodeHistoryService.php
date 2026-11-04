@@ -7,7 +7,7 @@ namespace Aura\Service;
 use Aura\Domain\EpisodeOfCare;
 
 /**
- * Séjours d'un patient (retours des médecins du 2026-11-03) : dossier toujours accessible depuis la
+ * Séjours d'un patient : dossier toujours accessible depuis la
  * liste, historique des séjours dans la liste et dans le dossier, séjour en cours mis en avant.
  *
  * Service PUR (pas de PDO, pas de HTTP) : il reçoit les séjours déjà lus par EpisodeOfCareDao et le

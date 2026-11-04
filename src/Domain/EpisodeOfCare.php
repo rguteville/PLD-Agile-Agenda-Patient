@@ -15,6 +15,8 @@ use DateTimeInterface;
  * Patient.deceased passé à « Oui » par « Modifier »), qui renseignent toutes deux dischargeDate.
  * Le numéro AAAA-NNNNNN est généré par EpisodeOfCareDao::insert() (RG1) : à la création, l'entité
  * porte un numéro vide, ignoré.
+ *
+ * Accesseurs get*() : un par colonne, sans logique ni validation.
  */
 class EpisodeOfCare
 {
