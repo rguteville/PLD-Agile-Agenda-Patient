@@ -75,7 +75,6 @@ final class PatientDeletionIntegrationTest extends TestCase
         self::assertSame([], $this->patients->searchByWords(['parker'], 10), 'recherche de l\'admission');
         self::assertNull($this->patients->findByIpp('100000004'), 'recherche par IPP');
         self::assertNull($this->patients->findById(4));
-        self::assertSame([], $this->patients->findByIdentity('Parker', 'Peter', new DateTimeImmutable('2001-01-09')));
 
         // Suppression logique : la ligne et son IPP restent (réservé), la date est renseignée.
         self::assertTrue($this->patients->existsByIpp('100000004'));

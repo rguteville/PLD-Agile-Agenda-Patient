@@ -9,8 +9,8 @@ use DateTimeImmutable;
 use PHPUnit\Framework\TestCase;
 
 /**
- * AURA-25 : vue Semaine de l'agenda du patient (présentateur pur, sans base) et lecture verticale
- * de l'agenda du service (créneaux × patients, retards du service). Soins de substitution évidents.
+ * AURA-25 : vue Semaine de l'agenda du patient (présentateur pur, sans base) et données transmises
+ * à l'agenda du service (référent, décès). Soins de substitution évidents.
  */
 final class AgendaServicePresentWeekTest extends TestCase
 {
@@ -56,40 +56,6 @@ final class AgendaServicePresentWeekTest extends TestCase
         self::assertSame(['08:00', '20:00'], array_column($cells['2026-10-14'], 'time'), 'ordre chronologique');
         self::assertArrayNotHasKey('2026-10-20', $cells, 'la semaine suivante est exclue');
         self::assertSame(['total' => 3, 'late' => 1, 'done' => 1, 'planned' => 1], $week['counts']);
-    }
-
-    public function testServiceListsCareBySlotAndGathersLateCareOfAllPatients(): void
-    {
-        $episodes = [
-            $this->episode(1, 'Dupont', [$this->appointment('A', '2026-10-14 08:15:00', 'PLANIFIE')]),
-            $this->episode(2, 'Martin', [
-                $this->appointment('B', '2026-10-14 06:00:00', 'PLANIFIE'),
-                $this->appointment('C', '2026-10-14 16:00:00', 'PLANIFIE'),
-            ]),
-        ];
-
-        $service = AgendaService::presentService($episodes, new DateTimeImmutable('2026-10-14'), $this->now());
-
-        self::assertSame('10:00', $service['currentSlot'], '10 h 30 tombe dans le créneau 10 h – 12 h');
-        self::assertSame(2, $service['late']);
-        self::assertSame(
-            ['06:00', '08:15'],
-            array_column($service['lateItems'], 'time'),
-            'retards du service, par heure'
-        );
-        self::assertSame('MARTIN Test', $service['lateItems'][0]['patient']);
-        self::assertSame(2, $service['lateItems'][0]['idEpisodeOfCare']);
-        self::assertSame(['B'], array_column($service['patients'][1]['items']['06:00'], 'id'));
-        self::assertSame(['C'], array_column($service['patients'][1]['items']['16:00'], 'id'));
-        self::assertSame(2, $service['patients'][1]['total']);
-    }
-
-    public function testAnotherDayHasNoCurrentSlot(): void
-    {
-        $service = AgendaService::presentService([], new DateTimeImmutable('2026-10-15'), $this->now());
-
-        self::assertNull($service['currentSlot']);
-        self::assertSame([], $service['lateItems']);
     }
 
     public function testMissingReferentIsShownOnlyWhenTheSourceKnowsIt(): void

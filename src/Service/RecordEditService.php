@@ -48,10 +48,9 @@ class RecordEditService
         private EpisodeOfCareDao $episodeOfCareDao,
         private AuditEventDao $auditEventDao,
         private Transaction $transaction,
-        private ?ReferenceDataDao $referenceDataDao = null,
-        ?DateTimeImmutable $today = null
+        private ?ReferenceDataDao $referenceDataDao = null
     ) {
-        $this->fields = new FieldValidationService($today);
+        $this->fields = new FieldValidationService();
     }
 
     /**

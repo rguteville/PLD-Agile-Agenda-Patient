@@ -81,7 +81,7 @@ class AdmissionService
         private ?AuditEventDao $auditEventDao = null,
         private ?RecordEditService $recordEditService = null
     ) {
-        $this->fields = new FieldValidationService($today);
+        $this->fields = new FieldValidationService();
     }
 
     /**

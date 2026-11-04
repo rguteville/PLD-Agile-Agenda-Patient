@@ -99,7 +99,7 @@ $medicationParams = [
     <?php endif; ?>
 
     <div class="b3-body">
-        <!-- Colonne de gauche : Mode, Prescripteur, listes en cascade, puis les paramètres -->
+        <?php /* Colonne de gauche : Mode, Prescripteur, listes en cascade, puis les paramètres */ ?>
         <form id="care-plan-form" class="b3-entry" action="/care-plans/create<?= View::e($episodeQuery) ?>"
               method="post" data-ajax
               data-lists="<?= View::e(json_encode($lists, JSON_UNESCAPED_UNICODE | JSON_FORCE_OBJECT)) ?>">
@@ -169,7 +169,7 @@ $medicationParams = [
                 &#9998; Prescripteur non médecin : l'ordonnance devra être validée par un médecin.
             </p>
 
-            <!-- Paramètres d'un médicament (figure 9) -->
+            <?php /* Paramètres d'un médicament (figure 9) */ ?>
             <div id="b3-medication-params" class="b3-params" hidden>
                 <div class="b3-params-title">&#8863; <span class="b3-params-category"></span></div>
                 <div class="b3-grid">
@@ -224,13 +224,12 @@ $medicationParams = [
                     <?php endforeach; ?>
                 </div>
                 <div class="b3-buttons">
-                    <!-- <button type="button" disabled>Nutriments</button> -->
                     <button type="button" id="med-ok" class="b3-primary">OK</button>
                     <button type="button" class="b3-cancel">Annuler</button>
                 </div>
             </div>
 
-            <!-- Paramètres d'un soin -->
+            <?php /* Paramètres d'un soin */ ?>
             <div id="b3-care-params" class="b3-params" hidden>
                 <div class="b3-params-title">&#8863; <span class="b3-params-category"></span></div>
                 <div class="b3-grid">
@@ -287,7 +286,7 @@ $medicationParams = [
                 </div>
             </div>
 
-            <!-- Groupe de prescriptions (protocole) : « OK » ajoute toutes ses lignes à l'ordonnance -->
+            <?php /* Groupe de prescriptions (protocole) : « OK » ajoute toutes ses lignes à l'ordonnance */ ?>
             <div id="b3-group-params" class="b3-params" hidden>
                 <div class="b3-params-title">&#8863; <span class="b3-params-category"></span></div>
                 <div class="b3-grid">
@@ -311,11 +310,11 @@ $medicationParams = [
                 </div>
             </div>
 
-            <!-- Lignes ajoutées par « OK », envoyées avec le formulaire : lines[n][…] -->
+            <?php /* Lignes ajoutées par « OK », envoyées avec le formulaire : lines[n][…] */ ?>
             <div id="b3-lines" hidden></div>
         </form>
 
-        <!-- Colonne de droite : l'ordonnance en cours de saisie -->
+        <?php /* Colonne de droite : l'ordonnance en cours de saisie */ ?>
         <div class="b3-summary">
             <h2 class="b3-summary-title">Prescriptions non sauvegardées</h2>
             <table class="b3-cart">
@@ -358,7 +357,7 @@ $medicationParams = [
                 <button type="submit" form="care-plan-form" class="b3-primary">Enregistrer l'ordonnance</button>
             </div>
 
-            <!-- RG5 : ordonnances saisies par un non-médecin, à valider par un médecin (AURA-23) -->
+            <?php /* RG5 : ordonnances saisies par un non-médecin, à valider par un médecin (AURA-23) */ ?>
             <h2 class="b3-summary-title">En attente de validation par un médecin</h2>
             <?php if ($pendingCarePlans === []) : ?>
                 <p class="b3-empty">Aucune prescription en attente.</p>

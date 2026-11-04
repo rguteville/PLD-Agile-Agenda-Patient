@@ -695,7 +695,7 @@ final class PagesRenderTest extends TestCase
 
     public function testConsolidatedViewWithoutPatient(): void
     {
-        $service = ['date' => '2026-10-14', 'dateLabel' => 'mercredi 14 octobre 2026', 'slots' => [], 'patients' => []];
+        $service = ['date' => '2026-10-14', 'dateLabel' => 'mercredi 14 octobre 2026', 'patients' => []];
         $html = View::render('pages/service/consolidated-view', [
             'service' => $service,
             'board' => AgendaService::presentBoard($service, new DateTimeImmutable('2026-10-14 10:30')),
@@ -719,13 +719,12 @@ final class PagesRenderTest extends TestCase
             'isToday' => true,
             'previous' => '2026-10-13',
             'next' => '2026-10-15',
-            'slots' => ['06:00', '08:00'],
             'patients' => [[
                 'idEpisodeOfCare' => 1, 'lastName' => 'DUPONT', 'firstName' => 'Test', 'bed' => 'L01',
                 'episodeNumber' => '2026-000001', 'referent' => 'Dr <Ref>', 'referentKnown' => true,
-                'deceased' => null, 'late' => 1, 'total' => 2,
+                'deceased' => null,
                 'allergies' => [['label' => 'Latex <x>', 'level' => 'high']],
-                'items' => ['06:00' => [$late, $done]],
+                'items' => [$late, $done],
             ]],
         ];
 
@@ -820,10 +819,8 @@ final class PagesRenderTest extends TestCase
             'kindLabel' => 'Soin',
             'label' => 'Soin A',
             'details' => null,
-            'responsible' => 'IDE / AS',
             'status' => $status,
             'completedAt' => $completedAt,
-            'recordedAt' => null,
             'comment' => $comment,
         ];
     }

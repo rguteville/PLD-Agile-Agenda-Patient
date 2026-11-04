@@ -128,7 +128,6 @@ final class AgendaServicePresentDayTest extends TestCase
         self::assertSame('08:20', $item['completedAt']);
         self::assertSame('Note de test', $item['comment']);
         self::assertSame('Soin', $item['kindLabel']);
-        self::assertSame('IDE / AS', $item['responsible']);
     }
 
     public function testMedicationCarriesDoseAndRouteInDetails(): void
@@ -144,7 +143,6 @@ final class AgendaServicePresentDayTest extends TestCase
         self::assertSame('MEDICATION', $item['kind']);
         self::assertSame('Médicament B', $item['label']);
         self::assertSame('1 unité, IV', $item['details']);
-        self::assertSame('IDE', $item['responsible']);
     }
 
     public function testCareOfOtherDaysIsIgnored(): void
@@ -217,7 +215,6 @@ final class AgendaServicePresentDayTest extends TestCase
         $carried = AgendaService::presentDay($plans, $this->day(), $this->now(), carryOverdue: true);
         self::assertSame(['VEILLE'], array_column($carried['late'], 'id'));
         self::assertSame('23:00 (veille)', $carried['late'][0]['time']);
-        self::assertTrue($carried['late'][0]['previousDay']);
 
         self::assertSame([], AgendaService::presentDay($plans, $this->day(), $this->now())['late'], 'sans report');
         $otherDay = AgendaService::presentDay($plans, new DateTimeImmutable('2026-10-16'), $this->now(), true);

@@ -10,15 +10,13 @@ use Aura\Core\View;
  *
  * @var list<array{label: string, level: string}>|null $allergies allergies du patient
  *      (AgendaService::getAgendaService()), level : high, low ou unknown ; null par défaut
- * @var bool $compact petites étiquettes ; false par défaut (aucun appelant ne le passe aujourd'hui)
  */
 $allergies = $allergies ?? null;
 if (!is_array($allergies)) {
     return;
 }
-$compact = $compact ?? false;
 ?>
-<span class="service-patient__allergies allergy-tags<?= $compact ? ' allergy-tags--compact' : '' ?>">
+<span class="service-patient__allergies allergy-tags">
     <?php if ($allergies === []) : ?>
         <span class="allergy-tag allergy-tag--none">Aucune allergie connue</span>
     <?php else : ?>

@@ -23,7 +23,7 @@ $validationEnabled = $validationEnabled ?? false;
 $who = ($item['bed'] !== null ? 'Lit ' . $item['bed'] . ', ' : '') . $item['patient'];
 ?>
 <li class="care-line is-<?= View::e($item['status']) ?>" data-appointment-row
-    data-status="<?= View::e($item['status']) ?>" data-care-label="<?= View::e($item['label']) ?>">
+    data-status="<?= View::e($item['status']) ?>">
     <time class="care-line__time" datetime="<?= View::e($item['datetime']) ?>"><?= View::e($item['time']) ?></time>
     <?php if ($showPatient) : ?>
         <span class="care-line__patient">

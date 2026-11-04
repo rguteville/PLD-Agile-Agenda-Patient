@@ -16,10 +16,8 @@ use Aura\Core\View;
  *      canValidate, « Valider » est proposé pour un soin prévu ou en retard
  * @var int $idEpisodeOfCare séjour du soin
  * @var string $context préfixe du résumé affiché dans le dialogue (lit et patient), '' par défaut
- * @var bool $withNote bouton « Note » affiché, true par défaut (aucun appelant ne le passe à false)
  */
 $context = $context ?? '';
-$withNote = $withNote ?? true;
 $summary = ($context !== '' ? $context . ' : ' : '') . $item['label'] . ' à ' . $item['time'];
 $attributes = ' data-appointment="' . View::e($item['id']) . '"'
     . ' data-episode="' . View::e($idEpisodeOfCare) . '"'
@@ -37,7 +35,5 @@ if (is_array($itemAllergies)) {
     <?php if ($item['canValidate'] ?? in_array($item['status'], ['planned', 'late'], true)) : ?>
         <button type="button" class="button" data-care-action="done"<?= $attributes ?>>Valider</button>
     <?php endif; ?>
-    <?php if ($withNote) : ?>
-        <button type="button" class="button button--secondary" data-care-action="note"<?= $attributes ?>>Note</button>
-    <?php endif; ?>
+    <button type="button" class="button button--secondary" data-care-action="note"<?= $attributes ?>>Note</button>
 </span>

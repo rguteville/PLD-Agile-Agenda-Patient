@@ -93,10 +93,4 @@ class Patient
     {
         return $this->details[$field] ?? null;
     }
-
-    /** Patient inscrit « sous X » : identité inconnue. */
-    public function isAnonymous(): bool
-    {
-        return strtoupper($this->lastName) === 'X' && strtoupper($this->firstName) === 'X';
-    }
 }

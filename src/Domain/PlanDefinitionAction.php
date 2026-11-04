@@ -61,12 +61,6 @@ class PlanDefinitionAction
         return $this->idPlanDefinition;
     }
 
-    /** Une des constantes KIND_*. */
-    public function getKind(): string
-    {
-        return $this->kind;
-    }
-
     public function isMedication(): bool
     {
         return $this->kind === self::KIND_MEDICATION;

@@ -76,9 +76,6 @@ final class AgendaService
         'NON_FAIT' => 'not_done',
     ];
 
-    /** Durée d'un créneau de la vue du service, en heures (0 h, 2 h… 22 h). */
-    public const SERVICE_SLOT_HOURS = 2;
-
     private const DAYS_FR = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
     private const MONTHS_FR = [
         1 => 'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
@@ -150,29 +147,19 @@ final class AgendaService
 
     /**
      * Vue-modèle du jour de l'agenda du service : jour affiché et navigation, et pour chaque patient
-     * ses soins du jour rangés par créneau de SERVICE_SLOT_HOURS heures. Les retards de tout le service
-     * sont aussi listés (AURA-32). Mêmes règles que presentDay() (retard = calcul d'affichage).
-     * Depuis la refonte du 2026-11-04, l'écran (consolidated-view.php) n'affiche plus la grille
-     * créneaux × patients : il lit ici le jour et la navigation, et presentBoard() part de cette sortie.
+     * ses soins du jour par ordre chronologique (retards de la veille compris). L'écran
+     * (consolidated-view.php) lit ici le jour et la navigation ; presentBoard() construit le tableau des
+     * lits et la liste de travail à partir de cette sortie. Mêmes règles que presentDay().
      * Pure : le jour affiché et l'heure courante sont injectés.
      *
      * @param list<array<string, mixed>> $episodes sortie de getAgendaService()
      * @return array{date: string, dateLabel: string, isToday: bool, previous: string, next: string,
-     *               slots: list<string>, emptySlots: list<string>, currentSlot: ?string, late: int,
-     *               lateItems: list<array<string, mixed>>, patients: list<array<string, mixed>>}
+     *               patients: list<array<string, mixed>>}
      */
     public static function presentService(array $episodes, DateTimeImmutable $day, DateTimeImmutable $now): array
     {
         $day = $day->setTime(0, 0);
-        $slots = [];
-        for ($hour = 0; $hour < 24; $hour += self::SERVICE_SLOT_HOURS) {
-            $slots[] = sprintf('%02d:00', $hour);
-        }
-        $slotOf = static fn (int $hour): string => $slots[intdiv($hour, self::SERVICE_SLOT_HOURS)];
-        $isToday = $day->format('Y-m-d') === $now->format('Y-m-d');
-
         $patients = [];
-        $lateItems = [];
         foreach ($episodes as $episode) {
             // Retards de la veille portés sur aujourd'hui (une dose de 23 h ne disparaît pas à minuit).
             $agenda = self::presentDay($episode['carePlans'] ?? [], $day, $now, carryOverdue: true);
@@ -184,27 +171,6 @@ final class AgendaService
                 $items,
                 static fn (array $a, array $b): int => [$a['datetime'], $a['label']] <=> [$b['datetime'], $b['label']]
             );
-
-            $name = mb_strtoupper((string) $episode['lastName']) . ' ' . $episode['firstName'];
-            $cells = [];
-            $bySlot = [];
-            foreach ($items as $item) {
-                $slot = $slotOf((int) $item['hour']);
-                $cells[$slot][$item['status']] = ($cells[$slot][$item['status']] ?? 0) + 1;
-                $bySlot[$slot][] = $item;
-                if ($item['status'] === 'late') {
-                    $lateItems[] = $item + [
-                        'idEpisodeOfCare' => (int) $episode['idEpisodeOfCare'],
-                        'patient' => $name,
-                        'bed' => $episode['bed'] ?? null,
-                    ];
-                }
-            }
-            // Ordre stable des effectifs d'une case : ce qui demande une action d'abord.
-            foreach ($cells as &$cell) {
-                uksort($cell, static fn (string $a, string $b): int => self::cellRank($a) <=> self::cellRank($b));
-            }
-            unset($cell);
             $patients[] = [
                 'idEpisodeOfCare' => (int) $episode['idEpisodeOfCare'],
                 'lastName' => (string) $episode['lastName'],
@@ -216,33 +182,16 @@ final class AgendaService
                 // Le référent est-il connu de cette source ? (sinon la vue ne dit pas « à désigner » à tort)
                 'referentKnown' => array_key_exists('referent', $episode),
                 'allergies' => $episode['allergies'] ?? null,
-                'late' => $agenda['counts']['late'],
-                'total' => $agenda['counts']['total'],
-                'cells' => $cells,
-                'items' => $bySlot,
+                'items' => $items,
             ];
         }
-        usort($lateItems, static fn (array $a, array $b): int => $a['datetime'] <=> $b['datetime']);
-        // Créneaux sans aucun soin dans le service (audit IHM du 2026-11-04 : affichés resserrés).
-        $emptySlots = array_values(array_filter(
-            $slots,
-            static fn (string $slot): bool => array_filter(
-                $patients,
-                static fn (array $p): bool => ($p['items'][$slot] ?? []) !== []
-            ) === []
-        ));
 
         return [
             'date' => $day->format('Y-m-d'),
             'dateLabel' => self::dayLabel($day),
-            'isToday' => $isToday,
+            'isToday' => $day->format('Y-m-d') === $now->format('Y-m-d'),
             'previous' => $day->modify('-1 day')->format('Y-m-d'),
             'next' => $day->modify('+1 day')->format('Y-m-d'),
-            'slots' => $slots,
-            'emptySlots' => $emptySlots,
-            'currentSlot' => $isToday ? $slotOf((int) $now->format('G')) : null,
-            'late' => count($lateItems),
-            'lateItems' => $lateItems,
             'patients' => $patients,
         ];
     }
@@ -295,7 +244,7 @@ final class AgendaService
         $worklist = ['late' => [], 'stopped' => [], 'now' => [], 'later' => [], 'done' => []];
         $panels = [];
         foreach ($service['patients'] ?? [] as $patient) {
-            $items = array_merge(...array_values($patient['items'] ?? [])) ?: [];
+            $items = $patient['items'] ?? [];
             usort($items, $byTime);
             $id = (int) $patient['idEpisodeOfCare'];
             // Chaque soin de la liste de travail porte son patient (lit, nom, décès, allergies). La vue
@@ -599,8 +548,7 @@ final class AgendaService
      * @param list<\Aura\Domain\Appointment> $appointments
      * @return list<array{idAppointment: string, idServiceRequest: ?string, idMedicationRequest: ?string,
      *                    plannedTime: ?DateTimeImmutable, status: ?string,
-     *                    timeOfCompletion: ?DateTimeImmutable, timeRecorded: ?DateTimeImmutable,
-     *                    comment: ?string}> jamais null en pratique
+     *                    timeOfCompletion: ?DateTimeImmutable, comment: ?string}> jamais null en pratique
      */
     public function serializeAppointment(array $appointments): ?array
     {
@@ -613,7 +561,6 @@ final class AgendaService
                 'plannedTime' => $appointment->getPlannedTime(),
                 'status' => $appointment->getStatus(),
                 'timeOfCompletion' => $appointment->getTimeOfCompletion(),
-                'timeRecorded' => $appointment->getTimeRecorded(),
                 'comment' => $appointment->getComment(),
             ];
         }
@@ -645,7 +592,7 @@ final class AgendaService
      * pas une donnée enregistrée (aucun statut EN_RETARD en base).
      *
      * $carryOverdue (relecture adversariale du 2026-11-04) : quand le jour affiché est aujourd'hui, les doses
-     * de la veille encore prévues et dépassées sont ajoutées aux retards (clé previousDay vraie). Sans cela,
+     * de la veille encore prévues et dépassées sont ajoutées aux retards (heure suivie de « (veille) »). Sans cela,
      * une dose de 23 h non faite disparaissait de l'agenda à minuit. Désactivé pour la vue Semaine, qui montre
      * déjà la veille dans sa colonne.
      *
@@ -674,7 +621,7 @@ final class AgendaService
                             $overdue = self::presentItem($appointment, $line, $isMedication, $yesterday, $now, $plan);
                             if ($overdue !== null && $overdue['status'] === 'late') {
                                 // L'heure dit que la dose date de la veille : « 23:00 (veille) ».
-                                $items[] = ['previousDay' => true, 'time' => $overdue['time'] . ' (veille)'] + $overdue;
+                                $items[] = ['time' => $overdue['time'] . ' (veille)'] + $overdue;
                             }
                         }
                     }
@@ -840,14 +787,6 @@ final class AgendaService
         return $rows;
     }
 
-    /** Rang d'un statut dans une cellule de la vue du service ; un statut inconnu passe en dernier. */
-    private static function cellRank(string $status): int
-    {
-        $rank = array_search($status, ['late', 'planned', 'done', 'not_done', 'cancelled'], true);
-
-        return $rank === false ? 99 : $rank;
-    }
-
     /**
      * Vue-modèle de la semaine (lundi → dimanche) qui contient le jour demandé : une ligne par soin
      * ou médicament prescrit, une colonne par jour, et dans chaque case les horaires du jour avec leur
@@ -980,7 +919,6 @@ final class AgendaService
 
         $label = trim((string) ($line['idActivityDefinition'] ?? ''));
         $completion = $appointment['timeOfCompletion'] ?? null;
-        $recorded = $appointment['timeRecorded'] ?? null;
         $comment = trim((string) ($appointment['comment'] ?? ''));
 
         return [
@@ -992,12 +930,8 @@ final class AgendaService
             'kindLabel' => $isMedication ? 'Médicament' : 'Soin',
             'label' => $label !== '' ? $label : ($isMedication ? 'Médicament' : 'Soin'),
             'details' => $details === [] ? null : implode(', ', $details),
-            // Catégorie de personnel : non stockée en base ; l'administration d'un médicament est un
-            // acte IDE, un soin peut revenir à l'IDE ou à l'aide-soignant(e). Hypothèse documentée.
-            'responsible' => $isMedication ? 'IDE' : 'IDE / AS',
             'status' => $status,
             'completedAt' => $completion instanceof DateTimeInterface ? $completion->format('H:i') : null,
-            'recordedAt' => $recorded instanceof DateTimeInterface ? $recorded->format('d/m H:i') : null,
             'comment' => $comment !== '' ? $comment : null,
             // Qui a validé ou marqué non effectué (historique, AURA-26) ; null tant que personne.
             'performedBy' => isset($appointment['performedBy']) ? (string) $appointment['performedBy'] : null,

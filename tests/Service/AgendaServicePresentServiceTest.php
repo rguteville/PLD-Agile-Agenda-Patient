@@ -17,7 +17,7 @@ final class AgendaServicePresentServiceTest extends TestCase
     private const DAY = '2026-10-14';
     private const NOW = '2026-10-14 10:30:00';
 
-    public function testServiceWithoutPatientHasTwelveSlotsAndNoRow(): void
+    public function testServiceWithoutPatientHasDayNavigationAndNoRow(): void
     {
         $service = AgendaService::presentService([], $this->day(), $this->now());
 
@@ -26,32 +26,7 @@ final class AgendaServicePresentServiceTest extends TestCase
         self::assertTrue($service['isToday']);
         self::assertSame('2026-10-13', $service['previous']);
         self::assertSame('2026-10-15', $service['next']);
-        self::assertCount(12, $service['slots'], 'un créneau de 2 h de 0 h à 22 h');
-        self::assertSame('00:00', $service['slots'][0]);
-        self::assertSame('22:00', $service['slots'][11]);
         self::assertSame([], $service['patients']);
-        self::assertSame(0, $service['late']);
-    }
-
-    public function testCareIsCountedByStatusInItsSlot(): void
-    {
-        $episodes = [$this->episode(1, 'DUPONT', [
-            $this->appointment('2026-10-14 08:00:00', 'REALISE'),
-            $this->appointment('2026-10-14 09:15:00', 'PLANIFIE'),
-            $this->appointment('2026-10-14 09:45:00', 'PLANIFIE'),
-            $this->appointment('2026-10-14 14:00:00', 'PLANIFIE'),
-        ])];
-
-        $service = AgendaService::presentService($episodes, $this->day(), $this->now());
-        $patient = $service['patients'][0];
-
-        self::assertSame(['late' => 2, 'done' => 1], $patient['cells']['08:00'], '8 h – 10 h : 1 fait, 2 en retard');
-        self::assertSame(['planned' => 1], $patient['cells']['14:00']);
-        self::assertArrayNotHasKey('10:00', $patient['cells'], 'créneau vide absent');
-        self::assertSame(2, $patient['late']);
-        self::assertSame(2, $service['late'], 'total des retards du service');
-        self::assertSame('L01', $patient['bed']);
-        self::assertSame('2026-000001', $patient['episodeNumber']);
     }
 
     public function testOtherDaysAndPatientsAreKeptApart(): void
@@ -63,9 +38,8 @@ final class AgendaServicePresentServiceTest extends TestCase
 
         $service = AgendaService::presentService($episodes, $this->day(), $this->now());
 
-        self::assertSame([], $service['patients'][0]['cells'], 'le soin du lendemain n\'apparaît pas');
-        self::assertSame(['planned' => 1], $service['patients'][1]['cells']['22:00']);
-        self::assertSame(0, $service['late']);
+        self::assertSame([], $service['patients'][0]['items'], 'le soin du lendemain n\'apparaît pas');
+        self::assertSame(['23:30'], array_column($service['patients'][1]['items'], 'time'));
     }
 
     /** @return array<string, mixed> */

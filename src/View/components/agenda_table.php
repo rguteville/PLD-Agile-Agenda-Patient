@@ -4,10 +4,10 @@ use Aura\Core\View;
 
 /**
  * Tableau d'une tranche de l'agenda du patient (AURA-24, AURA-25 : retards épinglés ou une rotation) :
- * heure, type, soin avec le « + » de sa prescription à droite du titre, responsable, statut, notes, et
- * les boutons d'action (components/care_buttons) quand la validation est activée.
- * Inclus par pages/episode/patient-agenda.php (vue Jour). Chaque ligne porte data-appointment-row,
- * data-status et data-care-label, lus par les filtres de public/js/agenda.js.
+ * heure, type, soin avec le « + » de sa prescription à droite du titre, statut, notes, et les boutons
+ * d'action (components/care_buttons) quand la validation est activée.
+ * Inclus par pages/episode/patient-agenda.php (vue Jour). Chaque ligne porte data-appointment-row et
+ * data-status, lus par les filtres de public/js/agenda.js.
  *
  * @var list<array<string, mixed>> $items lignes de AgendaService::presentDay() (id, time, datetime,
  *      kindLabel, label, details, status, notValidated, completedAt, performedBy, comment,
@@ -37,7 +37,7 @@ $idEpisodeOfCare = $idEpisodeOfCare ?? null;
         <tbody>
             <?php foreach ($items as $item) : ?>
                 <tr class="is-<?= View::e($item['status']) ?>" data-appointment-row
-                    data-status="<?= View::e($item['status']) ?>" data-care-label="<?= View::e($item['label']) ?>">
+                    data-status="<?= View::e($item['status']) ?>">
                     <td class="col-time">
                         <time datetime="<?= View::e($item['datetime']) ?>"><?= View::e($item['time']) ?></time>
                     </td>

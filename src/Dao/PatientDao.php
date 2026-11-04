@@ -7,7 +7,6 @@ namespace Aura\Dao;
 use Aura\Domain\Patient;
 use Aura\Domain\RecordFields;
 use DateTimeImmutable;
-use DateTimeInterface;
 use LogicException;
 use PDO;
 
@@ -277,29 +276,6 @@ class PatientDao
         $stmt->execute(['idPatient' => (string) $idPatient]);
 
         return $stmt->rowCount() === 1;
-    }
-
-    /**
-     * Patients actifs portant exactement ce nom, ce prénom et cette date de naissance
-     * (reconnaissance d'un patient déjà venu dans le service, sans IPP). Comparaison selon la
-     * collation de la table : casse et accents ignorés.
-     *
-     * @return Patient[]
-     */
-    public function findByIdentity(string $lastName, string $firstName, DateTimeInterface $birthDate): array
-    {
-        $stmt = $this->pdo->prepare(
-            'SELECT ' . self::columns() . ' FROM Patient
-             WHERE lastName = :lastName AND firstName = :firstName AND birthDate = :birthDate
-               AND ' . self::ACTIVE
-        );
-        $stmt->execute([
-            'lastName' => $lastName,
-            'firstName' => $firstName,
-            'birthDate' => $birthDate->format('Y-m-d'),
-        ]);
-
-        return array_map(fn(array $r) => $this->mapToEntity($r), $stmt->fetchAll(PDO::FETCH_ASSOC));
     }
 
     /**

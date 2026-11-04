@@ -205,7 +205,7 @@ final class AgendaServicePresentBoardTest extends TestCase
         return [
             'idEpisodeOfCare' => $id, 'lastName' => 'Zz' . $bed, 'firstName' => 'Test', 'bed' => $bed,
             'episodeNumber' => '2026-00000' . $id, 'referent' => null, 'referentKnown' => true, 'deceased' => null,
-            'allergies' => [], 'items' => ['00:00' => $items],
+            'allergies' => [], 'items' => $items,
         ];
     }
 

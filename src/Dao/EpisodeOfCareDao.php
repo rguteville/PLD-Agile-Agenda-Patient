@@ -275,30 +275,6 @@ class EpisodeOfCareDao
     ];
 
     /**
-     * Met à jour seulement les champs fournis : clés de RecordFields::EPISODE ou colonnes de
-     * EDITABLE_BASE_COLUMNS ; toute autre clé est ignorée (liste blanche).
-     *
-     * @param array<string, ?string> $details
-     */
-    public function updateDetails(int $idEpisodeOfCare, array $details): void
-    {
-        $details = array_intersect_key(
-            $details,
-            RecordFields::EPISODE + array_fill_keys(self::EDITABLE_BASE_COLUMNS, true)
-        );
-        if ($details === []) {
-            return;
-        }
-
-        $stmt = $this->pdo->prepare(
-            'UPDATE EpisodeOfCare SET '
-            . implode(', ', array_map(static fn (string $c): string => $c . ' = :' . $c, array_keys($details)))
-            . ' WHERE idEpisodeOfCare = :id'
-        );
-        $stmt->execute(['id' => (string) $idEpisodeOfCare] + $details);
-    }
-
-    /**
      * Met à jour UN champ seulement si sa valeur en base est encore celle attendue (contrôle de
      * concurrence optimiste, atomique : la comparaison est faite par l'UPDATE lui-même, <=> traite
      * NULL). Renvoie false si la ligne n'existe pas ou si la valeur a changé entre-temps.
