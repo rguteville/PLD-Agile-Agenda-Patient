@@ -771,14 +771,14 @@ class AdmissionService
         $height = $this->text($data['height'] ?? null);
         if ($height !== '' && !$this->isStrictlyPositive($height)) {
             $errors['height'] = 'La taille doit être un nombre strictement positif.';
-        } elseif ($height !== '' && !$this->tientDansLaColonne($height)) {
+        } elseif ($height !== '' && !$this->fitsInColumn($height)) {
             $errors['height'] = 'La taille doit être inférieure à 1000 cm.';
         }
 
         $weight = $this->text($data['weight'] ?? null);
         if ($weight !== '' && !$this->isStrictlyPositive($weight)) {
             $errors['weight'] = 'Le poids doit être un nombre strictement positif.';
-        } elseif ($weight !== '' && !$this->tientDansLaColonne($weight)) {
+        } elseif ($weight !== '' && !$this->fitsInColumn($weight)) {
             $errors['weight'] = 'Le poids doit être inférieur à 1000 kg.';
         }
 
@@ -841,7 +841,7 @@ class AdmissionService
     }
 
     /** Une fois arrondie au centième, la valeur tient dans DECIMAL(5,2) (sinon MariaDB la refuse). */
-    private function tientDansLaColonne(string $value): bool
+    private function fitsInColumn(string $value): bool
     {
         return round((float) $value, 2) <= self::MEASURE_MAX;
     }

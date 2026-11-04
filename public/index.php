@@ -13,8 +13,46 @@
 
 declare(strict_types=1);
 
+use Aura\Controller\CareController;
+use Aura\Controller\CarePlanController;
+use Aura\Controller\EpisodeOfCareController;
+use Aura\Controller\PatientController;
+use Aura\Controller\RecordController;
+use Aura\Controller\ServiceController;
+use Aura\Controller\TeamController;
+use Aura\Core\ConfigurationException;
+use Aura\Core\Database;
+use Aura\Core\Router;
+use Aura\Core\View;
 use Aura\Dao\ActivityDefinitionDao;
+use Aura\Dao\AllergyIntoleranceDao;
+use Aura\Dao\AppointmentDao;
+use Aura\Dao\AuditEventDao;
+use Aura\Dao\CarePlanDao;
+use Aura\Dao\CareTeamDao;
+use Aura\Dao\EpisodeOfCareDao;
 use Aura\Dao\MedicationDao;
+use Aura\Dao\PatientDao;
+use Aura\Dao\PlanDefinitionDao;
+use Aura\Dao\ReferenceDataDao;
+use Aura\Dao\SubstanceDao;
+use Aura\Dao\Transaction;
+use Aura\Service\AdmissionService;
+use Aura\Service\AgendaService;
+use Aura\Service\AllergyIntoleranceService;
+use Aura\Service\AppointmentService;
+use Aura\Service\CarePlanService;
+use Aura\Service\CareTeamService;
+use Aura\Service\EpisodeOfCareService;
+use Aura\Service\IppSearchService;
+use Aura\Service\PatientDeletionService;
+use Aura\Service\PatientListService;
+use Aura\Service\PatientRecordService;
+use Aura\Service\PatientSearchService;
+use Aura\Service\PatientUpdateService;
+use Aura\Service\PlanDefinitionService;
+use Aura\Service\RecordEditService;
+use Aura\Service\RecordSectionService;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
@@ -22,47 +60,6 @@ require dirname(__DIR__) . '/vendor/autoload.php';
 // sans date.timezone) décale d'une à deux heures l'heure d'admission, la fin de séjour et les retards
 // de l'agenda par rapport à l'heure affichée par le navigateur.
 date_default_timezone_set('Europe/Paris');
-
-use Aura\Controller\CarePlanController;
-use Aura\Controller\CareController;
-use Aura\Controller\PatientController;
-use Aura\Controller\RecordController;
-use Aura\Controller\EpisodeOfCareController;
-use Aura\Controller\ServiceController;
-use Aura\Controller\TeamController;
-use Aura\Core\ConfigurationException;
-use Aura\Core\Database;
-use Aura\Core\Router;
-use Aura\Core\View;
-
-use Aura\Dao\AllergyIntoleranceDao;
-use Aura\Dao\AuditEventDao;
-use Aura\Dao\CareTeamDao;
-use Aura\Dao\CarePlanDao;
-use Aura\Dao\PatientDao;
-use Aura\Dao\PlanDefinitionDao;
-use Aura\Dao\ReferenceDataDao;
-use Aura\Dao\EpisodeOfCareDao;
-use Aura\Dao\SubstanceDao;
-use Aura\Dao\AppointmentDao;
-use Aura\Dao\Transaction;
-
-use Aura\Service\AdmissionService;
-use Aura\Service\AllergyIntoleranceService;
-use Aura\Service\CarePlanService;
-use Aura\Service\PatientDeletionService;
-use Aura\Service\PatientRecordService;
-use Aura\Service\PatientListService;
-use Aura\Service\PatientUpdateService;
-use Aura\Service\PatientSearchService;
-use Aura\Service\PlanDefinitionService;
-use Aura\Service\IppSearchService;
-use Aura\Service\RecordEditService;
-use Aura\Service\RecordSectionService;
-use Aura\Service\EpisodeOfCareService;
-use Aura\Service\AgendaService;
-use Aura\Service\AppointmentService;
-use Aura\Service\CareTeamService;
 
 // Chemin demandé, sans la query string.
 $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?: '/';
