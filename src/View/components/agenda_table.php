@@ -15,6 +15,7 @@ use Aura\Core\View;
  * @var string $caption titre du tableau lu par les lecteurs d'écran (visuellement masqué)
  * @var bool $validationEnabled colonne d'actions (dialogue components/validation_dialog), false par défaut
  * @var int|null $idEpisodeOfCare séjour des soins, envoyé avec l'action ; null par défaut
+ * @var bool $closed séjour clos : badge « non validée » sans lien, false par défaut
  */
 $validationEnabled = $validationEnabled ?? false;
 $idEpisodeOfCare = $idEpisodeOfCare ?? null;
@@ -58,6 +59,7 @@ $idEpisodeOfCare = $idEpisodeOfCare ?? null;
                             <?= View::render('components/to_validate_link', [
                                 'idEpisodeOfCare' => $idEpisodeOfCare ?? null,
                                 'idCarePlan' => $item['idCarePlan'] ?? null,
+                                'closed' => $closed ?? false,
                             ]) ?>
                         <?php endif; ?>
                         <?php if ($item['completedAt'] !== null) : ?>

@@ -203,6 +203,7 @@ $recordUrl = '/sejour?id=' . $idEpisodeOfCare;
                     'caption' => 'Soins en retard',
                     'validationEnabled' => $validationEnabled,
                     'idEpisodeOfCare' => $idEpisodeOfCare,
+                    'closed' => !$validationEnabled,
                 ]) ?>
             </section>
         <?php endif; ?>
@@ -226,6 +227,7 @@ $recordUrl = '/sejour?id=' . $idEpisodeOfCare;
                         'caption' => 'Rotation ' . $shift['label'] . ', ' . $shift['hours'],
                         'validationEnabled' => $validationEnabled,
                         'idEpisodeOfCare' => $idEpisodeOfCare,
+                        'closed' => !$validationEnabled,
                     ]) ?>
                 <?php endif; ?>
             </section>

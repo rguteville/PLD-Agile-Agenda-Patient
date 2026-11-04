@@ -65,7 +65,7 @@ final class PagesRenderTest extends TestCase
     private static function agenda(array $late = [], array $shiftItems = [], ?array $counts = null): array
     {
         $shifts = [];
-        foreach (AgendaService::SHIFTS as $index => $shift) {
+        foreach (AgendaService::daySections() as $index => $shift) {
             $shifts[] = $shift + ['items' => $shiftItems[$index] ?? []];
         }
 

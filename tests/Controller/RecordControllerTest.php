@@ -99,6 +99,21 @@ final class RecordControllerTest extends TestCase
 
     #[RunInSeparateProcess]
     #[PreserveGlobalState(false)]
+    public function testBloodTypeIsNeverChangedInlineEvenByADoctor(): void
+    {
+        $service = $this->createMock(RecordEditService::class);
+        $service->expects($this->never())->method('update');
+
+        [$status, $body] = $this->call($service, Csrf::token(), [
+            'entity' => 'patient', 'id' => '9', 'episodeOfCare' => '3', 'field' => 'bloodType', 'value' => 'O+',
+            'oldValue' => 'A+', 'validator' => 'PRA01', 'password' => 'x',
+        ]);
+        self::assertSame(422, $status);
+        self::assertStringContainsString('Modifier', $body['message']);
+    }
+
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
     public function testConflictGives409WithCurrentValue(): void
     {
         $service = $this->createMock(RecordEditService::class);

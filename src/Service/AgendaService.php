@@ -36,18 +36,44 @@ use LogicException;
  */
 final class AgendaService
 {
-    /**
-     * Rotations de l'équipe soignante, en heures (début inclus, fin exclue), dans l'ordre
-     * chronologique de la journée civile : la nuit chevauche minuit, elle apparaît donc en deux
-     * tranches. Mêmes bornes que CareTeam::SHIFTS (6 h, 14 h, 22 h : HYPOTHÈSE à confirmer avec le service),
-     * découpées au jour civil pour l'affichage d'une journée.
-     */
-    public const SHIFTS = [
-        ['key' => 'night-end', 'label' => 'Nuit (fin)', 'hours' => '0 h à 6 h', 'from' => 0, 'to' => 6],
-        ['key' => 'morning', 'label' => 'Matin', 'hours' => '6 h à 14 h', 'from' => 6, 'to' => 14],
-        ['key' => 'afternoon', 'label' => 'Après-midi', 'hours' => '14 h à 22 h', 'from' => 14, 'to' => 22],
-        ['key' => 'night-start', 'label' => 'Nuit (début)', 'hours' => '22 h à 0 h', 'from' => 22, 'to' => 24],
+    /** Clé d'ancre HTML de chaque rotation de CareTeam::SHIFTS (sections de l'agenda d'un jour). */
+    private const SECTION_KEYS = [
+        CareTeam::SHIFT_MORNING => 'morning',
+        CareTeam::SHIFT_AFTERNOON => 'afternoon',
+        CareTeam::SHIFT_NIGHT => 'night',
     ];
+
+    /**
+     * Sections de l'agenda d'un jour, en heures (début inclus, fin exclue), dans l'ordre de la journée civile.
+     * Déduites de CareTeam::SHIFTS (bornes 6 h, 14 h, 22 h : HYPOTHÈSE à confirmer avec le service) : la rotation
+     * qui chevauche minuit (la nuit) apparaît en deux tranches, sa fin en tête de journée et son début à la fin.
+     *
+     * @return list<array{key: string, label: string, hours: string, from: int, to: int}>
+     */
+    public static function daySections(): array
+    {
+        $sections = [];
+        $first = [];
+        $last = [];
+        foreach (CareTeam::SHIFTS as $code => $shift) {
+            $key = self::SECTION_KEYS[$code] ?? strtolower($code);
+            $section = static fn (string $suffix, string $label, int $from, int $to): array => [
+                'key' => $key . $suffix,
+                'label' => $label,
+                'hours' => $from . ' h à ' . ($to % 24) . ' h',
+                'from' => $from,
+                'to' => $to,
+            ];
+            if ($shift['to'] > $shift['from']) {
+                $sections[] = $section('', $shift['label'], $shift['from'], $shift['to']);
+                continue;
+            }
+            $first[] = $section('-end', $shift['label'] . ' (fin)', 0, $shift['to']);
+            $last[] = $section('-start', $shift['label'] . ' (début)', $shift['from'], 24);
+        }
+
+        return [...$first, ...$sections, ...$last];
+    }
 
     /**
      * Fin de la rotation en cours à l'instant $now (6 h, 14 h, 22 h, ou 6 h le lendemain pour la nuit
@@ -232,7 +258,7 @@ final class AgendaService
         $dayStart = new DateTimeImmutable(($service['date'] ?? $now->format('Y-m-d')) . ' 00:00', $now->getTimezone());
         $dayEnd = $dayStart->modify('+1 day');
         $end = min(self::shiftEnd($now), $dayEnd);
-        $start = max(self::shiftEnd($now)->modify('-8 hours'), $dayStart);
+        $start = max(self::shiftEnd($now)->modify('-' . CareTeam::SHIFT_HOURS . ' hours'), $dayStart);
         $soon = min($now->modify('+2 hours'), $end);
         $fmt = static fn (DateTimeImmutable $d): string => $d->format('Y-m-d\TH:i');
         [$startKey, $endKey, $soonKey] = [$fmt($start), $fmt($end), $fmt($soon)];
@@ -625,7 +651,7 @@ final class AgendaService
 
         $late = array_values(array_filter($items, static fn (array $i): bool => $i['status'] === 'late'));
         $shifts = [];
-        foreach (self::SHIFTS as $shift) {
+        foreach (self::daySections() as $shift) {
             $shifts[] = $shift + ['items' => array_values(array_filter(
                 $items,
                 static fn (array $i): bool => $i['status'] !== 'late'

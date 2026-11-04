@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Aura\Controller;
 
 use Aura\Core\Csrf;
+use Aura\Domain\RecordFields;
 use Aura\Service\RecordEditService;
 use Aura\Service\RecordSectionService;
 use LogicException;
@@ -246,6 +247,15 @@ final class RecordController
             $this->respond(422, [
                 'ok' => false,
                 'message' => 'Le décès se déclare avec le bouton « Déclarer le décès ».',
+            ]);
+            return;
+        }
+        // Groupe sanguin (et tout champ réservé au médecin) : seulement par « Modifier » sur sa partie, même
+        // avec l'authentification de l'édition en ligne.
+        if (RecordFields::isDoctorOnly($field)) {
+            $this->respond(422, [
+                'ok' => false,
+                'message' => 'Ce champ se modifie avec « Modifier » sur sa partie, validé par un médecin.',
             ]);
             return;
         }

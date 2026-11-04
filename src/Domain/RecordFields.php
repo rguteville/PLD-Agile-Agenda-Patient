@@ -362,6 +362,16 @@ final class RecordFields
         return array_filter(self::PATIENT, static fn (array $spec): bool => ($spec['admission'] ?? true) !== false);
     }
 
+    /**
+     * Champ réservé à un médecin identifié ('validatedByDoctor' : groupe sanguin, décès) : il ne se modifie que
+     * par « Modifier » sur sa partie, jamais par l'édition en ligne d'un champ.
+     */
+    public static function isDoctorOnly(string $field): bool
+    {
+        return (self::PATIENT[$field]['validatedByDoctor'] ?? false)
+            || (self::EPISODE[$field]['validatedByDoctor'] ?? false);
+    }
+
     /** @return list<string> noms de colonnes des champs complémentaires du patient */
     public static function patientColumns(): array
     {
