@@ -1,6 +1,6 @@
 # Tests
 
-AURA a une suite de tests volontairement courte : 244 tests PHPUnit 10, chacun lié à une règle de gestion, à la
+AURA a une suite de tests volontairement courte : 245 tests PHPUnit 10, chacun lié à une règle de gestion, à la
 sécurité du patient ou à un défaut réel déjà rencontré. Un test qui ne vérifie qu'un getter, un constructeur ou le
 balisage au caractère près n'a pas sa place ici : il casse à chaque retouche sans rien protéger.
 
@@ -18,19 +18,19 @@ Chaque règle est testée au niveau le plus bas qui suffit à la prouver.
 | Sur la vraie base | `tests/Dao/*`, `tests/Service/*IntegrationTest.php` | SQL des DAO, contraintes de `schema.sql`, transactions, enchaînements service + DAO | un simulacre ne voit ni une colonne renommée ni une contrainte qui bloque (cas réel : la PR #52 a corrigé deux DAO cassés par un renommage) |
 | HTTP de bout en bout | `tests/Http` | parcours réels : session, jeton CSRF, POST, redirections, codes 400/404 | vérifie le câblage de `public/index.php`, que les autres niveaux ne voient pas |
 
-Répartition (244 tests) :
+Répartition (245 tests) :
 
 | Dossier | Tests | Dont sur base |
 | --- | --- | --- |
 | `tests/Core` | 9 | 0 |
-| `tests/Controller` | 9 | 0 |
+| `tests/Controller` | 10 | 0 |
 | `tests/Domain` | 6 | 0 |
 | `tests/Dao` | 35 | 35 |
 | `tests/Service` | 160 | 36 |
 | `tests/View` | 5 | 0 |
 | `tests/Http` | 20 | 20 |
 
-Les deux suites de `phpunit.xml.dist` : `aura` (tout sauf `tests/Http`, 224 tests) et `http` (`tests/Http`,
+Les deux suites de `phpunit.xml.dist` : `aura` (tout sauf `tests/Http`, 225 tests) et `http` (`tests/Http`,
 20 tests).
 
 ### Écrire un test
@@ -68,7 +68,7 @@ Sans aucune base, les tests purs tournent déjà :
 composer test:fast
 ```
 
-Résultat attendu : « OK, but some tests were skipped! », 224 tests dont 71 sautés (ceux qui demandent la base).
+Résultat attendu : « OK, but some tests were skipped! », 225 tests dont 71 sautés (ceux qui demandent la base).
 
 ### 2.2 Créer la base de test `aura_test` et l'utilisateur `aura_ci`
 
@@ -102,8 +102,8 @@ second crée des soins à partir du jour courant.
 
 ```bash
 export DB_HOST=127.0.0.1 DB_PORT=3306 DB_NAME=aura_test DB_USER=aura_ci DB_PASSWORD=aura_ci
-composer test            # les deux suites : « OK (244 tests, … assertions) »
-composer test:fast       # suite « aura » seulement (224 tests)
+composer test            # les deux suites : « OK (245 tests, … assertions) »
+composer test:fast       # suite « aura » seulement (225 tests)
 composer test:http       # suite « http » seulement (20 tests, base requise)
 composer test:coverage   # couverture texte, et HTML dans build/coverage (extension pcov requise)
 ```
@@ -133,7 +133,7 @@ avec le code 0.
 
 Un test sauté n'a rien vérifié. Une suite verte avec des sautés prouve les règles pures, pas les DAO, les
 contraintes de la base ni les parcours HTTP. Avant de pousser, lancez la suite avec la base (ou laissez le CI le
-faire) : elle doit afficher « OK (244 tests, … assertions) », sans aucun saut.
+faire) : elle doit afficher « OK (245 tests, … assertions) », sans aucun saut.
 
 Les tests HTTP peuvent aussi être sautés avec le message « Base ouverte « … » » : la base réellement ouverte n'est
 pas une base de test (souvent un `config/config.php` aux valeurs écrites en dur, qui ignore `DB_*`). Pour voir le motif de chaque
