@@ -151,7 +151,7 @@ final class EpisodeOfCareController
      * Paramètres facultatifs : `date` (AAAA-MM-JJ, aujourd'hui par défaut), `vue=semaine`. Les actions sur
      * un soin ne sont proposées que pour un séjour en cours.
      *
-     * @throws \InvalidArgumentException si `numSejour` ne correspond à aucun séjour (non rattrapée ici)
+     * Un `numSejour` mal formé ou inconnu répond 404 (relecture adversariale du 2026-11-04).
      */
     public function getAgenda(): void
     {
@@ -161,9 +161,19 @@ final class EpisodeOfCareController
             View::error(404, 'Identifiant ou numéro de séjour manquant.');
             return;
         }
-        //Recuperer l'id du sejour selon son numero
+        // Identifiant du séjour à partir de son numéro (AAAA-NNNNNN).
         if ($id === null && $episodeNumber !== null) {
-            $id = (string) $this->episodeOfCareService->getEpisodeOfCareByNumber($episodeNumber)->getIdEpisodeOfCare();
+            if (!is_string($episodeNumber) || preg_match('/^\d{4}-\d{6}$/', $episodeNumber) !== 1) {
+                View::error(404, 'Numéro de séjour invalide.');
+                return;
+            }
+            try {
+                $episode = $this->episodeOfCareService->getEpisodeOfCareByNumber($episodeNumber);
+            } catch (InvalidArgumentException) {
+                View::error(404, 'Aucun séjour ne porte ce numéro.');
+                return;
+            }
+            $id = (string) $episode->getIdEpisodeOfCare();
         }
 
         $idEpisodeOfCare = self::readId($id);
@@ -197,7 +207,7 @@ final class EpisodeOfCareController
             'banner' => $record['banner'],
             'idEpisodeOfCare' => $idEpisodeOfCare,
             'view' => $isWeek ? 'week' : 'day',
-            'agenda' => AgendaService::presentDay($carePlans, $day, $now),
+            'agenda' => AgendaService::presentDay($carePlans, $day, $now, carryOverdue: true),
             'week' => $isWeek ? AgendaService::presentWeek($carePlans, $day, $now) : null,
             'validators' => $this->appointmentService?->performers() ?? [],
             'csrfToken' => $validationEnabled ? Csrf::token() : null,

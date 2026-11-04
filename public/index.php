@@ -61,6 +61,29 @@ if (PHP_SAPI === 'cli-server' && is_file(__DIR__ . $path)) {
     return false;
 }
 
+// Relecture adversariale du 2026-11-04 : une saisie qui n'est pas de l'UTF-8 valide (octet %FF) ferait échouer
+// l'écriture en base (erreur 1366). Refusée ici, une fois pour toutes les routes (les corps JSON invalides sont
+// déjà refusés par json_decode).
+$validUtf8 = static function (mixed $value) use (&$validUtf8): bool {
+    if (is_array($value)) {
+        foreach ($value as $key => $item) {
+            if (!$validUtf8((string) $key) || !$validUtf8($item)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    return !is_string($value) || mb_check_encoding($value, 'UTF-8');
+};
+if (!$validUtf8($_GET) || !$validUtf8($_POST)) {
+    http_response_code(400);
+    header('Content-Type: text/plain; charset=utf-8');
+    echo 'Requête invalide : caractères non reconnus.';
+    return;
+}
+
 // La connexion à la base (Aura\Core\Database) est paresseuse : seules les pages
 // qui l'utilisent peuvent lever ConfigurationException, les autres fonctionnent
 // sans config/config.php.
@@ -162,7 +185,8 @@ try {
             allergyIntoleranceService: new AllergyIntoleranceService(
                 new EpisodeOfCareDao($pdo),
                 new AllergyIntoleranceDao($pdo),
-                new SubstanceDao($pdo)
+                new SubstanceDao($pdo),
+                new PatientDao($pdo)
             ),
             recordEditService: $recordEditService()
         );
@@ -386,4 +410,23 @@ try {
         header('Content-Type: text/plain; charset=utf-8');
     }
     echo $e->getMessage();
+} catch (Throwable $e) {
+    // Relecture adversariale du 2026-11-04 : filet de sécurité. Une erreur imprévue (base, type, règle) est
+    // journalisée pour l'équipe ; l'utilisateur reçoit une page ou un JSON d'erreur, jamais la trace (chemins,
+    // SQL). Les erreurs prévues sont traitées avant, par les contrôleurs, avec un message précis.
+    error_log('AURA : ' . $e::class . ' : ' . $e->getMessage() . ' (' . $e->getFile() . ':' . $e->getLine() . ')');
+    $message = 'Une erreur inattendue est survenue : rien n\'a été enregistré si l\'action n\'a pas abouti. '
+        . 'Rechargez la page puis réessayez.';
+    if (headers_sent()) {
+        echo '<p role="alert">' . View::e($message) . '</p>';
+    } elseif (str_contains((string) ($_SERVER['HTTP_ACCEPT'] ?? ''), 'application/json')) {
+        http_response_code(500);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['ok' => false, 'message' => $message], JSON_UNESCAPED_UNICODE);
+    } else {
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        View::error(500, $message);
+    }
 }

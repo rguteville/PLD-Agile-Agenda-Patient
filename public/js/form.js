@@ -64,9 +64,18 @@ function showFormError(form, message) {
 document.querySelectorAll('form[data-ajax]').forEach(form => {
     form.addEventListener('submit', async event => {
         event.preventDefault();
+        // Relecture adversariale du 2026-11-04 : un double clic envoyait deux fois l'ordonnance (soins en
+        // double dans l'agenda) ou l'admission (deux patients). Un seul envoi à la fois, boutons désactivés.
+        if (form.dataset.sending === '1') {
+            return;
+        }
+        form.dataset.sending = '1';
+        const buttons = form.querySelectorAll('button[type="submit"], input[type="submit"]');
+        buttons.forEach(button => { button.disabled = true; });
         clearFormErrors(form);
 
         let data;
+        let redirected = false;
         try {
             // getAttribute : un champ nommé « action » masquerait form.action (même piège que agenda.js).
             const response = await fetch(form.getAttribute('action') || window.location.href, {
@@ -79,11 +88,12 @@ document.querySelectorAll('form[data-ajax]').forEach(form => {
             });
             data = await response.json();
         } catch (e) {
-            showFormError(form, GENERIC_ERROR_MESSAGE);
-            return;
+            data = null;
         }
 
-        if (!data.ok) {
+        if (!data || typeof data !== 'object') {
+            showFormError(form, GENERIC_ERROR_MESSAGE);
+        } else if (!data.ok) {
             const errors = data.errors || {};
             Object.keys(errors).forEach(fieldName => showFieldError(form, fieldName, errors[fieldName]));
             if (Object.keys(errors).length === 0) {
@@ -91,12 +101,15 @@ document.querySelectorAll('form[data-ajax]').forEach(form => {
             }
             // Les sections repliées (form-sections.js) s'ouvrent sur le champ en erreur.
             form.dispatchEvent(new CustomEvent('aura:form-errors'));
-            return;
-        }
-
-        // Succès (AURA-10.4) : le serveur indique le dossier du séjour créé.
-        if (data.redirect) {
+        } else if (data.redirect) {
+            // Succès (AURA-10.4) : le serveur indique le dossier du séjour créé. Le formulaire reste bloqué
+            // pendant le changement de page.
+            redirected = true;
             window.location.assign(data.redirect);
+        }
+        if (!redirected) {
+            delete form.dataset.sending;
+            buttons.forEach(button => { button.disabled = false; });
         }
     });
 });

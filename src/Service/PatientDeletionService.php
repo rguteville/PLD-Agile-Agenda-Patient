@@ -92,6 +92,8 @@ final class PatientDeletionService
     public function delete(int $idPatient): ?string
     {
         return $this->transaction->run(function () use ($idPatient): ?string {
+            // Même verrou que l'admission : pas de suppression pendant qu'un séjour s'ouvre (relecture du 2026-11-04).
+            $this->patientDao->lockForUpdate($idPatient);
             $patient = $this->patientDao->findById($idPatient);
             if ($patient === null) {
                 throw new InvalidArgumentException(sprintf('Aucun patient ne porte l\'identifiant %d.', $idPatient));

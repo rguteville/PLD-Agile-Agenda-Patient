@@ -86,6 +86,9 @@ final class AppointmentService
         return $this->performers;
     }
 
+    /** Un soin peut être fait au plus tôt 8 h (une rotation) avant son heure prévue. */
+    public const EARLIEST_COMPLETION_HOURS = 8;
+
     /**
      * Contrôle d'une demande, PUR (sans base) : action connue, soignant de la liste et mot de passe
      * (factice), heure de réalisation passée pour « réalisé », motif pour « non effectué » et note.
@@ -243,8 +246,23 @@ final class AppointmentService
                 )],
             ];
         }
+        // Relecture adversariale du 2026-11-04 : l'heure de réalisation reste proche de l'heure prévue (au plus
+        // EARLIEST_COMPLETION_HOURS avant, la durée d'une rotation) : un soin « fait en 2020 » est une faute de saisie.
+        if ($completion !== null && $planned !== null) {
+            $earliest = DateTimeImmutable::createFromInterface($planned)
+                ->modify('-' . self::EARLIEST_COMPLETION_HOURS . ' hours');
+            if ($completion < $earliest) {
+                return [
+                    'status' => self::STATUS_INVALID,
+                    'errors' => ['completedAt' => sprintf(
+                        'Heure de réalisation trop éloignée de l\'heure prévue (%s) : vérifiez la saisie.',
+                        $planned->format('d/m à H:i')
+                    )],
+                ];
+            }
+        }
         $status = $action === self::ACTION_DONE ? Appointment::STATUS_DONE : Appointment::STATUS_NOT_DONE;
-        $completedAt = $action === self::ACTION_DONE ? self::parseCompletion($input['completedAt']) : null;
+        $completedAt = $completion;
         $id = $appointment->getIdAppointment();
         $saved = $this->transaction->run(function () use ($id, $status, $completedAt, $now, $comment, $author): bool {
             if (!$this->appointmentDao->close($id, $status, $completedAt, $now, $comment)) {

@@ -214,6 +214,7 @@ unset($section);
     'title' => "Formulaire d'admission",
     'action' => '/patients/create',
     'submit' => 'Admettre',
+    'csrfToken' => $csrfToken ?? null,
     'lead' => $search,
     'fields' => $essentials,
     'sections' => $sections,

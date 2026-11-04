@@ -104,11 +104,13 @@ final class CareTeamServiceTest extends TestCase
 
         $shift = AgendaService::presentShift($episodes, $start, $end, new DateTimeImmutable('2026-10-15 01:00:00'));
 
-        self::assertSame(['B', 'C'], array_column($shift['items'], 'id'), '20 h inclus → 8 h exclu');
-        self::assertSame(['late', 'planned'], array_column($shift['items'], 'status'));
+        // 20 h inclus, 8 h exclu ; la dose de 19 h, non faite, est reprise de la vacation précédente
+        // (relecture adversariale du 2026-11-04 : un retard ne disparaît pas à la relève).
+        self::assertSame(['A', 'B', 'C'], array_column($shift['items'], 'id'));
+        self::assertSame(['late', 'late', 'planned'], array_column($shift['items'], 'status'));
         self::assertSame('SIMPSON Marge', $shift['items'][0]['patient']);
-        self::assertSame(1, $shift['patients'][0]['late']);
-        self::assertSame(['total' => 2, 'late' => 1, 'done' => 0, 'planned' => 1], $shift['counts']);
+        self::assertSame(2, $shift['patients'][0]['late']);
+        self::assertSame(['total' => 3, 'late' => 2, 'done' => 0, 'planned' => 1], $shift['counts']);
     }
 
     /** @return array<string, mixed> */

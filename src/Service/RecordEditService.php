@@ -133,11 +133,16 @@ class RecordEditService
             );
         }
 
-        // Depuis le dossier d'un séjour, un patient n'est modifiable que s'il est celui de ce séjour :
-        // l'identifiant envoyé par le client ne suffit pas.
-        if ($entity === self::ENTITY_PATIENT && $idEpisodeOfCare !== null) {
+        // Depuis le dossier d'un séjour, seuls ce séjour et son patient sont modifiables : l'identifiant envoyé
+        // par le client ne suffit pas (relecture adversariale du 2026-11-04 : le séjour d'un autre patient était
+        // modifiable depuis un dossier). Le patient doit aussi être actif (pas supprimé de la liste).
+        if ($idEpisodeOfCare !== null) {
             $episodeOfCare = $this->episodeOfCareDao->findById($idEpisodeOfCare);
-            if ($episodeOfCare === null || $episodeOfCare->getIdPatient() !== $id) {
+            $owner = $episodeOfCare === null ? null : $this->patientDao->findById($episodeOfCare->getIdPatient());
+            $sameRecord = $entity === self::ENTITY_PATIENT
+                ? $episodeOfCare?->getIdPatient() === $id
+                : $idEpisodeOfCare === $id;
+            if ($owner === null || !$sameRecord) {
                 return self::result(self::STATUS_NOT_FOUND, 'Dossier introuvable.');
             }
         }

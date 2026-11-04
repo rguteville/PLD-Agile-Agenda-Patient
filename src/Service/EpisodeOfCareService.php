@@ -163,7 +163,9 @@ class EpisodeOfCareService
             throw new InvalidArgumentException('La date de sortie ne peut pas être dans le futur');
         }
 
-        $this->episodeOfCareDao->updateDischarge($idEpisodeOfCare, $dischargeDate);
+        if (!$this->episodeOfCareDao->updateDischarge($idEpisodeOfCare, $dischargeDate)) {
+            throw new InvalidArgumentException("Le séjour n° {$episodeOfCare->getEpisodeNumber()} est déjà terminé");
+        }
 
         return $this->getEpisodeOfCare($idEpisodeOfCare);
     }

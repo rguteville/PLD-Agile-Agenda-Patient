@@ -121,7 +121,10 @@ final class AdmissionServiceTest extends TestCase
     #[DataProvider('invalidIpps')]
     public function testValidateIppRejectsSameValuesAsAdmission(string $ipp): void
     {
-        $this->assertSame("L'IPP doit contenir entre 6 et 9 chiffres.", AdmissionService::validateIpp($ipp));
+        $this->assertSame(
+            "L'IPP doit contenir entre 6 et 9 chiffres et ne pas commencer par 0.",
+            AdmissionService::validateIpp($ipp)
+        );
     }
 
     public function testValidateIppAcceptsValidOrEmptyIpp(): void

@@ -15,13 +15,19 @@ final class WorkflowsHttpTest extends HttpTestCase
 {
     public function testAdmissionRejectsMissingNamesThenAdmitsAndOpensTheRecord(): void
     {
-        $refused = $this->postForm('/patients/create', ['lastname' => '', 'firstname' => ''], [
+        // Relecture adversariale du 2026-11-04 : l'admission exige le jeton CSRF de la page.
+        self::assertSame(403, $this->postForm('/patients/create', ['lastname' => 'Zzhttpadmission'], [
+            'Accept: application/json',
+        ])->status, 'sans jeton CSRF');
+        $csrf = $this->csrfFrom($this->get('/'));
+        $refused = $this->postForm('/patients/create', ['csrf' => $csrf, 'lastname' => '', 'firstname' => ''], [
             'Accept: application/json',
         ]);
         self::assertSame(422, $refused->status);
         self::assertArrayHasKey('lastname', $refused->json()['errors'] ?? [], 'erreur sur le champ du formulaire');
 
         $admitted = $this->postForm('/patients/create', [
+            'csrf' => $csrf,
             'lastname' => 'Zzhttpadmission', 'firstname' => 'Test', 'gender' => 'F', 'idHealthcareService' => 'SRV03',
         ], ['Accept: application/json']);
         try {
@@ -205,6 +211,7 @@ final class WorkflowsHttpTest extends HttpTestCase
     public function testDeclaringDeathNeedsCsrfAndEndsTheStay(): void
     {
         $admitted = $this->postForm('/patients/create', [
+            'csrf' => $this->csrfFrom($this->get('/')),
             'lastname' => 'Zzhttpdeces', 'firstname' => 'Test', 'gender' => 'M', 'idHealthcareService' => 'SRV03',
         ], ['Accept: application/json']);
         try {

@@ -38,6 +38,11 @@ final class PagesHttpTest extends HttpTestCase
         yield 'confirmation de suppression' => ['/patients/supprimer?id=4', 200, 'Parker'];
         yield 'suppression refusée affichée' => ['/patients/supprimer?id=1', 200, 'séjour en cours'];
         yield 'page inexistante' => ['/page-inexistante', 404, 'Erreur 404'];
+        // Relecture adversariale du 2026-11-04 : saisies malformées, réponses propres au lieu d'un plantage.
+        yield 'numéro de séjour inconnu' => ['/agenda-patient?numSejour=2099-999999', 404, 'Erreur 404'];
+        yield 'numéro de séjour malformé' => ['/agenda-patient?numSejour=nope', 404, 'Erreur 404'];
+        yield 'numéro de séjour en tableau' => ['/agenda-patient?numSejour[]=1', 404, 'Erreur 404'];
+        yield 'octet UTF-8 invalide' => ['/patients?q=a%FF', 400, 'Requête invalide'];
     }
 
     #[DataProvider('pages')]

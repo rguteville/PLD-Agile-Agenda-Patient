@@ -186,7 +186,7 @@ class PatientController
     {
         View::page(
             self::ADMISSION_VIEW,
-            ['referenceDataSets' => $this->referenceDataSets],
+            ['referenceDataSets' => $this->referenceDataSets, 'csrfToken' => Csrf::token()],
             self::ADMISSION_TITLE,
             self::SCRIPTS_ADMISSION
         );
@@ -334,6 +334,10 @@ class PatientController
      */
     public function create(): void
     {
+        // Relecture adversariale du 2026-11-04 : l'admission exige le jeton CSRF, comme les autres POST.
+        if (!$this->checkCsrf()) {
+            return;
+        }
         $input = $this->readInput($_POST);
         $data = $this->toDomain($input);
         $errors = $this->admissionService->validate($data, $this->referenceDataSets);
@@ -394,6 +398,9 @@ class PatientController
      */
     public function update(): void
     {
+        if (!$this->checkCsrf()) {
+            return;
+        }
         $service = $this->patientUpdateService();
         $id = $this->readPatientId();
         if ($id === null) {
@@ -461,7 +468,7 @@ class PatientController
     {
         View::page(
             self::EDIT_VIEW,
-            ['idPatient' => $idPatient, 'values' => $values, 'errors' => $errors],
+            ['idPatient' => $idPatient, 'values' => $values, 'errors' => $errors, 'csrfToken' => Csrf::token()],
             self::EDIT_TITLE,
             ['/js/date-input.js']
         );
@@ -601,6 +608,27 @@ class PatientController
     }
 
     /**
+     * Jeton CSRF du formulaire (champ « csrf ») : faux ou absent, 403 et rien n'est écrit. Réponse JSON quand
+     * la requête vient de form.js, page d'erreur sinon.
+     */
+    private function checkCsrf(): bool
+    {
+        if (Csrf::check(is_string($_POST['csrf'] ?? null) ? $_POST['csrf'] : null)) {
+            return true;
+        }
+        if ($this->wantsJson()) {
+            $this->respondJson(403, [
+                'ok' => false,
+                'errors' => [self::FORM_ERROR => 'Session expirée : rechargez la page puis réessayez.'],
+            ]);
+        } else {
+            View::error(403, 'Session expirée : rechargez la page puis réessayez.');
+        }
+
+        return false;
+    }
+
+    /**
      * Refus de l'admission : 422 en JSON {ok:false, errors} pour form.js, sinon formulaire réaffiché en 422
      * avec la saisie et les erreurs.
      *
@@ -622,6 +650,7 @@ class PatientController
                 'errors' => $errors,
                 'formError' => $errors[self::FORM_ERROR] ?? '',
                 'referenceDataSets' => $this->referenceDataSets,
+                'csrfToken' => Csrf::token(),
             ],
             self::ADMISSION_TITLE,
             self::SCRIPTS_ADMISSION

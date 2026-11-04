@@ -66,4 +66,24 @@ final class RequestLineTest extends TestCase
         self::assertCount(RequestLine::PLANNING_HORIZON_DAYS + 1, $times, 'début inclus, horizon inclus');
         self::assertEquals(new DateTimeImmutable('2026-10-19 08:00'), end($times));
     }
+
+    /**
+     * Relecture adversariale du 2026-11-04 : une ligne longue (« toutes les heures pendant un an ») ne crée à
+     * l'enregistrement que l'horizon de génération ; la génération quotidienne fait le reste.
+     */
+    public function testLongLineStopsAtTheHorizonEvenWithAStopDate(): void
+    {
+        $line = new ServiceRequest(
+            null,
+            'TYP02',
+            new DateTimeImmutable('2026-10-12 08:00'),
+            new DateTimeImmutable('2027-10-12 08:00'),
+            1
+        );
+
+        $times = $line->plannedTimes();
+
+        self::assertCount(RequestLine::PLANNING_HORIZON_DAYS * 24 + 1, $times);
+        self::assertEquals(new DateTimeImmutable('2026-10-19 08:00'), end($times));
+    }
 }

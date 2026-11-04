@@ -203,7 +203,8 @@ final class CarePlanService
         $practitioners = $this->referenceDataDao->practitioners();
         $patientAllergens = self::medicationAllergens(
             $allergens,
-            $allergens === [] ? [] : $this->referenceDataDao->medicationSubstances()
+            $allergens === [] ? [] : $this->referenceDataDao->medicationSubstances(),
+            $medications
         );
 
         $lines = [];
@@ -259,7 +260,8 @@ final class CarePlanService
         $allergens = $record['allergens'] ?? [];
         $patientAllergens = self::medicationAllergens(
             $allergens,
-            $allergens === [] ? [] : $this->referenceDataDao->medicationSubstances()
+            $allergens === [] ? [] : $this->referenceDataDao->medicationSubstances(),
+            $medications
         );
         $carePlanIds = [];
         $pendingCarePlans = [];
@@ -430,10 +432,22 @@ final class CarePlanService
         $medicationActivity = array_search(self::MEDICATION_ACTIVITY, $activityDefinitions, true);
         $medications = $this->referenceDataDao->medications();
 
+        // Relecture adversariale du 2026-11-04 : une ligne ne commence pas avant l'admission (une date en 2020
+        // créait des milliers de soins « en retard »).
+        $admission = DateTimeImmutable::createFromFormat('d/m/Y H:i', (string) ($record['admissionDate'] ?? ''));
+
         // Chaque soin et chaque médicament doit exister ; RG6 : chaque ligne a un type de soin.
         $lines = [];
         foreach (array_values($input['lines']) as $i => $line) {
             $number = $i + 1;
+            $start = self::date(self::text($line['startDate'] ?? null));
+            if ($admission !== false && $start !== null && $start < $admission->setTime(0, 0)) {
+                throw new InvalidArgumentException(sprintf(
+                    'Ligne %d : la date de début précède l\'admission du %s.',
+                    $number,
+                    $admission->format('d/m/Y')
+                ));
+            }
             if (self::text($line['kind']) === self::KIND_CARE) {
                 if (!array_key_exists(self::text($line['idActivityDefinition']), $careTypes)) {
                     throw new InvalidArgumentException(sprintf('Ligne %d : ce soin n\'existe pas.', $number));
@@ -458,7 +472,8 @@ final class CarePlanService
             array_values($input['lines']),
             self::medicationAllergens(
                 $record['allergens'] ?? [],
-                $this->referenceDataDao->medicationSubstances()
+                $this->referenceDataDao->medicationSubstances(),
+                $medications
             ),
             $medications
         );
@@ -503,16 +518,41 @@ final class CarePlanService
     /**
      * Allergènes du patient portés par les médicaments du référentiel (Medication.idSubstance). Pure.
      *
+     * Relecture adversariale du 2026-11-04 : le référentiel ne relie un médicament qu'à UNE substance
+     * (Medication.idSubstance, l'amoxicilline à la pénicilline). Un patient allergique à l'« Amoxicilline »
+     * elle-même passait donc sans alerte. En plus du lien, un allergène dont le nom est celui du médicament
+     * (DCI, sans accents ni casse) est signalé. Le vrai remède est un lien médicament ↔ substances multiple,
+     * proposé au responsable de la base.
+     *
      * @param array<string, string> $allergens allergies du patient : idSubstance => libellé
      * @param array<string, string> $medicationSubstances idMedication => idSubstance
+     * @param array<string, string> $medications idMedication => « DCI (forme) » (referenceDataDao->medications())
      * @return array<string, string> idMedication => libellé de l'allergène
      */
-    public static function medicationAllergens(array $allergens, array $medicationSubstances): array
-    {
+    public static function medicationAllergens(
+        array $allergens,
+        array $medicationSubstances,
+        array $medications = []
+    ): array {
         $list = [];
         foreach ($medicationSubstances as $idMedication => $idSubstance) {
             if (isset($allergens[$idSubstance])) {
                 $list[(string) $idMedication] = $allergens[$idSubstance];
+            }
+        }
+        $fold = static fn (string $s): string => mb_strtolower(trim((string) preg_replace(
+            '/[\x{0300}-\x{036f}]/u',
+            '',
+            (string) \Normalizer::normalize($s, \Normalizer::FORM_D)
+        )));
+        $byName = [];
+        foreach ($allergens as $label) {
+            $byName[$fold($label)] = $label;
+        }
+        foreach ($medications as $idMedication => $name) {
+            $inn = $fold(explode(' (', $name, 2)[0]);
+            if (!isset($list[(string) $idMedication]) && isset($byName[$inn])) {
+                $list[(string) $idMedication] = $byName[$inn];
             }
         }
 
@@ -716,6 +756,13 @@ final class CarePlanService
         return $doctors;
     }
 
+    /** Années acceptées pour une date de prescription (au-delà, MariaDB refuse la date). */
+    private const YEAR_MIN = '2000';
+    private const YEAR_MAX = '2099';
+
+    /** Durée maximale d'une ligne de prescription, en jours (au-delà, on la renouvelle). */
+    public const MAX_LINE_DAYS = 365;
+
     /**
      * Erreurs d'une ligne, sans accès à la base. Messages sans majuscule : checkInput() les
      * préfixe par « Ligne n : ».
@@ -771,6 +818,9 @@ final class CarePlanService
             $errors['startDate'] = 'la date de début (« du ») est obligatoire (RG3).';
         } elseif ($start === null) {
             $errors['startDate'] = 'la date de début est invalide.';
+        } elseif ($start->format('Y') < self::YEAR_MIN || $start->format('Y') > self::YEAR_MAX) {
+            // Relecture adversariale du 2026-11-04 : une date en 9999 faisait planter l'enregistrement.
+            $errors['startDate'] = 'la date de début est hors des limites (vérifiez l\'année).';
         }
 
         $endText = self::text($line['endDate'] ?? null);
@@ -782,6 +832,12 @@ final class CarePlanService
                 $errors['endDate'] = 'une prescription « Une fois » n\'a pas de date de fin.';
             } elseif ($start !== null && $end < $start) {
                 $errors['endDate'] = 'la date de fin (« au ») doit être après la date de début (« du »).';
+            } elseif ($start !== null && $end > $start->modify('+' . self::MAX_LINE_DAYS . ' days')) {
+                // Une ligne « toutes les heures » jusqu'en 2099 épuisait la mémoire.
+                $errors['endDate'] = sprintf(
+                    'une prescription ne peut pas durer plus de %d jours : renouvelez-la ensuite.',
+                    self::MAX_LINE_DAYS
+                );
             }
         }
 

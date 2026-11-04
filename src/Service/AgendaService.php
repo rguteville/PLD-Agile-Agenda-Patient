@@ -170,7 +170,8 @@ final class AgendaService
         $patients = [];
         $lateItems = [];
         foreach ($episodes as $episode) {
-            $agenda = self::presentDay($episode['carePlans'] ?? [], $day, $now);
+            // Retards de la veille portés sur aujourd'hui (une dose de 23 h ne disparaît pas à minuit).
+            $agenda = self::presentDay($episode['carePlans'] ?? [], $day, $now, carryOverdue: true);
             $items = $agenda['late'];
             foreach ($agenda['shifts'] as $shift) {
                 $items = [...$items, ...$shift['items']];
@@ -418,7 +419,11 @@ final class AgendaService
                     ->findByRequest((string) $serviceRequest->getIdServiceRequest(), false);
                 //ActivityDefinition
                 $activity = $this->activityDefinitionDao->findById($serviceRequest->getIdActivityDefinition());
-                $serviceRequest->setIdActivityDefinition($activity->getName());
+                // Référentiel incomplet (type de soin supprimé ou sans nom) : on garde l'identifiant plutôt
+                // que de planter (relecture adversariale du 2026-11-04).
+                $serviceRequest->setIdActivityDefinition(
+                    (string) ($activity?->getName() ?? $serviceRequest->getIdActivityDefinition())
+                );
             }
 
             // D'autre part, on récupère les Médicaments associés
@@ -431,7 +436,9 @@ final class AgendaService
                 //Medication
                 // $activity = $this->activityDefinitionDao->findById($medicationRequest->getIdActivityDefinition());
                 $medication = $this->medicationDao->findById($medicationRequest->getIdMedication());
-                $medicationRequest->setIdActivityDefinition($medication->getInn());
+                $medicationRequest->setIdActivityDefinition(
+                    (string) ($medication?->getInn() ?? $medicationRequest->getIdMedication())
+                );
             }
 
 
@@ -633,25 +640,40 @@ final class AgendaService
      * « En retard » = statut PLANIFIE dont l'heure prévue est dépassée : c'est un calcul d'affichage,
      * pas une donnée enregistrée (aucun statut EN_RETARD en base).
      *
+     * $carryOverdue (relecture adversariale du 2026-11-04) : quand le jour affiché est aujourd'hui, les doses
+     * de la veille encore prévues et dépassées sont ajoutées aux retards (clé previousDay vraie). Sans cela,
+     * une dose de 23 h non faite disparaissait de l'agenda à minuit. Désactivé pour la vue Semaine, qui montre
+     * déjà la veille dans sa colonne.
+     *
      * @param list<array<string, mixed>> $carePlans sortie de getAgenda()
      * @return array{date: string, dateLabel: string, isToday: bool, previous: string, next: string,
      *               counts: array{total: int, late: int, done: int, planned: int},
      *               late: list<array<string, mixed>>,
      *               shifts: list<array{key: string, label: string, hours: string, items: list<array<string, mixed>>}>}
      */
-    public static function presentDay(array $carePlans, DateTimeImmutable $day, DateTimeImmutable $now): array
-    {
+    public static function presentDay(
+        array $carePlans,
+        DateTimeImmutable $day,
+        DateTimeImmutable $now,
+        bool $carryOverdue = false
+    ): array {
         $day = $day->setTime(0, 0);
+        $carry = $carryOverdue && $day->format('Y-m-d') === $now->format('Y-m-d');
+        $yesterday = $day->modify('-1 day');
         $items = [];
         foreach ($carePlans as $plan) {
-            foreach ($plan['serviceRequests'] ?? [] as $line) {
-                foreach ($line['appointments'] ?? [] as $appointment) {
-                    $items[] = self::presentItem($appointment, $line, false, $day, $now, $plan);
-                }
-            }
-            foreach ($plan['medicationRequests'] ?? [] as $line) {
-                foreach ($line['appointments'] ?? [] as $appointment) {
-                    $items[] = self::presentItem($appointment, $line, true, $day, $now, $plan);
+            foreach (['serviceRequests' => false, 'medicationRequests' => true] as $key => $isMedication) {
+                foreach ($plan[$key] ?? [] as $line) {
+                    foreach ($line['appointments'] ?? [] as $appointment) {
+                        $items[] = self::presentItem($appointment, $line, $isMedication, $day, $now, $plan);
+                        if ($carry) {
+                            $overdue = self::presentItem($appointment, $line, $isMedication, $yesterday, $now, $plan);
+                            if ($overdue !== null && $overdue['status'] === 'late') {
+                                // L'heure dit que la dose date de la veille : « 23:00 (veille) ».
+                                $items[] = ['previousDay' => true, 'time' => $overdue['time'] . ' (veille)'] + $overdue;
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -714,16 +736,24 @@ final class AgendaService
             $name = mb_strtoupper((string) $episode['lastName']) . ' ' . $episode['firstName'];
             $own = [];
             // Une vacation de nuit chevauche deux jours civils : on lit chaque jour qu'elle touche.
+            // Relecture adversariale du 2026-11-04 : un retard de la vacation précédente (avant $start) est
+            // repris en tête, sinon il n'est plus visible de personne à la relève. Dédoublonné par soin.
+            $seen = [];
             for ($day = $start->setTime(0, 0); $day < $end; $day = $day->modify('+1 day')) {
-                $agenda = self::presentDay($episode['carePlans'] ?? [], $day, $now);
+                $agenda = self::presentDay($episode['carePlans'] ?? [], $day, $now, carryOverdue: true);
                 foreach ([$agenda['late'], ...array_column($agenda['shifts'], 'items')] as $list) {
                     foreach ($list as $item) {
                         $at = new DateTimeImmutable($item['datetime']);
-                        if ($at >= $start && $at < $end) {
+                        $inShift = $at >= $start && $at < $end;
+                        $earlierLate = $item['status'] === 'late' && $at < $start;
+                        if (($inShift || $earlierLate) && !isset($seen[$item['id']])) {
+                            $seen[$item['id']] = true;
                             $own[] = $item + [
                                 'idEpisodeOfCare' => (int) $episode['idEpisodeOfCare'],
                                 'patient' => $name,
                                 'bed' => $episode['bed'] ?? null,
+                                // RG2 : reprises dans la fenêtre de validation (care_buttons).
+                                'allergies' => $episode['allergies'] ?? null,
                             ];
                         }
                     }

@@ -251,6 +251,18 @@ class PatientDao
     }
 
     /**
+     * Verrouille la ligne du patient jusqu'à la fin de la transaction en cours (SELECT … FOR UPDATE).
+     * Relecture adversariale du 2026-11-04 : l'admission d'un patient connu et sa suppression prennent ce
+     * verrou toutes les deux, elles ne peuvent donc plus s'entrelacer (patient supprimé avec un séjour en
+     * cours). À appeler dans une transaction.
+     */
+    public function lockForUpdate(int $idPatient): void
+    {
+        $this->pdo->prepare('SELECT idPatient FROM Patient WHERE idPatient = :id FOR UPDATE')
+            ->execute(['id' => $idPatient]);
+    }
+
+    /**
      * AURA-12.3 : suppression logique (README, « Conventions ») ; la date vient de l'horloge de la base, comme
      * CarePlan.recordedAt (l'arrêt d'une ligne et la fin de séjour prennent, eux, l'heure de PHP).
      * Renvoie false si le patient n'existe pas ou est déjà supprimé : la condition

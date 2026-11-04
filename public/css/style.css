@@ -5461,3 +5461,10 @@ form.form--columns .form-lead > .form-row {
 .patient-list td:first-child {
     white-space: nowrap;
 }
+
+/* ===== Relecture adversariale du 2026-11-04 : allergies dans la fenêtre de validation d'un soin (RG2) ===== */
+.dialog-allergies {
+    margin: 0 0 var(--sp-3);
+    color: var(--st-alert-fg);
+    font-weight: 600;
+}

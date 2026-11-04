@@ -162,12 +162,17 @@ class EpisodeOfCareDao
      * Enregistre la date de sortie, ce qui termine le séjour (fin de séjour ou décès). Aucun contrôle
      * ici : EpisodeOfCareService::closeEpisodeOfCare() vérifie que le séjour est en cours.
      */
-    public function updateDischarge(int $idEpisodeOfCare, DateTimeInterface $dischargeDate): void
+    public function updateDischarge(int $idEpisodeOfCare, DateTimeInterface $dischargeDate): bool
     {
+        // Conditionnel (relecture adversariale du 2026-11-04) : deux fins de séjour simultanées, la seconde
+        // ne réécrit pas la date de la première ; l'appelant reçoit false.
         $stmt = $this->pdo->prepare(
-            'UPDATE EpisodeOfCare SET dischargeDate = :dischargeDate WHERE idEpisodeOfCare = :id'
+            'UPDATE EpisodeOfCare SET dischargeDate = :dischargeDate
+             WHERE idEpisodeOfCare = :id AND dischargeDate IS NULL'
         );
         $stmt->execute(['dischargeDate' => $dischargeDate->format('Y-m-d H:i:s'), 'id' => $idEpisodeOfCare]);
+
+        return $stmt->rowCount() === 1;
     }
 
     /** Change le lit et le box d'un séjour (null = non attribué). */

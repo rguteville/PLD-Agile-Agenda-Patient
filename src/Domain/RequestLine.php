@@ -98,9 +98,13 @@ abstract class RequestLine
      */
     public function plannedTimes(): array
     {
+        // Relecture adversariale du 2026-11-04 : même avec une date de fin, seuls les PLANNING_HORIZON_DAYS
+        // premiers jours sont générés à l'enregistrement ; la génération quotidienne (AgendaGenerationService)
+        // complète ensuite, jour après jour. Une ligne de plusieurs mois ne crée donc pas des milliers de soins.
+        $horizon = $this->startDate->modify(sprintf('+%d days', self::PLANNING_HORIZON_DAYS));
         $until = $this->frequencyHours === null
             ? $this->startDate
-            : $this->endDate ?? $this->startDate->modify(sprintf('+%d days', self::PLANNING_HORIZON_DAYS));
+            : ($this->endDate !== null && $this->endDate < $horizon ? $this->endDate : $horizon);
 
         return $this->plannedTimesBetween($this->startDate, $until);
     }

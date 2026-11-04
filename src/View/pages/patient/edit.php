@@ -43,6 +43,7 @@ unset($formField);
     'title' => 'Modifier le patient',
     'action' => '/patients/modifier?id=' . $idPatient,
     'submit' => 'Enregistrer',
+    'csrfToken' => $csrfToken ?? null,
     'fields' => $formFields,
 ]);?>
 

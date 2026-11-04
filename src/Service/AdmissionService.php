@@ -43,7 +43,13 @@ class AdmissionService
     public const FORMAT_DATE = 'Y-m-d';
 
     /** IPP : 6 à 9 chiffres (colonne Patient.ipp INT avec CHECK entre 100000 et 999999999). */
-    public const IPP_PATTERN = '/^\d{6,9}$/';
+    public const IPP_PATTERN = '/^[1-9]\d{5,8}$/';
+
+    /** Longueur maximale du nom et du prénom (colonnes Patient.lastName et firstName VARCHAR(50)). */
+    public const NAME_MAX_LENGTH = 50;
+
+    /** Date de naissance la plus ancienne acceptée (une saisie en 0999 est une faute de frappe). */
+    public const BIRTH_DATE_MIN = '1900-01-01';
 
     /** Plus grande taille (cm) ou plus grand poids (kg) enregistrable : colonnes EpisodeOfCare DECIMAL(5,2). */
     public const MEASURE_MAX = 999.99;
@@ -170,7 +176,11 @@ class AdmissionService
                 );
             } catch (PDOException $e) {
                 $code = (int) ($e->errorInfo[1] ?? 0);
-                $retryable = in_array($code, [self::ERROR_DEADLOCK, self::ERROR_DUPLICATE], true);
+                $retryable = in_array(
+                    $code,
+                    [self::ERROR_DEADLOCK, self::ERROR_DUPLICATE, self::ERROR_RECORD_CHANGED],
+                    true
+                );
                 if (!$retryable || $attempt >= self::ADMISSION_ATTEMPTS) {
                     throw $e;
                 }
@@ -181,6 +191,8 @@ class AdmissionService
     /** Codes MariaDB rejouables : interblocage, doublon sur une clé unique. */
     private const ERROR_DEADLOCK = 1213;
     private const ERROR_DUPLICATE = 1062;
+    /** MariaDB 11.8 (innodb_snapshot_isolation) : la ligne a changé depuis la lecture ; on rejoue. */
+    private const ERROR_RECORD_CHANGED = 1020;
     private const ADMISSION_ATTEMPTS = 3;
 
     /**
@@ -236,6 +248,8 @@ class AdmissionService
                             'Le patient sélectionné est introuvable : relancez la recherche.'
                         );
                     }
+                    $patientDao->lockForUpdate($selectedId);
+                    self::refuseDeceased($existing);
                     $idPatient = $selectedId;
                     $this->updateSelectedPatient($existing, $patient, $patientDetails);
                     $rattachement = $searchMode === PatientSearchService::MODE_IPP
@@ -250,6 +264,9 @@ class AdmissionService
                         throw new InvalidArgumentException(self::REMOVED_PATIENT_IPP_MESSAGE);
                     }
                     if ($existing !== null) {
+                        $patientDao->lockForUpdate((int) $existing->getIdPatient());
+                        self::refuseDeceased($existing);
+                        self::refuseOtherIdentity($existing, $patient);
                         $idPatient = (int) $existing->getIdPatient();
                         $this->completePatient(
                             $existing,
@@ -368,6 +385,11 @@ class AdmissionService
         $idPatient = (int) $existing->getIdPatient();
         $before = self::identity($existing);
         $after = self::identity($entered);
+        // Relecture adversariale du 2026-11-04 : un IPP, une date de naissance ou un sexe connus ne sont jamais
+        // effacés à l'admission (champs masqués à l'écran, donc envoyés vides) ; ils se corrigent dans le dossier.
+        foreach (['ipp', 'birthDate', 'sex'] as $key) {
+            $after[$key] ??= $before[$key];
+        }
         $changes = array_filter(
             $after,
             static fn (?string $v, string $k): bool => $v !== $before[$k],
@@ -384,11 +406,11 @@ class AdmissionService
             }
             $this->patientDao?->update(new Patient(
                 idPatient: $idPatient,
-                ipp: $entered->getIpp(),
+                ipp: $after['ipp'],
                 lastName: $entered->getLastName(),
                 firstName: $entered->getFirstName(),
-                birthDate: $entered->getBirthDate(),
-                sex: $entered->getSex(),
+                birthDate: $after['birthDate'] !== null ? new DateTimeImmutable($after['birthDate']) : null,
+                sex: $after['sex'],
                 phone: $existing->getPhone(),
                 email: $existing->getEmail(),
                 details: $existing->getDetails()
@@ -408,6 +430,45 @@ class AdmissionService
         }
 
         $this->completePatient($existing, $details);
+    }
+
+    /**
+     * Relecture adversariale du 2026-11-04 : un patient déclaré décédé n'est pas réadmis (son séjour ne se
+     * rouvrirait pas à son décès, et ses soins seraient planifiés). Une erreur d'identité se corrige dans le
+     * dossier, par un médecin.
+     */
+    private static function refuseDeceased(Patient $existing): void
+    {
+        if ($existing->getDetail('deceased') === '1') {
+            throw new InvalidArgumentException(
+                'Ce patient est déclaré décédé : il ne peut pas être admis. Vérifiez l\'identité ; '
+                . 'une erreur de déclaration se corrige dans son dossier, par un médecin.'
+            );
+        }
+    }
+
+    /**
+     * IPP saisi sans sélection dans la recherche : il doit désigner la même personne (nom, et date de
+     * naissance si elle est saisie), sinon le séjour serait rattaché en silence à un autre patient, avec ses
+     * allergies et son groupe sanguin (identitovigilance).
+     */
+    private static function refuseOtherIdentity(Patient $existing, Patient $entered): void
+    {
+        $fold = static fn (?string $s): string => mb_strtolower(trim((string) preg_replace(
+            '/[\x{0300}-\x{036f}]/u',
+            '',
+            (string) \Normalizer::normalize((string) $s, \Normalizer::FORM_D)
+        )));
+        $sameName = $fold($existing->getLastName()) === $fold($entered->getLastName());
+        $enteredBirth = $entered->getBirthDate()?->format('Y-m-d');
+        $sameBirth = $enteredBirth === null || $existing->getBirthDate() === null
+            || $existing->getBirthDate()->format('Y-m-d') === $enteredBirth;
+        if (!$sameName || !$sameBirth) {
+            throw new InvalidArgumentException(
+                'Cet IPP appartient à un autre patient (nom ou date de naissance différents) : vérifiez l\'IPP, '
+                . 'ou recherchez le patient avec « Patient connu ? ».'
+            );
+        }
     }
 
     /** Copie du patient avec l'IPP attribué (l'entité est immuable). */
@@ -601,11 +662,15 @@ class AdmissionService
     {
         $errors = [];
 
-        if ($this->text($data['lastName'] ?? null) === '') {
-            $errors['lastName'] = 'Le nom est obligatoire.';
-        }
-        if ($this->text($data['firstName'] ?? null) === '') {
-            $errors['firstName'] = 'Le prénom est obligatoire.';
+        // Relecture adversariale du 2026-11-04 : longueur bornée par les colonnes (VARCHAR(50)), sinon MariaDB
+        // refuse l'insertion et la page plante.
+        foreach (['lastName' => 'Le nom', 'firstName' => 'Le prénom'] as $key => $label) {
+            $value = $this->text($data[$key] ?? null);
+            if ($value === '') {
+                $errors[$key] = $label . ' est obligatoire.';
+            } elseif (mb_strlen($value) > self::NAME_MAX_LENGTH) {
+                $errors[$key] = $label . ' ne doit pas dépasser ' . self::NAME_MAX_LENGTH . ' caractères.';
+            }
         }
 
         $ippError = self::validateIpp($this->text($data['ipp'] ?? null));
@@ -740,7 +805,7 @@ class AdmissionService
     {
         $ipp = trim($ipp);
         if ($ipp !== '' && preg_match(self::IPP_PATTERN, $ipp) !== 1) {
-            return "L'IPP doit contenir entre 6 et 9 chiffres.";
+            return "L'IPP doit contenir entre 6 et 9 chiffres et ne pas commencer par 0.";
         }
 
         return null;
@@ -760,6 +825,9 @@ class AdmissionService
             return 'La date de naissance est invalide (format attendu : JJ/MM/AAAA).';
         }
 
+        if ($value < self::BIRTH_DATE_MIN) {
+            return 'La date de naissance est trop ancienne (avant le 01/01/1900) : vérifiez la saisie.';
+        }
         $today = ($this->today ?? new DateTimeImmutable())->setTime(0, 0);
         if ($date >= $today) {
             return 'La date de naissance doit être antérieure à la date du jour.';
@@ -771,7 +839,7 @@ class AdmissionService
     /** Vrai si la saisie est un nombre (is_numeric) strictement positif. */
     private function isStrictlyPositive(string $value): bool
     {
-        return is_numeric($value) && (float) $value > 0;
+        return is_numeric($value) && round((float) $value, 2) > 0;
     }
 
     /** Une fois arrondie au centième, la valeur tient dans DECIMAL(5,2) (sinon MariaDB la refuse). */
@@ -787,7 +855,8 @@ class AdmissionService
     private function text(mixed $value): string
     {
         if (is_string($value)) {
-            return trim($value);
+            // Espaces Unicode comprises (espace insécable) : un nom fait d'une espace insécable est vide.
+            return (string) preg_replace('/^[\s\x{00A0}\x{202F}]+|[\s\x{00A0}\x{202F}]+$/u', '', $value);
         }
         if (is_int($value) || is_float($value)) {
             return (string) $value;

@@ -20,6 +20,7 @@ use Aura\Core\View;
  *      $sections sections repliables, [] par défaut
  * @var list<array<string, mixed>> $lead champs rendus sur toute la largeur avant le reste (recherche d'un
  *      patient existant), [] par défaut
+ * @var string|null $csrfToken jeton CSRF de la session (champ caché « csrf ») ; aucun champ si null
  */
 $sections = $sections ?? [];
 $lead = $lead ?? [];
@@ -27,6 +28,9 @@ $lead = $lead ?? [];
 
 <form id="<?= View::e($id ?? 'form') ?>" action="<?= View::e($action) ?>" method="post" data-ajax
     <?= $sections !== [] ? 'class="form--columns"' : '' ?>>
+    <?php if (($csrfToken ?? null) !== null) : ?>
+        <input type="hidden" name="csrf" value="<?= View::e($csrfToken) ?>">
+    <?php endif; ?>
     <?php if (!empty($title)) : ?>
         <h1 class="form-title"><?= View::e($title) ?></h1>
     <?php endif; ?>

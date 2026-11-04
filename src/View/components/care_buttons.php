@@ -24,6 +24,14 @@ $summary = ($context !== '' ? $context . ' : ' : '') . $item['label'] . ' à ' .
 $attributes = ' data-appointment="' . View::e($item['id']) . '"'
     . ' data-episode="' . View::e($idEpisodeOfCare) . '"'
     . ' data-label="' . View::e($summary) . '"';
+// RG2 (relecture adversariale du 2026-11-04) : les allergies du patient, quand l'écran les fournit avec le soin
+// (agenda du service, « Mon planning »), s'affichent dans la fenêtre de validation. null = non fournies.
+$itemAllergies = $item['allergies'] ?? null;
+if (is_array($itemAllergies)) {
+    $attributes .= ' data-allergies="' . View::e($itemAllergies === []
+        ? 'Aucune allergie connue'
+        : 'Allergies : ' . implode(', ', array_column($itemAllergies, 'label'))) . '"';
+}
 ?>
 <span class="care-buttons">
     <?php if ($item['canValidate'] ?? in_array($item['status'], ['planned', 'late'], true)) : ?>

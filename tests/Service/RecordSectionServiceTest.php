@@ -363,6 +363,37 @@ final class RecordSectionServiceTest extends TestCase
         self::assertSame([], $this->traces());
     }
 
+    /**
+     * Relecture adversariale du 2026-11-04 : le décès déclaré depuis le dossier d'un ANCIEN séjour (clos) termine
+     * quand même le séjour en cours du patient.
+     */
+    public function testDeathDeclaredFromAClosedStayEndsTheOngoingStay(): void
+    {
+        $episodes = new EpisodeOfCareDao($this->pdo);
+        $old = (int) $episodes->insert(new EpisodeOfCare(
+            null,
+            $this->idPatient,
+            '',
+            new DateTimeImmutable('2026-06-01 08:00')
+        ))->getIdEpisodeOfCare();
+        $episodes->updateDischarge($old, new DateTimeImmutable('2026-06-10 10:00'));
+
+        $result = $this->service->declareDeath($old, '02/10/2026', '10:00', '', $this->idDoctor, 'x');
+
+        self::assertSame(RecordSectionService::STATUS_SAVED, $result['status'], json_encode($result['errors']));
+        self::assertFalse($episodes->findById($this->idEpisodeOfCare)?->isOngoing(), 'séjour en cours terminé');
+        self::assertSame('2026-06-10 10:00', $episodes->findById($old)?->getDischargeDate()?->format('Y-m-d H:i'));
+    }
+
+    /** Relecture adversariale du 2026-11-04 : heure invalide (« 12:75 ») refusée, pas corrigée en silence. */
+    public function testDischargeTimeIsNotSilentlyCorrected(): void
+    {
+        $result = $this->service->endStay($this->idEpisodeOfCare, '02/10/2026', '12:75', $this->idDoctor, 'x');
+
+        self::assertSame(RecordSectionService::STATUS_INVALID, $result['status']);
+        self::assertTrue((new EpisodeOfCareDao($this->pdo))->findById($this->idEpisodeOfCare)?->isOngoing());
+    }
+
     /** @param array<string, string> $cares idAppointment => heure prévue, sur une ligne de soin du séjour */
     private function plannedCares(array $cares): void
     {

@@ -116,6 +116,23 @@ final class RecordEditServiceTest extends TestCase
         self::assertSame(RecordEditService::STATUS_SAVED, $r['status'], 'admission : groupe inconnu complété');
     }
 
+    /**
+     * Relecture adversariale du 2026-11-04 : depuis le dossier du séjour 9, le séjour d'un autre patient (3) n'est
+     * pas modifiable, et le dossier d'un patient supprimé de la liste non plus.
+     */
+    public function testOnlyTheShownStayOfAnActivePatientIsEditable(): void
+    {
+        $this->episodesOfCare->method('findById')->with(9)->willReturn($this->episodeOfCare([]));
+        $this->episodesOfCare->expects($this->never())->method('updateDetailIfUnchanged');
+        $this->patients->method('findById')->willReturnOnConsecutiveCalls($this->patient([]), null);
+
+        $other = $this->service->update('episode', 3, 'precautions', 'x', null, idEpisodeOfCare: 9);
+        $removed = $this->service->update('episode', 9, 'precautions', 'x', null, idEpisodeOfCare: 9);
+
+        self::assertSame(RecordEditService::STATUS_NOT_FOUND, $other['status'], 'autre séjour');
+        self::assertSame(RecordEditService::STATUS_NOT_FOUND, $removed['status'], 'patient supprimé');
+    }
+
     public function testNonexistentRecord(): void
     {
         $this->patients->method('findById')->willReturn(null);

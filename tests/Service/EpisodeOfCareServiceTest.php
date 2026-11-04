@@ -159,7 +159,8 @@ final class EpisodeOfCareServiceTest extends TestCase
         );
         $this->dao->expects($this->once())
             ->method('updateDischarge')
-            ->with(1, $this->isInstanceOf(DateTimeImmutable::class));
+            ->with(1, $this->isInstanceOf(DateTimeImmutable::class))
+            ->willReturn(true);
 
         $this->assertFalse($this->service->closeEpisodeOfCare(1)->isOngoing());
     }

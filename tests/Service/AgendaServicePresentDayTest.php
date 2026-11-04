@@ -196,6 +196,34 @@ final class AgendaServicePresentDayTest extends TestCase
     // ---- Fabriques : même forme que AgendaService::getAgenda() ----
 
     /** @return array<string, mixed> */
+    /**
+     * Relecture adversariale du 2026-11-04 : sur l'agenda du jour, une dose de la veille encore prévue et
+     * dépassée reste en retard (« (veille) ») au lieu de disparaître à minuit ; une dose plus ancienne, faite
+     * ou d'une ligne arrêtée, non. La vue Semaine (sans carryOverdue) ne la répète pas.
+     */
+    public function testOverdueDoseOfYesterdayIsCarriedIntoTodayLateList(): void
+    {
+        $plans = [$this->plan(cares: [
+            $this->line('Soin A', [
+                $this->appointment('VEILLE', '2026-10-13 23:00:00', 'PLANIFIE'),
+                $this->appointment('FAIT', '2026-10-13 22:00:00', 'REALISE', '2026-10-13 22:05:00'),
+                $this->appointment('AVANT-HIER', '2026-10-12 23:00:00', 'PLANIFIE'),
+            ]),
+            $this->line('Soin B', [$this->appointment('ARRET', '2026-10-13 21:00:00', 'PLANIFIE')], [
+                'stoppedAt' => new DateTimeImmutable('2026-10-13 20:00:00'),
+            ]),
+        ])];
+
+        $carried = AgendaService::presentDay($plans, $this->day(), $this->now(), carryOverdue: true);
+        self::assertSame(['VEILLE'], array_column($carried['late'], 'id'));
+        self::assertSame('23:00 (veille)', $carried['late'][0]['time']);
+        self::assertTrue($carried['late'][0]['previousDay']);
+
+        self::assertSame([], AgendaService::presentDay($plans, $this->day(), $this->now())['late'], 'sans report');
+        $otherDay = AgendaService::presentDay($plans, new DateTimeImmutable('2026-10-16'), $this->now(), true);
+        self::assertSame([], $otherDay['late'], 'report seulement quand le jour affiché est aujourd\'hui');
+    }
+
     private function plan(array $cares = [], array $medications = []): array
     {
         return [

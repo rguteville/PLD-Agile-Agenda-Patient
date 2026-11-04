@@ -161,6 +161,50 @@ final class CarePlanServiceSafetyTest extends TestCase
         ];
     }
 
+    /**
+     * Relecture adversariale du 2026-11-04 : un patient allergique à l'« Amoxicilline » (substance du même nom
+     * que le médicament) est alerté, même si le référentiel relie l'amoxicilline à la pénicilline.
+     */
+    public function testAllergenNamedLikeTheMedicationIsFlagged(): void
+    {
+        self::assertSame(
+            ['MED04' => 'amoxicilline'],
+            CarePlanService::medicationAllergens(
+                ['ALG06' => 'amoxicilline'],
+                self::MEDICATION_SUBSTANCES,
+                self::MEDICATIONS
+            )
+        );
+    }
+
+    /** @return array<string, array{string, ?string, string}> */
+    public static function outOfBoundsDates(): array
+    {
+        return [
+            'année 9999' => ['9999-12-31T23:00', null, 'startDate'],
+            'année 1999' => ['1999-12-31T23:00', null, 'startDate'],
+            'plus d\'un an' => ['2026-10-20T08:00', '2027-10-21T08:00', 'endDate'],
+        ];
+    }
+
+    /** Relecture adversariale du 2026-11-04 : dates hors limites refusées avant d'atteindre la base. */
+    #[DataProvider('outOfBoundsDates')]
+    public function testPrescriptionDatesAreBounded(string $start, ?string $end, string $field): void
+    {
+        $service = (new \ReflectionClass(CarePlanService::class))->newInstanceWithoutConstructor();
+
+        $errors = $service->checkInput([
+            'mode' => 'MEDICAL',
+            'idPrescriber' => 'PRA01',
+            'lines' => [[
+                'kind' => 'CARE', 'idActivityDefinition' => 'TYP02', 'frequencyType' => 'SCHEDULED',
+                'frequencyHours' => '1', 'startDate' => $start, 'endDate' => $end ?? '',
+            ]],
+        ]);
+
+        self::assertArrayHasKey('lines[0][' . $field . ']', $errors);
+    }
+
     #[DataProvider('noteCases')]
     public function testCarePlanNoteIsBounded(string $note, bool $accepted): void
     {

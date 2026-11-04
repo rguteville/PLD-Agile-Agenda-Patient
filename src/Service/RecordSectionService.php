@@ -17,6 +17,7 @@ use Aura\Domain\RecordFields;
 use Aura\Domain\EpisodeOfCare;
 use DateTimeImmutable;
 use InvalidArgumentException;
+use PDOException;
 
 /**
  * Modification d'une partie entière du dossier patient et fin de séjour (retours du 2026-11-02, routes
@@ -322,8 +323,14 @@ class RecordSectionService
                     throw new PartRejected($errors, $conflict);
                 }
                 // Retours du 2026-11-04 : déclarer le décès met fin au séjour en cours, dans la même transaction.
-                if (($changes['deceased']['new'] ?? null) === '1' && $episodeOfCare->isOngoing()) {
-                    $this->endStayAfterDeath((int) $episodeOfCare->getIdEpisodeOfCare(), $deathTime, $author);
+                // Relecture adversariale : le séjour en cours DU PATIENT, même si le décès est déclaré depuis
+                // le dossier d'un séjour clos.
+                if (($changes['deceased']['new'] ?? null) === '1') {
+                    foreach ($this->episodeOfCareDao->findByPatient((int) $patient->getIdPatient()) as $stay) {
+                        if ($stay->isOngoing()) {
+                            $this->endStayAfterDeath((int) $stay->getIdEpisodeOfCare(), $deathTime, $author);
+                        }
+                    }
                 }
             });
         } catch (PartRejected $e) {
@@ -383,6 +390,13 @@ class RecordSectionService
             });
         } catch (InvalidArgumentException $e) {
             return self::result(self::STATUS_INVALID, ['dischargeDate' => $e->getMessage()]);
+        } catch (PDOException $e) {
+            // 1020 (MariaDB 11.8) : un autre onglet vient de modifier ce séjour ; on ne plante pas.
+            if ((int) ($e->errorInfo[1] ?? 0) !== 1020) {
+                throw $e;
+            }
+
+            return self::result(self::STATUS_CONFLICT, [], 'Ce séjour vient d\'être modifié : rechargez la page.');
         }
 
         return self::result(self::STATUS_SAVED);
@@ -488,7 +502,11 @@ class RecordSectionService
             DateInput::toIso($date) . ' ' . ($time !== '' ? $time : '00:00')
         );
 
-        return $parsed === false || $parsed->format('d/m/Y') !== $date ? false : $parsed;
+        // Aller-retour sur la date ET l'heure : « 12:75 » ou « 31/02 » ne sont pas corrigés en silence.
+        $expectedTime = $time !== '' ? $time : '00:00';
+
+        return $parsed === false || $parsed->format('d/m/Y') !== $date || $parsed->format('H:i') !== $expectedTime
+            ? false : $parsed;
     }
 
     private const AUTH_ERROR = 'Choisissez le médecin qui valide et saisissez son mot de passe.';

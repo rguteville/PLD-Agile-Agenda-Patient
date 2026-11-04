@@ -28,6 +28,10 @@ class PatientSearchService
     /** Nombre maximal de résultats renvoyés ; au-delà, « Affinez votre recherche ». */
     public const LIMIT = 20;
 
+    /** Saisie et nombre de mots pris en compte au plus. */
+    public const MAX_QUERY_LENGTH = 100;
+    public const MAX_WORDS = 6;
+
     public const MODE_IPP = 'ipp';
     public const MODE_NAME = 'name';
 
@@ -46,9 +50,12 @@ class PatientSearchService
      */
     public static function words(string $query): array
     {
-        $parts = preg_split('/[\s\-\'’]+/u', trim($query)) ?: [];
+        // Relecture adversariale du 2026-11-04 : saisie et nombre de mots bornés (des milliers de mots dépassaient
+        // le nombre de paramètres d'une requête préparée). Un nom et un prénom tiennent dans MAX_WORDS mots.
+        $parts = preg_split('/[\s\-\'’]+/u', trim(mb_substr($query, 0, self::MAX_QUERY_LENGTH))) ?: [];
+        $words = array_values(array_filter(array_map('trim', $parts), static fn (string $w): bool => $w !== ''));
 
-        return array_values(array_filter(array_map('trim', $parts), static fn (string $w): bool => $w !== ''));
+        return array_slice($words, 0, self::MAX_WORDS);
     }
 
     /** Une saisie composée uniquement de 6 à 9 chiffres est traitée comme un IPP. */

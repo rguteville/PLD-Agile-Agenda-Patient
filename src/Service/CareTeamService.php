@@ -9,6 +9,7 @@ use Aura\Dao\Transaction;
 use Aura\Domain\CareTeam;
 use DateTimeImmutable;
 use LogicException;
+use PDOException;
 
 /**
  * Équipes et vacations (AURA-30) : au début de chaque vacation, le cadre compose les équipes et leur
@@ -165,7 +166,9 @@ final class CareTeamService
             $practitioners,
             $episodes
         ): array {
-            // Relu dans la transaction : deux cadres qui composent en même temps voient l'état à jour.
+            // Verrou du service puis relecture : deux cadres qui composent en même temps passent l'un après
+            // l'autre et le second voit l'équipe du premier (un patient, une équipe par vacation).
+            $this->careTeamDao->lockService($idHealthcareService);
             $teams = $this->careTeamDao->findForShift($idHealthcareService, $date, $shift);
             $errors = self::validate($input, $practitioners, $episodes, $teams);
             if ($errors !== []) {
@@ -175,15 +178,24 @@ final class CareTeamService
             foreach (self::ids($input['members']) as $idPractitioner) {
                 $members[$idPractitioner] = $practitioners[$idPractitioner];
             }
-            $id = $this->careTeamDao->insert(new CareTeam(
-                null,
-                $idHealthcareService,
-                $date,
-                $shift,
-                trim((string) $input['name']),
-                $members,
-                array_map('intval', self::ids($input['patients'] ?? []))
-            ));
+            try {
+                $id = $this->careTeamDao->insert(new CareTeam(
+                    null,
+                    $idHealthcareService,
+                    $date,
+                    $shift,
+                    trim((string) $input['name']),
+                    $members,
+                    array_map('intval', self::ids($input['patients'] ?? []))
+                ));
+            } catch (PDOException $e) {
+                // Nom déjà pris (uq_careteam_name) : erreur sur le champ, pas un plantage.
+                if ((int) ($e->errorInfo[1] ?? 0) !== 1062) {
+                    throw $e;
+                }
+
+                return ['status' => self::STATUS_INVALID, 'errors' => ['name' => 'Une équipe porte déjà ce nom.']];
+            }
 
             return ['status' => self::STATUS_SAVED, 'id' => $id];
         });

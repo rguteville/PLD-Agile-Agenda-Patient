@@ -393,6 +393,87 @@ final class AdmissionIntegrationTest extends TestCase
         self::assertSame('B+', $reread->getDetail('bloodType'));
     }
 
+    /** Relecture adversariale du 2026-11-04 : un patient déclaré décédé n'est pas réadmis (sélection ou IPP). */
+    public function testDeceasedPatientIsNotReadmitted(): void
+    {
+        $service = $this->fullService();
+        $ipp = '987654398';
+        $first = $service->admit(['lastName' => self::LAST_NAME, 'firstName' => 'Dora', 'ipp' => $ipp]);
+        (new EpisodeOfCareService(new EpisodeOfCareDao($this->pdo)))
+            ->closeEpisodeOfCare((int) $first->getIdEpisodeOfCare());
+        (new PatientDao($this->pdo))->updateDetails($first->getIdPatient(), ['deceased' => '1']);
+        [$patientsBefore, $episodesBefore] = $this->countRows();
+
+        foreach (
+            [
+                'sélection' => ['idPatient' => (string) $first->getIdPatient(), 'searchMode' => 'name'],
+                'IPP saisi' => ['ipp' => $ipp],
+            ] as $case => $how
+        ) {
+            try {
+                $service->admit($how + ['lastName' => self::LAST_NAME, 'firstName' => 'Dora']);
+                self::fail('Patient décédé réadmis (' . $case . ').');
+            } catch (InvalidArgumentException $e) {
+                self::assertStringContainsString('décédé', $e->getMessage(), $case);
+            }
+        }
+        self::assertSame([$patientsBefore, $episodesBefore], $this->countRows(), 'rien n\'a été écrit');
+    }
+
+    /** Un IPP saisi qui appartient à une autre personne (nom ou naissance différents) est refusé. */
+    public function testIppOfAnotherPersonIsRefused(): void
+    {
+        $service = $this->fullService();
+        $ipp = '987654397';
+        $first = $service->admit([
+            'lastName' => self::LAST_NAME, 'firstName' => 'Eve', 'ipp' => $ipp, 'birthDate' => '1955-03-26',
+        ]);
+        (new EpisodeOfCareService(new EpisodeOfCareDao($this->pdo)))
+            ->closeEpisodeOfCare((int) $first->getIdEpisodeOfCare());
+
+        foreach (
+            [
+                'autre nom' => ['lastName' => self::LAST_NAME . 'x', 'birthDate' => '1955-03-26'],
+                'autre naissance' => ['lastName' => self::LAST_NAME, 'birthDate' => '1990-05-05'],
+            ] as $case => $identity
+        ) {
+            try {
+                $service->admit($identity + ['firstName' => 'Bob', 'ipp' => $ipp]);
+                self::fail('Séjour rattaché à un autre patient (' . $case . ').');
+            } catch (InvalidArgumentException $e) {
+                self::assertStringContainsString('autre patient', $e->getMessage(), $case);
+            }
+        }
+        // Même nom (casse et accents ignorés), même naissance : c'est bien lui, la réadmission passe.
+        $again = $service->admit([
+            'lastName' => mb_strtoupper(self::LAST_NAME), 'firstName' => 'Eve', 'ipp' => $ipp,
+            'birthDate' => '1955-03-26',
+        ]);
+        self::assertSame($first->getIdPatient(), $again->getIdPatient());
+    }
+
+    /** Patient sélectionné : IPP, naissance et sexe connus ne sont pas effacés par des champs envoyés vides. */
+    public function testKnownIdentityIsNotErasedByEmptyFieldsAtAdmission(): void
+    {
+        $service = $this->fullService();
+        $first = $service->admit([
+            'lastName' => self::LAST_NAME, 'firstName' => 'Fred', 'ipp' => '987654396',
+            'birthDate' => '1960-01-02', 'sex' => 'M',
+        ]);
+        (new EpisodeOfCareService(new EpisodeOfCareDao($this->pdo)))
+            ->closeEpisodeOfCare((int) $first->getIdEpisodeOfCare());
+
+        $service->admit([
+            'idPatient' => (string) $first->getIdPatient(), 'searchMode' => 'name',
+            'lastName' => self::LAST_NAME, 'firstName' => 'Fred', 'ipp' => '', 'birthDate' => '', 'sex' => '',
+        ]);
+
+        $reread = (new PatientDao($this->pdo))->findById($first->getIdPatient());
+        self::assertSame('987654396', $reread?->getIpp());
+        self::assertSame('1960-01-02', $reread?->getBirthDate()?->format('Y-m-d'));
+        self::assertSame('M', $reread?->getSex());
+    }
+
     public function testNonexistentSelectedPatientIsRejectedWithoutWriting(): void
     {
         $service = $this->fullService();

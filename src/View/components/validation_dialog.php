@@ -25,6 +25,7 @@ $back = $back ?? '';
           data-csrf="<?= View::e($csrfToken) ?>">
         <h2 id="validation-dialog-title">Soin</h2>
         <p class="dialog-context" data-dialog-context aria-live="polite"></p>
+        <p class="dialog-allergies" data-dialog-allergies hidden></p>
         <input type="hidden" name="csrf" value="<?= View::e($csrfToken) ?>">
         <input type="hidden" name="episodeOfCare" value="">
         <input type="hidden" name="appointment" value="">

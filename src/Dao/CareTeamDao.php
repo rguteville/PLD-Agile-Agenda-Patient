@@ -58,6 +58,18 @@ class CareTeamDao
     }
 
     /**
+     * Verrouille le service jusqu'à la fin de la transaction (SELECT … FOR UPDATE sur sa ligne) : deux cadres
+     * qui composent des équipes du même service passent l'un après l'autre. Relecture adversariale du
+     * 2026-11-04 : sans verrou, un même patient se retrouvait dans plusieurs équipes de la même vacation.
+     */
+    public function lockService(string $idHealthcareService): void
+    {
+        $this->pdo->prepare(
+            'SELECT idHealthcareService FROM HealthcareService WHERE idHealthcareService = :id FOR UPDATE'
+        )->execute(['id' => $idHealthcareService]);
+    }
+
+    /**
      * Crée l'équipe, ses membres et ses patients, et renvoie son id ; à appeler dans Transaction::run().
      *
      * @throws \PDOException nom déjà pris par une équipe active de la vacation (uq_careteam_name),

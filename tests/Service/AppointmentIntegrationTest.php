@@ -200,6 +200,20 @@ final class AppointmentIntegrationTest extends TestCase
         self::assertArrayHasKey('comment', $result['errors']);
     }
 
+    /** Relecture adversariale du 2026-11-04 : une heure de réalisation très antérieure (faute de saisie) est refusée. */
+    public function testCompletionFarBeforeThePlannedTimeIsRefused(): void
+    {
+        $result = $this->service->apply(
+            1,
+            'ZZ_SOI',
+            ['action' => 'done', 'idPerformer' => 'PRA04', 'password' => 'x', 'completedAt' => '2020-01-01T00:00'],
+            new DateTimeImmutable('2026-10-14 09:00:00')
+        );
+
+        self::assertSame(AppointmentService::STATUS_INVALID, $result['status']);
+        self::assertArrayHasKey('completedAt', $result['errors']);
+    }
+
     public function testStoppedLineAcceptsOnlyCareDoneBeforeTheStop(): void
     {
         $this->pdo->exec(

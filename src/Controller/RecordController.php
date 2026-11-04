@@ -72,6 +72,10 @@ final class RecordController
         $oldValues = $body['oldValues'] ?? null;
         if (
             !is_string($part) || !is_array($values) || !is_array($oldValues)
+            || array_filter(
+                [...array_values($values), ...array_values($oldValues)],
+                static fn (mixed $v): bool => !self::isPlainValue($v)
+            ) !== []
             || !is_string($idEpisodeOfCare) && !is_int($idEpisodeOfCare)
             || preg_match(self::ID_PATTERN, (string) $idEpisodeOfCare) !== 1
         ) {
@@ -228,9 +232,10 @@ final class RecordController
             || preg_match(self::ID_PATTERN, (string) $id) !== 1
             || !is_string($idEpisodeOfCare) && !is_int($idEpisodeOfCare)
             || preg_match(self::ID_PATTERN, (string) $idEpisodeOfCare) !== 1
-            // Une valeur non scalaire (tableau, objet) n'est jamais interprétée comme un vidage du champ.
-            || !is_scalar($value) && $value !== null
-            || !is_scalar($oldValue) && $oldValue !== null
+            // Une valeur qui n'est ni texte ni nombre (tableau, objet, booléen) n'est jamais interprétée comme un
+            // vidage du champ (relecture adversariale du 2026-11-04 : true effaçait la valeur).
+            || !self::isPlainValue($value)
+            || !self::isPlainValue($oldValue)
         ) {
             $this->respond(400, ['ok' => false, 'message' => 'Requête incomplète.']);
             return;
@@ -279,5 +284,11 @@ final class RecordController
         http_response_code($status);
         header('Content-Type: application/json; charset=utf-8');
         echo json_encode($body, JSON_UNESCAPED_UNICODE);
+    }
+
+    /** Valeur d'un champ envoyée par le client : texte, nombre ou null (ni tableau, ni objet, ni booléen). */
+    private static function isPlainValue(mixed $value): bool
+    {
+        return $value === null || is_string($value) || is_int($value) || is_float($value);
     }
 }

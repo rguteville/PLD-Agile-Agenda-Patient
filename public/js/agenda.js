@@ -121,6 +121,12 @@ if (dialog && careForm && typeof dialog.showModal === 'function') {
             careForm.elements.password.value = '';
             time.value = localNow();
             context.textContent = button.dataset.label;
+            // Allergies du patient (RG2) quand l'écran les fournit avec le soin.
+            const allergies = dialog.querySelector('[data-dialog-allergies]');
+            if (allergies) {
+                allergies.textContent = button.dataset.allergies || '';
+                allergies.hidden = !button.dataset.allergies;
+            }
             applyAction();
             dialog.showModal();
         });
@@ -159,7 +165,7 @@ if (dialog && careForm && typeof dialog.showModal === 'function') {
                 },
                 body: JSON.stringify(data),
             });
-            const body = await response.json().catch(() => ({}));
+            const body = (await response.json().catch(() => null)) || {};
             if (response.ok && body.ok) {
                 window.location.reload();
                 return;

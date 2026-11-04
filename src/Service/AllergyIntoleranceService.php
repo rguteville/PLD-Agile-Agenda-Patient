@@ -6,6 +6,7 @@ namespace Aura\Service;
 
 use Aura\Dao\AllergyIntoleranceDao;
 use Aura\Dao\EpisodeOfCareDao;
+use Aura\Dao\PatientDao;
 use Aura\Dao\SubstanceDao;
 use Aura\Domain\AllergyIntolerance;
 use Aura\Domain\EpisodeOfCare;
@@ -33,7 +34,8 @@ final class AllergyIntoleranceService
     public function __construct(
         private EpisodeOfCareDao $episodeOfCareDao,
         private AllergyIntoleranceDao $allergyIntoleranceDao,
-        private SubstanceDao $substanceDao
+        private SubstanceDao $substanceDao,
+        private ?PatientDao $patientDao = null
     ) {
     }
 
@@ -122,6 +124,12 @@ final class AllergyIntoleranceService
         $episodeOfCare = $this->episodeOfCareDao->findById($idEpisodeOfCare);
         if ($episodeOfCare === null) {
             throw new InvalidArgumentException(sprintf('Aucun séjour ne porte l\'identifiant %d.', $idEpisodeOfCare));
+        }
+        // Relecture adversariale du 2026-11-04 : le dossier d'un patient supprimé de la liste n'est plus modifiable.
+        if ($this->patientDao !== null && $this->patientDao->findById($episodeOfCare->getIdPatient()) === null) {
+            throw new InvalidArgumentException(
+                'Ce patient a été supprimé de la liste : son dossier n\'est plus modifiable.'
+            );
         }
 
         return $episodeOfCare;

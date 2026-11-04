@@ -8,16 +8,30 @@ document.querySelectorAll('form[data-auto-submit-form]').forEach(form => {
     form.querySelectorAll('[data-submit-fallback]').forEach(button => {
         button.hidden = true;
     });
-    form.querySelectorAll('select, input[type="date"]').forEach(control => {
-        control.addEventListener('change', () => {
-            // Une date en cours de saisie au clavier (champ vide ou incomplet) n'envoie rien.
-            if (control.type === 'date' && control.value === '') {
-                return;
+    const send = () => {
+        if (typeof form.requestSubmit === 'function') {
+            form.requestSubmit();
+        } else {
+            form.submit();
+        }
+    };
+    form.querySelectorAll('select').forEach(control => control.addEventListener('change', send));
+    // Date (relecture adversariale du 2026-11-04) : Chrome signale un « change » à chaque chiffre tapé, la
+    // page se rechargeait dès le premier. On attend la fin de la saisie : une seconde sans frappe, la sortie
+    // du champ ou Entrée. Le calendrier du navigateur, lui, envoie aussitôt la date choisie (même délai).
+    form.querySelectorAll('input[type="date"]').forEach(control => {
+        let timer = null;
+        const later = () => {
+            clearTimeout(timer);
+            if (control.value !== '') {
+                timer = setTimeout(send, 1000);
             }
-            if (typeof form.requestSubmit === 'function') {
-                form.requestSubmit();
-            } else {
-                form.submit();
+        };
+        control.addEventListener('change', later);
+        control.addEventListener('blur', () => {
+            clearTimeout(timer);
+            if (control.value !== '' && control.value !== control.defaultValue) {
+                send();
             }
         });
     });
