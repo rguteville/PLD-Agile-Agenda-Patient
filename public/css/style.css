@@ -148,50 +148,9 @@ form {
     background: #236699;
 }
 
-/* SIDE BAR */
-
-.sidenav {
-  height: 100%;
-  width: 0;
-  position: fixed;
-  z-index: 1;
-  top: 0;
-  left: 0;
-  background-color: #111;
-  overflow-x: hidden;
-  transition: 0.5s;
-  padding-top: 60px;
-}
-
-.sidenav a {
-  padding: 8px 8px 8px 32px;
-  text-decoration: none;
-  font-size: 25px;
-  color: #818181;
-  display: block;
-  transition: 0.3s;
-}
-
-.sidenav a:hover {
-  color: #f1f1f1;
-}
-
-.sidenav .closebtn {
-  position: absolute;
-  top: 0;
-  right: 25px;
-  font-size: 36px;
-  margin-left: 50px;
-}
-
 #main {
   transition: margin-left .5s;
   padding: 16px;
-}
-
-@media screen and (max-height: 450px) {
-  .sidenav {padding-top: 15px;}
-  .sidenav a {font-size: 18px;}
 }
 
 /* TOP BAR */
@@ -203,36 +162,6 @@ body, html {
   margin: 0;
   font-family: Arial;
 }
-
-/* Style tab links */
-.tablink {
-  background-color: #555;
-  color: white;
-  float: left;
-  border: none;
-  outline: none;
-  cursor: pointer;
-  padding: 14px 16px;
-  font-size: 17px;
-  width: 25%;
-}
-
-.tablink:hover {
-  background-color: #777;
-}
-
-/* Style the tab content (and add height:100% for full page content) */
-.tabcontent {
-  color: white;
-  display: none;
-  padding: 100px 20px;
-  height: 30%;
-}
-
-#Home {background-color: red;}
-#News {background-color: green;}
-#Contact {background-color: blue;}
-#About {background-color: orange;}
 
 /* ---------- Bandeau identité + allergies (RG2) : en tête de toute page liée à un séjour ---------- */
 .patient-banner {
@@ -369,29 +298,6 @@ body, html {
     font-size: 12px;
 }
 
-/* AURA-20 : bouton « Prescription » du dossier, vers l'écran B3 */
-.episode-actions {
-    margin: 0 0 14px;
-}
-
-.episode-actions .button {
-    display: inline-block;
-    padding: 6px 14px;
-    color: #fff;
-    background: #2b7bb9;
-    border: 1px solid #1f5f91;
-    border-radius: 3px;
-    text-decoration: none;
-}
-
-.episode-actions .button:hover {
-    background: #1f5f91;
-}
-
-.episode-actions .button + .button {
-    margin-left: 8px;
-}
-
 /* ---------- Liste des patients (AURA-12.1) ---------- */
 .patient-search {
     display: flex;
@@ -435,8 +341,7 @@ body, html {
     background: #c9dbf0;
 }
 
-.patient-list .no-service,
-.empty-list {
+.patient-list .no-service {
     color: #777;
     font-style: italic;
 }
@@ -476,12 +381,6 @@ body, html {
 
 .field-button:hover {
     background: #eef4fb;
-}
-
-/* Identité reprise du dossier : champs en lecture seule */
-.form-row input.is-locked {
-    background: #f3f6fa;
-    color: #555;
 }
 
 /* Zone de message sous le champ (résultat de la recherche), mise à jour par script */
@@ -960,15 +859,6 @@ body, html {
     background: #f3f6fa;
 }
 
-.care-plan-lines tr.status-stopped td {
-    color: #999;
-}
-
-.care-plan-lines .not-validated {
-    color: #b36b00;
-    font-weight: 600;
-}
-
 /* ===== AURA-UI : refonte IHM (tokens, thème sombre, composants, impression) =====
    Ce bloc est ajouté EN FIN de fichier (règle d'équipe) : il définit les jetons de design (:root) puis
    surcharge les règles historiques ci-dessus pour qu'elles lisent ces jetons. Les sélecteurs existants
@@ -1231,7 +1121,6 @@ a:hover {
     background: var(--accent-soft);
 }
 
-.topbar .menu-toggle,
 .topbar .theme-toggle {
     display: inline-flex;
     align-items: center;
@@ -1247,7 +1136,6 @@ a:hover {
     cursor: pointer;
 }
 
-.topbar .menu-toggle:hover,
 .topbar .theme-toggle:hover {
     color: var(--fg);
     background: var(--bg-muted);
@@ -1277,42 +1165,6 @@ a:hover {
     :root:not([data-theme="light"]) .theme-toggle .icon-moon {
         display: none;
     }
-}
-
-.sidenav {
-    background: var(--bg-raised);
-    border-right: 1px solid var(--line);
-    box-shadow: none;
-    transition: width var(--transition);
-    z-index: 20;
-}
-
-.sidenav a {
-    font-size: var(--fs-3);
-    color: var(--fg-muted);
-    transition: none;
-}
-
-.sidenav a:hover {
-    color: var(--accent);
-    background: var(--bg-muted);
-}
-
-.sidenav .closebtn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 40px;
-    height: 40px;
-    padding: 0;
-    margin: 0;
-    top: var(--sp-1);
-    right: var(--sp-2);
-    border: 0;
-    background: none;
-    color: var(--fg-muted);
-    font: inherit;
-    cursor: pointer;
 }
 
 /* ---------- 4. Icônes (Lucide, SVG inline via components/icon.php) ---------- */
@@ -1374,8 +1226,7 @@ a:hover {
     --badge-line: var(--st-validate-line);
 }
 
-.badge--not_done,
-.badge--alert {
+.badge--not_done {
     --badge-fg: var(--st-alert-fg);
     --badge-bg: var(--st-alert-bg);
     --badge-line: var(--st-alert-line);
@@ -1429,7 +1280,6 @@ a:hover {
 }
 
 .button--secondary,
-.episode-actions .button,
 .field-button,
 .b3-buttons button,
 .stop-form button,
@@ -1439,7 +1289,6 @@ a:hover {
 }
 
 .button--secondary:hover,
-.episode-actions .button:hover,
 .field-button:hover,
 .b3-buttons button:hover,
 .stop-form button:hover {
@@ -1478,10 +1327,6 @@ a:hover {
     color: var(--fg-subtle);
     background: var(--bg-muted);
     cursor: default;
-}
-
-.episode-actions .button + .button {
-    margin-left: var(--sp-2);
 }
 
 /* Cibles tactiles ≥ 44 px sur tablette pour les actions que l'IDE touche */
@@ -1581,7 +1426,6 @@ h2,
     padding: 4px 8px;
 }
 
-.form-row input.is-locked,
 .b3-value input[readonly],
 .b3-value input:disabled,
 .b3-row select:disabled {
@@ -1627,8 +1471,7 @@ h2,
 .patient-list,
 .care-plan-lines,
 .b3-cart,
-.agenda-table,
-.service-grid {
+.agenda-table {
     width: 100%;
     border-collapse: collapse;
     background: var(--bg-raised);
@@ -1645,9 +1488,7 @@ h2,
 .b3-cart th,
 .b3-cart td,
 .agenda-table th,
-.agenda-table td,
-.service-grid th,
-.service-grid td {
+.agenda-table td {
     padding: var(--sp-2) var(--sp-3);
     border-bottom: 1px solid var(--line);
 }
@@ -1656,8 +1497,7 @@ h2,
 .patient-list th,
 .care-plan-lines th,
 .b3-cart th,
-.agenda-table th,
-.service-grid th {
+.agenda-table th {
     color: var(--fg-muted);
     font-size: var(--fs-0);
     font-weight: 600;
@@ -1677,20 +1517,11 @@ h2,
 }
 
 .patient-list .no-service,
-.empty-list,
 .b3-empty,
 .reference-exhausted,
 .field-status.searching,
 .field-status.unknown {
     color: var(--fg-subtle);
-}
-
-.care-plan-lines tr.status-stopped td {
-    color: var(--fg-subtle);
-}
-
-.care-plan-lines .not-validated {
-    color: var(--st-validate-fg);
 }
 
 .field-status.found,
@@ -1929,13 +1760,6 @@ h2,
     border-radius: var(--radius-lg);
 }
 
-.record .record-links {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--sp-3);
-    margin: var(--sp-3) 0 0;
-}
-
 /* ---------- 11. Agenda patient : chronologie du jour, retards épinglés, rotations ---------- */
 .agenda-nav {
     display: flex;
@@ -2113,48 +1937,6 @@ h2,
     gap: var(--sp-2);
 }
 
-/* ---------- 13. Vue consolidée du service : patients × créneaux ---------- */
-.service-grid th.col-patient {
-    text-align: left;
-    min-width: 180px;
-}
-
-.service-grid td.cell-slot {
-    text-align: center;
-    vertical-align: middle;
-}
-
-.service-grid .slot-items {
-    display: inline-flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 2px;
-}
-
-.service-grid .patient-name {
-    font-weight: 600;
-    text-transform: uppercase;
-}
-
-.service-grid .patient-bed {
-    display: block;
-    color: var(--fg-muted);
-    font-size: var(--fs-1);
-}
-
-.service-grid td.col-late {
-    text-align: center;
-}
-
-.service-legend {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--sp-2);
-    margin: var(--sp-3) 0 0;
-    padding: 0;
-    list-style: none;
-}
-
 /* ---------- 14. Petits écrans : tableaux défilants, formulaires en colonne ---------- */
 .table-scroll {
     overflow-x: auto;
@@ -2226,17 +2008,14 @@ h2,
     }
 
     .topbar,
-    .sidenav,
     .skip-link,
     .page-actions,
     .agenda-nav,
-    .episode-actions,
     .col-action,
     .dialog,
     .stop-form,
     .add-allergy,
-    .remove-allergy,
-    .record-links {
+    .remove-allergy {
         display: none !important;
     }
 
@@ -2859,16 +2638,13 @@ h2,
 .b3-buttons button,
 .b3-validate button,
 .stop-form button,
-.field-button,
-.inline-edit__save,
-.inline-edit__cancel {
+.field-button {
     min-height: var(--tap);
     padding: 0 var(--sp-5);
     box-shadow: var(--shadow-soft);
 }
 
 .button--secondary,
-.episode-actions .button,
 .field-button,
 .b3-buttons button,
 .stop-form button,
@@ -3315,11 +3091,6 @@ form[data-ajax] {
     font: inherit;
 }
 
-.allergy-picker__count {
-    color: var(--fg-muted);
-    font-size: var(--fs-1);
-}
-
 .allergy-picker__list {
     max-height: 288px;
     margin: 0;
@@ -3740,22 +3511,6 @@ form.form--columns .form-lead > .form-row {
     font-size: var(--fs-1);
 }
 
-.prescription-card__meta {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 2px var(--sp-2);
-    margin: var(--sp-2) 0;
-    font-size: var(--fs-1);
-}
-
-.prescription-card__meta dt {
-    color: var(--fg-muted);
-}
-
-.prescription-card__meta dd {
-    margin: 0;
-}
-
 .prescription-card .stop-form {
     display: flex;
     flex-wrap: wrap;
@@ -4073,7 +3828,6 @@ form.form--columns .form-lead > .form-row {
     color: var(--st-alert-fg);
 }
 
-
 /* ===== AURA-25 / AURA-26 / AURA-28 : actions sur un soin, filtres, vue Semaine ===== */
 .care-buttons {
     display: inline-flex;
@@ -4125,13 +3879,11 @@ form.form--columns .form-lead > .form-row {
     border-color: var(--accent);
 }
 
-.agenda-section.is-filtered-out .table-scroll,
-.service-slot.is-filtered-out .cell-slot ul {
+.agenda-section.is-filtered-out .table-scroll {
     display: none;
 }
 
-.week-grid,
-.service-timeline {
+.week-grid {
     width: 100%;
     border-collapse: collapse;
     background: var(--bg-raised);
@@ -4140,16 +3892,13 @@ form.form--columns .form-lead > .form-row {
 }
 
 .week-grid th,
-.week-grid td,
-.service-timeline th,
-.service-timeline td {
+.week-grid td {
     padding: var(--sp-2);
     border: 1px solid var(--line);
     vertical-align: top;
 }
 
-.week-grid thead th,
-.service-timeline thead th {
+.week-grid thead th {
     background: var(--bg-muted);
     text-align: left;
 }
@@ -4176,7 +3925,7 @@ form.form--columns .form-lead > .form-row {
     display: block;
 }
 
-/* ===== AURA-29 / AURA-32 : agenda du service vertical (créneaux en lignes, patients en colonnes) ===== */
+/* ===== AURA-29 / AURA-32 : agenda du service et « Mon planning » (alerte des retards, allergies) ===== */
 .service-alert {
     margin: var(--sp-4) 0;
     padding: var(--sp-3) var(--sp-4);
@@ -4194,115 +3943,11 @@ form.form--columns .form-lead > .form-row {
     font-size: var(--fs-3);
 }
 
-.service-alert__list {
-    margin: 0;
-    padding: 0;
-    list-style: none;
-}
-
-.service-alert__list li {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--sp-2) var(--sp-3);
-    padding: var(--sp-1) 0;
-    border-top: 1px solid var(--st-late-line);
-}
-
-.service-alert__list a {
-    color: inherit;
-    font-weight: 600;
-}
-
-.service-timeline .col-time {
-    width: 96px;
-    white-space: nowrap;
-    color: var(--fg-muted);
-    font-weight: 600;
-}
-
-.service-timeline .service-patient {
-    min-width: 220px;
-}
-
-.service-timeline .service-patient a {
-    display: block;
-    margin: 2px 0;
-}
-
-.service-timeline .patient-name {
-    font-weight: 700;
-    text-transform: uppercase;
-}
-
-.service-timeline .patient-bed {
-    display: block;
-    color: var(--fg-muted);
-    font-size: var(--fs-1);
-}
-
 .service-patient__allergies {
     display: flex;
     flex-wrap: wrap;
     gap: 2px;
     margin: var(--sp-1) 0;
-}
-
-.service-slot.is-now th,
-.service-slot.is-now td {
-    background: var(--accent-soft);
-}
-
-.now-marker {
-    display: block;
-    color: var(--accent);
-    font-size: var(--fs-0);
-    text-transform: uppercase;
-}
-
-.service-timeline .slot-items {
-    display: flex;
-    flex-direction: column;
-    gap: var(--sp-2);
-    margin: 0;
-    padding: 0;
-    list-style: none;
-}
-
-.slot-item {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 2px;
-    padding: var(--sp-2);
-    border: 1px solid var(--line);
-    border-left: 4px solid var(--st-planned-line);
-    border-radius: var(--radius);
-}
-
-.slot-item.is-late {
-    border-left-color: var(--st-late-line);
-    background: var(--st-late-bg);
-}
-
-.slot-item.is-done {
-    border-left-color: var(--st-done-line);
-}
-
-.slot-item.is-not_done {
-    border-left-color: var(--st-alert-line);
-}
-
-.slot-item__head {
-    display: flex;
-    gap: var(--sp-2);
-    font-weight: 600;
-}
-
-.slot-item .item-details,
-.slot-item .trace {
-    color: var(--fg-muted);
-    font-size: var(--fs-1);
 }
 
 @media print {
@@ -4488,17 +4133,6 @@ form.form--columns .form-lead > .form-row {
     gap: var(--sp-2);
 }
 
-/* ===== AURA-29 : filtre par type de soin (agenda du service) ===== */
-.agenda-filters select {
-    min-height: var(--tap);
-    padding: var(--sp-2) var(--sp-3);
-    font: inherit;
-    color: var(--fg);
-    background: var(--bg-raised);
-    border: 1px solid var(--line-strong);
-    border-radius: var(--radius);
-}
-
 /* ===== Retours du 2026-11-03 : calendrier à droite, erreur à côté du bouton d'envoi ===== */
 .agenda-nav input[type="date"] {
     margin-left: auto;
@@ -4562,7 +4196,6 @@ form.form--columns .form-lead > .form-row {
 .prescription-details__card dd {
     margin: 0;
 }
-
 
 /* ===== AURA-PRESCRIPTION : retours des médecins du 2026-11-03 (libellés des listes, note, allergie, validation) ===== */
 /* Listes en cascade : libellés explicites (« Médicament (DCI) », « Forme galénique ») plus larges que « 1. » */
@@ -4715,7 +4348,6 @@ form.form--columns .form-lead > .form-row {
 .b3-validate .b3-hint {
     grid-column: 1 / -1;
 }
-
 
 /* ===== AURA-PATIENTS : retours des médecins du 2026-11-03 (dossier toujours accessible, historique des séjours, séjour courant, décès) ===== */
 /* Décès : icône + texte + cadre plein, lisible sans la couleur (bandeau, dossier, liste). */
@@ -5026,33 +4658,6 @@ form.form--columns .form-lead > .form-row {
     font-weight: 400;
 }
 
-/* Agenda du service : pied de carte en ligne, créneaux vides resserrés. */
-.slot-item__foot {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--sp-1) var(--sp-2);
-    margin-top: 2px;
-}
-
-.slot-item__foot .care-buttons .button {
-    padding: 2px var(--sp-2);
-    font-size: var(--fs-1);
-}
-
-.service-slot.is-empty th,
-.service-slot.is-empty td {
-    padding-top: 2px;
-    padding-bottom: 2px;
-    font-size: var(--fs-1);
-    color: var(--fg-muted);
-}
-
-.service-alert__list {
-    max-height: 220px;
-    overflow-y: auto;
-}
-
 /* Liste des patients : séjour en cours sur deux lignes, suppression discrète (rouge au survol). */
 .current-episode .current-episode__number {
     color: var(--fg-muted);
@@ -5152,14 +4757,9 @@ form.form--columns .form-lead > .form-row {
     font-weight: 600;
 }
 
-.board-row__allergies,
 .board-row__referent {
     display: block;
     font-size: var(--fs-1);
-}
-
-.board-row__allergies {
-    color: var(--st-late-fg);
 }
 
 .board-row__referent,
@@ -5204,13 +4804,6 @@ form.form--columns .form-lead > .form-row {
     margin: var(--sp-1) 0 0;
     color: var(--fg-muted);
     font-size: var(--fs-1);
-}
-
-.board-panel__allergies {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--sp-1);
-    margin: var(--sp-2) 0 0;
 }
 
 .board-panel__empty,
@@ -5382,15 +4975,6 @@ form.form--columns .form-lead > .form-row {
     display: flex;
     flex-wrap: wrap;
     gap: var(--sp-1);
-}
-
-.allergy-tags--compact {
-    margin-top: 2px;
-}
-
-.allergy-tags--compact .allergy-tag {
-    padding: 0 var(--sp-1);
-    font-size: var(--fs-1);
 }
 
 .care-line__patient {
