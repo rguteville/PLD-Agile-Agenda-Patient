@@ -164,7 +164,8 @@ confort.
 ### Étape 3. Le dossier du séjour (2 min)
 
 À faire : dans le dossier, montrer le bandeau patient, le résumé, les parties repliables du dossier complet.
-Corriger une valeur au crayon (par exemple les antécédents). Ouvrir « Historique des modifications ».
+Corriger une valeur au crayon (par exemple les antécédents) : « Confirmer » ouvre la fenêtre de validation par un
+médecin (authentification factice), comme « Modifier ». Ouvrir « Historique des modifications ».
 
 À montrer : le bandeau en tête de chaque écran de soins (identité, allergies, ou « Aucune allergie connue » écrit en
 toutes lettres), la modification enregistrée sans recharger la page, la trace dans l'historique.

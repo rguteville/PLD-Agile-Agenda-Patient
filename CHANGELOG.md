@@ -6,6 +6,10 @@ Format : une entrée par pull request, de la plus récente à la plus ancienne.
 
 ### Retours du 2026-11-04 (3)
 
+- Édition en ligne du dossier : « Confirmer » passe par la fenêtre de validation par un médecin (authentification
+  factice, comme « Modifier ») ; l'historique porte le nom du médecin au lieu de « non identifié ». La route
+  `/sejour/champ/modifier` est câblée avec le service des parties (l'authentification y est vérifiée).
+
 - Liste des patients : cœur barré à gauche du nom d'un patient décédé.
 - Badge « Ordonnance non validée » cliquable partout où il s'affiche (agendas, Mon planning, liste des
   prescriptions) : il ouvre l'écran « Nouvelles prescriptions » sur l'ordonnance à valider (#ordonnance-<id>).

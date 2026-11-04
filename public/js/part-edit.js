@@ -18,6 +18,10 @@
 // - /sejour/cloturer {episodeOfCare, date (JJ/MM/AAAA), time (HH:MM)} ;
 // - /sejour/deces {episodeOfCare, oldDeceased, date, time}.
 // Réponse : {ok: true, redirect} ou {ok: false, errors: {champ ou auth: message}, message}.
+//
+// Retours du 2026-11-04 : l'édition en ligne (inline-edit.js) passe aussi par cette fenêtre. window.AuraAuth.ask
+// (résumé) l'ouvre sans envoyer de requête et renvoie une promesse : { validator, password, name } une fois la
+// fenêtre validée, null si elle est annulée (Annuler, Échap). inline-edit.js envoie lui-même le champ.
 
 (function () {
     const root = document.querySelector('[data-inline-edit]');
@@ -171,11 +175,29 @@
     }
 
     function closeDialog() {
-        dialog.close();
+        // Fenêtre ouverte par AuraAuth.ask : une fermeture sans validation répond null à l'appelant.
+        const closed = pending;
         pending = null;
+        dialog.close();
+        if (closed && closed.ask) {
+            closed.ask(null);
+        }
     }
 
     dialog.querySelector('[data-auth-cancel]').addEventListener('click', closeDialog);
+    // Échap ferme la fenêtre sans passer par « Annuler ».
+    dialog.addEventListener('close', () => {
+        if (pending && pending.ask) {
+            const closed = pending;
+            pending = null;
+            closed.ask(null);
+        }
+    });
+
+    // Authentification factice demandée par un autre script (édition en ligne) : pas de requête ici.
+    window.AuraAuth = {
+        ask: summary => new Promise(resolve => openDialog({ ask: resolve, form: null, summary })),
+    };
 
     // Après succès : recharger le dossier (l'ancre peut être la seule différence d'URL).
     function goTo(redirect) {
@@ -191,6 +213,25 @@
     authForm.addEventListener('submit', async event => {
         event.preventDefault();
         if (!pending) {
+            return;
+        }
+        if (pending.ask) {
+            // Édition en ligne : contrôle minimal ici (le serveur revérifie), puis l'appelant envoie.
+            const select = authForm.querySelector('[name="validator"]');
+            const password = authForm.querySelector('[name="password"]').value;
+            if (select.value === '' || password.trim() === '') {
+                authError.textContent = 'Choisissez le médecin qui valide et saisissez son mot de passe.';
+                authError.hidden = false;
+                return;
+            }
+            const asked = pending;
+            pending = null;
+            dialog.close();
+            asked.ask({
+                validator: select.value,
+                password,
+                name: select.selectedOptions[0]?.textContent.trim() || '',
+            });
             return;
         }
         const submit = authForm.querySelector('button[type="submit"]');

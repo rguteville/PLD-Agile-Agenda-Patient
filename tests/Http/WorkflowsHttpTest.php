@@ -239,6 +239,41 @@ final class WorkflowsHttpTest extends HttpTestCase
         }
     }
 
+    /**
+     * Retours du 2026-11-04 : une modification en ligne du dossier exige l'authentification factice (médecin et
+     * mot de passe) ; l'historique porte le nom du médecin. Par la vraie route, câblage compris.
+     */
+    public function testInlineEditNeedsFactitiousDoctorAuthenticationAndTracesTheDoctor(): void
+    {
+        $csrf = $this->csrfFrom($this->get('/sejour?id=8'));
+        $before = (string) $this->pdo()->query("SELECT precautions FROM EpisodeOfCare WHERE idEpisodeOfCare = '8'")
+            ->fetchColumn();
+        $edit = [
+            'entity' => 'episode', 'id' => '8', 'episodeOfCare' => '8', 'field' => 'precautions',
+            'value' => 'Zz précaution HTTP', 'oldValue' => $before,
+        ];
+        try {
+            $refused = $this->postJson('/sejour/champ/modifier', $edit, $csrf);
+            self::assertSame(422, $refused->status, $refused->body);
+            self::assertTrue($refused->json()['auth'] ?? false, 'sans médecin ni mot de passe');
+
+            $auth = ['validator' => 'PRA01', 'password' => 'x'];
+            $saved = $this->postJson('/sejour/champ/modifier', $edit + $auth, $csrf);
+            self::assertSame(200, $saved->status, $saved->body);
+            self::assertStringContainsString('authentification factice', (string) ($saved->json()['author'] ?? ''));
+            self::assertSame(
+                'Zz précaution HTTP',
+                $this->pdo()->query("SELECT precautions FROM EpisodeOfCare WHERE idEpisodeOfCare = '8'")->fetchColumn()
+            );
+        } finally {
+            $this->pdo()->prepare("UPDATE EpisodeOfCare SET precautions = ? WHERE idEpisodeOfCare = '8'")
+                ->execute([$before === '' ? null : $before]);
+            $this->pdo()->exec(
+                "DELETE FROM AuditEvent WHERE entity = 'EpisodeOfCare' AND entityId = '8' AND field = 'precautions'"
+            );
+        }
+    }
+
     /** Supprime physiquement les patients de test d'un nom donné et ce qui en dépend (nettoyage). */
     private function deletePatients(string $lastName): void
     {

@@ -16,9 +16,13 @@
 // (data-entity, data-id, data-field, data-type, data-label, data-raw, data-placeholder, data-options)
 // avec son bouton .inline-edit__value et .inline-edit__text ; #inline-edit-status ;
 // #dossier-historique-table (facultatif).
+// Retours du 2026-11-04 : « Confirmer » ouvre d'abord la fenêtre de validation par un médecin, comme
+// « Modifier » (authentification FACTICE : médecin + mot de passe non vérifié, window.AuraAuth de
+// part-edit.js) ; l'historique porte alors son nom au lieu de « non identifié ».
 // Appel réseau : POST data-endpoint (/sejour/champ/modifier) en JSON {entity, id, episodeOfCare, field,
-// value, oldValue}, en-têtes X-CSRF-Token et X-Requested-With. Réponse : {ok, saved, conflict, value,
-// display, message} ; conflit en 409 (conflict: true, valeur actuelle renvoyée).
+// value, oldValue, validator, password}, en-têtes X-CSRF-Token et X-Requested-With. Réponse : {ok, saved,
+// conflict, value, display, message} ; conflit en 409 (conflict: true, valeur actuelle renvoyée) ;
+// authentification refusée en 422 (auth: true).
 
 (function () {
     const root = document.querySelector('[data-inline-edit]');
@@ -154,7 +158,7 @@
     }
 
     // Ajoute une ligne en tête de l'historique affiché (le serveur l'a déjà écrite en base).
-    function appendHistory(cell, oldDisplay, newDisplay) {
+    function appendHistory(cell, oldDisplay, newDisplay, author) {
         const table = document.getElementById('dossier-historique-table');
         if (!table) {
             return;
@@ -164,7 +168,7 @@
         const pad = n => String(n).padStart(2, '0');
         [
             `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}`,
-            'non identifié',
+            author || 'non identifié',
             cell.dataset.label,
             oldDisplay === null ? 'vide' : oldDisplay,
             newDisplay === null ? 'vide' : newDisplay,
@@ -210,6 +214,17 @@
 
         clearError(cell);
         button.disabled = true;
+        // Authentification factice, comme « Modifier » : médecin et mot de passe (non vérifié).
+        const auth = window.AuraAuth
+            ? await window.AuraAuth.ask(`Modifier « ${cell.dataset.label || ''} » : `
+                + `${displayFor(cell, oldRaw) ?? EMPTY_LABEL} → ${displayFor(cell, newRaw) ?? EMPTY_LABEL}.`)
+            : null;
+        if (!auth) {
+            // Fenêtre annulée : la saisie reste ouverte, rien n'est envoyé.
+            button.disabled = false;
+            input.focus();
+            return;
+        }
         let data;
         try {
             const response = await fetch(endpoint, {
@@ -227,6 +242,8 @@
                     field: cell.dataset.field,
                     value: newRaw,
                     oldValue: oldRaw,
+                    validator: auth.validator,
+                    password: auth.password,
                 }),
             });
             data = await response.json();
@@ -256,7 +273,7 @@
         leaveEditMode(cell, true);
         if (data.saved) {
             announce('Enregistré', false);
-            appendHistory(cell, oldDisplay, data.display);
+            appendHistory(cell, oldDisplay, data.display, data.author || auth.name);
         }
     }
 

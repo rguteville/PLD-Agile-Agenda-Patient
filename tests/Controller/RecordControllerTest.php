@@ -18,6 +18,8 @@ use PHPUnit\Framework\TestCase;
  */
 final class RecordControllerTest extends TestCase
 {
+    private const AUTHOR = 'Claire Morel (médecin, authentification factice)';
+
     protected function tearDown(): void
     {
         $_POST = [];
@@ -47,7 +49,7 @@ final class RecordControllerTest extends TestCase
     {
         $service = $this->createMock(RecordEditService::class);
         $service->expects($this->once())->method('update')
-            ->with('patient', 9, 'medicalHistory', 'HTA', '', 'non identifié', 3)
+            ->with('patient', 9, 'medicalHistory', 'HTA', '', self::AUTHOR, 3)
             ->willReturn([
                 'status' => RecordEditService::STATUS_SAVED, 'message' => 'Enregistré',
                 'value' => 'HTA', 'display' => 'HTA',
@@ -55,13 +57,48 @@ final class RecordControllerTest extends TestCase
 
         [$status, $body] = $this->call($service, Csrf::token(), [
             'entity' => 'patient', 'id' => '9', 'episodeOfCare' => '3', 'field' => 'medicalHistory', 'value' => 'HTA',
-            'oldValue' => '',
+            'oldValue' => '', 'validator' => 'PRA01', 'password' => 'x',
         ]);
 
         self::assertSame(200, $status);
         self::assertTrue($body['ok']);
         self::assertTrue($body['saved']);
         self::assertSame('HTA', $body['display']);
+        self::assertSame(self::AUTHOR, $body['author'], 'l\'historique affichera le médecin');
+    }
+
+    /**
+     * Retours du 2026-11-04 : une modification en ligne exige l'authentification factice (médecin et mot de
+     * passe), sinon 422 sans toucher au dossier ; le décès ne se déclare jamais en ligne.
+     */
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function testInlineEditNeedsFactitiousAuthenticationAndNeverDeclaresDeath(): void
+    {
+        $service = $this->createMock(RecordEditService::class);
+        $service->expects($this->never())->method('update');
+
+        [$status, $body] = $this->call($service, Csrf::token(), [
+            'entity' => 'patient', 'id' => '9', 'episodeOfCare' => '3', 'field' => 'medicalHistory', 'value' => 'HTA',
+            'oldValue' => '', 'validator' => 'PRA01', 'password' => '',
+        ]);
+        self::assertSame(422, $status);
+        self::assertTrue($body['auth']);
+    }
+
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function testDeathIsNeverChangedInline(): void
+    {
+        $service = $this->createMock(RecordEditService::class);
+        $service->expects($this->never())->method('update');
+
+        [$status, $body] = $this->call($service, Csrf::token(), [
+            'entity' => 'patient', 'id' => '9', 'episodeOfCare' => '3', 'field' => 'deceased', 'value' => '1',
+            'oldValue' => '0', 'validator' => 'PRA01', 'password' => 'x',
+        ]);
+        self::assertSame(422, $status);
+        self::assertStringContainsString('Déclarer le décès', $body['message']);
     }
 
     #[RunInSeparateProcess]
@@ -76,7 +113,7 @@ final class RecordControllerTest extends TestCase
 
         [$status, $body] = $this->call($service, Csrf::token(), [
             'entity' => 'patient', 'id' => '9', 'episodeOfCare' => '3', 'field' => 'medicalHistory', 'value' => 'x',
-            'oldValue' => 'HTA',
+            'oldValue' => 'HTA', 'validator' => 'PRA01', 'password' => 'x',
         ]);
 
         self::assertSame(409, $status);
@@ -96,7 +133,7 @@ final class RecordControllerTest extends TestCase
 
         [$status, $body] = $this->call($service, Csrf::token(), [
             'entity' => 'patient', 'id' => '9', 'episodeOfCare' => '3', 'field' => 'lastName', 'value' => 'x',
-            'oldValue' => '',
+            'oldValue' => '', 'validator' => 'PRA01', 'password' => 'x',
         ]);
 
         self::assertSame(422, $status);
@@ -183,8 +220,14 @@ final class RecordControllerTest extends TestCase
         if ($token !== null) {
             $_SERVER['HTTP_X_CSRF_TOKEN'] = $token;
         }
+        // Authentification factice simulée : PRA01 avec un mot de passe non vide.
+        $section = $this->createMock(RecordSectionService::class);
+        $section->method('inlineAuthor')->willReturnCallback(
+            static fn (string $validator, string $password): ?string
+                => $validator === 'PRA01' && trim($password) !== '' ? self::AUTHOR : null
+        );
         ob_start();
-        (new RecordController($service))->update();
+        (new RecordController($service, $section))->update();
         $sortie = (string) ob_get_clean();
 
         return [http_response_code(), json_decode($sortie, true, 512, JSON_THROW_ON_ERROR)];

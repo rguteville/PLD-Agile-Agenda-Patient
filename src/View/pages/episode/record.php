@@ -301,7 +301,8 @@ if ($editable) {
              visible (repliée) avec « Non renseigné » : l'information est absente, pas cachée. */ ?>
     <h2 class="record-subtitle" id="titre-dossier-complet">Dossier complet</h2>
     <?php if ($editable) : ?>
-        <p class="record-help">Crayon au survol (ou Entrée) pour corriger une valeur ; Échap annule.</p>
+        <p class="record-help">Crayon au survol (ou Entrée) pour corriger une valeur, validée par un médecin ; Échap
+            annule.</p>
     <?php endif; ?>
     <div class="record-sections" aria-labelledby="titre-dossier-complet"<?= $editable
         ? ' data-inline-edit data-endpoint="/sejour/champ/modifier" data-csrf="' . View::e($csrfToken) . '"'

@@ -515,6 +515,15 @@ class RecordSectionService
      * Authentification FACTICE : un médecin habilité et un mot de passe non vide (non vérifié).
      * Renvoie l'auteur à tracer, ou null si refusée.
      */
+    /**
+     * Auteur d'une modification en ligne du dossier (retours du 2026-11-04) : même authentification FACTICE que
+     * « Modifier » (un médecin de la liste, mot de passe non vide, non vérifié). null si refusée.
+     */
+    public function inlineAuthor(string $idValidator, string $password): ?string
+    {
+        return $this->authenticate($idValidator, $password);
+    }
+
     private function authenticate(string $idValidator, string $password): ?string
     {
         $validators = $this->validators();
