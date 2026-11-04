@@ -75,7 +75,7 @@ classDiagram
 direction LR
 
 class Patient {
-	* idPatient VARCHAR[20]
+	*idPatient VARCHAR[20]
 	ipp INT UNIQUE CHECK [ipp BETWEEN 100000 AND 999999999]
 	firstName VARCHAR[50]
 	lastName VARCHAR[50] NOT NULL
@@ -114,32 +114,32 @@ class Patient {
 	INDEX idx_patient_birthlastname [birthLastName]
 }
 class HealthcareService {
-	* idHealthcareService VARCHAR[20]
+	*idHealthcareService VARCHAR[20]
 	serviceName VARCHAR[50]
 }
 class ActivityDefinition {
-	* idActivityDefinition VARCHAR[20]
+	*idActivityDefinition VARCHAR[20]
 	name VARCHAR[100]
 	description VARCHAR[200]
 }
 class PractitionerRole {
-	* idPractitionerRole VARCHAR[20]
+	*idPractitionerRole VARCHAR[20]
 	title VARCHAR[50]
 	canValidate BOOLEAN NOT NULL DEFAULT FALSE
 }
 class Substance {
-	* idSubstance VARCHAR[20]
+	*idSubstance VARCHAR[20]
 	name VARCHAR[100] NOT NULL UNIQUE
 }
 class Medication {
-	* idMedication VARCHAR[20]
+	*idMedication VARCHAR[20]
 	inn VARCHAR[100]
 	form VARCHAR[100]
 	#idSubstance VARCHAR[20]
 	UNIQUE [inn form]
 }
 class AllergyIntolerance {
-	* idAllergy VARCHAR[20]
+	*idAllergy VARCHAR[20]
 	#idPatient VARCHAR[20] NOT NULL
 	#idSubstance VARCHAR[20] NOT NULL
 	manifestation VARCHAR[100]
@@ -148,7 +148,7 @@ class AllergyIntolerance {
 	UNIQUE [idPatient idSubstance]
 }
 class Practitioner {
-	* idPractitioner VARCHAR[20]
+	*idPractitioner VARCHAR[20]
 	#idPractitionerRole VARCHAR[20]
 	firstName VARCHAR[50]
 	lastName VARCHAR[50]
@@ -156,7 +156,7 @@ class Practitioner {
 	email VARCHAR[50]
 }
 class EpisodeOfCare {
-	* idEpisodeOfCare VARCHAR[20]
+	*idEpisodeOfCare VARCHAR[20]
 	#idPatient VARCHAR[20]
 	#idHealthcareService VARCHAR[20]
 	episodeNumber VARCHAR[20] NOT NULL UNIQUE
@@ -189,17 +189,17 @@ class EpisodeOfCare {
 	#idReferringPractitioner VARCHAR[20]
 }
 class Pathology {
-	* idPathology VARCHAR[20]
+	*idPathology VARCHAR[20]
 	label VARCHAR[100] NOT NULL UNIQUE
 }
 class PlanDefinition {
-	* idPlanDefinition VARCHAR[20]
+	*idPlanDefinition VARCHAR[20]
 	title VARCHAR[100] NOT NULL
 	#idPathology VARCHAR[20]
 	active BOOLEAN NOT NULL DEFAULT TRUE
 }
 class PlanDefinitionAction {
-	* idPlanDefinitionAction VARCHAR[20]
+	*idPlanDefinitionAction VARCHAR[20]
 	#idPlanDefinition VARCHAR[20] NOT NULL
 	kind VARCHAR[20] NOT NULL
 	#idActivityDefinition VARCHAR[20] NOT NULL
@@ -228,7 +228,7 @@ class PlanDefinitionAction {
 	CHECK [ durationHours IS NULL OR [durationHours > 0 AND frequencyHours IS NOT NULL] ]
 }
 class CarePlan {
-	* idCarePlan VARCHAR[20]
+	*idCarePlan VARCHAR[20]
 	#idEpisodeOfCare VARCHAR[20] NOT NULL
 	#idPrescriber VARCHAR[20] NOT NULL
 	mode VARCHAR[20] NOT NULL
@@ -241,7 +241,7 @@ class CarePlan {
 	CHECK [[idValidator IS NULL] = [validatedAt IS NULL]]
 }
 class ServiceRequest {
-	* idServiceRequest VARCHAR[20]
+	*idServiceRequest VARCHAR[20]
 	#idCarePlan VARCHAR[20] NOT NULL
 	#idActivityDefinition VARCHAR[20] NOT NULL
 	startDate DATETIME NOT NULL
@@ -255,7 +255,7 @@ class ServiceRequest {
 	CHECK [[idStoppedBy IS NULL] = [stoppedAt IS NULL]]
 }
 class MedicationRequest {
-	* idMedicationRequest VARCHAR[20]
+	*idMedicationRequest VARCHAR[20]
 	#idCarePlan VARCHAR[20] NOT NULL
 	#idActivityDefinition VARCHAR[20] NOT NULL
 	#idMedication VARCHAR[20] NOT NULL
@@ -283,7 +283,7 @@ class MedicationRequest {
 	CHECK [[idStoppedBy IS NULL] = [stoppedAt IS NULL]]
 }
 class Appointment {
-	* idAppointment VARCHAR[20]
+	*idAppointment VARCHAR[20]
 	#idServiceRequest VARCHAR[20]
 	#idMedicationRequest VARCHAR[20]
 	plannedTime DATETIME NOT NULL
@@ -296,7 +296,7 @@ class Appointment {
 	UNIQUE [idMedicationRequest plannedTime]
 }
 class AuditEvent {
-	* idAuditEvent INT UNSIGNED AUTO_INCREMENT
+	*idAuditEvent INT UNSIGNED AUTO_INCREMENT
 	entity VARCHAR[20] NOT NULL
 	entityId VARCHAR[20] NOT NULL
 	field VARCHAR[50] NOT NULL
@@ -308,7 +308,7 @@ class AuditEvent {
 	INDEX idx_auditevent_entity [entity entityId recordedAt]
 }
 class CareTeam {
-	* idCareTeam INT UNSIGNED AUTO_INCREMENT
+	*idCareTeam INT UNSIGNED AUTO_INCREMENT
 	#idHealthcareService VARCHAR[20] NOT NULL
 	shiftDate DATE NOT NULL
 	shift VARCHAR[10] NOT NULL
@@ -319,12 +319,12 @@ class CareTeam {
 	UNIQUE [idHealthcareService shiftDate shift name activeKey]
 }
 class CareTeamMember {
-	* #idCareTeam INT UNSIGNED NOT NULL
-	* #idPractitioner VARCHAR[20] NOT NULL
+	*#idCareTeam INT UNSIGNED NOT NULL
+	*#idPractitioner VARCHAR[20] NOT NULL
 }
 class CareTeamPatient {
-	* #idCareTeam INT UNSIGNED NOT NULL
-	* #idEpisodeOfCare VARCHAR[20] NOT NULL
+	*#idCareTeam INT UNSIGNED NOT NULL
+	*#idEpisodeOfCare VARCHAR[20] NOT NULL
 }
 
 Medication --> Substance
@@ -370,8 +370,9 @@ Notation :
 
 - Une classe par table, ses colonnes avec leur type SQL (crochets au lieu de parenthèses : `VARCHAR[20]`) et leurs
   contraintes, puis les contraintes de la table (`CHECK`, `UNIQUE`, `INDEX`).
-- `*` marque la clé primaire, `#` une clé étrangère, `* #` une colonne qui est les deux (`CareTeamMember`,
-  `CareTeamPatient` : clé primaire composée de leurs deux clés étrangères).
+- `*` marque la clé primaire, `#` une clé étrangère, `*#` une colonne qui est les deux (`CareTeamMember`,
+  `CareTeamPatient` : clé primaire composée de leurs deux clés étrangères). Pas d'espace après `*` : Mermaid lirait
+  sinon une liste Markdown et n'afficherait pas la colonne.
 - Une flèche `A --> B` = une clé étrangère de la table A vers la table B. Deux flèches identiques = deux clés
   étrangères vers la même table (`CarePlan` : prescripteur et validateur).
 - `AuditEvent` n'a aucune clé étrangère, par choix : `entity` et `entityId` désignent la ligne tracée (`Patient`,
