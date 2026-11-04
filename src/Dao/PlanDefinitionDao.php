@@ -11,7 +11,9 @@ use PDO;
 /**
  * Accès aux protocoles (« groupes de prescriptions » de l'écran B3) : PlanDefinition = le
  * protocole, PlanDefinitionAction = ses lignes modèles, Pathology = la pathologie visée.
- * Classes et colonnes portent les mêmes noms : rien n'est traduit ici.
+ * Classes et colonnes portent les mêmes noms (ressources HL7) : rien n'est traduit ici.
+ * Lecture seule : les protocoles sont chargés par database/test.sql, aucun écran ne les saisit.
+ * Un protocole retiré a active = FALSE (suppression logique propre à cette table, pas de removedAt).
  */
 class PlanDefinitionDao
 {
@@ -44,8 +46,10 @@ class PlanDefinitionDao
     }
 
     /**
-     * Un protocole avec ses lignes, par décalage de début puis par identifiant. Un protocole
-     * retiré est lu lui aussi : c'est à l'appelant de refuser de l'appliquer.
+     * Un protocole avec ses lignes, par décalage de début puis par identifiant (tri texte du
+     * VARCHAR). Un protocole retiré est lu lui aussi : c'est à l'appelant de refuser de l'appliquer.
+     *
+     * @return ?PlanDefinition null si l'identifiant n'existe pas
      */
     public function findById(string $idPlanDefinition): ?PlanDefinition
     {
@@ -74,7 +78,12 @@ class PlanDefinitionDao
         );
     }
 
-    /** @param PlanDefinitionAction[] $actions */
+    /**
+     * Ligne de PlanDefinition jointe à Pathology (label = libellé de la pathologie) vers l'entité.
+     *
+     * @param array<string, mixed> $r
+     * @param PlanDefinitionAction[] $actions [] quand les lignes ne sont pas lues (findActive())
+     */
     private function mapToPlanDefinition(array $r, array $actions): PlanDefinition
     {
         return new PlanDefinition(
@@ -87,6 +96,12 @@ class PlanDefinitionDao
         );
     }
 
+    /**
+     * Ligne de PlanDefinitionAction (colonnes de ACTION_COLUMNS) vers l'entité. Les SMALLINT
+     * arrivent en chaîne depuis PDO : ils sont convertis en int, NULL gardé.
+     *
+     * @param array<string, ?string> $r
+     */
     private function mapToAction(array $r): PlanDefinitionAction
     {
         return new PlanDefinitionAction(
@@ -115,6 +130,7 @@ class PlanDefinitionDao
         );
     }
 
+    /** Colonne numérique facultative : null si NULL en base, entier sinon. */
     private static function intOrNull(mixed $value): ?int
     {
         return $value !== null ? (int) $value : null;

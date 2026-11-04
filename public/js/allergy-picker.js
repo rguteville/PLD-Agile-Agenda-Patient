@@ -1,7 +1,10 @@
 // Liste des allergies de l'admission (components/allergy_picker.php) : filtre par libellé (sans tenir
 // compte des accents ni de la casse) et compteur d'allergènes cochés, annoncé aux lecteurs d'écran.
 // La criticité de chaque allergène coché s'affiche par CSS ; ce script ne fait que du confort :
-// le serveur valide les identifiants et les criticités (AdmissionService::valider()).
+// le serveur valide les identifiants et les criticités (AdmissionService::validate()).
+// Chargé par l'admission (GET /, PatientController::SCRIPTS_ADMISSION). Attend : [data-allergy-picker]
+// avec [data-allergy-filter], [data-allergy-count], [data-allergy-empty] et .allergy-option
+// (data-allergy-label) ; écoute aura:allergies-filled (admission-search.js). Aucun appel réseau.
 
 (function () {
     document.querySelectorAll('[data-allergy-picker]').forEach(picker => {
@@ -10,6 +13,7 @@
         const empty = picker.querySelector('[data-allergy-empty]');
         const options = [...picker.querySelectorAll('.allergy-option')];
 
+        // Texte comparable : sans accents, en minuscules.
         const fold = text => text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 
         function updateCount() {

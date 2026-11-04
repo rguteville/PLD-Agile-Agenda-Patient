@@ -22,12 +22,12 @@ final class ClinicalScales
      * Reproduction consultée : https://www.scientificspine.com/scores/asa-classification
      */
     public const ASA = [
-        'I' => 'ASA I – patient en bonne santé',
-        'II' => 'ASA II – maladie systémique légère',
-        'III' => 'ASA III – maladie systémique sévère',
-        'IV' => 'ASA IV – maladie systémique sévère, menace vitale constante',
-        'V' => 'ASA V – patient moribond, survie improbable sans l\'intervention',
-        'VI' => 'ASA VI – mort cérébrale déclarée, prélèvement d\'organes',
+        'I' => 'ASA I : patient en bonne santé',
+        'II' => 'ASA II : maladie systémique légère',
+        'III' => 'ASA III : maladie systémique sévère',
+        'IV' => 'ASA IV : maladie systémique sévère, menace vitale constante',
+        'V' => 'ASA V : patient moribond, survie improbable sans l\'intervention',
+        'VI' => 'ASA VI : mort cérébrale déclarée, prélèvement d\'organes',
     ];
 
     /**
@@ -36,10 +36,10 @@ final class ClinicalScales
      * Reproduction consultée : https://www.healio.com/cardiology/learn-the-heart/cardiology-review/topic-reviews/new-york-heart-association-nyha-functional-class
      */
     public const NYHA = [
-        'I' => 'NYHA I – aucune limitation de l\'activité physique',
-        'II' => 'NYHA II – symptômes à l\'effort modéré',
-        'III' => 'NYHA III – symptômes à l\'effort minime',
-        'IV' => 'NYHA IV – symptômes au repos',
+        'I' => 'NYHA I : aucune limitation de l\'activité physique',
+        'II' => 'NYHA II : symptômes à l\'effort modéré',
+        'III' => 'NYHA III : symptômes à l\'effort minime',
+        'IV' => 'NYHA IV : symptômes au repos',
     ];
 
     /**
@@ -50,9 +50,9 @@ final class ClinicalScales
      * Copie PDF consultée : https://sofia.medicalistes.fr/spip/IMG/pdf/IGSII-_Mac_Cabe-Knaus_2011_.pdf
      */
     public const MCCABE = [
-        '0' => '0 – pas de maladie mortelle',
-        '1' => '1 – maladie mortelle à 5 ans',
-        '2' => '2 – maladie mortelle à 1 an',
+        '0' => '0 : pas de maladie mortelle',
+        '1' => '1 : maladie mortelle à 5 ans',
+        '2' => '2 : maladie mortelle à 1 an',
     ];
 
     /**
@@ -61,10 +61,10 @@ final class ClinicalScales
      * Source : https://www.srlf.org/wp-content/uploads/2015/11/2011_IGSII_Mac_Cabe_Knaus.doc
      */
     public const KNAUS = [
-        'A' => 'A – santé normale',
-        'B' => 'B – limitation modérée (traitement chronique)',
-        'C' => 'C – limitation importante (handicap à l\'effort, traitement anticancéreux, hémodialyse)',
-        'D' => 'D – patient grabataire, restriction majeure',
+        'A' => 'A : santé normale',
+        'B' => 'B : limitation modérée (traitement chronique)',
+        'C' => 'C : limitation importante (handicap à l\'effort, traitement anticancéreux, hémodialyse)',
+        'D' => 'D : patient grabataire, restriction majeure',
     ];
 
     /**
@@ -74,13 +74,13 @@ final class ClinicalScales
      * Source : https://www.service-public.gouv.fr/particuliers/vosdroits/F1229
      */
     public const GIR = [
-        '1' => 'GIR 1 – confiné au lit ou au fauteuil, fonctions mentales gravement altérées',
-        '2' => 'GIR 2 – confiné au lit ou au fauteuil (fonctions mentales partiellement altérées) '
+        '1' => 'GIR 1 : confiné au lit ou au fauteuil, fonctions mentales gravement altérées',
+        '2' => 'GIR 2 : confiné au lit ou au fauteuil (fonctions mentales partiellement altérées) '
             . 'ou fonctions mentales altérées mais capable de se déplacer',
-        '3' => 'GIR 3 – autonomie mentale conservée, aide corporelle plusieurs fois par jour',
-        '4' => 'GIR 4 – transferts non assurés seul ou aide pour les activités corporelles et les repas',
-        '5' => 'GIR 5 – aide ponctuelle (toilette, repas, ménage)',
-        '6' => 'GIR 6 – autonome pour les actes essentiels de la vie courante',
+        '3' => 'GIR 3 : autonomie mentale conservée, aide corporelle plusieurs fois par jour',
+        '4' => 'GIR 4 : transferts non assurés seul ou aide pour les activités corporelles et les repas',
+        '5' => 'GIR 5 : aide ponctuelle (toilette, repas, ménage)',
+        '6' => 'GIR 6 : autonome pour les actes essentiels de la vie courante',
     ];
 
     /**
@@ -90,12 +90,12 @@ final class ClinicalScales
      * Tableau des profils consulté : https://cdn.clinicaltrials.gov/large-docs/55/NCT02224755/Prot_001.pdf
      */
     public const INTERMACS = [
-        '1' => 'Profil 1 – choc cardiogénique critique',
-        '2' => 'Profil 2 – dégradation progressive sous inotropes',
-        '3' => 'Profil 3 – stable mais dépendant des inotropes',
-        '4' => 'Profil 4 – symptômes au repos',
-        '5' => 'Profil 5 – intolérance à l\'effort',
-        '6' => 'Profil 6 – effort limité',
-        '7' => 'Profil 7 – NYHA III avancé',
+        '1' => 'Profil 1 : choc cardiogénique critique',
+        '2' => 'Profil 2 : dégradation progressive sous inotropes',
+        '3' => 'Profil 3 : stable mais dépendant des inotropes',
+        '4' => 'Profil 4 : symptômes au repos',
+        '5' => 'Profil 5 : intolérance à l\'effort',
+        '6' => 'Profil 6 : effort limité',
+        '7' => 'Profil 7 : NYHA III avancé',
     ];
 }

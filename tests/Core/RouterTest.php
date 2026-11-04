@@ -9,33 +9,33 @@ use PHPUnit\Framework\TestCase;
 
 final class RouterTest extends TestCase
 {
-    public function testRouteConnueAppelleLeHandler(): void
+    public function testKnownRouteCallsHandler(): void
     {
         $router = new Router();
-        $appele = false;
-        $router->get('/sejour', static function () use (&$appele): void {
-            $appele = true;
+        $called = false;
+        $router->get('/sejour', static function () use (&$called): void {
+            $called = true;
         });
 
         $router->dispatch('GET', '/sejour?id=1');
 
-        self::assertTrue($appele, 'la partie requête de l\'URI ne doit pas empêcher la correspondance');
+        self::assertTrue($called, 'la partie requête de l\'URI ne doit pas empêcher la correspondance');
     }
 
-    public function testRouteInconnueAppelleLeFallback(): void
+    public function testUnknownRouteCallsFallback(): void
     {
         $router = new Router();
-        $fallbackAppele = false;
-        $router->notFound(static function () use (&$fallbackAppele): void {
-            $fallbackAppele = true;
+        $fallbackCalled = false;
+        $router->notFound(static function () use (&$fallbackCalled): void {
+            $fallbackCalled = true;
         });
 
         $router->dispatch('GET', '/inconnue');
 
-        self::assertTrue($fallbackAppele);
+        self::assertTrue($fallbackCalled);
     }
 
-    public function testRouteInconnueSansFallbackAfficheUnTexte(): void
+    public function testUnknownRouteWithoutFallbackShowsText(): void
     {
         $router = new Router();
 

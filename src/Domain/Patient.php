@@ -7,20 +7,29 @@ namespace Aura\Domain;
 use DateTimeInterface;
 
 /**
- * Patient connu du service (table Patient). Identité (nom et prénom obligatoires, IPP facultatif
- * à l'admission, RG1) et champs complémentaires facultatifs du catalogue RecordFields::PATIENT.
- * Entité immuable : l'id est null tant que le patient n'est pas enregistré (PatientDao::insert()).
+ * Patient connu du service (ressource HL7 Patient, table Patient). Identité (nom et prénom
+ * obligatoires, IPP facultatif à l'admission, RG1) et champs complémentaires facultatifs du
+ * catalogue RecordFields::PATIENT, dont le décès (deceased) et le groupe sanguin (bloodType),
+ * réservés au médecin. Entité immuable : l'id est null tant que le patient n'est pas enregistré
+ * (PatientDao::insert()). removedAt (suppression logique, AURA-12.3) n'est pas porté : PatientDao
+ * ne renvoie jamais un patient supprimé.
  */
 class Patient
 {
+    /**
+     * @param ?string $ipp chiffres de l'IPP (colonne INT), null si inconnu
+     * @param ?string $phone colonne phoneNumber
+     * @param array<string, ?string> $details champs complémentaires, clés de RecordFields::PATIENT ;
+     *                                        partiel si le patient vient de PatientDao::findAll() ou search()
+     */
     public function __construct(
         private ?int $idPatient,
         private ?string $ipp,
-        private string $nom,
-        private string $prenom,
-        private ?DateTimeInterface $dateNaissance,
-        private ?string $sexe,
-        private ?string $telephone = null,
+        private string $lastName,
+        private string $firstName,
+        private ?DateTimeInterface $birthDate,
+        private ?string $sex,
+        private ?string $phone = null,
         private ?string $email = null,
         private array $details = []
     ) {
@@ -36,31 +45,31 @@ class Patient
         return $this->ipp;
     }
 
-    public function getNom(): string
+    public function getLastName(): string
     {
-        return $this->nom;
+        return $this->lastName;
     }
 
-    public function getPrenom(): string
+    public function getFirstName(): string
     {
-        return $this->prenom;
+        return $this->firstName;
     }
 
     /** Null pour un patient anonyme (« sous X ») dont la date est inconnue. */
-    public function getDateNaissance(): ?DateTimeInterface
+    public function getBirthDate(): ?DateTimeInterface
     {
-        return $this->dateNaissance;
+        return $this->birthDate;
     }
 
     /** 'M', 'F', ou null si non renseigné à l'admission (RG1 : seuls nom et prénom sont obligatoires). */
-    public function getSexe(): ?string
+    public function getSex(): ?string
     {
-        return $this->sexe;
+        return $this->sex;
     }
 
-    public function getTelephone(): ?string
+    public function getPhone(): ?string
     {
-        return $this->telephone;
+        return $this->phone;
     }
 
     public function getEmail(): ?string
@@ -86,8 +95,8 @@ class Patient
     }
 
     /** Patient inscrit « sous X » : identité inconnue. */
-    public function estAnonyme(): bool
+    public function isAnonymous(): bool
     {
-        return strtoupper($this->nom) === 'X' && strtoupper($this->prenom) === 'X';
+        return strtoupper($this->lastName) === 'X' && strtoupper($this->firstName) === 'X';
     }
 }

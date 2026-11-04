@@ -43,7 +43,7 @@ final class PlanDefinitionDaoTest extends TestCase
         }
     }
 
-    public function testSeulsLesProtocolesActifsSontProposesAvecLeurPathologie(): void
+    public function testOnlyActiveProtocolsAreOfferedWithTheirPathology(): void
     {
         $active = (new PlanDefinitionDao($this->pdo))->findActive();
 
@@ -60,7 +60,7 @@ final class PlanDefinitionDaoTest extends TestCase
         self::assertSame('Sepsis et choc septique', $septicShock->getPathology());
     }
 
-    public function testProtocoleChargeAvecSesLignesParDecalage(): void
+    public function testProtocolLoadedWithLinesByOffset(): void
     {
         $planDefinition = (new PlanDefinitionDao($this->pdo))->findById('PLD01');
 
@@ -88,12 +88,12 @@ final class PlanDefinitionDaoTest extends TestCase
         self::assertSame(8, $antibiotic->getFrequencyHours());
     }
 
-    public function testProtocoleInconnu(): void
+    public function testUnknownProtocol(): void
     {
         self::assertNull((new PlanDefinitionDao($this->pdo))->findById('PLD99'));
     }
 
-    public function testUnMedicamentSansDoseEstRefuseParLaBase(): void
+    public function testMedicationWithoutDoseIsRejectedByDatabase(): void
     {
         $this->expectException(PDOException::class);
         $this->pdo->exec(
@@ -103,7 +103,7 @@ final class PlanDefinitionDaoTest extends TestCase
         );
     }
 
-    public function testUneLigneUniqueNAPasDeDuree(): void
+    public function testSingleLineHasNoDuration(): void
     {
         $this->expectException(PDOException::class);
         $this->pdo->exec(

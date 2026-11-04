@@ -4,17 +4,19 @@ declare(strict_types=1);
 
 namespace Aura\Tests\Service;
 
-use Aura\Dao\AllergieDao;
+use Aura\Dao\AllergyIntoleranceDao;
+use Aura\Dao\AuditEventDao;
 use Aura\Dao\CarePlanDao;
 use Aura\Dao\PatientDao;
 use Aura\Dao\PlanDefinitionDao;
 use Aura\Dao\ReferenceDataDao;
-use Aura\Dao\SejourDao;
+use Aura\Dao\EpisodeOfCareDao;
 use Aura\Dao\SubstanceDao;
+use Aura\Dao\Transaction;
 use Aura\Domain\PlanDefinition;
 use Aura\Domain\PlanDefinitionAction;
 use Aura\Service\CarePlanService;
-use Aura\Service\DossierPatientService;
+use Aura\Service\PatientRecordService;
 use Aura\Service\PlanDefinitionService;
 use DateTimeImmutable;
 use InvalidArgumentException;
@@ -28,7 +30,7 @@ final class PlanDefinitionServiceTest extends TestCase
 {
     private const APPLIED_AT = '2026-10-20 08:00';
 
-    public function testDatesDecaleesDepuisLaDateDApplication(): void
+    public function testDatesShiftedFromApplicationDate(): void
     {
         $lines = $this->service(self::septicShock())
             ->linesToPrefill('PLD01', new DateTimeImmutable(self::APPLIED_AT));
@@ -45,7 +47,7 @@ final class PlanDefinitionServiceTest extends TestCase
         self::assertSame('2026-10-21T08:00', $lines[2]['endDate']);
     }
 
-    public function testChampsDeLigneDeLEcranB3(): void
+    public function testB3ScreenLineFields(): void
     {
         [$bloodTest, $antibiotic, $vitals] = $this->service(self::septicShock())
             ->linesToPrefill('PLD01', new DateTimeImmutable(self::APPLIED_AT));
@@ -69,7 +71,7 @@ final class PlanDefinitionServiceTest extends TestCase
         self::assertSame('1', $vitals['frequencyHours']);
     }
 
-    public function testFrequenceEnJoursEntiersProposeeEnJours(): void
+    public function testFrequencyInWholeDaysOfferedInDays(): void
     {
         $plan = new PlanDefinition('PLD09', 'Pansements', actions: [
             new PlanDefinitionAction('PDA90', 'PLD09', PlanDefinitionAction::KIND_CARE, 'TYP04', frequencyHours: 48),
@@ -83,7 +85,7 @@ final class PlanDefinitionServiceTest extends TestCase
     }
 
     /** Les lignes pré-remplies passent telles quelles le contrôle de saisie de l'ordonnance. */
-    public function testLignesAccepteesParLeControleDeSaisie(): void
+    public function testLinesAcceptedByInputValidation(): void
     {
         $lines = $this->service(self::septicShock())
             ->linesToPrefill('PLD01', new DateTimeImmutable(self::APPLIED_AT));
@@ -92,13 +94,15 @@ final class PlanDefinitionServiceTest extends TestCase
         $carePlanService = new CarePlanService(
             $this->createStub(CarePlanDao::class),
             $this->createStub(ReferenceDataDao::class),
-            new DossierPatientService(
-                $this->createStub(SejourDao::class),
+            new PatientRecordService(
+                $this->createStub(EpisodeOfCareDao::class),
                 $this->createStub(PatientDao::class),
-                $this->createStub(AllergieDao::class),
+                $this->createStub(AllergyIntoleranceDao::class),
                 $this->createStub(SubstanceDao::class),
                 new DateTimeImmutable(self::APPLIED_AT)
-            )
+            ),
+            $this->createStub(Transaction::class),
+            $this->createStub(AuditEventDao::class)
         );
 
         self::assertSame([], $carePlanService->checkInput([
@@ -108,7 +112,7 @@ final class PlanDefinitionServiceTest extends TestCase
         ]));
     }
 
-    public function testProtocoleInconnuRefuse(): void
+    public function testUnknownProtocolRejected(): void
     {
         $dao = $this->createStub(PlanDefinitionDao::class);
         $dao->method('findById')->willReturn(null);
@@ -117,7 +121,7 @@ final class PlanDefinitionServiceTest extends TestCase
         (new PlanDefinitionService($dao))->linesToPrefill('PLD99', new DateTimeImmutable(self::APPLIED_AT));
     }
 
-    public function testProtocoleRetireRefuse(): void
+    public function testRemovedProtocolRejected(): void
     {
         $retired = new PlanDefinition('PLD03', 'Ancienne version', active: false, actions: [
             new PlanDefinitionAction('PDA11', 'PLD03', PlanDefinitionAction::KIND_CARE, 'TYP02'),

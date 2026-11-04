@@ -5,13 +5,15 @@ use Aura\Core\View;
 /**
  * Badge de statut : icône + texte + couleur, jamais la couleur seule (personnel daltonien,
  * écrans de mauvaise qualité). Les clés sont celles renvoyées par les services (AgendaService,
- * CarePlanService) ; pour ajouter un statut, voir docs/ui.md.
+ * CarePlanService) ; pour ajouter un statut, voir docs/ui.md. Inclus par les agendas, le dossier, les
+ * prescriptions et « Mon planning ».
  *
  * Usage : View::render('components/status_badge', ['status' => 'late'])
  *         View::render('components/status_badge', ['status' => 'validated', 'label' => 'Validée par …'])
  *
- * @var string $status clé de statut (planned, late, done, to_validate, validated, stopped, cancelled, not_done)
- * @var string|null $label texte affiché à la place du libellé par défaut
+ * @var string $status clé de statut (planned, late, done, to_validate, validated, stopped, cancelled, not_done) ;
+ *      une clé inconnue est affichée telle quelle, en neutre
+ * @var string|null $label texte affiché à la place du libellé par défaut, aucun par défaut
  */
 $statuses = [
     'planned' => ['label' => 'Prévu', 'icon' => 'clock'],

@@ -7,13 +7,19 @@ namespace Aura\Domain;
 use DateTimeImmutable;
 
 /**
- * Une modification tracée d'un champ du dossier patient (table AuditEvent) : qui a changé quoi,
- * de quelle valeur à quelle valeur, et quand. Immuable : une ligne d'historique ne se modifie pas.
+ * Un événement tracé (ressource HL7 AuditEvent, table AuditEvent, RG10) : qui a changé quoi, de
+ * quelle valeur à quelle valeur, et quand. Champ du dossier (patient, séjour), validation ou note
+ * d'un soin, suppression d'un patient, prescription confirmée malgré une allergie. Immuable : une
+ * ligne d'historique ne se modifie pas.
  */
 final class AuditEvent
 {
     public const ENTITY_PATIENT = 'Patient';
     public const ENTITY_EPISODE = 'EpisodeOfCare';
+    /** Soin planifié (AURA-26) : id VARCHAR (« SOI01 » dans la démo), d'où un entityId entier ou texte. */
+    public const ENTITY_APPOINTMENT = 'Appointment';
+    /** Ordonnance : prescription confirmée malgré une allergie du patient (retours du 2026-11-03). */
+    public const ENTITY_CARE_PLAN = 'CarePlan';
 
     /** Auteur enregistré tant qu'il n'y a pas d'identification du praticien (AURA-18). */
     public const AUTHOR_UNKNOWN = 'non identifié';
@@ -21,7 +27,7 @@ final class AuditEvent
     public function __construct(
         private ?int $idAuditEvent,
         private string $entity,
-        private int $entityId,
+        private int|string $entityId,
         private string $field,
         private ?string $oldValue,
         private ?string $newValue,
@@ -36,18 +42,21 @@ final class AuditEvent
         return $this->idAuditEvent;
     }
 
-    /** ENTITY_PATIENT ou ENTITY_EPISODE. */
+    /** ENTITY_PATIENT, ENTITY_EPISODE, ENTITY_APPOINTMENT ou ENTITY_CARE_PLAN. */
     public function getEntity(): string
     {
         return $this->entity;
     }
 
-    public function getEntityId(): int
+    public function getEntityId(): int|string
     {
         return $this->entityId;
     }
 
-    /** Nom de colonne du champ modifié (clé de RecordFields ou colonne éditable de RecordEditService). */
+    /**
+     * Nom de colonne du champ modifié (clé de RecordFields, colonne d'identité, status ou comment d'un
+     * soin, removedAt), ou pseudo-champ sans colonne : CarePlanService::ALLERGY_OVERRIDE.
+     */
     public function getField(): string
     {
         return $this->field;
@@ -63,6 +72,7 @@ final class AuditEvent
         return $this->newValue;
     }
 
+    /** Nom (et rôle) de l'auteur, ou AUTHOR_UNKNOWN sans identification (AURA-18). */
     public function getAuthor(): string
     {
         return $this->author;

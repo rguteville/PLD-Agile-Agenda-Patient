@@ -2,6 +2,100 @@
 
 Format : une entrée par pull request, de la plus récente à la plus ancienne.
 
+## 2026-11-04
+
+### Relecture adversariale (`feat/agenda-service-refonte`)
+
+- Trois relectures adversariales (points d'entrée et DAO, services patient et prescription, agendas et
+  JavaScript) : chaque défaut reproduit puis corrigé, 17 tests de non-régression (893 tests).
+- Sécurité du patient : retards de la veille et de la vacation précédente toujours visibles, décès qui termine
+  le séjour en cours même déclaré depuis un séjour clos, patient décédé non réadmissible, IPP d'une autre
+  personne refusé, alerte allergie sur le nom du médicament, allergies dans la fenêtre de validation, double
+  envoi impossible.
+- Robustesse : filet d'erreur global, UTF-8 invalide refusé, bornes sur les noms, IPP, dates et durées de
+  prescription, génération limitée à 7 jours, transactions rejouées sur conflit, verrous, CSRF à l'admission.
+
+### Refonte de l'agenda du service (`feat/agenda-service-refonte`, AURA-29, AURA-32)
+
+- Retour de Raphaël : la grille créneaux × patients montrait trop d'informations. Trois maquettes comparées
+  (tableau des lits, liste de travail, grille compacte), A + B retenues.
+- « Lits » : une ligne par patient triée par urgence, panneau de détail du lit choisi (soins de la rotation,
+  allergies, référent, liens vers l'agenda et le dossier).
+- « Liste de travail » : en retard, maintenant (deux heures), plus tard dans la rotation, réalisés.
+- `AgendaService::presentBoard()` (pur, testé), composant `care_line`.
+- Décès : « Déclarer le décès » (`POST /sejour/deces`, médecin, authentification factice) termine le séjour en
+  cours à l'heure du décès et annule ses soins encore prévus ; tracé.
+- Retours du 2026-11-04 (2) : allergies seulement dans le panneau du patient choisi de l'agenda du service ;
+  « + » de la prescription à droite du titre du soin ; filtres ouverts à droite du bouton ; cœur barré à côté du
+  nom d'un patient décédé dans la liste ; rotation de nuit « de 22 h à 0 h » ; libellés sans tirets longs ni
+  points médians.
+- Documentation relue et complétée : docblocks de `src/` (classes, méthodes, exceptions, vues avec leurs `@var`,
+  en-têtes des scripts `public/js/` avec l'endpoint appelé), README (toutes les routes, scénario de démo à jour,
+  tests, CI), `docs/ARCHITECTURE.md` (routes complètes, diagramme ER régénéré avec les équipes, décisions),
+  `docs/TESTS.md` (création de la base de test), `docs/ui.md` et `docs/UI-GUIDE.md` (agenda du service,
+  validation d'un soin, composants récents). Aucun changement de code.
+
+### Retours des médecins du 2026-11-04 et audit IHM (`feat/retours-2026-11-04`, PR #54)
+
+- Validation anticipée jusqu'à la fin de la rotation en cours, décès déclarable, filtres derrière un bouton,
+  groupe sanguin verrouillé, écrans plus sobres (docs/audit/2026-11-04-audit-ihm.md), données de démo enrichies.
+
+## 2026-11-03
+
+### Suite de tests complète (`test/suite-complete`, AURA-35)
+- PHPUnit en deux suites : `aura` (métier, rendu, contrôleurs, DAO et intégration sur la base du CI) et `http`
+  (bout en bout : serveur `php -S`, pages, parcours qui écrivent, CSRF, refus). La suite `http` remplace le
+  smoke shell local, que le CI GitHub ne lançait pas. `composer test:fast`, `test:http`, `test:coverage`.
+- Nouveaux tests : DAO manquants (Appointment, ReferenceData, Medication, ActivityDefinition), `Csrf`, `View`,
+  `Transaction`, contraintes du schéma (cas repris de `database/test_contraintes.sql`, Didac Espin).
+- CI GitHub : couverture pcov (résumé dans le journal, rapport HTML en artefact).
+- `docs/TESTS.md` : matrice des règles de gestion RG1–RG10 vers leurs tests.
+- Défauts trouvés et corrigés : `View::render()` laissait un tampon ouvert sur un gabarit en échec ; les CHECK
+  sur valeurs codées acceptaient d'autres casses et des espaces finales (migration `2026-11-03-check-binaire.sql`).
+- Relecture : ordonnance d'un médecin signée par son mot de passe, confirmation d'allergie liée aux médicaments
+  exacts, CSRF sur l'arrêt d'une ligne et sur les allergies, décès visible dans tous les agendas.
+
+### Retours des médecins sur l'admission et l'agenda (`feat/admission-agenda-retours`)
+- Admission : plus de « Corriger l'identité », groupe sanguin sur la carte du patient connu, avertissement si
+  le patient est déclaré décédé, erreur hors champ à côté du bouton « Admettre ».
+- Agendas, équipes, planning : calendrier à droite, affichage dès le choix d'une date (sans bouton « Afficher »).
+- Agenda : un « + » sur chaque soin déplie la carte de sa prescription (dose, voie, fréquence, période,
+  consigne, mode, prescripteur, validation, note, arrêt).
+
+### Retours des médecins sur la vue Prescription (`feat/prescription-retours`)
+- Écran B3 : les listes « 1. », « 2. », « 3. » deviennent « Catégorie », « Médicament (DCI) » / « Soin » /
+  « Protocole » (selon la catégorie) et « Forme galénique » ; « Mode » et « Prescripteur » sans deux-points.
+- Note libre de l'ordonnance (`CarePlan.note`, 1 000 caractères au plus, validée côté serveur), affichée dans la
+  liste des prescriptions, l'attente de validation et « Prescriptions en cours » du dossier.
+- Alerte allergie : dès le choix d'un médicament dont le principe actif (`Medication.idSubstance`) est un
+  allergène du patient (`role="alert"`) ; le serveur refuse l'ordonnance sauf case « Je prescris malgré
+  l'allergie » cochée, et trace la confirmation (`AuditEvent`, entité `CarePlan`). Lignes concernées signalées
+  dans la liste, le dossier et l'attente de validation.
+- Validation d'une ordonnance en attente : médecin + mot de passe (authentification factice, même règle et même
+  message que la fenêtre du dossier) ; jeton CSRF sur l'enregistrement et la validation (403 sinon).
+- Proposition de schéma : `CarePlan.note TEXT NULL` (migration additive `2026-11-03-note-ordonnance.sql`) ;
+  données de démo : amoxicilline → pénicilline, céfotaxime → céphalosporines.
+
+### Liste des patients et dossier : retours des médecins (`feat/patients-retours`)
+- Dossier toujours accessible depuis la liste : séjour en cours, sinon dernier séjour (« Dernier dossier, clos
+  le … ») ; « Aucun séjour : pas de dossier » sans lien mort.
+- Historique des séjours (numéro, statut, admission, sortie, service, motif), du plus récent au plus ancien,
+  dépliable dans la liste et en section « Séjours du patient » du dossier, le séjour affiché signalé.
+- Séjour en cours mis en avant dans la liste (numéro, lit, service, depuis le …) et encart en tête du dossier
+  d'un séjour antérieur qui mène au séjour en cours.
+- Décès (`Patient.deceased`, colonne existante) : « Décédé(e) » icône + texte dans le bandeau, le dossier et la
+  liste ; déclaré dans la partie « Administratif complémentaire », validé par un médecin et tracé ; absent de
+  l'admission et refusé par l'édition en ligne.
+
+### Génération de l'agenda et suppression d'un patient (`feat/agenda-generation-suppression`)
+- AURA-24.2 / 24.3 : `bin/generate-agenda.php` (cron quotidien) crée les soins planifiés manquants des lignes
+  actives des séjours en cours jusqu'à J + 7, sans doublon, sans modifier l'existant ni créer de soin passé (RG9).
+  Un seul algorithme d'occurrences (`RequestLine::plannedTimesBetween()`).
+- AURA-12.3 : suppression logique d'un patient depuis la liste ou la page de modification, avec page de
+  confirmation ; refusée si séjour en cours ou soin réalisé (RG10) ; tracée dans l'historique (AuditEvent).
+- Proposition de schéma : `Patient.removedAt`, clés uniques (ligne, `plannedTime`) sur `Appointment` ; migrations
+  additives du 2026-11-03.
+
 ## 2026-11-02
 
 ### Retours d'usage du 2 novembre (`feat/retours-2026-11-02`)

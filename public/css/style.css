@@ -235,7 +235,7 @@ body, html {
 #About {background-color: orange;}
 
 /* ---------- Bandeau identité + allergies (RG2) : en tête de toute page liée à un séjour ---------- */
-.bandeau-patient {
+.patient-banner {
     display: flex;
     flex-wrap: wrap;
     gap: 10px 32px;
@@ -248,48 +248,48 @@ body, html {
     background: #eef4fb;
 }
 
-.bandeau-patient .identite {
+.patient-banner .identity {
     font-size: 18px;
 }
 
-.bandeau-patient .nom {
+.patient-banner .last-name {
     font-weight: 700;
     text-transform: uppercase;
 }
 
-.bandeau-patient dl {
+.patient-banner dl {
     display: flex;
     flex-wrap: wrap;
     gap: 6px 24px;
     margin: 0;
 }
 
-.bandeau-patient dt {
+.patient-banner dt {
     color: #777;
     font-size: 12px;
 }
 
-.bandeau-patient dd {
+.patient-banner dd {
     margin: 0;
 }
 
-.bandeau-patient .allergies {
+.patient-banner .allergies {
     flex-basis: 100%;
 }
 
-.bandeau-patient .alerte {
+.patient-banner .alert {
     color: #b00020;
     font-weight: 700;
 }
 
-.bandeau-patient .allergies ul {
+.patient-banner .allergies ul {
     display: inline;
     margin: 0;
     padding: 0;
     list-style: none;
 }
 
-.bandeau-patient .allergies li {
+.patient-banner .allergies li {
     display: inline-block;
     margin: 2px 8px 2px 0;
     padding: 2px 10px;
@@ -298,48 +298,48 @@ body, html {
     color: #b00020;
 }
 
-.bandeau-patient .aucune-allergie {
+.patient-banner .no-allergy {
     color: #2e7d32;
     font-weight: 600;
 }
 
 /* ---------- Dossier du séjour ---------- */
-.dossier dl {
+.record dl {
     display: grid;
     grid-template-columns: 200px 1fr;
     gap: 6px 12px;
     max-width: 600px;
 }
 
-.dossier dt {
+.record dt {
     color: #555;
 }
 
-.dossier dd {
+.record dd {
     margin: 0;
 }
 
 /* Prescriptions validées affichées dans le dossier du séjour (RG5) */
-.dossier-subtitle {
+.record-subtitle {
     margin: 20px 0 8px;
     font-size: 1.1em;
 }
 
-.dossier-prescriptions {
+.record-prescriptions {
     border-collapse: collapse;
     max-width: 900px;
     margin-bottom: 8px;
 }
 
-.dossier-prescriptions th,
-.dossier-prescriptions td {
+.record-prescriptions th,
+.record-prescriptions td {
     padding: 6px 10px;
     border-bottom: 1px solid #ddd;
     text-align: left;
     vertical-align: top;
 }
 
-.dossier-prescriptions th {
+.record-prescriptions th {
     color: #555;
     font-weight: 600;
     background: #f3f6fa;
@@ -393,56 +393,56 @@ body, html {
 }
 
 /* ---------- Liste des patients (AURA-12.1) ---------- */
-.recherche-patients {
+.patient-search {
     display: flex;
     align-items: center;
     gap: 8px;
     margin: 0 0 14px;
 }
 
-.recherche-patients input {
+.patient-search input {
     padding: 5px 8px;
     border: 1px solid #bbb;
     min-width: 260px;
 }
 
-.liste-patients {
+.patient-list {
     border-collapse: collapse;
     min-width: 600px;
     max-width: 900px;
 }
 
-.liste-patients caption {
+.patient-list caption {
     text-align: left;
     color: #555;
     padding: 0 0 6px;
 }
 
-.liste-patients th,
-.liste-patients td {
+.patient-list th,
+.patient-list td {
     padding: 6px 10px;
     border-bottom: 1px solid #ddd;
     text-align: left;
 }
 
-.liste-patients th {
+.patient-list th {
     color: #555;
     font-weight: 600;
     background: #f3f6fa;
 }
 
-.liste-patients tbody tr:hover {
+.patient-list tbody tr:hover {
     background: #c9dbf0;
 }
 
-.liste-patients .hors-service,
-.liste-vide {
+.patient-list .no-service,
+.empty-list {
     color: #777;
     font-style: italic;
 }
 
 /* ---------- Page d'erreur applicative ---------- */
-.erreur {
+.error {
     max-width: 600px;
     padding: 16px;
     border: 1px solid #b00020;
@@ -500,26 +500,26 @@ body, html {
     margin: 0 0 4px;
 }
 
-.field-status.en-cours,
-.field-status.inconnu {
+.field-status.searching,
+.field-status.unknown {
     color: #777;
     font-style: italic;
 }
 
-.field-status.erreur {
+.field-status.error {
     color: #c0222b;
 }
 
-.field-status.trouve {
+.field-status.found {
     color: #2e7d32;
 }
 
-.field-status .aucune-allergie {
+.field-status .no-allergy {
     color: #2e7d32;
     font-weight: 600;
 }
 
-.field-status .alerte {
+.field-status .alert {
     color: #b00020;
     font-weight: 700;
 }
@@ -541,28 +541,28 @@ body, html {
 }
 
 /* ---------- Allergies connues (AURA-13.2) ---------- */
-.allergies-dossier {
+.record-allergies {
     max-width: 600px;
     margin: 18px 0;
 }
 
-.allergies-dossier h2 {
+.record-allergies h2 {
     font-size: 1.1em;
     margin: 0 0 8px;
 }
 
-.allergies-dossier .aucune-allergie {
+.record-allergies .no-allergy {
     color: #2e7d32;
     font-weight: 600;
 }
 
-.allergies-dossier .liste-allergies {
+.record-allergies .allergy-list {
     margin: 0 0 14px;
     padding: 0;
     list-style: none;
 }
 
-.allergies-dossier .liste-allergies li {
+.record-allergies .allergy-list li {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -570,39 +570,39 @@ body, html {
     border-bottom: 1px solid #eee;
 }
 
-.allergies-dossier .liste-allergies .libelle {
+.record-allergies .allergy-list .label {
     font-weight: 600;
 }
 
-.allergies-dossier .liste-allergies .details {
+.record-allergies .allergy-list .details {
     flex: 1;
     color: #555;
 }
 
-.allergies-dossier .retirer-allergie {
+.record-allergies .remove-allergy {
     margin: 0;
 }
 
-.allergies-dossier .ajouter-allergie {
+.record-allergies .add-allergy {
     display: flex;
     flex-wrap: wrap;
     align-items: flex-end;
     gap: 12px;
 }
 
-.allergies-dossier .champ {
+.record-allergies .inline-field {
     display: flex;
     flex-direction: column;
     gap: 4px;
 }
 
-.allergies-dossier select {
+.record-allergies select {
     padding: 5px 8px;
     border: 1px solid #bbb;
     min-width: 180px;
 }
 
-.allergies-dossier button {
+.record-allergies button {
     padding: 6px 16px;
     border: 1px solid #2b7bb9;
     background: #2b7bb9;
@@ -611,21 +611,21 @@ body, html {
     cursor: pointer;
 }
 
-.allergies-dossier .retirer-allergie button {
+.record-allergies .remove-allergy button {
     border-color: #b00020;
     background: #fff;
     color: #b00020;
 }
 
-.allergies-dossier button:hover {
+.record-allergies button:hover {
     background: #236699;
 }
 
-.allergies-dossier .retirer-allergie button:hover {
+.record-allergies .remove-allergy button:hover {
     background: #fde2e4;
 }
 
-.allergies-dossier .referentiel-epuise {
+.record-allergies .reference-exhausted {
     color: #777;
     font-style: italic;
 }
@@ -1393,8 +1393,8 @@ a:hover {
 .button,
 .form-actions button,
 .form-actions input[type="submit"],
-.recherche-patients button,
-.allergies-dossier button,
+.patient-search button,
+.record-allergies button,
 .b3-buttons button,
 .b3-validate button,
 .stop-form button,
@@ -1420,8 +1420,8 @@ a:hover {
 .button:hover,
 .form-actions button:hover,
 .form-actions input[type="submit"]:hover,
-.recherche-patients button:hover,
-.allergies-dossier button:hover,
+.patient-search button:hover,
+.record-allergies button:hover,
 .b3-validate button:hover {
     background: var(--accent-hover);
     border-color: var(--accent-hover);
@@ -1433,7 +1433,7 @@ a:hover {
 .field-button,
 .b3-buttons button,
 .stop-form button,
-.allergies-dossier .retirer-allergie button {
+.record-allergies .remove-allergy button {
     background: var(--bg-raised);
     color: var(--accent);
 }
@@ -1459,14 +1459,14 @@ a:hover {
 }
 
 .button--danger,
-.allergies-dossier .retirer-allergie button {
+.record-allergies .remove-allergy button {
     border-color: var(--st-alert-fg);
     color: var(--st-alert-fg);
     background: var(--bg-raised);
 }
 
 .button--danger:hover,
-.allergies-dossier .retirer-allergie button:hover {
+.record-allergies .remove-allergy button:hover {
     background: var(--st-alert-bg);
     border-color: var(--st-alert-fg);
     color: var(--st-alert-fg);
@@ -1490,7 +1490,7 @@ a:hover {
     .form-actions button,
     .b3-validate button,
     .stop-form button,
-    .allergies-dossier button {
+    .record-allergies button {
         min-height: 44px;
     }
 }
@@ -1508,9 +1508,9 @@ a:hover {
 }
 
 h2,
-.dossier-subtitle,
+.record-subtitle,
 .b3-summary-title,
-.allergies-dossier h2 {
+.record-allergies h2 {
     font-size: var(--fs-3);
     font-weight: 600;
     color: var(--fg);
@@ -1528,8 +1528,8 @@ h2,
 .form-row label,
 .b3-row label,
 .b3-grid > label,
-.dossier dt,
-.bandeau-patient dt {
+.record dt,
+.patient-banner dt {
     color: var(--fg-muted);
 }
 
@@ -1544,8 +1544,8 @@ h2,
 .form-row input[type="search"],
 .form-row textarea,
 .form-row select,
-.recherche-patients input,
-.allergies-dossier select,
+.patient-search input,
+.record-allergies select,
 .b3-row select,
 .b3-value input,
 .b3-value select,
@@ -1594,7 +1594,7 @@ h2,
 .b3-warning,
 .b3-message,
 .b3-summary .form-error,
-.field-status.erreur {
+.field-status.error {
     color: var(--st-alert-fg);
 }
 
@@ -1607,7 +1607,7 @@ h2,
 }
 
 .b3-entry .form-error,
-.erreur {
+.error {
     color: var(--st-alert-fg);
     background: var(--st-alert-bg);
     border: 1px solid var(--st-alert-line);
@@ -1623,8 +1623,8 @@ h2,
 }
 
 /* Tableaux de données : en-tête discret, lignes séparées par un trait de 1 px */
-.dossier-prescriptions,
-.liste-patients,
+.record-prescriptions,
+.patient-list,
 .care-plan-lines,
 .b3-cart,
 .agenda-table,
@@ -1636,10 +1636,10 @@ h2,
     border-radius: var(--radius-lg);
 }
 
-.dossier-prescriptions th,
-.dossier-prescriptions td,
-.liste-patients th,
-.liste-patients td,
+.record-prescriptions th,
+.record-prescriptions td,
+.patient-list th,
+.patient-list td,
 .care-plan-lines th,
 .care-plan-lines td,
 .b3-cart th,
@@ -1652,8 +1652,8 @@ h2,
     border-bottom: 1px solid var(--line);
 }
 
-.dossier-prescriptions th,
-.liste-patients th,
+.record-prescriptions th,
+.patient-list th,
 .care-plan-lines th,
 .b3-cart th,
 .agenda-table th,
@@ -1666,22 +1666,22 @@ h2,
     background: var(--bg-muted);
 }
 
-.liste-patients tbody tr:hover,
+.patient-list tbody tr:hover,
 .care-plan-lines tbody tr:hover,
 .agenda-table tbody tr:hover {
     background: var(--accent-soft);
 }
 
-.liste-patients caption {
+.patient-list caption {
     color: var(--fg-muted);
 }
 
-.liste-patients .hors-service,
-.liste-vide,
+.patient-list .no-service,
+.empty-list,
 .b3-empty,
-.referentiel-epuise,
-.field-status.en-cours,
-.field-status.inconnu {
+.reference-exhausted,
+.field-status.searching,
+.field-status.unknown {
     color: var(--fg-subtle);
 }
 
@@ -1693,13 +1693,13 @@ h2,
     color: var(--st-validate-fg);
 }
 
-.field-status.trouve,
-.field-status .aucune-allergie,
-.allergies-dossier .aucune-allergie {
+.field-status.found,
+.field-status .no-allergy,
+.record-allergies .no-allergy {
     color: var(--st-done-fg);
 }
 
-.field-status .alerte {
+.field-status .alert {
     color: var(--st-alert-fg);
 }
 
@@ -1710,11 +1710,11 @@ h2,
     border-radius: var(--radius);
 }
 
-.allergies-dossier .liste-allergies li {
+.record-allergies .allergy-list li {
     border-bottom-color: var(--line);
 }
 
-.allergies-dossier .liste-allergies .details {
+.record-allergies .allergy-list .details {
     color: var(--fg-muted);
 }
 
@@ -1763,7 +1763,7 @@ h2,
 }
 
 /* ---------- 8. Bandeau patient (RG2) : collé en haut, jamais repliable ---------- */
-.bandeau-patient {
+.patient-banner {
     position: sticky;
     top: 0;
     z-index: 10;
@@ -1778,39 +1778,39 @@ h2,
     align-items: center;
 }
 
-.bandeau-patient .identite {
+.patient-banner .identity {
     display: flex;
     align-items: baseline;
     gap: var(--sp-2);
     font-size: var(--fs-3);
 }
 
-.bandeau-patient .sexe {
+.patient-banner .sex {
     color: var(--fg-muted);
     font-size: var(--fs-1);
 }
 
-.bandeau-patient dl {
+.patient-banner dl {
     gap: var(--sp-1) var(--sp-4);
 }
 
-.bandeau-patient dl > div {
+.patient-banner dl > div {
     display: flex;
     gap: var(--sp-1);
     align-items: baseline;
 }
 
-.bandeau-patient dt {
+.patient-banner dt {
     font-size: var(--fs-0);
     text-transform: uppercase;
     letter-spacing: 0.04em;
 }
 
-.bandeau-patient dt::after {
+.patient-banner dt::after {
     content: "";
 }
 
-.bandeau-patient .allergies {
+.patient-banner .allergies {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
@@ -1819,14 +1819,14 @@ h2,
     border-top: 1px dashed var(--line);
 }
 
-.bandeau-patient .alerte {
+.patient-banner .alert {
     display: inline-flex;
     align-items: center;
     gap: var(--sp-1);
     color: var(--st-alert-fg);
 }
 
-.bandeau-patient .allergies li {
+.patient-banner .allergies li {
     margin: 0;
     background: var(--st-alert-bg);
     color: var(--st-alert-fg);
@@ -1835,7 +1835,7 @@ h2,
     font-weight: 600;
 }
 
-.bandeau-patient .aucune-allergie {
+.patient-banner .no-allergy {
     display: inline-flex;
     align-items: center;
     gap: var(--sp-1);
@@ -1921,7 +1921,7 @@ h2,
 }
 
 /* ---------- 10. Dossier du séjour : fiche en cartes ---------- */
-.dossier dl {
+.record dl {
     max-width: none;
     padding: var(--sp-3) var(--sp-4);
     background: var(--bg-raised);
@@ -1929,7 +1929,7 @@ h2,
     border-radius: var(--radius-lg);
 }
 
-.dossier .liens-dossier {
+.record .record-links {
     display: flex;
     flex-wrap: wrap;
     gap: var(--sp-3);
@@ -2166,7 +2166,7 @@ h2,
         padding: var(--sp-3) var(--sp-4) var(--sp-5);
     }
 
-    .bandeau-patient {
+    .patient-banner {
         margin: calc(-1 * var(--sp-3)) calc(-1 * var(--sp-4)) var(--sp-3);
     }
 
@@ -2234,9 +2234,9 @@ h2,
     .col-action,
     .dialog,
     .stop-form,
-    .ajouter-allergie,
-    .retirer-allergie,
-    .liens-dossier {
+    .add-allergy,
+    .remove-allergy,
+    .record-links {
         display: none !important;
     }
 
@@ -2245,7 +2245,7 @@ h2,
         padding: 0;
     }
 
-    .bandeau-patient {
+    .patient-banner {
         position: static;
         margin: 0 0 8pt;
         border: 1px solid #000;
@@ -2274,13 +2274,13 @@ h2,
 }
 
 /* Petits écrans (suite) : le bandeau et les titres ne doivent jamais élargir la page */
-.bandeau-patient dl > div {
+.patient-banner dl > div {
     flex-wrap: wrap;
 }
 
-.bandeau-patient,
-.bandeau-patient .identite,
-.bandeau-patient dd,
+.patient-banner,
+.patient-banner .identity,
+.patient-banner dd,
 .page-header .form-title {
     min-width: 0;
     overflow-wrap: anywhere;
@@ -2439,14 +2439,14 @@ h2,
 }
 
 /* Dossier : sections du dossier complet, « Non renseigné » explicite */
-.dossier-section {
+.record-section {
     margin: var(--sp-3) 0;
     border: 1px solid var(--line);
     border-radius: var(--radius-lg);
     background: var(--bg-raised);
 }
 
-.dossier-section > summary {
+.record-section > summary {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -2457,18 +2457,18 @@ h2,
     font-weight: 600;
 }
 
-.dossier-section > summary:focus-visible {
+.record-section > summary:focus-visible {
     outline: var(--focus-ring);
     outline-offset: var(--focus-offset);
 }
 
-.dossier-section__count {
+.record-section__count {
     font-size: var(--fs-1);
     font-weight: 400;
     color: var(--fg-muted);
 }
 
-.dossier-section dl {
+.record-section dl {
     display: grid;
     grid-template-columns: minmax(180px, 1fr) 2fr;
     gap: var(--sp-2) var(--sp-4);
@@ -2477,28 +2477,28 @@ h2,
     border-top: 1px solid var(--line);
 }
 
-.dossier-section dt {
+.record-section dt {
     color: var(--fg-muted);
 }
 
-.dossier-section dd {
+.record-section dd {
     margin: 0;
     white-space: pre-line;
     overflow-wrap: anywhere;
 }
 
-.dossier-section .non-renseigne {
+.record-section .not-recorded {
     color: var(--fg-subtle);
     font-style: italic;
 }
 
-.dossier-section dd small {
+.record-section dd small {
     display: block;
     color: var(--fg-subtle);
 }
 
 @media (max-width: 640px) {
-    .dossier-section dl {
+    .record-section dl {
         grid-template-columns: 1fr;
     }
 }
@@ -2565,14 +2565,14 @@ h2,
 }
 
 /* ===== AURA-EDIT : édition champ par champ du dossier (crayon au survol, saisie en place, historique) ===== */
-.dossier-aide {
+.record-help {
     margin: 0 0 var(--sp-3);
     color: var(--fg-muted);
     font-size: var(--fs-1);
 }
 
 /* La <dd> éditable contient du balisage : les blancs du gabarit ne doivent pas s'afficher. */
-.dossier-section dd.inline-edit {
+.record-section dd.inline-edit {
     white-space: normal;
 }
 
@@ -2689,20 +2689,20 @@ h2,
     color: var(--st-alert-fg);
 }
 
-.dossier-historique__vide {
+.record-history__empty {
     margin: 0;
     padding: var(--sp-3) var(--sp-4);
     border-top: 1px solid var(--line);
     color: var(--fg-muted);
 }
 
-.dossier-historique__table {
+.record-history__table {
     width: 100%;
     border-collapse: collapse;
 }
 
-.dossier-historique__table th,
-.dossier-historique__table td {
+.record-history__table th,
+.record-history__table td {
     padding: var(--sp-2) var(--sp-3);
     border-top: 1px solid var(--line);
     text-align: left;
@@ -2710,7 +2710,7 @@ h2,
     white-space: pre-line;
 }
 
-.dossier-historique__table th {
+.record-history__table th {
     background: var(--bg-muted);
     font-weight: 600;
 }
@@ -2839,7 +2839,7 @@ h1,
 }
 
 h2,
-.dossier-subtitle {
+.record-subtitle {
     font-size: var(--fs-4);
     line-height: 1.3;
 }
@@ -2854,8 +2854,8 @@ h2,
 .button,
 .form-actions button,
 .form-actions input[type="submit"],
-.recherche-patients button,
-.allergies-dossier button,
+.patient-search button,
+.record-allergies button,
 .b3-buttons button,
 .b3-validate button,
 .stop-form button,
@@ -2872,18 +2872,18 @@ h2,
 .field-button,
 .b3-buttons button,
 .stop-form button,
-.allergies-dossier .retirer-allergie button {
+.record-allergies .remove-allergy button {
     box-shadow: none;
 }
 
-.allergies-dossier .retirer-allergie button,
+.record-allergies .remove-allergy button,
 .button--danger {
     color: var(--st-alert-fg);
     border-color: var(--st-alert-line);
     background: var(--bg-raised);
 }
 
-.allergies-dossier .retirer-allergie button:hover,
+.record-allergies .remove-allergy button:hover,
 .button--danger:hover {
     background: var(--st-alert-bg);
     border-color: var(--st-alert-fg);
@@ -2897,8 +2897,8 @@ h2,
 .form-row input[type="email"],
 .form-row input[type="tel"],
 .form-row select,
-.recherche-patients input,
-.allergies-dossier select,
+.patient-search input,
+.record-allergies select,
 .b3-value input,
 .b3-value select,
 .b3-validate select,
@@ -2929,7 +2929,7 @@ h2,
     min-height: var(--tap);
 }
 
-.liste-patients td a,
+.patient-list td a,
 .breadcrumb a,
 .topbar .nav-link {
     display: inline-flex;
@@ -3037,30 +3037,30 @@ form[data-ajax] {
 }
 
 .form-section > summary,
-.dossier-section > summary {
+.record-section > summary {
     min-height: var(--tap);
 }
 
 /* ---------- 6. Tableaux : lignes aérées, en-têtes collants sous le bandeau ---------- */
-.liste-patients th,
-.liste-patients td,
-.dossier-prescriptions th,
-.dossier-prescriptions td,
+.patient-list th,
+.patient-list td,
+.record-prescriptions th,
+.record-prescriptions td,
 .agenda-table th,
 .agenda-table td,
 .care-plan-lines th,
 .care-plan-lines td,
-.dossier-historique__table th,
-.dossier-historique__table td {
+.record-history__table th,
+.record-history__table td {
     padding: var(--sp-3) var(--sp-3);
     line-height: 1.4;
 }
 
-.liste-patients th,
-.dossier-prescriptions th,
+.patient-list th,
+.record-prescriptions th,
 .agenda-table th,
 .care-plan-lines th,
-.dossier-historique__table th {
+.record-history__table th {
     position: sticky;
     top: var(--bandeau-height, 0px);
     z-index: 2;
@@ -3078,29 +3078,29 @@ form[data-ajax] {
     }
 }
 
-.liste-patients tbody tr:hover,
-.dossier-prescriptions tbody tr:hover,
-.dossier-historique__table tbody tr:hover {
+.patient-list tbody tr:hover,
+.record-prescriptions tbody tr:hover,
+.record-history__table tbody tr:hover {
     background: var(--accent-soft);
 }
 
 /* ---------- 7. Bandeau patient : identité lisible d'un coup d'œil, trois états d'allergie ---------- */
-.bandeau-patient {
+.patient-banner {
     box-shadow: var(--shadow-soft);
     padding: var(--sp-3) var(--sp-5);
 }
 
-.bandeau-patient .identite {
+.patient-banner .identity {
     font-size: var(--fs-4);
 }
 
-.bandeau-patient .nom {
+.patient-banner .last-name {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.02em;
 }
 
-.bandeau-patient .allergies {
+.patient-banner .allergies {
     padding: var(--sp-2) var(--sp-3);
     margin-top: var(--sp-1);
     border-top: 0;
@@ -3108,22 +3108,22 @@ form[data-ajax] {
     font-size: var(--fs-2);
 }
 
-.bandeau-patient .allergies--known {
+.patient-banner .allergies--known {
     background: var(--st-alert-bg);
     border: 1px solid var(--st-alert-line);
 }
 
-.bandeau-patient .allergies--none {
+.patient-banner .allergies--none {
     background: var(--st-done-bg);
     border: 1px solid var(--st-done-line);
 }
 
-.bandeau-patient .allergies--unknown {
+.patient-banner .allergies--unknown {
     background: var(--st-warn-bg);
     border: 1px solid var(--st-warn-line);
 }
 
-.bandeau-patient .allergies-inconnues {
+.patient-banner .unknown-allergies {
     display: inline-flex;
     align-items: center;
     gap: var(--sp-1);
@@ -3131,11 +3131,11 @@ form[data-ajax] {
     font-weight: 700;
 }
 
-.bandeau-patient .alerte {
+.patient-banner .alert {
     font-weight: 700;
 }
 
-.bandeau-patient .allergies li {
+.patient-banner .allergies li {
     background: var(--bg-raised);
 }
 
@@ -3173,9 +3173,9 @@ form[data-ajax] {
     color: var(--fg-muted);
 }
 
-.dossier dl,
+.record dl,
 .form-section,
-.dossier-section,
+.record-section,
 .empty-state {
     box-shadow: var(--shadow-soft);
 }
@@ -3190,7 +3190,7 @@ form[data-ajax] {
     color: var(--st-warn-fg);
 }
 
-.dossier-section > summary,
+.record-section > summary,
 .form-section > summary {
     font-size: var(--fs-3);
 }
@@ -3201,7 +3201,7 @@ form[data-ajax] {
         padding: var(--sp-3) var(--sp-4) var(--sp-5);
     }
 
-    .bandeau-patient {
+    .patient-banner {
         margin-left: calc(-1 * var(--sp-4));
         margin-right: calc(-1 * var(--sp-4));
     }
@@ -3238,46 +3238,46 @@ form[data-ajax] {
 /* Allergies : couleur selon la criticité (le texte « (Élevée) », « (Faible) », « (criticité non évaluée) »
    est toujours affiché : jamais la couleur seule). Élevée = rouge plein, Faible = orange,
    non évaluée = rouge pâle (à traiter avec prudence tant qu'elle n'est pas évaluée). */
-.allergie {
+.allergy-tag {
     border-radius: var(--radius);
     font-weight: 600;
 }
 
-.bandeau-patient .allergies li.allergie--high,
-.allergies-dossier .libelle.allergie--high {
+.patient-banner .allergies li.allergy-tag--high,
+.record-allergies .label.allergy-tag--high {
     background: var(--st-alert-fg);
     border: 1px solid var(--st-alert-fg);
     color: #ffffff;
 }
 
-.bandeau-patient .allergies li.allergie--low,
-.allergies-dossier .libelle.allergie--low {
+.patient-banner .allergies li.allergy-tag--low,
+.record-allergies .label.allergy-tag--low {
     background: var(--st-warn-bg);
     border: 1px solid var(--st-warn-line);
     color: var(--st-warn-fg);
 }
 
-.bandeau-patient .allergies li.allergie--unknown,
-.allergies-dossier .libelle.allergie--unknown {
+.patient-banner .allergies li.allergy-tag--unknown,
+.record-allergies .label.allergy-tag--unknown {
     background: var(--bg-raised);
     border: 1px solid var(--st-alert-line);
     color: var(--st-alert-fg);
 }
 
-.allergies-dossier .libelle.allergie {
+.record-allergies .label.allergy-tag {
     padding: 2px var(--sp-2);
 }
 
 /* En sombre, le rouge plein garde un texte foncé lisible sur la teinte claire du jeton. */
 @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) .bandeau-patient .allergies li.allergie--high,
-    :root:not([data-theme="light"]) .allergies-dossier .libelle.allergie--high {
+    :root:not([data-theme="light"]) .patient-banner .allergies li.allergy-tag--high,
+    :root:not([data-theme="light"]) .record-allergies .label.allergy-tag--high {
         color: #1c0a0a;
     }
 }
 
-:root[data-theme="dark"] .bandeau-patient .allergies li.allergie--high,
-:root[data-theme="dark"] .allergies-dossier .libelle.allergie--high {
+:root[data-theme="dark"] .patient-banner .allergies li.allergy-tag--high,
+:root[data-theme="dark"] .record-allergies .label.allergy-tag--high {
     color: #1c0a0a;
 }
 
@@ -3444,14 +3444,14 @@ form.form--columns > .form-row {
 }
 
 /* Dossier patient : menu figé à gauche (agenda en tête, parties du dossier, sous-catégories du dossier complet) */
-.dossier-layout {
+.record-layout {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     gap: var(--sp-4) var(--sp-5);
     align-items: start;
 }
 
-.dossier-menu {
+.record-menu {
     padding: var(--sp-3);
     border: 1px solid var(--line);
     border-radius: var(--radius-lg);
@@ -3459,25 +3459,25 @@ form.form--columns > .form-row {
     box-shadow: var(--shadow-soft);
 }
 
-.dossier-menu__agenda {
+.record-menu__agenda {
     width: 100%;
     box-sizing: border-box;
     margin-bottom: var(--sp-3);
 }
 
-.dossier-menu__list,
-.dossier-menu__sub {
+.record-menu__list,
+.record-menu__sub {
     margin: 0;
     padding: 0;
     list-style: none;
 }
 
-.dossier-menu__sub {
+.record-menu__sub {
     margin: 0 0 var(--sp-1) var(--sp-3);
     border-left: 2px solid var(--line);
 }
 
-.dossier-menu a:not(.button) {
+.record-menu a:not(.button) {
     display: flex;
     align-items: center;
     min-height: 36px;
@@ -3488,36 +3488,36 @@ form.form--columns > .form-row {
     text-decoration: none;
 }
 
-.dossier-menu__sub a:not(.button) {
+.record-menu__sub a:not(.button) {
     min-height: 32px;
     font-size: var(--fs-1);
     font-weight: 400;
     color: var(--fg-muted);
 }
 
-.dossier-menu a:not(.button):hover {
+.record-menu a:not(.button):hover {
     background: var(--accent-soft);
     color: var(--accent);
 }
 
-.dossier-menu a[aria-current="location"] {
+.record-menu a[aria-current="location"] {
     background: var(--accent-soft);
     color: var(--accent);
     box-shadow: inset 3px 0 0 var(--accent);
 }
 
-.dossier-menu a:focus-visible {
+.record-menu a:focus-visible {
     outline: var(--focus-ring);
     outline-offset: var(--focus-offset);
 }
 
 /* Poste fixe et tablette paysage : menu figé à gauche, sous le bandeau patient collant. */
 @media (min-width: 1024px) {
-    .dossier-layout {
+    .record-layout {
         grid-template-columns: 230px minmax(0, 1fr);
     }
 
-    .dossier-menu {
+    .record-menu {
         position: sticky;
         top: calc(var(--bandeau-height, 0px) + var(--sp-3));
         max-height: calc(100vh - var(--bandeau-height, 0px) - var(--sp-5));
@@ -3527,19 +3527,19 @@ form.form--columns > .form-row {
 
 /* Petit écran : le menu reste en tête, sous-catégories masquées pour ne pas allonger la page. */
 @media (max-width: 1023px) {
-    .dossier-menu__list {
+    .record-menu__list {
         display: flex;
         flex-wrap: wrap;
         gap: var(--sp-1);
     }
 
-    .dossier-menu__sub {
+    .record-menu__sub {
         display: none;
     }
 }
 
 /* Valeurs non éditables (calculs) alignées sur le texte des boutons-valeurs éditables voisins. */
-.dossier-section dd[data-field]:not(.inline-edit) {
+.record-section dd[data-field]:not(.inline-edit) {
     padding: calc(var(--sp-1) + 1px) calc(var(--sp-2) + 1px);
 }
 
@@ -3577,16 +3577,16 @@ form.form--columns > .form-row {
 /* Retours du 2026-11-02 (2) : bandeau patient sans fond coloré autour des allergies, seules les
    étiquettes portent la couleur (criticité) ; « Aucune allergie connue » et « Allergies non renseignées »
    deviennent elles aussi des étiquettes. */
-.bandeau-patient .allergies--known,
-.bandeau-patient .allergies--none,
-.bandeau-patient .allergies--unknown {
+.patient-banner .allergies--known,
+.patient-banner .allergies--none,
+.patient-banner .allergies--unknown {
     padding: var(--sp-1) 0 0;
     border: 0;
     background: transparent;
 }
 
-.bandeau-patient .allergies--none .aucune-allergie,
-.bandeau-patient .allergies--unknown .allergies-inconnues {
+.patient-banner .allergies--none .no-allergy,
+.patient-banner .allergies--unknown .unknown-allergies {
     display: inline-flex;
     align-items: center;
     gap: var(--sp-1);
@@ -3595,13 +3595,13 @@ form.form--columns > .form-row {
     font-weight: 600;
 }
 
-.bandeau-patient .allergies--none .aucune-allergie {
+.patient-banner .allergies--none .no-allergy {
     border: 1px solid var(--st-done-line);
     background: var(--st-done-bg);
     color: var(--st-done-fg);
 }
 
-.bandeau-patient .allergies--unknown .allergies-inconnues {
+.patient-banner .allergies--unknown .unknown-allergies {
     border: 1px solid var(--st-warn-line);
     background: var(--st-warn-bg);
 }
@@ -3670,11 +3670,11 @@ form.form--columns .form-lead > .form-row {
 /* Dossier : trois colonnes sur grand écran (menu figé | dossier | prescriptions en cours) ;
    sous 1280 px, les prescriptions passent sous le dossier. */
 @media (min-width: 1280px) {
-    .dossier-layout:has(> .dossier-aside) {
+    .record-layout:has(> .record-aside) {
         grid-template-columns: 220px minmax(0, 1fr) minmax(300px, 360px);
     }
 
-    .dossier-aside {
+    .record-aside {
         position: sticky;
         top: calc(var(--bandeau-height, 0px) + var(--sp-3));
         max-height: calc(100vh - var(--bandeau-height, 0px) - var(--sp-5));
@@ -3682,18 +3682,18 @@ form.form--columns .form-lead > .form-row {
     }
 
     /* La page dossier a besoin de toute la largeur utile. */
-    #main:has(.dossier-aside) {
+    #main:has(.record-aside) {
         max-width: 1600px;
     }
 }
 
 @media (min-width: 1024px) and (max-width: 1279px) {
-    .dossier-layout:has(> .dossier-aside) > .dossier-aside {
+    .record-layout:has(> .record-aside) > .record-aside {
         grid-column: 2;
     }
 }
 
-.dossier-aside {
+.record-aside {
     padding: var(--sp-3);
     border: 1px solid var(--line);
     border-radius: var(--radius-lg);
@@ -3701,12 +3701,12 @@ form.form--columns .form-lead > .form-row {
     box-shadow: var(--shadow-soft);
 }
 
-.dossier-aside__header .dossier-subtitle {
+.record-aside__header .record-subtitle {
     margin: 0 0 var(--sp-2);
     font-size: var(--fs-3);
 }
 
-.dossier-aside__actions {
+.record-aside__actions {
     display: flex;
     flex-wrap: wrap;
     gap: var(--sp-2);
@@ -3794,11 +3794,11 @@ form.form--columns .form-lead > .form-row {
     outline-offset: var(--focus-offset);
 }
 
-.dossier-section > summary .dossier-section__title {
+.record-section > summary .record-section__title {
     flex: 1 1 auto;
 }
 
-.dossier-section > summary .part-edit {
+.record-section > summary .part-edit {
     margin-right: var(--sp-2);
 }
 
@@ -3818,7 +3818,7 @@ form.form--columns .form-lead > .form-row {
     border-top: 1px solid var(--line);
 }
 
-.dossier > .part-form {
+.record > .part-form {
     margin: 0 0 var(--sp-4);
     border: 1px solid var(--line);
     border-radius: var(--radius-lg);
@@ -3892,7 +3892,7 @@ form.form--columns .form-lead > .form-row {
 }
 
 /* Résumé du dossier : l'identité en tête, lisible sans le bandeau */
-.dossier-resume dt:first-of-type + dd {
+.record-summary dt:first-of-type + dd {
     font-weight: 700;
 }
 
@@ -3959,31 +3959,31 @@ form.form--columns .form-lead > .form-row {
     font-weight: 700;
 }
 
-.patient-card .allergie {
+.patient-card .allergy-tag {
     padding: 2px var(--sp-2);
     border-radius: var(--radius);
     font-weight: 600;
 }
 
-.patient-card .allergie--high {
+.patient-card .allergy-tag--high {
     border: 1px solid var(--st-alert-fg);
     background: var(--st-alert-fg);
     color: #ffffff;
 }
 
-.patient-card .allergie--low {
+.patient-card .allergy-tag--low {
     border: 1px solid var(--st-warn-line);
     background: var(--st-warn-bg);
     color: var(--st-warn-fg);
 }
 
-.patient-card .allergie--unknown {
+.patient-card .allergy-tag--unknown {
     border: 1px solid var(--st-alert-line);
     background: var(--bg-raised);
     color: var(--st-alert-fg);
 }
 
-.patient-card .allergie--none {
+.patient-card .allergy-tag--none {
     border: 1px solid var(--st-done-line);
     background: var(--st-done-bg);
     color: var(--st-done-fg);
@@ -3994,4 +3994,1477 @@ form.form--columns .form-lead > .form-row {
     flex-wrap: wrap;
     gap: var(--sp-2);
     margin: var(--sp-3) 0 0;
+}
+
+/* ===== AURA-29 : choix du service dans l'agenda du service ===== */
+.agenda-nav select {
+    min-height: var(--tap);
+    padding: var(--sp-2) var(--sp-3);
+    font: inherit;
+    color: var(--fg);
+    background: var(--bg-raised);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+}
+
+/* ===== AURA-12.3 : suppression d'un patient (confirmation, lien dans la liste) ===== */
+.patient-delete {
+    max-width: 640px;
+}
+
+.patient-delete__identity {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(140px, 100%), 1fr));
+    gap: var(--sp-3) var(--sp-4);
+    margin: var(--sp-4) 0;
+    padding: var(--sp-4);
+    background: var(--bg-raised);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+}
+
+.patient-delete__identity dt {
+    color: var(--fg-subtle);
+    font-size: 0.875rem;
+}
+
+.patient-delete__identity dd {
+    margin: 0;
+    font-weight: 600;
+}
+
+.patient-delete__notice,
+.patient-delete__refusal,
+.page-notice {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--sp-2);
+    margin: 0 0 var(--sp-4);
+    padding: var(--sp-3) var(--sp-4);
+    border-radius: var(--radius);
+}
+
+.patient-delete__notice {
+    border: 1px solid var(--st-warn-line);
+    background: var(--st-warn-bg);
+    color: var(--st-warn-fg);
+}
+
+.patient-delete__refusal {
+    border: 1px solid var(--st-alert-line);
+    background: var(--st-alert-bg);
+    color: var(--st-alert-fg);
+}
+
+.page-notice {
+    border: 1px solid var(--st-done-line);
+    background: var(--st-done-bg);
+    color: var(--st-done-fg);
+}
+
+.patient-delete__notice span,
+.patient-delete__refusal span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.patient-list__delete,
+.patient-edit__delete {
+    color: var(--st-alert-fg);
+}
+
+
+/* ===== AURA-25 / AURA-26 / AURA-28 : actions sur un soin, filtres, vue Semaine ===== */
+.care-buttons {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: var(--sp-1);
+}
+
+.care-buttons .button {
+    min-height: 32px;
+    padding: var(--sp-1) var(--sp-2);
+    font-size: var(--fs-1);
+}
+
+.care-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-3);
+    border: 0;
+    padding: 0;
+}
+
+.care-actions legend {
+    width: 100%;
+    margin-bottom: var(--sp-1);
+    font-weight: 600;
+}
+
+.care-actions label {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-1);
+}
+
+.view-switch {
+    display: inline-flex;
+    gap: var(--sp-1);
+}
+
+.agenda-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-2);
+    margin: var(--sp-3) 0;
+}
+
+.agenda-filters [aria-pressed="true"] {
+    color: var(--accent-fg);
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+.agenda-section.is-filtered-out .table-scroll,
+.service-slot.is-filtered-out .cell-slot ul {
+    display: none;
+}
+
+.week-grid,
+.service-timeline {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--bg-raised);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+}
+
+.week-grid th,
+.week-grid td,
+.service-timeline th,
+.service-timeline td {
+    padding: var(--sp-2);
+    border: 1px solid var(--line);
+    vertical-align: top;
+}
+
+.week-grid thead th,
+.service-timeline thead th {
+    background: var(--bg-muted);
+    text-align: left;
+}
+
+.week-grid tbody th {
+    text-align: left;
+    min-width: 200px;
+}
+
+.week-grid td {
+    min-width: 96px;
+}
+
+.week-grid td .badge {
+    margin: 0 2px 2px 0;
+}
+
+.week-grid .is-today {
+    background: var(--accent-soft);
+}
+
+.week-grid .item-label,
+.week-grid .item-details {
+    display: block;
+}
+
+/* ===== AURA-29 / AURA-32 : agenda du service vertical (créneaux en lignes, patients en colonnes) ===== */
+.service-alert {
+    margin: var(--sp-4) 0;
+    padding: var(--sp-3) var(--sp-4);
+    color: var(--st-late-fg);
+    background: var(--st-late-bg);
+    border: 2px solid var(--st-late-line);
+    border-radius: var(--radius-lg);
+}
+
+.service-alert h2 {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    margin: 0 0 var(--sp-2);
+    font-size: var(--fs-3);
+}
+
+.service-alert__list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.service-alert__list li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-2) var(--sp-3);
+    padding: var(--sp-1) 0;
+    border-top: 1px solid var(--st-late-line);
+}
+
+.service-alert__list a {
+    color: inherit;
+    font-weight: 600;
+}
+
+.service-timeline .col-time {
+    width: 96px;
+    white-space: nowrap;
+    color: var(--fg-muted);
+    font-weight: 600;
+}
+
+.service-timeline .service-patient {
+    min-width: 220px;
+}
+
+.service-timeline .service-patient a {
+    display: block;
+    margin: 2px 0;
+}
+
+.service-timeline .patient-name {
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.service-timeline .patient-bed {
+    display: block;
+    color: var(--fg-muted);
+    font-size: var(--fs-1);
+}
+
+.service-patient__allergies {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    margin: var(--sp-1) 0;
+}
+
+.service-slot.is-now th,
+.service-slot.is-now td {
+    background: var(--accent-soft);
+}
+
+.now-marker {
+    display: block;
+    color: var(--accent);
+    font-size: var(--fs-0);
+    text-transform: uppercase;
+}
+
+.service-timeline .slot-items {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.slot-item {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    padding: var(--sp-2);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--st-planned-line);
+    border-radius: var(--radius);
+}
+
+.slot-item.is-late {
+    border-left-color: var(--st-late-line);
+    background: var(--st-late-bg);
+}
+
+.slot-item.is-done {
+    border-left-color: var(--st-done-line);
+}
+
+.slot-item.is-not_done {
+    border-left-color: var(--st-alert-line);
+}
+
+.slot-item__head {
+    display: flex;
+    gap: var(--sp-2);
+    font-weight: 600;
+}
+
+.slot-item .item-details,
+.slot-item .trace {
+    color: var(--fg-muted);
+    font-size: var(--fs-1);
+}
+
+@media print {
+    .care-buttons,
+    .agenda-filters,
+    .view-switch {
+        display: none;
+    }
+}
+
+/* AURA-29 : allergies en tête de chaque colonne patient (RG2), mêmes étiquettes que la carte patient. */
+.service-patient__allergies .allergy-tag {
+    padding: 1px var(--sp-2);
+    font-size: var(--fs-1);
+}
+
+.service-patient__allergies .allergy-tag--high {
+    border: 1px solid var(--st-alert-fg);
+    background: var(--st-alert-fg);
+    color: #ffffff;
+}
+
+.service-patient__allergies .allergy-tag--low {
+    border: 1px solid var(--st-warn-line);
+    background: var(--st-warn-bg);
+    color: var(--st-warn-fg);
+}
+
+.service-patient__allergies .allergy-tag--unknown {
+    border: 1px solid var(--st-alert-line);
+    background: var(--bg-raised);
+    color: var(--st-alert-fg);
+}
+
+.service-patient__allergies .allergy-tag--none {
+    border: 1px solid var(--st-done-line);
+    background: var(--st-done-bg);
+    color: var(--st-done-fg);
+    font-weight: 400;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .service-patient__allergies .allergy-tag--high {
+        color: #1c0a0a;
+    }
+}
+
+:root[data-theme="dark"] .service-patient__allergies .allergy-tag--high {
+    color: #1c0a0a;
+}
+
+/* ===== AURA-REFERENT : médecin référent du séjour (retours des médecins du 2026-11-03) ===== */
+/* « Référent à désigner » : icône + texte + cadre pointillé, lisible sans la couleur (bandeau et dossier). */
+.referent-missing {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-1);
+    padding: 0 var(--sp-2);
+    font-weight: 600;
+    color: var(--st-warn-fg);
+    background: var(--st-warn-bg);
+    border: 1px dashed var(--st-warn-line);
+    border-radius: var(--radius);
+}
+
+.referent-missing svg {
+    flex: none;
+}
+
+/* ===== AURA-30 / AURA-31 : équipes de vacation et « Mon planning » ===== */
+.team-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: var(--sp-4);
+    margin: var(--sp-4) 0;
+    padding: 0;
+    list-style: none;
+}
+
+.team-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-1);
+    padding: var(--sp-3) var(--sp-4);
+    background: var(--bg-raised);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+}
+
+.team-card__title {
+    margin: 0;
+    font-size: var(--fs-3);
+}
+
+.team-card__label {
+    margin: var(--sp-2) 0 0;
+    color: var(--fg-muted);
+    font-size: var(--fs-0);
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.team-card__list {
+    margin: 0;
+    padding-left: var(--sp-4);
+}
+
+.team-card form {
+    margin-top: var(--sp-3);
+}
+
+.team-form {
+    max-width: 720px;
+    margin-top: var(--sp-5);
+    padding: var(--sp-4);
+    background: var(--bg-raised);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+}
+
+.team-form .checkbox-group {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: var(--sp-1) var(--sp-3);
+    margin: var(--sp-3) 0;
+    border: 0;
+    padding: 0;
+}
+
+.team-form .checkbox-group legend {
+    margin-bottom: var(--sp-2);
+    font-weight: 600;
+}
+
+.team-form .checkbox-group label {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-2);
+    min-height: var(--tap);
+}
+
+.planning-teams {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-2) var(--sp-4);
+    margin: var(--sp-3) 0;
+}
+
+.planning-layout {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-4);
+    align-items: flex-start;
+}
+
+.planning-patients {
+    flex: 1 1 260px;
+    max-width: 340px;
+}
+
+.planning-patients ul {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.planning-patients .patient-bed {
+    color: var(--fg-muted);
+    font-size: var(--fs-1);
+}
+
+.planning-main {
+    flex: 999 1 560px;
+    min-width: 0;
+}
+
+.planning-view .service-alert {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+}
+
+/* ===== AURA-29 : filtre par type de soin (agenda du service) ===== */
+.agenda-filters select {
+    min-height: var(--tap);
+    padding: var(--sp-2) var(--sp-3);
+    font: inherit;
+    color: var(--fg);
+    background: var(--bg-raised);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+}
+
+/* ===== Retours du 2026-11-03 : calendrier à droite, erreur à côté du bouton d'envoi ===== */
+.agenda-nav input[type="date"] {
+    margin-left: auto;
+}
+
+.form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-3);
+}
+
+.form-actions .form-error {
+    margin: 0;
+}
+
+/* ===== Retours du 2026-11-03 : carte de la prescription d'un soin (« + ») ===== */
+.prescription-details {
+    margin-top: var(--sp-1);
+}
+
+.prescription-details summary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    min-height: 28px;
+    color: var(--accent);
+    font-weight: 700;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    cursor: pointer;
+    list-style: none;
+}
+
+.prescription-details summary::-webkit-details-marker {
+    display: none;
+}
+
+.prescription-details[open] summary span[aria-hidden="true"] {
+    display: inline-block;
+    transform: rotate(45deg);
+}
+
+.prescription-details__card {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 2px var(--sp-3);
+    margin: var(--sp-2) 0 0;
+    padding: var(--sp-2) var(--sp-3);
+    font-size: var(--fs-1);
+    background: var(--bg-muted);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+}
+
+.prescription-details__card dt {
+    color: var(--fg-muted);
+}
+
+.prescription-details__card dd {
+    margin: 0;
+}
+
+
+/* ===== AURA-PRESCRIPTION : retours des médecins du 2026-11-03 (libellés des listes, note, allergie, validation) ===== */
+/* Listes en cascade : libellés explicites (« Médicament (DCI) », « Forme galénique ») plus larges que « 1. » */
+.b3-row label {
+    flex-basis: 150px;
+}
+
+.b3-warning,
+.b3-message {
+    margin-left: 166px;
+}
+
+/* Alerte allergie : bloquante côté serveur sans confirmation, donc rouge plein (jamais la couleur seule) */
+.b3-allergy,
+.allergy-flag {
+    color: var(--st-alert-fg);
+    font-weight: 600;
+}
+
+.b3-allergy {
+    margin: var(--sp-1) var(--sp-2) var(--sp-2);
+    padding: var(--sp-2) var(--sp-3);
+    border: 1px solid var(--st-alert-line);
+    border-left: 4px solid var(--st-alert-fg);
+    border-radius: var(--radius);
+    background: var(--st-alert-bg);
+}
+
+.b3-pending .b3-allergy {
+    margin: 0 0 var(--sp-2);
+}
+
+.b3-cart-allergy td {
+    background: var(--st-alert-bg);
+}
+
+/* Confirmation explicite « Je prescris malgré l'allergie » */
+.b3-allergy-confirm {
+    margin: var(--sp-3) 0;
+    padding: var(--sp-2) var(--sp-3);
+    border: 1px solid var(--st-alert-line);
+    border-left: 4px solid var(--st-alert-fg);
+    border-radius: var(--radius);
+    background: var(--st-alert-bg);
+    color: var(--st-alert-fg);
+}
+
+.b3-allergy-confirm__title {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    margin: 0;
+    font-weight: 600;
+}
+
+.b3-allergy-confirm ul {
+    margin: var(--sp-1) 0 var(--sp-2);
+    padding-left: 18px;
+}
+
+.b3-allergy-confirm__check {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    min-height: var(--tap);
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.b3-allergy-confirm__check input {
+    width: 20px;
+    height: 20px;
+}
+
+/* Note de l'ordonnance */
+.b3-note {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-1);
+    margin: var(--sp-3) 0;
+}
+
+.b3-note label {
+    color: var(--fg-muted);
+    font-weight: 600;
+}
+
+.b3-optional {
+    font-weight: 400;
+}
+
+.b3-note textarea {
+    width: 100%;
+    padding: var(--sp-2) var(--sp-3);
+    font: inherit;
+    color: var(--fg-subtle);
+    background: var(--bg-raised);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    resize: vertical;
+}
+
+.b3-hint {
+    margin: 0;
+    color: var(--fg-muted);
+    font-size: var(--fs-1);
+}
+
+.b3-pending-note,
+.care-plan-note {
+    font-style: italic;
+}
+
+.b3-pending-note {
+    margin: 0 0 var(--sp-2);
+}
+
+/* Validation d'une ordonnance : médecin + mot de passe (authentification factice), libellés visibles,
+   une ligne par champ (libellé | champ), puis le bouton */
+.b3-validate {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    align-items: center;
+    gap: var(--sp-2) var(--sp-3);
+}
+
+.b3-validate button {
+    grid-column: 2;
+    justify-self: start;
+}
+
+.b3-validate .form-error {
+    grid-column: 1 / -1;
+}
+
+.b3-validate label {
+    color: var(--fg-muted);
+}
+
+.b3-validate input[type="password"] {
+    min-height: var(--tap);
+    padding: var(--sp-2) var(--sp-3);
+    font: inherit;
+    color: var(--fg-subtle);
+    background: var(--bg-raised);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+}
+
+.b3-validate .b3-hint {
+    grid-column: 1 / -1;
+}
+
+
+/* ===== AURA-PATIENTS : retours des médecins du 2026-11-03 (dossier toujours accessible, historique des séjours, séjour courant, décès) ===== */
+/* Décès : icône + texte + cadre plein, lisible sans la couleur (bandeau, dossier, liste). */
+.deceased-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-1);
+    margin-left: var(--sp-2);
+    padding: 0 var(--sp-2);
+    font-size: var(--fs-2);
+    font-weight: 700;
+    line-height: 1.6;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--fg);
+    background: var(--bg-muted);
+    border: 2px solid var(--fg);
+    border-radius: var(--radius);
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+.deceased-tag svg {
+    flex: none;
+    width: 1em;
+    height: 1em;
+}
+
+.patient-banner .identity .deceased-tag {
+    align-self: center;
+}
+
+/* Liste des patients : séjour en cours mis en avant (badge, numéro en gras, lit, service, date). */
+.patient-list__row--current > td:first-child {
+    box-shadow: inset 4px 0 0 var(--accent);
+}
+
+.current-episode {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    min-width: 12rem;
+}
+
+.current-episode__number {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.patient-list__closed {
+    display: block;
+    color: var(--fg-subtle);
+}
+
+/* Historique des séjours dépliable dans la liste (bloc natif <details>, utilisable au clavier). */
+.episode-history-toggle > summary {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-1);
+    min-height: var(--tap, 44px);
+    cursor: pointer;
+    color: var(--accent);
+    white-space: nowrap;
+}
+
+.episode-history-toggle > summary svg {
+    width: 1em;
+    height: 1em;
+}
+
+.episode-history-toggle[open] > summary {
+    font-weight: 600;
+}
+
+.episode-history-toggle .episode-history {
+    min-width: 18rem;
+    max-width: 28rem;
+}
+
+/* Liste des séjours (liste des patients et dossier) : du plus récent au plus ancien. */
+.episode-history {
+    display: grid;
+    gap: var(--sp-2);
+    margin: var(--sp-2) 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.episode-history__item {
+    padding: var(--sp-2) var(--sp-3);
+    background: var(--bg-raised);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+}
+
+.episode-history__item--displayed {
+    border: 2px solid var(--accent);
+    background: var(--accent-soft);
+}
+
+.episode-history__item p {
+    margin: 0;
+}
+
+.episode-history__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-1) var(--sp-2);
+}
+
+.episode-history__head a {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.episode-history__displayed {
+    font-size: var(--fs-1);
+    font-weight: 700;
+    color: var(--accent);
+}
+
+.episode-history__dates,
+.episode-history__meta {
+    font-size: var(--fs-2);
+    color: var(--fg-muted);
+    overflow-wrap: anywhere;
+}
+
+.record-episodes {
+    margin-top: var(--sp-5);
+}
+
+/* Dossier d'un séjour antérieur alors qu'un séjour est en cours : encart en tête qui mène au séjour en cours. */
+.current-episode-notice {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-2) var(--sp-4);
+    margin: 0 0 var(--sp-4);
+    padding: var(--sp-3) var(--sp-4);
+    color: var(--fg);
+    background: var(--accent-soft);
+    border: 1px solid var(--accent);
+    border-left-width: 4px;
+    border-radius: var(--radius);
+}
+
+.current-episode-notice > svg {
+    flex: none;
+    color: var(--accent);
+}
+
+.current-episode-notice > div {
+    flex: 1 1 18rem;
+    min-width: 0;
+}
+
+.current-episode-notice p {
+    margin: 0;
+}
+
+.current-episode-notice__title {
+    font-weight: 700;
+}
+
+.patient-list td .deceased-tag {
+    display: flex;
+    width: max-content;
+    margin: var(--sp-1) 0 0;
+}
+
+.patient-list td a[href^="/sejour"],
+.patient-list__closed {
+    white-space: nowrap;
+}
+
+/* ===== Retours du 2026-11-04 : dialogue de soin plus large, champs à l'horizontale ===== */
+#validation-dialog {
+    width: min(760px, 95vw);
+}
+
+.dialog-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-3);
+}
+
+.dialog-row > .dialog-field {
+    flex: 1 1 200px;
+    min-width: 0;
+}
+
+.care-actions {
+    flex-direction: row;
+}
+
+/* ===== Retours du 2026-11-04 : filtres regroupés derrière un bouton ===== */
+.filter-menu {
+    margin: var(--sp-3) 0;
+}
+
+.filter-menu > summary {
+    display: inline-flex;
+    list-style: none;
+    cursor: pointer;
+}
+
+.filter-menu > summary::-webkit-details-marker {
+    display: none;
+}
+
+.filter-menu[open] > .agenda-filters {
+    margin-top: var(--sp-2);
+    padding: var(--sp-3);
+    background: var(--bg-raised);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+}
+
+.filter-menu__state {
+    font-weight: 400;
+}
+
+/* ===== Retours du 2026-11-04 : écran de prescription, une liste longue ne déborde plus à droite ===== */
+.b3-entry {
+    min-width: 0;
+}
+
+.b3-grid {
+    grid-template-columns: 200px 24px minmax(0, 1fr);
+}
+
+.b3-row select,
+.b3-grid select,
+.b3-grid input,
+.b3-grid textarea {
+    min-width: 0;
+    max-width: 100%;
+    text-overflow: ellipsis;
+}
+
+/* ===== Audit IHM du 2026-11-04 : écrans plus sobres, détails à la demande ===== */
+/* Prescription : le mot de passe du médecin a l'allure des listes voisines. */
+.b3-row input[type="password"] {
+    flex: 1;
+    min-width: 0;
+    height: 32px;
+    padding: 4px 8px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+    color: var(--fg);
+    font: inherit;
+}
+
+/* Dossier : cartes de prescription resserrées, détails et arrêt repliés. */
+.prescription-card__summary {
+    margin: 2px 0 0;
+    color: var(--fg-muted);
+    font-size: var(--fs-1);
+}
+
+.prescription-card__more,
+.prescription-card__stop,
+.add-allergy-menu {
+    margin-top: var(--sp-2);
+}
+
+.prescription-card__more > summary,
+.prescription-card__stop > summary,
+.add-allergy-menu > summary {
+    width: max-content;
+    color: var(--accent);
+    font-size: var(--fs-1);
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.prescription-card__stop > summary {
+    color: var(--st-alert-fg);
+}
+
+.prescription-card__stop[open] .stop-form,
+.add-allergy-menu[open] .add-allergy {
+    margin-top: var(--sp-2);
+}
+
+.record-allergies .remove-allergy button {
+    padding: 2px var(--sp-2);
+    font-size: var(--fs-1);
+}
+
+/* Agenda du patient : rotation sans soin sur une ligne. */
+.agenda-section.is-empty h2 {
+    margin-bottom: 0;
+    color: var(--fg-muted);
+    font-size: var(--fs-2);
+}
+
+.agenda-section.is-empty .agenda-empty {
+    margin: 0 0 0 var(--sp-2);
+    padding: 0;
+    border: 0;
+    background: none;
+    font-size: var(--fs-1);
+    font-weight: 400;
+}
+
+/* Agenda du service : pied de carte en ligne, créneaux vides resserrés. */
+.slot-item__foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-1) var(--sp-2);
+    margin-top: 2px;
+}
+
+.slot-item__foot .care-buttons .button {
+    padding: 2px var(--sp-2);
+    font-size: var(--fs-1);
+}
+
+.service-slot.is-empty th,
+.service-slot.is-empty td {
+    padding-top: 2px;
+    padding-bottom: 2px;
+    font-size: var(--fs-1);
+    color: var(--fg-muted);
+}
+
+.service-alert__list {
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+/* Liste des patients : séjour en cours sur deux lignes, suppression discrète (rouge au survol). */
+.current-episode .current-episode__number {
+    color: var(--fg-muted);
+    font-weight: 400;
+}
+
+.patient-list__delete {
+    color: var(--fg-muted);
+}
+
+.patient-list__delete:hover,
+.patient-list__delete:focus-visible {
+    color: var(--st-alert-fg);
+}
+
+/* Agenda du patient : « Valider » et « Note » côte à côte. */
+.agenda-table .care-buttons {
+    flex-wrap: nowrap;
+}
+
+/* ===== AURA-29 : refonte de l'agenda du service (2026-11-04), tableau des lits et liste de travail ===== */
+.view-tabs {
+    display: flex;
+    gap: var(--sp-1);
+    margin: var(--sp-4) 0 var(--sp-3);
+    border-bottom: 1px solid var(--line);
+}
+
+.view-tabs a {
+    padding: var(--sp-2) var(--sp-4);
+    border-bottom: 3px solid transparent;
+    color: var(--fg-muted);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.view-tabs a[aria-current="page"] {
+    border-bottom-color: var(--accent);
+    color: var(--fg);
+}
+
+.board-summary {
+    margin: 0 0 var(--sp-4);
+    color: var(--fg-muted);
+}
+
+.board-summary__late {
+    color: var(--st-alert-fg);
+}
+
+.board {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: var(--sp-5);
+}
+
+.board__table {
+    flex: 999 1 560px;
+    min-width: 0;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+}
+
+.board-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.board-table th,
+.board-table td {
+    padding: var(--sp-3);
+    border-top: 1px solid var(--line);
+    text-align: left;
+    vertical-align: middle;
+}
+
+.board-table thead th {
+    border-top: 0;
+    background: var(--bg-muted);
+    color: var(--fg-muted);
+    font-size: var(--fs-1);
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+
+.board-row__bed {
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.board-row__patient {
+    font-weight: 400;
+}
+
+.board-row__patient a {
+    font-weight: 600;
+}
+
+.board-row__allergies,
+.board-row__referent {
+    display: block;
+    font-size: var(--fs-1);
+}
+
+.board-row__allergies {
+    color: var(--st-late-fg);
+}
+
+.board-row__referent,
+.board-row__none {
+    color: var(--fg-muted);
+}
+
+.board-row.is-selected {
+    background: var(--accent-soft);
+    box-shadow: inset 4px 0 0 var(--accent);
+}
+
+.board-panel {
+    flex: 1 1 360px;
+    min-width: 0;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: var(--bg-raised);
+}
+
+.board-panel__header {
+    padding: var(--sp-4);
+    border-bottom: 1px solid var(--line);
+}
+
+.board-panel__header h2 {
+    margin: 0;
+    font-size: var(--fs-3);
+}
+
+.board-panel__links {
+    display: flex;
+    gap: var(--sp-3);
+    margin: var(--sp-1) 0 0;
+    font-size: var(--fs-1);
+}
+
+.board-panel__meta,
+.board-panel__foot,
+.board-panel__empty,
+.worklist__empty {
+    margin: var(--sp-1) 0 0;
+    color: var(--fg-muted);
+    font-size: var(--fs-1);
+}
+
+.board-panel__allergies {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-1);
+    margin: var(--sp-2) 0 0;
+}
+
+.board-panel__empty,
+.board-panel__foot {
+    padding: var(--sp-3) var(--sp-4);
+}
+
+.board-panel__foot {
+    border-top: 1px solid var(--line);
+}
+
+.care-lines {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.care-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-1) var(--sp-3);
+    padding: var(--sp-2) var(--sp-4);
+    border-top: 1px solid var(--line);
+}
+
+.care-lines > .care-line:first-child {
+    border-top: 0;
+}
+
+.care-line.is-late {
+    background: var(--st-late-bg);
+    box-shadow: inset 4px 0 0 var(--st-late-line);
+}
+
+.care-line__time {
+    width: 3.2em;
+    font-weight: 700;
+}
+
+.care-line__patient {
+    flex: 0 1 13em;
+    min-width: 0;
+    font-weight: 600;
+}
+
+.care-line__care {
+    display: flex;
+    flex: 1 1 12em;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.care-line__care .item-label {
+    font-weight: 600;
+}
+
+.care-line__care .item-details,
+.care-line__care .trace {
+    color: var(--fg-muted);
+    font-size: var(--fs-1);
+}
+
+.care-line__status,
+.care-line__actions {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-1);
+}
+
+.care-line__actions .care-buttons .button {
+    padding: 2px var(--sp-2);
+    font-size: var(--fs-1);
+}
+
+.worklist {
+    margin: 0 0 var(--sp-4);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: var(--bg-raised);
+}
+
+.worklist > summary {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    padding: var(--sp-3) var(--sp-4);
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.worklist[open] > summary {
+    border-bottom: 1px solid var(--line);
+}
+
+.worklist__count {
+    min-width: 1.6em;
+    padding: 0 var(--sp-2);
+    border-radius: 999px;
+    background: var(--bg-muted);
+    text-align: center;
+}
+
+.worklist--late {
+    border-color: var(--st-alert-line);
+}
+
+.worklist--late .worklist__title {
+    color: var(--st-alert-fg);
+}
+
+.worklist__empty {
+    padding: var(--sp-3) var(--sp-4);
+}
+
+@media print {
+    .view-tabs,
+    .care-line__actions {
+        display: none;
+    }
+}
+
+/* Agenda du service sur un écran étroit : en-tête et navigation passent à la ligne, rien ne déborde. */
+.service-view {
+    min-width: 0;
+}
+
+.service-view .page-header,
+.service-view .agenda-nav {
+    flex-wrap: wrap;
+}
+
+.service-view .agenda-nav select {
+    max-width: 100%;
+}
+
+@media (max-width: 600px) {
+    .care-line__patient {
+        flex-basis: 100%;
+    }
+
+    .care-line__care {
+        flex-basis: 100%;
+    }
+}
+
+/* AURA-29 (relecture) : chevron ouvert / replié des sections, allergies compactes sur les lignes. */
+.worklist > summary {
+    list-style: none;
+}
+
+.worklist > summary::-webkit-details-marker {
+    display: none;
+}
+
+.worklist > summary::before {
+    content: "▸";
+    display: inline-block;
+    width: 1em;
+    transition: transform .15s;
+}
+
+.worklist[open] > summary::before {
+    transform: rotate(90deg);
+}
+
+.allergy-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-1);
+}
+
+.allergy-tags--compact {
+    margin-top: 2px;
+}
+
+.allergy-tags--compact .allergy-tag {
+    padding: 0 var(--sp-1);
+    font-size: var(--fs-1);
+}
+
+.care-line__patient {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.care-line__patient a {
+    font-weight: 600;
+}
+
+/* ===== Retours du 2026-11-04 (2) : « + » à droite du titre, filtres à droite du bouton, cœur barré ===== */
+.care-title {
+    display: block;
+}
+
+.care-title .item-label {
+    font-weight: 600;
+}
+
+/* Le « + » suit le titre sur la même ligne ; la carte de la prescription s'ouvre en dessous. */
+.care-title .prescription-details {
+    display: inline;
+    margin: 0 0 0 var(--sp-2);
+}
+
+.care-title .prescription-details summary {
+    min-width: 24px;
+    min-height: 24px;
+    vertical-align: middle;
+}
+
+.care-title .prescription-details__card {
+    font-weight: 400;
+}
+
+.care-title + .item-details {
+    display: block;
+}
+
+/* Filtres : ouverts, ils s'affichent à droite du bouton « Filtres ». */
+.filter-menu[open] {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-2) var(--sp-3);
+}
+
+.filter-menu[open] > .agenda-filters {
+    margin-top: 0;
+    padding: var(--sp-1) var(--sp-2);
+}
+
+/* Liste des patients : décès signalé par le seul cœur barré à côté du nom (libellé en infobulle). */
+.patient-list td .deceased-tag--icon {
+    display: inline-flex;
+    margin: 0 0 0 var(--sp-1);
+    vertical-align: middle;
+}
+
+.patient-list td .deceased-tag--icon {
+    padding: 0;
+    border: 0;
+    background: none;
+}
+
+.patient-list td:first-child {
+    white-space: nowrap;
+}
+
+/* ===== Relecture adversariale du 2026-11-04 : allergies dans la fenêtre de validation d'un soin (RG2) ===== */
+.dialog-allergies {
+    margin: 0 0 var(--sp-3);
+    color: var(--st-alert-fg);
+    font-weight: 600;
 }

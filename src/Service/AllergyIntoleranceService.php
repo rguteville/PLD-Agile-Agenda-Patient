@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace Aura\Service;
 
-use Aura\Dao\AllergieDao;
-use Aura\Dao\SejourDao;
+use Aura\Dao\AllergyIntoleranceDao;
+use Aura\Dao\EpisodeOfCareDao;
+use Aura\Dao\PatientDao;
 use Aura\Dao\SubstanceDao;
-use Aura\Domain\Allergie;
-use Aura\Domain\Sejour;
+use Aura\Domain\AllergyIntolerance;
+use Aura\Domain\EpisodeOfCare;
 use InvalidArgumentException;
 use PDOException;
 
@@ -31,9 +32,10 @@ final class AllergyIntoleranceService
     private const FOREIGN_KEY_ERROR = 1452;
 
     public function __construct(
-        private SejourDao $sejourDao,
-        private AllergieDao $allergieDao,
-        private SubstanceDao $substanceDao
+        private EpisodeOfCareDao $episodeOfCareDao,
+        private AllergyIntoleranceDao $allergyIntoleranceDao,
+        private SubstanceDao $substanceDao,
+        private ?PatientDao $patientDao = null
     ) {
     }
 
@@ -41,13 +43,14 @@ final class AllergyIntoleranceService
      * Enregistre une allergie pour le patient du séjour et renvoie son id.
      *
      * @param mixed $idSubstance valeur brute du formulaire : doit exister dans le référentiel (critère 1)
-     * @param mixed $criticality valeur brute du formulaire : vide, ou l'une des Allergie::CRITICALITIES
+     * @param mixed $criticality valeur brute du formulaire : vide, ou l'une des AllergyIntolerance::CRITICALITIES
      * @throws InvalidArgumentException séjour inconnu, allergène hors référentiel, criticité
      *                                  hors liste, ou allergie déjà enregistrée (critère 3)
+     * @throws PDOException autre erreur SQL que doublon ou clé étrangère
      */
-    public function add(int $idSejour, mixed $idSubstance, mixed $criticality): int
+    public function add(int $idEpisodeOfCare, mixed $idSubstance, mixed $criticality): int
     {
-        $sejour = $this->findSejour($idSejour);
+        $episodeOfCare = $this->findEpisodeOfCare($idEpisodeOfCare);
 
         $idSubstance = self::text($idSubstance);
         if ($idSubstance === null) {
@@ -59,26 +62,27 @@ final class AllergyIntoleranceService
         }
 
         $criticality = self::text($criticality);
-        if ($criticality !== null && !in_array($criticality, Allergie::CRITICALITIES, true)) {
+        if ($criticality !== null && !in_array($criticality, AllergyIntolerance::CRITICALITIES, true)) {
             throw new InvalidArgumentException(
-                'La criticité doit être choisie dans la liste : ' . implode(', ', Allergie::CRITICALITIES) . '.'
+                'La criticité doit être choisie dans la liste : '
+                . implode(', ', AllergyIntolerance::CRITICALITIES) . '.'
             );
         }
 
         // Première couche : message clair sans attendre la base.
-        foreach ($this->allergieDao->findByPatient($sejour->getIdPatient()) as $existing) {
-            if ($existing->getIdAllergene() === $substance->getIdSubstance()) {
+        foreach ($this->allergyIntoleranceDao->findByPatient($episodeOfCare->getIdPatient()) as $existing) {
+            if ($existing->getIdSubstance() === $substance->getIdSubstance()) {
                 throw new InvalidArgumentException(self::DUPLICATE_MESSAGE);
             }
         }
 
         try {
-            return $this->allergieDao->insert(new Allergie(
-                idAllergie: null,
-                idPatient: $sejour->getIdPatient(),
-                idAllergene: $substance->getIdSubstance(),
+            return $this->allergyIntoleranceDao->insert(new AllergyIntolerance(
+                idAllergyIntolerance: null,
+                idPatient: $episodeOfCare->getIdPatient(),
+                idSubstance: $substance->getIdSubstance(),
                 substance: $substance->getDescription(),
-                criticite: $criticality
+                criticality: $criticality
             ));
         } catch (PDOException $e) {
             // Seconde couche : condition de course (double clic, deux soignants en même temps).
@@ -96,27 +100,39 @@ final class AllergyIntoleranceService
     }
 
     /**
-     * Retire une allergie du dossier du patient du séjour.
+     * Retire une allergie du dossier du patient du séjour. Suppression PHYSIQUE (DELETE), exception
+     * connue à la règle du soft delete : voir AllergyIntoleranceDao::delete().
      *
      * @throws InvalidArgumentException séjour inconnu, ou allergie absente du dossier de ce patient
      */
-    public function remove(int $idSejour, int $idAllergy): void
+    public function remove(int $idEpisodeOfCare, int $idAllergy): void
     {
-        $sejour = $this->findSejour($idSejour);
+        $episodeOfCare = $this->findEpisodeOfCare($idEpisodeOfCare);
 
-        if (!$this->allergieDao->delete($idAllergy, $sejour->getIdPatient())) {
+        if (!$this->allergyIntoleranceDao->delete($idAllergy, $episodeOfCare->getIdPatient())) {
             throw new InvalidArgumentException('Cette allergie n\'est pas enregistrée pour ce patient.');
         }
     }
 
-    private function findSejour(int $idSejour): Sejour
+    /**
+     * Séjour affiché par le formulaire, dont on tire le patient.
+     *
+     * @throws InvalidArgumentException si aucun séjour ne porte cet identifiant
+     */
+    private function findEpisodeOfCare(int $idEpisodeOfCare): EpisodeOfCare
     {
-        $sejour = $this->sejourDao->findById($idSejour);
-        if ($sejour === null) {
-            throw new InvalidArgumentException(sprintf('Aucun séjour ne porte l\'identifiant %d.', $idSejour));
+        $episodeOfCare = $this->episodeOfCareDao->findById($idEpisodeOfCare);
+        if ($episodeOfCare === null) {
+            throw new InvalidArgumentException(sprintf('Aucun séjour ne porte l\'identifiant %d.', $idEpisodeOfCare));
+        }
+        // Relecture adversariale du 2026-11-04 : le dossier d'un patient supprimé de la liste n'est plus modifiable.
+        if ($this->patientDao !== null && $this->patientDao->findById($episodeOfCare->getIdPatient()) === null) {
+            throw new InvalidArgumentException(
+                'Ce patient a été supprimé de la liste : son dossier n\'est plus modifiable.'
+            );
         }
 
-        return $sejour;
+        return $episodeOfCare;
     }
 
     /** Valeur saisie nettoyée : null si absente, vide ou non textuelle (tableau forgé). */

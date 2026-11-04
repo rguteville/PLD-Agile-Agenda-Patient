@@ -1,10 +1,23 @@
-// Modification d'une partie entière du dossier et fin de séjour (retours du 2026-11-02).
+// Modification d'une partie entière du dossier, fin de séjour (retours du 2026-11-02) et déclaration du
+// décès (retours du 2026-11-04).
 //
-// Crayon « Modifier » à côté du titre d'une partie → les valeurs de la partie sont remplacées par un
+// Crayon « Modifier » à côté du titre d'une partie : les valeurs de la partie sont remplacées par un
 // formulaire (components/part_form.php). « Enregistrer » ouvre la fenêtre de validation par un médecin
-// (authentification FACTICE : le mot de passe n'est pas vérifié), puis envoie la partie en JSON à
-// /sejour/partie/modifier. « Mettre fin au séjour » passe par la même fenêtre (/sejour/cloturer).
+// (#auth-dialog, authentification FACTICE : le mot de passe n'est pas vérifié), puis envoie la partie.
+// « Mettre fin au séjour » et « Déclarer le décès » passent par la même fenêtre, avec la date et l'heure
+// (de sortie ou du décès) : le décès termine le séjour à cette heure, les soins prévus après sont annulés.
 // Le serveur reste la garantie : liste blanche, validation, concurrence, traçabilité (RecordSectionService).
+//
+// Chargé par le dossier du séjour (GET /sejour), actif seulement si le dossier est éditable.
+// Attend : [data-inline-edit] (data-csrf, data-id-episode-of-care), #auth-dialog ([data-auth-summary],
+// [data-auth-discharge], [data-auth-error], [data-auth-cancel]), [data-part-edit], [data-part-view],
+// form.part-form, [data-end-stay], [data-declare-death] (data-current).
+// Appels réseau : POST en JSON, en-têtes Accept: application/json et X-CSRF-Token, avec validator et
+// password en plus :
+// - /sejour/partie/modifier {episodeOfCare, part, values, oldValues} ;
+// - /sejour/cloturer {episodeOfCare, date (JJ/MM/AAAA), time (HH:MM)} ;
+// - /sejour/deces {episodeOfCare, oldDeceased, date, time}.
+// Réponse : {ok: true, redirect} ou {ok: false, errors: {champ ou auth: message}, message}.
 
 (function () {
     const root = document.querySelector('[data-inline-edit]');
@@ -13,7 +26,7 @@
         return;
     }
     const csrf = root.dataset.csrf;
-    const idSejour = root.dataset.idSejour;
+    const idEpisodeOfCare = root.dataset.idEpisodeOfCare;
     const authForm = dialog.querySelector('form');
     const authError = dialog.querySelector('[data-auth-error]');
     const authSummary = dialog.querySelector('[data-auth-summary]');
@@ -21,6 +34,7 @@
     let pending = null; // { url, payload, form } en attente de validation
 
     // ── Ouvrir / fermer le formulaire d'une partie ──
+    // Affichage en lecture d'une partie ([data-part-view]) et son formulaire (form.part-form).
     function partView(part) {
         return document.querySelector(`[data-part-view="${CSS.escape(part)}"]`);
     }
@@ -29,6 +43,7 @@
         return document.querySelector(`form.part-form[data-part="${CSS.escape(part)}"]`);
     }
 
+    // Remplace la lecture par le formulaire de la partie (section dépliée, focus sur le premier champ).
     function openPart(part) {
         const form = partForm(part);
         const view = partView(part);
@@ -49,6 +64,7 @@
         }
     }
 
+    // Annulation : formulaire remis à zéro et masqué, lecture réaffichée, focus rendu au crayon.
     function closePart(form) {
         form.reset();
         clearErrors(form);
@@ -84,6 +100,7 @@
         }
     }
 
+    // Erreurs du serveur sous chaque champ, message général en tête ; focus sur le premier champ fautif.
     function showErrors(form, errors, message) {
         clearErrors(form);
         let first = null;
@@ -130,12 +147,18 @@
     }
 
     // ── Fenêtre de validation ──
+    // Ouvre la fenêtre de validation pour une requête { url, payload, form, summary, discharge,
+    // dischargeLabels } ; date et heure pré-remplies à maintenant pour la sortie et le décès.
     function openDialog(request) {
         pending = request;
         authForm.reset();
         authError.hidden = true;
         authSummary.textContent = request.summary;
         discharge.hidden = !request.discharge;
+        // Mêmes champs pour la sortie et le décès (qui termine le séjour) : seuls les libellés changent.
+        const labels = request.dischargeLabels || ['Date de sortie', 'Heure de sortie'];
+        dialog.querySelector('label[for="auth-discharge-date"]').textContent = labels[0];
+        dialog.querySelector('label[for="auth-discharge-time"]').textContent = labels[1];
         if (request.discharge) {
             const now = new Date();
             const pad = n => String(n).padStart(2, '0');
@@ -202,10 +225,12 @@
             goTo(data.redirect);
             return;
         }
-        const errors = data.erreurs || {};
-        // Erreur d'authentification ou de date de sortie : on reste dans la fenêtre.
-        if (errors.auth || errors.dischargeDate || (!pending.form && data.message)) {
-            authError.textContent = errors.auth || errors.dischargeDate || data.message;
+        const errors = data.errors || {};
+        // Erreur d'authentification ou de date de sortie, ou action sans formulaire (fin de séjour, décès) :
+        // on reste dans la fenêtre et on y affiche le message.
+        const firstError = Object.values(errors)[0];
+        if (errors.auth || errors.dischargeDate || (!pending.form && (data.message || firstError))) {
+            authError.textContent = errors.auth || errors.dischargeDate || data.message || firstError;
             authError.hidden = false;
             return;
         }
@@ -239,10 +264,28 @@
                 url: '/sejour/partie/modifier',
                 form,
                 summary: `Modification de la partie « ${form.dataset.title} » du dossier.`,
-                payload: { sejour: idSejour, part: form.dataset.part, values: formValues(form), oldValues },
+                payload: { episodeOfCare: idEpisodeOfCare, part: form.dataset.part, values: formValues(form), oldValues },
             });
         });
     });
+
+    // ── Déclaration du décès : POST /sejour/deces (date et heure du décès, valeur actuelle du décès) ──
+    const death = document.querySelector('[data-declare-death]');
+    if (death) {
+        // Retours du 2026-11-04 : le décès met fin au séjour à l'heure saisie ; les soins prévus après sont annulés.
+        death.addEventListener('click', () => openDialog({
+            url: '/sejour/deces',
+            form: null,
+            discharge: true,
+            dischargeLabels: ['Date du décès', 'Heure du décès'],
+            summary: 'Déclarer le décès du patient : il sera signalé sur tous les écrans de soins, le séjour '
+                + 'se terminera à l\'heure du décès et les soins prévus après seront annulés.',
+            payload: {
+                episodeOfCare: idEpisodeOfCare,
+                oldDeceased: death.dataset.current || '',
+            },
+        }));
+    }
 
     // ── Fin du séjour ──
     const endStay = document.querySelector('[data-end-stay]');
@@ -252,7 +295,7 @@
             form: null,
             discharge: true,
             summary: 'Mettre fin au séjour : le patient n\'apparaîtra plus comme présent dans le service.',
-            payload: { sejour: idSejour },
+            payload: { episodeOfCare: idEpisodeOfCare },
         }));
     }
 })();

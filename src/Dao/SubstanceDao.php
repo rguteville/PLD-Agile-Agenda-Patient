@@ -8,12 +8,13 @@ use Aura\Domain\Substance;
 use PDO;
 
 /**
- * Référentiel des allergènes : table Substance (cf. database/schema.sql). Lecture seule :
- * le référentiel est chargé par database/test.sql, jamais saisi dans l'application.
+ * Référentiel des allergènes (AURA-13.1) : table Substance, ressource HL7 du même nom (cf.
+ * database/schema.sql). Lecture seule : le référentiel est chargé par database/test.sql, jamais
+ * saisi dans l'application.
  */
 class SubstanceDao
 {
-    private const COLUMNS = 'idSubstance, description';
+    private const COLUMNS = 'idSubstance, name';
 
     public function __construct(private PDO $pdo)
     {
@@ -27,7 +28,7 @@ class SubstanceDao
     public function findAll(): array
     {
         $rows = $this->pdo
-            ->query('SELECT ' . self::COLUMNS . ' FROM Substance ORDER BY description')
+            ->query('SELECT ' . self::COLUMNS . ' FROM Substance ORDER BY name')
             ->fetchAll(PDO::FETCH_ASSOC);
 
         return array_map(fn(array $r) => $this->mapToEntity($r), $rows);
@@ -43,8 +44,13 @@ class SubstanceDao
         return $r ? $this->mapToEntity($r) : null;
     }
 
+    /**
+     * Ligne SQL vers l'entité : la colonne name devient Substance::getDescription().
+     *
+     * @param array<string, string> $r
+     */
     private function mapToEntity(array $r): Substance
     {
-        return new Substance((string) $r['idSubstance'], (string) $r['description']);
+        return new Substance((string) $r['idSubstance'], (string) $r['name']);
     }
 }

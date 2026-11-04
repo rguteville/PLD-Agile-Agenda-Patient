@@ -1,10 +1,13 @@
 // Thème clair / sombre (équipes de nuit). Chargé dans <head> : le choix mémorisé est appliqué avant
 // le premier rendu. Sans choix explicite, la page suit le réglage du système (prefers-color-scheme).
 // Le choix n'est stocké que dans ce navigateur (localStorage), il n'identifie personne.
+// Chargé sur toutes les pages par layouts/main.php. Attend : le bouton #theme-toggle
+// (components/topbar.php). Aucun appel réseau.
 (function () {
     const KEY = 'aura-theme';
     const root = document.documentElement;
 
+    // Thème mémorisé, ou null (aucun choix, ou stockage indisponible).
     function stored() {
         try {
             return localStorage.getItem(KEY);
@@ -13,6 +16,7 @@
         }
     }
 
+    // Thème affiché : choix explicite (data-theme), sinon le réglage du système.
     function current() {
         if (root.dataset.theme === 'dark' || root.dataset.theme === 'light') {
             return root.dataset.theme;
@@ -20,6 +24,7 @@
         return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     }
 
+    // État du bouton (aria-pressed, infobulle) selon le thème affiché.
     function refresh(button) {
         const dark = current() === 'dark';
         button.setAttribute('aria-pressed', dark ? 'true' : 'false');

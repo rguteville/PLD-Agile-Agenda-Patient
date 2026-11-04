@@ -3,12 +3,18 @@
 use Aura\Core\View;
 
 /**
- * Liste des patients avec leur séjour en cours (AURA-12.1).
+ * Liste des patients (AURA-12.1). Retours des médecins du 2026-11-03 : séjour en cours mis en avant,
+ * dossier toujours accessible (séjour en cours, sinon dernier séjour), historique des séjours dépliable.
+ * Décès : cœur barré à côté du nom (components/deceased_tag, iconOnly, 2026-11-04), libellé en infobulle
+ * et en texte alternatif.
+ * Rendue par PatientController::list() (GET /patients?q=…). Aucun script propre à la page.
  *
- * @var list<array{idPatient: int, nom: string, prenom: string, ipp: ?string,
- *                 dateNaissance: ?string, idSejour: ?int, numeroSejour: ?string}> $patients
- * @var ?string $recherche terme saisi, null si aucun
+ * @var list<array<string, mixed>> $patients vue-modèle de PatientListService::presentLine() (idPatient,
+ *      lastName, firstName, ipp, birthDate, deceased, deceasedLabel, current, record, history)
+ * @var ?string $search terme saisi, null si aucun
+ * @var bool $deleted vrai juste après une suppression (AURA-12.3), false par défaut
  */
+$deleted = $deleted ?? false;
 ?>
 <div class="page-header">
     <h1 class="form-title">Patients</h1>
@@ -17,27 +23,34 @@ use Aura\Core\View;
     </p>
 </div>
 
-<form class="recherche-patients" method="get" action="/patients" role="search">
+<?php if ($deleted) : ?>
+    <p class="page-notice" role="status">
+        <?= View::render('components/icon', ['name' => 'circle-check']) ?>
+        Patient supprimé. Son dossier reste conservé (suppression logique).
+    </p>
+<?php endif; ?>
+
+<form class="patient-search" method="get" action="/patients" role="search">
     <label for="q">Rechercher</label>
-    <input type="search" id="q" name="q" value="<?= View::e($recherche ?? '') ?>"
+    <input type="search" id="q" name="q" value="<?= View::e($search ?? '') ?>"
            placeholder="Nom, prénom ou IPP" maxlength="50" autocomplete="off">
     <button type="submit" class="button--secondary">
         <?= View::render('components/icon', ['name' => 'search']) ?>
         Rechercher
     </button>
-    <?php if ($recherche !== null) : ?>
+    <?php if ($search !== null) : ?>
         <a href="/patients">Tous les patients</a>
     <?php endif; ?>
 </form>
 
 <?php if ($patients === []) : ?>
-    <?= View::render('components/empty_state', $recherche !== null
-        ? ['icon' => 'search', 'title' => 'Aucun patient ne correspond à « ' . $recherche . ' ».',
+    <?= View::render('components/empty_state', $search !== null
+        ? ['icon' => 'search', 'title' => 'Aucun patient ne correspond à « ' . $search . ' ».',
             'text' => 'Vérifiez l\'orthographe ou l\'IPP, ou affichez tous les patients.']
         : ['title' => 'Aucun patient dans le service.', 'text' => 'Admettez le premier patient depuis l\'accueil.']) ?>
 <?php else : ?>
     <div class="table-scroll">
-    <table class="liste-patients">
+    <table class="patient-list">
         <caption><?= count($patients) ?> patient<?= count($patients) > 1 ? 's' : '' ?></caption>
         <thead>
             <tr>
@@ -47,27 +60,75 @@ use Aura\Core\View;
                 <th scope="col">Né(e) le</th>
                 <th scope="col">Séjour en cours</th>
                 <th scope="col">Dossier</th>
+                <th scope="col">Séjours</th>
+                <th scope="col"><span class="sr-only">Actions</span></th>
             </tr>
         </thead>
         <tbody>
             <?php foreach ($patients as $p) : ?>
-                <tr>
-                    <td><?= View::e($p['nom']) ?></td>
-                    <td><?= View::e($p['prenom']) ?></td>
+                <?php $name = $p['lastName'] . ' ' . $p['firstName']; ?>
+                <tr<?= $p['current'] !== null ? ' class="patient-list__row--current"' : '' ?>>
+                    <td><?= View::e($p['lastName']) ?><?= $p['deceased']
+                        ? ' ' . View::render('components/deceased_tag', [
+                            'label' => $p['deceasedLabel'],
+                            'iconOnly' => true,
+                        ])
+                        : '' ?></td>
+                    <td><?= View::e($p['firstName']) ?></td>
                     <td><?= View::e($p['ipp'] ?? 'sans IPP') ?></td>
-                    <td><?= View::e($p['dateNaissance'] ?? 'non renseignée') ?></td>
+                    <td><?= View::e($p['birthDate'] ?? 'non renseignée') ?></td>
                     <td>
-                        <?php if ($p['numeroSejour'] !== null) : ?>
-                            n° <?= View::e($p['numeroSejour']) ?>
+                        <?php if ($p['current'] !== null) : ?>
+                            <?php $current = $p['current']; ?>
+                            <?php /* Audit IHM du 2026-11-04 : deux lignes au lieu de quatre ; la colonne dit déjà
+                                     « en cours ». */ ?>
+                            <div class="current-episode">
+                                <span>Lit <?= View::e($current['bed'] ?? 'non attribué') ?>,
+                                    <?= View::e($current['service'] ?? 'service non renseigné') ?></span>
+                                <?php $since = 'n° ' . $current['episodeNumber'] . ', depuis le ' . $current['since'];
+                                ?>
+                                <small class="current-episode__number"><?= View::e($since) ?></small>
+                            </div>
                         <?php else : ?>
-                            <span class="hors-service">aucun</span>
+                            <span class="no-service">aucun</span>
                         <?php endif; ?>
                     </td>
                     <td>
-                        <?php if ($p['idSejour'] !== null) : ?>
-                            <a href="/sejour?id=<?= View::e($p['idSejour']) ?>"
-                               aria-label="Dossier de <?= View::e($p['nom'] . ' ' . $p['prenom']) ?>">Dossier</a>
+                        <?php /* Dossier toujours accessible : séjour en cours, sinon le dernier séjour (clos). */ ?>
+                        <?php if ($p['record'] === null) : ?>
+                            <span class="no-service">Aucun séjour : pas de dossier</span>
+                        <?php elseif ($p['record']['ongoing']) : ?>
+                            <a href="/sejour?id=<?= View::e($p['record']['idEpisodeOfCare']) ?>"
+                               aria-label="Dossier du séjour en cours de <?= View::e($name) ?>">Dossier</a>
+                        <?php else : ?>
+                            <?php $closedOn = $p['record']['dischargeDate'] ?? '?'; ?>
+                            <?php $recordLabel = 'Dossier du dernier séjour de ' . $name . ', clos le ' . $closedOn; ?>
+                            <a href="/sejour?id=<?= View::e($p['record']['idEpisodeOfCare']) ?>"
+                               aria-label="<?= View::e($recordLabel) ?>">Dernier dossier</a>
+                            <small class="patient-list__closed">clos le <?= View::e($closedOn) ?></small>
                         <?php endif; ?>
+                    </td>
+                    <td>
+                        <?php if ($p['history'] === []) : ?>
+                            <span class="no-service">aucun</span>
+                        <?php else : ?>
+                            <?php $count = count($p['history']); ?>
+                            <details class="episode-history-toggle">
+                                <summary>
+                                    <?= View::render('components/icon', ['name' => 'history']) ?>
+                                    <?= $count ?> séjour<?= $count > 1 ? 's' : '' ?>
+                                    <span class="sr-only">de <?= View::e($name) ?></span>
+                                </summary>
+                                <?= View::render('components/episode_history', [
+                                    'episodes' => $p['history'],
+                                    'label' => 'Séjours de ' . $name . ', du plus récent au plus ancien',
+                                ]) ?>
+                            </details>
+                        <?php endif; ?>
+                    </td>
+                    <td>
+                        <a class="patient-list__delete" href="/patients/supprimer?id=<?= View::e($p['idPatient']) ?>"
+                           aria-label="Supprimer <?= View::e($name) ?>">Supprimer</a>
                     </td>
                 </tr>
             <?php endforeach; ?>

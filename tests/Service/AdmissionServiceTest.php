@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Aura\Tests\Service;
 
+use Aura\Domain\RecordFields;
 use Aura\Service\AdmissionService;
 use DateTimeImmutable;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -15,16 +16,16 @@ use PHPUnit\Framework\TestCase;
 final class AdmissionServiceTest extends TestCase
 {
     /** Date de référence fixe pour que « strictement dans le passé » soit déterministe. */
-    private const AUJOURDHUI = '2026-10-14';
+    private const TODAY = '2026-10-14';
 
-    private const DONNEES_VALIDES = [
-        'nom' => 'Durand',
-        'prenom' => 'Alice',
+    private const VALID_DATA = [
+        'lastName' => 'Durand',
+        'firstName' => 'Alice',
         'ipp' => '123456',
-        'dateNaissance' => '1990-06-15',
-        'sexe' => 'F',
-        'taille' => '168',
-        'poids' => '61.5',
+        'birthDate' => '1990-06-15',
+        'sex' => 'F',
+        'height' => '168',
+        'weight' => '61.5',
         'precautions' => 'Isolement contact',
     ];
 
@@ -32,281 +33,301 @@ final class AdmissionServiceTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->service = new AdmissionService(new DateTimeImmutable(self::AUJOURDHUI));
+        $this->service = new AdmissionService(new DateTimeImmutable(self::TODAY));
     }
 
     /** @return iterable<string, array{array<string, mixed>, string}> */
-    public static function champsObligatoiresManquants(): iterable
+    public static function missingRequiredFields(): iterable
     {
-        yield 'nom vide' => [['nom' => ''] + self::DONNEES_VALIDES, 'nom'];
-        yield 'nom espaces' => [['nom' => '   '] + self::DONNEES_VALIDES, 'nom'];
-        yield 'nom absent' => [array_diff_key(self::DONNEES_VALIDES, ['nom' => 1]), 'nom'];
-        yield 'nom non scalaire' => [['nom' => ['x']] + self::DONNEES_VALIDES, 'nom'];
-        yield 'prenom vide' => [['prenom' => ''] + self::DONNEES_VALIDES, 'prenom'];
-        yield 'prenom espaces' => [['prenom' => "\t "] + self::DONNEES_VALIDES, 'prenom'];
-        yield 'prenom absent' => [array_diff_key(self::DONNEES_VALIDES, ['prenom' => 1]), 'prenom'];
+        yield 'nom vide' => [['lastName' => ''] + self::VALID_DATA, 'lastName'];
+        yield 'nom espaces' => [['lastName' => '   '] + self::VALID_DATA, 'lastName'];
+        yield 'nom absent' => [array_diff_key(self::VALID_DATA, ['lastName' => 1]), 'lastName'];
+        yield 'nom non scalaire' => [['lastName' => ['x']] + self::VALID_DATA, 'lastName'];
+        yield 'prenom vide' => [['firstName' => ''] + self::VALID_DATA, 'firstName'];
+        yield 'prenom espaces' => [['firstName' => "\t "] + self::VALID_DATA, 'firstName'];
+        yield 'prenom absent' => [array_diff_key(self::VALID_DATA, ['firstName' => 1]), 'firstName'];
     }
 
     /** @param array<string, mixed> $donnees */
-    #[DataProvider('champsObligatoiresManquants')]
-    public function testChampObligatoireManquantDonneUneSeuleErreurSurCeChamp(array $donnees, string $champ): void
+    #[DataProvider('missingRequiredFields')]
+    public function testMissingRequiredFieldGivesSingleErrorOnThatField(array $data, string $field): void
     {
-        $erreurs = $this->service->valider($donnees);
+        $errors = $this->service->validate($data);
 
-        $this->assertSame([$champ], array_keys($erreurs), 'seul le champ manquant est en erreur');
-        $this->assertStringContainsString('obligatoire', $erreurs[$champ]);
+        $this->assertSame([$field], array_keys($errors), 'seul le champ manquant est en erreur');
+        $this->assertStringContainsString('obligatoire', $errors[$field]);
     }
 
-    public function testNomEtPrenomSansAutreChampSontValides(): void
+    public function testLastAndFirstNameWithoutOtherFieldAreValid(): void
     {
-        $this->assertSame([], $this->service->valider(['nom' => ' Martin ', 'prenom' => 'Paul']));
+        $this->assertSame([], $this->service->validate(['lastName' => ' Martin ', 'firstName' => 'Paul']));
     }
 
-    public function testNomEtPrenomAvecAutresChampsVidesSontValides(): void
+    public function testLastAndFirstNameWithOtherFieldsEmptyAreValid(): void
     {
-        $donnees = array_fill_keys(array_keys(self::DONNEES_VALIDES), '');
-        $donnees['nom'] = 'Martin';
-        $donnees['prenom'] = 'Paul';
+        $data = array_fill_keys(array_keys(self::VALID_DATA), '');
+        $data['lastName'] = 'Martin';
+        $data['firstName'] = 'Paul';
 
-        $this->assertSame([], $this->service->valider($donnees));
+        $this->assertSame([], $this->service->validate($data));
     }
 
-    public function testIppEstFacultatif(): void
+    /** Le décès n'est pas un champ d'admission : une valeur envoyée (formulaire forgé) est ignorée. */
+    public function testDeceasedIsNotAnAdmissionField(): void
     {
-        $this->assertSame([], $this->service->valider(['nom' => 'Martin', 'prenom' => 'Paul', 'ipp' => '']));
-        $this->assertSame([], $this->service->valider(['nom' => 'Martin', 'prenom' => 'Paul', 'ipp' => ' 987654 ']));
+        self::assertArrayNotHasKey('deceased', RecordFields::admissionPatientFields());
+        self::assertArrayHasKey('bloodType', RecordFields::admissionPatientFields());
+        self::assertSame([], $this->service->validate(self::VALID_DATA + ['deceased' => 'n\'importe quoi']));
+    }
+
+    public function testIppIsOptional(): void
+    {
+        $this->assertSame([], $this->service->validate(['lastName' => 'Martin', 'firstName' => 'Paul', 'ipp' => '']));
+        $this->assertSame(
+            [],
+            $this->service->validate(['lastName' => 'Martin', 'firstName' => 'Paul', 'ipp' => ' 987654 '])
+        );
     }
 
     /** @return iterable<string, array{string}> */
-    public static function ippInvalides(): iterable
+    public static function invalidIpps(): iterable
     {
         yield 'trop court' => ['12345'];
         yield 'trop long' => ['1234567890'];
-        yield 'lettres' => ['ABC123'];
+        yield 'letters' => ['ABC123'];
         yield 'espaces internes' => ['123 456'];
         yield 'négatif' => ['-123456'];
     }
 
-    #[DataProvider('ippInvalides')]
-    public function testIppHorsFormatEstRefuse(string $ipp): void
+    #[DataProvider('invalidIpps')]
+    public function testMalformedIppIsRejected(string $ipp): void
     {
-        $erreurs = $this->service->valider(['nom' => 'Martin', 'prenom' => 'Paul', 'ipp' => $ipp]);
+        $errors = $this->service->validate(['lastName' => 'Martin', 'firstName' => 'Paul', 'ipp' => $ipp]);
 
-        $this->assertSame(['ipp'], array_keys($erreurs));
+        $this->assertSame(['ipp'], array_keys($errors));
     }
 
-    public function testIppDeSixANeufChiffresEstAccepte(): void
+    public function testIppOfSixToNineDigitsIsAccepted(): void
     {
         foreach (['100000', '999999999'] as $ipp) {
-            $this->assertSame([], $this->service->valider(['nom' => 'Martin', 'prenom' => 'Paul', 'ipp' => $ipp]));
+            $this->assertSame(
+                [],
+                $this->service->validate(['lastName' => 'Martin', 'firstName' => 'Paul', 'ipp' => $ipp])
+            );
         }
     }
 
     /** AURA-15 : la recherche par IPP applique la même règle que l'admission, via validerIpp(). */
-    #[DataProvider('ippInvalides')]
-    public function testValiderIppRefuseLesMemesValeursQueLAdmission(string $ipp): void
+    #[DataProvider('invalidIpps')]
+    public function testValidateIppRejectsSameValuesAsAdmission(string $ipp): void
     {
-        $this->assertSame("L'IPP doit contenir entre 6 et 9 chiffres.", AdmissionService::validerIpp($ipp));
+        $this->assertSame(
+            "L'IPP doit contenir entre 6 et 9 chiffres et ne pas commencer par 0.",
+            AdmissionService::validateIpp($ipp)
+        );
     }
 
-    public function testValiderIppAccepteUnIppValideOuVide(): void
+    public function testValidateIppAcceptsValidOrEmptyIpp(): void
     {
-        $this->assertNull(AdmissionService::validerIpp(' 987654 '), 'les espaces autour sont ignorés');
-        $this->assertNull(AdmissionService::validerIpp('999999999'));
-        $this->assertNull(AdmissionService::validerIpp(''), 'facultatif (RG1)');
+        $this->assertNull(AdmissionService::validateIpp(' 987654 '), 'les espaces autour sont ignorés');
+        $this->assertNull(AdmissionService::validateIpp('999999999'));
+        $this->assertNull(AdmissionService::validateIpp(''), 'facultatif (RG1)');
     }
 
     /** @return iterable<string, array{string}> */
-    public static function datesDeNaissanceInvalides(): iterable
+    public static function invalidBirthDates(): iterable
     {
         yield 'mois et jour inexistants' => ['2026-13-45'];
         yield '30 février' => ['1990-02-30'];
         yield 'format français' => ['15/06/1990'];
-        yield 'texte' => ['hier'];
+        yield 'text' => ['yesterday'];
         yield 'date et heure' => ['1990-06-15 10:00'];
     }
 
-    #[DataProvider('datesDeNaissanceInvalides')]
-    public function testDateDeNaissanceInvalideEstRefusee(string $date): void
+    #[DataProvider('invalidBirthDates')]
+    public function testInvalidBirthDateIsRejected(string $date): void
     {
-        $erreurs = $this->service->valider(['dateNaissance' => $date] + self::DONNEES_VALIDES);
+        $errors = $this->service->validate(['birthDate' => $date] + self::VALID_DATA);
 
-        $this->assertSame(['dateNaissance'], array_keys($erreurs));
-        $this->assertStringContainsString('invalide', $erreurs['dateNaissance']);
-        $this->assertStringNotContainsString($date, $erreurs['dateNaissance'], 'la valeur saisie ne figure pas');
+        $this->assertSame(['birthDate'], array_keys($errors));
+        $this->assertStringContainsString('invalid', $errors['birthDate']);
+        $this->assertStringNotContainsString($date, $errors['birthDate'], 'la valeur saisie ne figure pas');
     }
 
     /** @return iterable<string, array{string}> */
-    public static function datesDeNaissanceNonPassees(): iterable
+    public static function nonPastBirthDates(): iterable
     {
         yield 'future' => ['2999-01-01'];
-        yield 'demain' => ['2026-10-15'];
-        yield "aujourd'hui" => [self::AUJOURDHUI];
+        yield 'tomorrow' => ['2026-10-15'];
+        yield "aujourd'hui" => [self::TODAY];
     }
 
-    #[DataProvider('datesDeNaissanceNonPassees')]
-    public function testDateDeNaissanceNonPasseeEstRefusee(string $date): void
+    #[DataProvider('nonPastBirthDates')]
+    public function testNonPastBirthDateIsRejected(string $date): void
     {
-        $erreurs = $this->service->valider(['dateNaissance' => $date] + self::DONNEES_VALIDES);
+        $errors = $this->service->validate(['birthDate' => $date] + self::VALID_DATA);
 
-        $this->assertSame(['dateNaissance'], array_keys($erreurs));
-        $this->assertStringContainsString('antérieure', $erreurs['dateNaissance']);
+        $this->assertSame(['birthDate'], array_keys($errors));
+        $this->assertStringContainsString('antérieure', $errors['birthDate']);
     }
 
-    public function testDateDeNaissanceDeLaVeilleEstAcceptee(): void
+    public function testBirthDateOfYesterdayIsAccepted(): void
     {
-        $this->assertSame([], $this->service->valider(['dateNaissance' => '2026-10-13'] + self::DONNEES_VALIDES));
+        $this->assertSame([], $this->service->validate(['birthDate' => '2026-10-13'] + self::VALID_DATA));
     }
 
     /** @return iterable<string, array{string}> */
-    public static function sexesHorsListe(): iterable
+    public static function sexesOutsideList(): iterable
     {
-        yield 'inconnu' => ['X'];
+        yield 'unknown' => ['X'];
         yield 'valeur formulaire non convertie (H)' => ['H'];
-        yield 'minuscule' => ['f'];
+        yield 'lowercase' => ['f'];
     }
 
-    #[DataProvider('sexesHorsListe')]
-    public function testSexeHorsListeEstRefuse(string $sexe): void
+    #[DataProvider('sexesOutsideList')]
+    public function testSexOutsideListIsRejected(string $sex): void
     {
-        $erreurs = $this->service->valider(['sexe' => $sexe] + self::DONNEES_VALIDES);
+        $errors = $this->service->validate(['sex' => $sex] + self::VALID_DATA);
 
-        $this->assertSame(['sexe'], array_keys($erreurs));
+        $this->assertSame(['sex'], array_keys($errors));
     }
 
-    public function testSexesAutorisesSontAcceptes(): void
+    public function testAllowedSexesAreAccepted(): void
     {
-        foreach (AdmissionService::SEXES_AUTORISES as $sexe) {
-            $this->assertSame([], $this->service->valider(['sexe' => $sexe] + self::DONNEES_VALIDES));
+        foreach (AdmissionService::ALLOWED_SEXES as $sex) {
+            $this->assertSame([], $this->service->validate(['sex' => $sex] + self::VALID_DATA));
         }
     }
 
     /** @return iterable<string, array{string, string}> */
-    public static function mesuresInvalides(): iterable
+    public static function invalidMeasures(): iterable
     {
-        yield 'taille texte' => ['taille', 'abc'];
-        yield 'taille négative' => ['taille', '-5'];
-        yield 'taille nulle' => ['taille', '0'];
-        yield 'poids nul' => ['poids', '0'];
-        yield 'poids négatif' => ['poids', '-70'];
-        yield 'poids avec unité' => ['poids', '70kg'];
+        yield 'taille texte' => ['height', 'abc'];
+        yield 'taille négative' => ['height', '-5'];
+        yield 'taille nulle' => ['height', '0'];
+        yield 'poids nul' => ['weight', '0'];
+        yield 'poids négatif' => ['weight', '-70'];
+        yield 'poids avec unité' => ['weight', '70kg'];
     }
 
-    #[DataProvider('mesuresInvalides')]
-    public function testTailleOuPoidsNonPositifEstRefuse(string $champ, string $valeur): void
+    #[DataProvider('invalidMeasures')]
+    public function testNonPositiveHeightOrWeightIsRejected(string $field, string $value): void
     {
-        $erreurs = $this->service->valider([$champ => $valeur] + self::DONNEES_VALIDES);
+        $errors = $this->service->validate([$field => $value] + self::VALID_DATA);
 
-        $this->assertSame([$champ], array_keys($erreurs));
-        $this->assertStringContainsString('strictement positif', $erreurs[$champ]);
+        $this->assertSame([$field], array_keys($errors));
+        $this->assertStringContainsString('strictement positif', $errors[$field]);
     }
 
     /** @return iterable<string, array{string, string, string}> */
-    public static function mesuresTropGrandes(): iterable
+    public static function tooLargeMeasures(): iterable
     {
-        yield 'taille de 1000 cm' => ['taille', '1000', 'inférieure à 1000 cm'];
-        yield 'poids de 1000 kg' => ['poids', '1000', 'inférieur à 1000 kg'];
-        yield 'poids arrondi à 1000' => ['poids', '999.995', 'inférieur à 1000 kg'];
-        yield 'notation exponentielle' => ['taille', '1e400', 'inférieure à 1000 cm'];
+        yield 'taille de 1000 cm' => ['height', '1000', 'inférieure à 1000 cm'];
+        yield 'poids de 1000 kg' => ['weight', '1000', 'inférieur à 1000 kg'];
+        yield 'poids arrondi à 1000' => ['weight', '999.995', 'inférieur à 1000 kg'];
+        yield 'notation exponentielle' => ['height', '1e400', 'inférieure à 1000 cm'];
     }
 
     /** AURA-10.1 : colonnes DECIMAL(5,2), une valeur trop grande serait refusée par MariaDB. */
-    #[DataProvider('mesuresTropGrandes')]
-    public function testTailleOuPoidsTropGrandEstRefuse(string $champ, string $valeur, string $message): void
+    #[DataProvider('tooLargeMeasures')]
+    public function testTooLargeHeightOrWeightIsRejected(string $field, string $value, string $message): void
     {
-        $erreurs = $this->service->valider([$champ => $valeur] + self::DONNEES_VALIDES);
+        $errors = $this->service->validate([$field => $value] + self::VALID_DATA);
 
-        $this->assertSame([$champ], array_keys($erreurs));
-        $this->assertStringContainsString($message, $erreurs[$champ]);
+        $this->assertSame([$field], array_keys($errors));
+        $this->assertStringContainsString($message, $errors[$field]);
     }
 
-    public function testMesuresALaLimiteDeLaColonneSontAcceptees(): void
+    public function testMeasuresAtColumnLimitAreAccepted(): void
     {
-        $limites = ['taille' => '999.99', 'poids' => '0.01'];
+        $limits = ['height' => '999.99', 'weight' => '0.01'];
 
-        $this->assertSame([], $this->service->valider($limites + self::DONNEES_VALIDES));
+        $this->assertSame([], $this->service->validate($limits + self::VALID_DATA));
     }
 
-    public function testPrecautionsDeCinqCentsCaracteresSontAcceptees(): void
+    public function testPrecautionsOfFiveHundredCharactersAreAccepted(): void
     {
         // Caractères accentués : la limite porte sur les caractères, pas les octets.
-        $precautions = str_repeat('é', AdmissionService::PRECAUTIONS_LONGUEUR_MAX);
+        $precautions = str_repeat('é', AdmissionService::PRECAUTIONS_MAX_LENGTH);
 
-        $this->assertSame([], $this->service->valider(['precautions' => $precautions] + self::DONNEES_VALIDES));
+        $this->assertSame([], $this->service->validate(['precautions' => $precautions] + self::VALID_DATA));
     }
 
-    public function testPrecautionsTropLonguesSontRefusees(): void
+    public function testTooLongPrecautionsAreRejected(): void
     {
-        $precautions = str_repeat('a', AdmissionService::PRECAUTIONS_LONGUEUR_MAX + 1);
+        $precautions = str_repeat('a', AdmissionService::PRECAUTIONS_MAX_LENGTH + 1);
 
-        $erreurs = $this->service->valider(['precautions' => $precautions] + self::DONNEES_VALIDES);
+        $errors = $this->service->validate(['precautions' => $precautions] + self::VALID_DATA);
 
-        $this->assertSame(['precautions'], array_keys($erreurs));
-        $this->assertStringContainsString('500 caractères', $erreurs['precautions']);
+        $this->assertSame(['precautions'], array_keys($errors));
+        $this->assertStringContainsString('500 caractères', $errors['precautions']);
     }
 
-    public function testUnRetourALaLigneDuNavigateurCompteUnSeulCaractere(): void
+    public function testBrowserLineBreakCountsAsOneCharacter(): void
     {
         // Le navigateur envoie \r\n, mais maxlength du textarea le compte pour un caractère.
         $precautions = str_repeat("a\r\n", 200);
 
-        $this->assertSame([], $this->service->valider(['precautions' => $precautions] + self::DONNEES_VALIDES));
+        $this->assertSame([], $this->service->validate(['precautions' => $precautions] + self::VALID_DATA));
     }
 
-    public function testJeuCompletValideNeDonneAucuneErreur(): void
+    public function testCompleteValidSetGivesNoError(): void
     {
-        $this->assertSame([], $this->service->valider(self::DONNEES_VALIDES));
+        $this->assertSame([], $this->service->validate(self::VALID_DATA));
     }
 
-    public function testLesErreursSeCumulentUneParChamp(): void
+    public function testErrorsAccumulateOnePerField(): void
     {
-        $erreurs = $this->service->valider([
-            'nom' => '',
-            'prenom' => ' ',
+        $errors = $this->service->validate([
+            'lastName' => '',
+            'firstName' => ' ',
             'ipp' => 'n’importe quoi',
-            'dateNaissance' => '2026-13-45',
-            'sexe' => 'X',
-            'taille' => 'abc',
-            'poids' => '0',
+            'birthDate' => '2026-13-45',
+            'sex' => 'X',
+            'height' => 'abc',
+            'weight' => '0',
         ]);
 
-        $this->assertSame(['nom', 'prenom', 'ipp', 'dateNaissance', 'sexe', 'taille', 'poids'], array_keys($erreurs));
+        $this->assertSame(
+            ['lastName', 'firstName', 'ipp', 'birthDate', 'sex', 'height', 'weight'],
+            array_keys($errors)
+        );
     }
 
-    public function testLaValidationNeModifiePasLesDonnees(): void
+    public function testValidationDoesNotChangeData(): void
     {
-        $donnees = self::DONNEES_VALIDES;
-        $this->service->valider($donnees);
+        $data = self::VALID_DATA;
+        $this->service->validate($data);
 
-        $this->assertSame(self::DONNEES_VALIDES, $donnees);
+        $this->assertSame(self::VALID_DATA, $data);
     }
 
-    public function testValiderPatientIgnoreLesChampsDuSejour(): void
+    public function testValidatePatientIgnoresEpisodeFields(): void
     {
-        $donnees = ['taille' => '-5', 'poids' => 'abc'] + self::DONNEES_VALIDES;
+        $data = ['height' => '-5', 'weight' => 'abc'] + self::VALID_DATA;
 
-        $this->assertSame([], $this->service->validerPatientIdentite($donnees));
-        $this->assertSame(['taille', 'poids'], array_keys($this->service->valider($donnees)));
+        $this->assertSame([], $this->service->validatePatientIdentity($data));
+        $this->assertSame(['height', 'weight'], array_keys($this->service->validate($data)));
     }
 
-    public function testValiderPatientAppliqueLesMemesReglesQueValider(): void
+    public function testValidatePatientAppliesSameRulesAsValidate(): void
     {
-        $donnees = ['nom' => '', 'ipp' => '12', 'sexe' => 'X'] + self::DONNEES_VALIDES;
+        $data = ['lastName' => '', 'ipp' => '12', 'sex' => 'X'] + self::VALID_DATA;
 
-        $this->assertSame($this->service->valider($donnees), $this->service->validerPatientIdentite($donnees));
-        $this->assertSame(['nom', 'ipp', 'sexe'], array_keys($this->service->validerPatientIdentite($donnees)));
+        $this->assertSame($this->service->validate($data), $this->service->validatePatientIdentity($data));
+        $this->assertSame(['lastName', 'ipp', 'sex'], array_keys($this->service->validatePatientIdentity($data)));
     }
     /** Champs complémentaires (catalogue RecordFields) : refus d'une valeur hors échelle, le reste intact. */
-    public function testScoreHorsEchelleEstRefuseSurSonChampSeulement(): void
+    public function testOutOfScaleScoreIsRejectedOnItsFieldOnly(): void
     {
-        $erreurs = $this->service->valider(self::DONNEES_VALIDES + ['asaScore' => 'VII', 'nyhaClass' => 'II']);
+        $errors = $this->service->validate(self::VALID_DATA + ['asaScore' => 'VII', 'nyhaClass' => 'II']);
 
-        self::assertSame(['asaScore'], array_keys($erreurs));
+        self::assertSame(['asaScore'], array_keys($errors));
     }
 
-    public function testChampsComplementairesValidesNeDonnentAucuneErreur(): void
+    public function testValidAdditionalFieldsGiveNoError(): void
     {
-        $donnees = self::DONNEES_VALIDES + [
+        $data = self::VALID_DATA + [
             'admissionReason' => 'Choc septique',
             'medicalHistory' => "HTA\nDiabète",
             'asaScore' => 'III',
@@ -317,48 +338,97 @@ final class AdmissionServiceTest extends TestCase
             'idService' => 'SRV01',
         ];
 
-        self::assertSame([], $this->service->valider($donnees));
+        self::assertSame([], $this->service->validate($data));
     }
 
-    public function testServiceInconnuDuReferentielEstRefuse(): void
+    public function testServiceMissingFromReferenceListIsRejected(): void
     {
-        $referentiels = ['services' => ['SRV01' => 'Réanimation médicale']];
+        $referenceDataSets = ['services' => ['SRV01' => 'Réanimation médicale']];
 
-        $erreurs = $this->service->valider(self::DONNEES_VALIDES + ['idService' => 'SRV99'], $referentiels);
+        $errors = $this->service->validate(self::VALID_DATA + ['idService' => 'SRV99'], $referenceDataSets);
 
-        self::assertSame(['idService'], array_keys($erreurs));
-        self::assertSame([], $this->service->valider(self::DONNEES_VALIDES + ['idService' => 'SRV01'], $referentiels));
+        self::assertSame(['idService'], array_keys($errors));
+        self::assertSame([], $this->service->validate(self::VALID_DATA + ['idService' => 'SRV01'], $referenceDataSets));
     }
 
-    public function testAllergeneInconnuDuReferentielEstRefuse(): void
+    public function testAllergenMissingFromReferenceListIsRejected(): void
     {
-        $referentiels = ['substances' => ['ALG01' => 'Pénicilline']];
+        $referenceDataSets = ['substances' => ['ALG01' => 'Pénicilline']];
 
-        $erreurs = $this->service->valider(self::DONNEES_VALIDES + ['allergies' => ['ALG01', 'ALG99']], $referentiels);
+        $errors = $this->service->validate(self::VALID_DATA + ['allergies' => ['ALG01', 'ALG99']], $referenceDataSets);
 
-        self::assertSame(['allergies'], array_keys($erreurs));
+        self::assertSame(['allergies'], array_keys($errors));
         self::assertSame(
             [],
-            $this->service->valider(self::DONNEES_VALIDES + ['allergies' => ['ALG01']], $referentiels)
+            $this->service->validate(self::VALID_DATA + ['allergies' => ['ALG01']], $referenceDataSets)
         );
-        self::assertSame([], $this->service->valider(self::DONNEES_VALIDES + ['allergies' => ''], $referentiels));
+        self::assertSame([], $this->service->validate(self::VALID_DATA + ['allergies' => ''], $referenceDataSets));
     }
 
-    public function testSansReferentielLeControleDAppartenanceEstDesactive(): void
+    public function testWithoutReferenceListMembershipCheckIsDisabled(): void
     {
         // Les tests unitaires et les pages sans base n'ont pas de référentiel : rien n'est refusé ici,
         // la base refusera de toute façon une clé étrangère inconnue.
-        self::assertSame([], $this->service->valider(self::DONNEES_VALIDES + ['idService' => 'SRV99']));
+        self::assertSame([], $this->service->validate(self::VALID_DATA + ['idService' => 'SRV99']));
     }
 
-    public function testCriticiteDAllergieInconnueEstRefuseeSousLaListeDesAllergies(): void
+    /** Médecins proposés comme référent (retours du 2026-11-03), lus en base par l'appelant. */
+    private const DOCTORS = ['PRA01' => 'Dr Claire Morel', 'PRA02' => 'Dr Karim Benali'];
+
+    /** @return iterable<string, array{mixed}> */
+    public static function acceptedReferringPractitioners(): iterable
     {
-        $erreurs = $this->service->valider(self::DONNEES_VALIDES + [
+        yield 'médecin de la liste' => ['PRA02'];
+        yield 'à désigner (vide)' => [''];
+        yield 'à désigner (espaces)' => ['   '];
+        yield 'champ absent' => [null];
+        // Comme les autres champs : une valeur non textuelle (formulaire forgé) vaut « vide ».
+        yield 'non scalaire' => [['PRA01']];
+    }
+
+    #[DataProvider('acceptedReferringPractitioners')]
+    public function testReferringPractitionerFromListOrToBeDesignatedIsAccepted(mixed $value): void
+    {
+        $data = $value === null ? self::VALID_DATA : self::VALID_DATA + ['idReferringPractitioner' => $value];
+
+        self::assertSame([], $this->service->validate($data, ['doctors' => self::DOCTORS]));
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function rejectedReferringPractitioners(): iterable
+    {
+        yield 'interne (praticien, pas médecin de la liste)' => ['PRA03'];
+        yield 'identifiant inconnu' => ['PRA99'];
+        yield 'casse différente' => ['pra01'];
+        yield 'injection' => ["PRA01' OR '1'='1"];
+    }
+
+    #[DataProvider('rejectedReferringPractitioners')]
+    public function testReferringPractitionerOutsideDoctorListIsRejectedOnItsFieldOnly(string $value): void
+    {
+        $errors = $this->service->validate(
+            self::VALID_DATA + ['idReferringPractitioner' => $value],
+            ['doctors' => self::DOCTORS]
+        );
+
+        self::assertSame(['idReferringPractitioner'], array_keys($errors));
+        self::assertStringNotContainsString($value, $errors['idReferringPractitioner'], 'valeur saisie non reprise');
+    }
+
+    public function testWithoutDoctorListReferringPractitionerIsNotChecked(): void
+    {
+        // Comme pour le service : sans référentiel (tests, page sans base), la clé étrangère protège la base.
+        self::assertSame([], $this->service->validate(self::VALID_DATA + ['idReferringPractitioner' => 'PRA99']));
+    }
+
+    public function testUnknownAllergyCriticalityIsRejectedUnderAllergyList(): void
+    {
+        $errors = $this->service->validate(self::VALID_DATA + [
             'allergies' => ['ALG01'], 'allergyCriticalities' => ['ALG01' => 'Mortelle'],
         ]);
 
-        self::assertSame(['allergyCriticalities'], array_keys($erreurs));
-        self::assertSame([], $this->service->valider(self::DONNEES_VALIDES + [
+        self::assertSame(['allergyCriticalities'], array_keys($errors));
+        self::assertSame([], $this->service->validate(self::VALID_DATA + [
             'allergies' => ['ALG01', 'ALG02'], 'allergyCriticalities' => ['ALG01' => 'Élevée', 'ALG02' => ''],
         ]));
     }

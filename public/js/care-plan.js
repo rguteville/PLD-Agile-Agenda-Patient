@@ -1,21 +1,40 @@
 // AURA-20 / AURA-21 : écran B3 « Nouvelles prescriptions » (src/View/pages/careplan/form.php).
-// Listes en cascade 1. → 2. → 3., fiche de paramètres (figure 9), puis « OK » ajoute la ligne à
-// l'ordonnance en cours (« Prescriptions non sauvegardées »). L'envoi est fait par form.js et le
-// serveur revérifie tout (CarePlanService::checkInput) : les contrôles ici évitent seulement
-// d'apprendre une erreur au moment d'enregistrer.
+// Listes en cascade Catégorie → Médicament / Soin / Protocole → Forme galénique, fiche de paramètres
+// (figure 9), puis « OK » ajoute la ligne à l'ordonnance en cours (« Prescriptions non sauvegardées »).
+// L'envoi est fait par form.js et le serveur revérifie tout (CarePlanService::checkInput, prescribe) :
+// les contrôles ici évitent seulement d'apprendre une erreur au moment d'enregistrer.
+// Retours du 2026-11-03 : alerte allergie dès le choix d'un médicament qui contient un allergène du
+// patient, et case « Je prescris malgré l'allergie » tant que l'ordonnance en contient un (le serveur
+// refuse l'ordonnance sans elle).
+//
+// Chargé par CarePlanController (GET /care-plans/new?idEpisodeOfCare=…, et l'écran réaffiché après un
+// refus). Attend : #care-plan-form (data-lists, JSON), #category (options data-kind), #item,
+// #dosage-form, les fiches #b3-medication-params, #b3-care-params, #b3-group-params, les zones
+// #b3-message, #b3-allergy, #b3-notice, #b3-warning, #b3-lines (champs cachés), #b3-cart,
+// #b3-allergy-confirm, #allergyOverride, #mode et #idPrescriber (options data-doctor).
+// Appel réseau : GET /care-plans/protocol-lines?idPlanDefinition=…&startDate=AAAA-MM-JJTHH:MM, en JSON :
+// {ok: true, lines} ou 422 {ok: false, errors}. Lecture seule, sans jeton CSRF ; l'enregistrement de
+// l'ordonnance passe par form.js (champ csrf).
 
 const carePlanForm = document.getElementById('care-plan-form');
 
 if (carePlanForm) {
     // { careTypes: { idActivityDefinition: nom }, medications: { DCI: { idMedication: forme } },
-    //   planDefinitions: { idPlanDefinition: « titre (pathologie) » } }
+    //   activeMedications: { idMedication: true }, planDefinitions: { idPlanDefinition: « titre (pathologie) » },
+    //   medicationAllergens: { idMedication: allergène du patient } }
     const lists = JSON.parse(carePlanForm.dataset.lists);
+    const allergens = lists.medicationAllergens ?? {};
     const $ = selector => carePlanForm.querySelector(selector);
 
     const category = $('#category');
     const item = $('#item');
+    const itemLabel = $('#item-label');
     const dosageForm = $('#dosage-form');
     const message = $('#b3-message');
+    const allergyAlert = $('#b3-allergy');
+    const allergyConfirm = document.getElementById('b3-allergy-confirm');
+    const allergyList = document.getElementById('b3-allergy-list');
+    const allergyOverride = document.getElementById('allergyOverride');
     const warning = $('#b3-warning');
     const medicationParams = $('#b3-medication-params');
     const careParams = $('#b3-care-params');
@@ -24,15 +43,27 @@ if (carePlanForm) {
     const cart = document.getElementById('b3-cart');
     let counter = 0;
 
+    // Libellé de la deuxième liste selon la catégorie choisie.
+    const ITEM_LABELS = { MEDICATION: 'Médicament (DCI)', CARE: 'Soin', GROUP: 'Protocole' };
+
+    // Remplace les options d'une liste ; liste désactivée si elle est vide.
     function fill(select, options) {
-        select.replaceChildren(new Option('', ''));
+        const empty = Object.keys(options).length === 0;
+        select.replaceChildren(new Option(empty ? '' : 'Choisir', ''));
         Object.entries(options).forEach(([value, label]) => select.add(new Option(label, value)));
         select.disabled = Object.keys(options).length === 0;
     }
 
+    // Message d'erreur de saisie (#b3-message), masqué si le texte est vide.
     function showMessage(text) {
         message.textContent = text;
         message.hidden = text === '';
+    }
+
+    // Alerte allergie (#b3-allergy), masquée si le texte est vide.
+    function showAllergy(text) {
+        allergyAlert.textContent = text;
+        allergyAlert.hidden = text === '';
     }
 
     const chosenLabel = select => select.selectedOptions[0]?.textContent.trim() ?? '';
@@ -52,18 +83,21 @@ if (carePlanForm) {
         return `${dayOfMonth}/${month}/${year} ${time}`;
     }
 
+    // Vide une fiche de paramètres et masque ses blocs « heures » et « jours ».
     function clearParams(params) {
         params.querySelectorAll('input:not(:disabled)').forEach(input => { input.value = ''; });
         params.querySelectorAll('select').forEach(select => { select.selectedIndex = 0; });
         params.querySelectorAll('[id$="hours-block"], [id$="days-block"]').forEach(block => { block.hidden = true; });
     }
 
+    // Masque les trois fiches (médicament, soin, protocole).
     function closeParams() {
         medicationParams.hidden = true;
         careParams.hidden = true;
         groupParams.hidden = true;
     }
 
+    // Ouvre une fiche vide, titrée par la catégorie choisie.
     function openParams(params) {
         closeParams();
         clearParams(params);
@@ -71,12 +105,14 @@ if (carePlanForm) {
         params.hidden = false;
     }
 
-    // ── Liste « 1. » : la catégorie décide du contenu de « 2. » et « 3. »
+    // ── Liste « Catégorie » : décide du contenu (et du libellé) de la deuxième liste et de « Forme galénique »
     category.addEventListener('change', () => {
         closeParams();
         fill(dosageForm, {});
         showMessage('');
+        showAllergy('');
         const kind = categoryKind();
+        itemLabel.textContent = ITEM_LABELS[kind] ?? 'Prescription';
         if (kind === 'MEDICATION') {
             const inns = {};
             Object.keys(lists.medications).forEach(inn => { inns[inn] = inn; });
@@ -93,12 +129,20 @@ if (carePlanForm) {
         }
     });
 
-    // ── Liste « 2. » : médicament → ses formes en « 3. » ; soin ou protocole → sa fiche
+    // ── Deuxième liste : médicament (DCI) → ses formes ; soin ou protocole → sa fiche
     item.addEventListener('change', () => {
         showMessage('');
+        showAllergy('');
         if (categoryKind() === 'MEDICATION') {
             closeParams();
-            fill(dosageForm, lists.medications[item.value] ?? {});
+            const forms = lists.medications[item.value] ?? {};
+            fill(dosageForm, forms);
+            // Alerte dès le choix du médicament, si une de ses formes contient un allergène du patient.
+            const found = [...new Set(Object.keys(forms).filter(id => allergens[id]).map(id => allergens[id]))];
+            if (found.length > 0) {
+                showAllergy(`Allergie : le patient est allergique à ${found.join(', ')}, contenu dans `
+                    + `${chosenLabel(item)}. Prescription possible seulement avec confirmation explicite.`);
+            }
         } else if (categoryKind() === 'CARE' && item.value !== '') {
             openParams(careParams);
             $('#care-name').value = chosenLabel(item);
@@ -112,8 +156,13 @@ if (carePlanForm) {
         }
     });
 
-    // ── Liste « 3. » : forme choisie → fiche de paramètres de la figure 9
+    // ── Liste « Forme galénique » : forme choisie → fiche de paramètres de la figure 9
     dosageForm.addEventListener('change', () => {
+        const allergen = allergens[dosageForm.value];
+        showAllergy(allergen
+            ? `Allergie : le patient est allergique à ${allergen}, contenu dans ${chosenLabel(item)} `
+                + `(${chosenLabel(dosageForm)}). Prescription possible seulement avec confirmation explicite.`
+            : '');
         if (dosageForm.value === '') {
             closeParams();
             return;
@@ -242,6 +291,7 @@ if (carePlanForm) {
         return { category: categoryLabel, label, fields, key: Object.values(fields).join('|') };
     }
 
+    // Lecture de la fiche d'un soin : renvoie la ligne à ajouter, ou { error }.
     function careLine() {
         const frequencyType = $('#care-frequency').value;
         const fields = {
@@ -264,6 +314,7 @@ if (carePlanForm) {
     const inCart = line => [...hiddenLines.children].some(block => block.dataset.key === line.key);
     const notice = document.getElementById('b3-notice');
 
+    // Avertissement non bloquant (#b3-notice : doublon possible), masqué si le texte est vide.
     function showNotice(text) {
         notice.textContent = text;
         notice.hidden = text === '';
@@ -302,6 +353,7 @@ if (carePlanForm) {
         addToCart(line);
 
         showMessage('');
+        showAllergy('');
         params.hidden = true;
         item.value = '';
         fill(dosageForm, {});
@@ -314,8 +366,12 @@ if (carePlanForm) {
         const n = counter++;
         const block = document.createElement('div');
         block.dataset.key = line.key;
+        const allergen = line.fields.kind === 'MEDICATION' ? allergens[line.fields.idMedication] : undefined;
         if (line.fields.kind === 'MEDICATION') {
             block.dataset.medication = line.fields.idMedication;
+        }
+        if (allergen) {
+            block.dataset.allergen = allergen;
         }
         Object.entries(line.fields).forEach(([field, value]) => {
             const input = document.createElement('input');
@@ -329,7 +385,15 @@ if (carePlanForm) {
         // Ligne visible du panier, avec son bouton « Retirer »
         const row = cart.insertRow();
         row.insertCell().textContent = line.category;
-        row.insertCell().textContent = line.label;
+        const labelCell = row.insertCell();
+        if (allergen) {
+            row.classList.add('b3-cart-allergy');
+            const flag = document.createElement('strong');
+            flag.className = 'allergy-flag';
+            flag.textContent = `Allergie (${allergen}) : `;
+            labelCell.appendChild(flag);
+        }
+        labelCell.appendChild(document.createTextNode(line.label));
         const remove = document.createElement('button');
         remove.type = 'button';
         remove.className = 'b3-remove';
@@ -339,8 +403,33 @@ if (carePlanForm) {
             row.remove();
             block.remove();
             showNotice('');
+            refreshAllergyConfirm();
         });
         row.insertCell().appendChild(remove);
+        refreshAllergyConfirm();
+    }
+
+    // Case « Je prescris malgré l'allergie » : visible tant qu'une ligne de l'ordonnance contient un
+    // allergène du patient. Sa valeur est la liste des médicaments allergènes (CarePlanService::
+    // allergySignature()) ; elle se décoche dès que cette liste change : une confirmation ne vaut que pour
+    // ce qu'on voyait en la cochant, le serveur le vérifie.
+    function refreshAllergyConfirm() {
+        const blocks = [...hiddenLines.children].filter(block => block.dataset.allergen);
+        const signature = [...new Set(blocks.map(block => block.dataset.medication))].sort().join(',');
+        if (signature !== allergyOverride.value) {
+            allergyOverride.checked = false;
+            allergyOverride.value = signature;
+        }
+        allergyList.replaceChildren(...blocks.map(block => {
+            const li = document.createElement('li');
+            const [inn, form] = medicationNames[block.dataset.medication] ?? [block.dataset.medication, ''];
+            li.textContent = `${inn}${form ? ` (${form})` : ''} : allergie à ${block.dataset.allergen}`;
+            return li;
+        }));
+        allergyConfirm.hidden = blocks.length === 0;
+        if (blocks.length === 0) {
+            allergyOverride.checked = false;
+        }
     }
 
     // idMedication → [DCI, forme], pour le libellé des lignes d'un protocole.
@@ -369,7 +458,7 @@ if (carePlanForm) {
             return;
         }
         if (!body.ok) {
-            showMessage(Object.values(body.erreurs ?? {}).join(' ') || 'Ce protocole ne peut pas être appliqué.');
+            showMessage(Object.values(body.errors ?? {}).join(' ') || 'Ce protocole ne peut pas être appliqué.');
             return;
         }
 
@@ -407,6 +496,7 @@ if (carePlanForm) {
     $('#group-ok').addEventListener('click', addGroup);
     carePlanForm.querySelectorAll('.b3-cancel').forEach(button => button.addEventListener('click', () => {
         showNotice('');
+        showAllergy('');
         closeParams();
         item.value = '';
         fill(dosageForm, {});

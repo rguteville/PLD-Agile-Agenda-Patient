@@ -7,12 +7,16 @@ namespace Aura\Service;
 use Aura\Dao\PatientDao;
 use Aura\Dao\Transaction;
 use Aura\Domain\Patient;
-use Aura\Domain\Sejour;
+use Aura\Domain\EpisodeOfCare;
 use DateTimeImmutable;
 use InvalidArgumentException;
 
 /**
- * Admission des patients dans le service.
+ * Admission des patients dans le service, première version (avant AURA-10.4).
+ *
+ * N'est pas câblé dans public/index.php : l'admission réelle passe par AdmissionService. Seul
+ * tests/Service/PatientServiceTest l'utilise encore. Ses règles (patient sous X, e-mail de 100
+ * caractères) diffèrent de celles d'AdmissionService.
  *
  * Le système fonctionne en autonome : la base ne contient que les patients ayant
  * déjà fait un séjour dans le service. Un « patient existant » est donc un patient
@@ -20,16 +24,16 @@ use InvalidArgumentException;
  * avec le dossier patient (OpenEMR) sera faite plus tard.
  *
  * Parcours prévu côté interface :
- *  1. rechercherPatientExistant($formulaire) ;
- *  2a. patient trouvé et lien validé par le personnel : admettrePatientExistant($idPatient, $lit, $box) ;
- *  2b. sinon : inscrirePatient($formulaire).
- * Le séjour (lit, box, sortie…) est ensuite géré par SejourService.
+ *  1. searchExistingPatient($data) ;
+ *  2a. patient trouvé et lien validé par le personnel : admitExistingPatient($idPatient, $bedNumber, $boxNumber) ;
+ *  2b. sinon : registerPatient($data).
+ * Le séjour (lit, box, sortie…) est ensuite géré par EpisodeOfCareService.
  */
 class PatientService
 {
     public function __construct(
         private PatientDao $patientDao,
-        private SejourService $sejourService,
+        private EpisodeOfCareService $episodeOfCareService,
         private Transaction $transaction
     ) {
     }
@@ -40,6 +44,11 @@ class PatientService
         return $this->patientDao->findAll();
     }
 
+    /**
+     * Patient par son identifiant interne.
+     *
+     * @throws \RuntimeException si le patient n'existe pas
+     */
     public function getPatient(int $id): Patient
     {
         $patient = $this->patientDao->findById($id);
@@ -54,11 +63,11 @@ class PatientService
     /**
      * Séjours précédents (et en cours) d'un patient, du plus récent au plus ancien.
      *
-     * @return Sejour[]
+     * @return EpisodeOfCare[]
      */
-    public function getSejoursPatient(int $idPatient): array
+    public function getPatientEpisodesOfCare(int $idPatient): array
     {
-        return $this->sejourService->getSejoursPatient($idPatient);
+        return $this->episodeOfCareService->getPatientEpisodesOfCare($idPatient);
     }
 
     /**
@@ -68,40 +77,40 @@ class PatientService
      *
      * @param array<string, mixed> $data
      */
-    public function rechercherPatientExistant(array $data): ?Patient
+    public function searchExistingPatient(array $data): ?Patient
     {
-        $nom = $this->texte($data['nom'] ?? null) ?? '';
-        $prenom = $this->texte($data['prenom'] ?? null) ?? '';
-        if ($this->estSousX($nom, $prenom)) {
+        $lastName = $this->text($data['lastName'] ?? null) ?? '';
+        $firstName = $this->text($data['firstName'] ?? null) ?? '';
+        if ($this->isUnderX($lastName, $firstName)) {
             return null;
         }
 
-        $ipp = $this->texte($data['ipp'] ?? null);
+        $ipp = $this->text($data['ipp'] ?? null);
         if ($ipp !== null) {
             return $this->patientDao->findByIpp($ipp);
         }
 
-        $dateNaissance = $this->parserDate($this->texte($data['date_naissance'] ?? null));
-        if ($nom === '' || $prenom === '' || $dateNaissance === null) {
+        $birthDate = $this->parseDate($this->text($data['birthDate'] ?? null));
+        if ($lastName === '' || $firstName === '' || $birthDate === null) {
             return null;
         }
 
-        $trouves = $this->patientDao->findByIdentite($nom, $prenom, $dateNaissance);
+        $foundItems = $this->patientDao->findByIdentity($lastName, $firstName, $birthDate);
 
-        return count($trouves) === 1 ? $trouves[0] : null;
+        return count($foundItems) === 1 ? $foundItems[0] : null;
     }
 
     /**
      * Inscrit un nouveau patient et ouvre son séjour (date de prise en charge = maintenant).
-     * Le formulaire peut indiquer le lit (num_lit) et le box (num_box) attribués.
+     * Le formulaire peut indiquer le lit (bedNumber) et le box (boxNumber) attribués.
      * Patient et séjour sont créés ensemble : si le séjour est refusé, le patient n'est pas créé.
      *
      * @param array<string, mixed> $data données du formulaire
      * @throws InvalidArgumentException si les données sont invalides
      */
-    public function inscrirePatient(array $data): Sejour
+    public function registerPatient(array $data): EpisodeOfCare
     {
-        $patient = $this->validerFormulaire($data);
+        $patient = $this->validateForm($data);
 
         if ($patient->getIpp() !== null && $this->patientDao->existsByIpp($patient->getIpp())) {
             throw new InvalidArgumentException(
@@ -110,13 +119,13 @@ class PatientService
             );
         }
 
-        $numLit = $this->texte($data['num_lit'] ?? null);
-        $numBox = $this->texte($data['num_box'] ?? null);
+        $bedNumber = $this->text($data['bedNumber'] ?? null);
+        $boxNumber = $this->text($data['boxNumber'] ?? null);
 
-        return $this->transaction->run(function () use ($patient, $numLit, $numBox): Sejour {
+        return $this->transaction->run(function () use ($patient, $bedNumber, $boxNumber): EpisodeOfCare {
             $idPatient = $this->patientDao->insert($patient);
 
-            return $this->sejourService->ouvrirSejour($idPatient, $numLit, $numBox);
+            return $this->episodeOfCareService->openEpisodeOfCare($idPatient, $bedNumber, $boxNumber);
         });
     }
 
@@ -126,68 +135,73 @@ class PatientService
      *
      * @throws InvalidArgumentException si le patient n'existe pas, est déjà hospitalisé ou si le lit/box est pris
      */
-    public function admettrePatientExistant(int $idPatient, ?string $numLit = null, ?string $numBox = null): Sejour
-    {
+    public function admitExistingPatient(
+        int $idPatient,
+        ?string $bedNumber = null,
+        ?string $boxNumber = null
+    ): EpisodeOfCare {
         if ($this->patientDao->findById($idPatient) === null) {
             throw new InvalidArgumentException("Patient $idPatient introuvable");
         }
 
         return $this->transaction->run(
-            fn(): Sejour => $this->sejourService->ouvrirSejour($idPatient, $numLit, $numBox)
+            fn(): EpisodeOfCare => $this->episodeOfCareService->openEpisodeOfCare($idPatient, $bedNumber, $boxNumber)
         );
     }
 
     /**
-     * Contrôle les données du formulaire et construit le patient.
+     * Contrôle les données du formulaire et construit le patient. Patient sous X (nom et prénom « X ») :
+     * date de naissance facultative, IPP interdit.
      *
      * @param array<string, mixed> $data
+     * @throws InvalidArgumentException au premier champ invalide (message affichable)
      */
-    private function validerFormulaire(array $data): Patient
+    private function validateForm(array $data): Patient
     {
-        $nom = $this->texte($data['nom'] ?? null) ?? '';
-        $prenom = $this->texte($data['prenom'] ?? null) ?? '';
-        $sexe = strtoupper($this->texte($data['sexe'] ?? null) ?? '');
-        $dateSaisie = $this->texte($data['date_naissance'] ?? null);
-        $ipp = $this->texte($data['ipp'] ?? null);
-        $telephone = $this->texte($data['telephone'] ?? null);
-        $email = $this->texte($data['email'] ?? null);
-        $sousX = $this->estSousX($nom, $prenom);
+        $lastName = $this->text($data['lastName'] ?? null) ?? '';
+        $firstName = $this->text($data['firstName'] ?? null) ?? '';
+        $sex = strtoupper($this->text($data['sex'] ?? null) ?? '');
+        $birthDateInput = $this->text($data['birthDate'] ?? null);
+        $ipp = $this->text($data['ipp'] ?? null);
+        $phone = $this->text($data['phone'] ?? null);
+        $email = $this->text($data['email'] ?? null);
+        $underX = $this->isUnderX($lastName, $firstName);
 
-        if ($nom === '' || $prenom === '') {
+        if ($lastName === '' || $firstName === '') {
             throw new InvalidArgumentException(
                 'Le nom et le prénom du patient sont obligatoires (indiquer X si l\'identité est inconnue)'
             );
         }
-        if (!preg_match('/^.{1,50}$/u', $nom) || !preg_match('/^.{1,50}$/u', $prenom)) {
+        if (!preg_match('/^.{1,50}$/u', $lastName) || !preg_match('/^.{1,50}$/u', $firstName)) {
             throw new InvalidArgumentException('Le nom et le prénom ne doivent pas dépasser 50 caractères');
         }
-        if (!in_array($sexe, ['M', 'F'], true)) {
+        if (!in_array($sex, ['M', 'F'], true)) {
             throw new InvalidArgumentException('Le sexe doit être M ou F');
         }
 
         // Patient sous X : identité inconnue, la date de naissance peut manquer.
-        $dateNaissance = null;
-        if ($dateSaisie !== null) {
-            $dateNaissance = $this->parserDate($dateSaisie);
-            if ($dateNaissance === null) {
+        $birthDate = null;
+        if ($birthDateInput !== null) {
+            $birthDate = $this->parseDate($birthDateInput);
+            if ($birthDate === null) {
                 throw new InvalidArgumentException('La date de naissance est invalide (format AAAA-MM-JJ)');
             }
-            if ($dateNaissance > new DateTimeImmutable()) {
+            if ($birthDate > new DateTimeImmutable()) {
                 throw new InvalidArgumentException('La date de naissance ne peut pas être dans le futur');
             }
-        } elseif (!$sousX) {
+        } elseif (!$underX) {
             throw new InvalidArgumentException('La date de naissance est obligatoire');
         }
 
         if ($ipp !== null) {
-            if ($sousX) {
+            if ($underX) {
                 throw new InvalidArgumentException('Un patient sous X ne peut pas avoir d\'IPP');
             }
             if (!preg_match('/^\d{6,9}$/', $ipp)) {
                 throw new InvalidArgumentException("L'IPP doit contenir entre 6 et 9 chiffres");
             }
         }
-        if ($telephone !== null && !preg_match('/^\d{10}$/', $telephone)) {
+        if ($phone !== null && !preg_match('/^\d{10}$/', $phone)) {
             throw new InvalidArgumentException('Le téléphone doit contenir 10 chiffres');
         }
         if ($email !== null && (strlen($email) > 100 || filter_var($email, FILTER_VALIDATE_EMAIL) === false)) {
@@ -197,39 +211,40 @@ class PatientService
         return new Patient(
             idPatient: null,
             ipp: $ipp,
-            nom: $sousX ? 'X' : $nom,
-            prenom: $sousX ? 'X' : $prenom,
-            dateNaissance: $dateNaissance,
-            sexe: $sexe,
-            telephone: $telephone,
+            lastName: $underX ? 'X' : $lastName,
+            firstName: $underX ? 'X' : $firstName,
+            birthDate: $birthDate,
+            sex: $sex,
+            phone: $phone,
             email: $email
         );
     }
 
-    private function estSousX(string $nom, string $prenom): bool
+    /** Patient sous X : nom et prénom valent « X » (sans casse), identité volontairement inconnue. */
+    private function isUnderX(string $lastName, string $firstName): bool
     {
-        return strtoupper($nom) === 'X' && strtoupper($prenom) === 'X';
+        return strtoupper($lastName) === 'X' && strtoupper($firstName) === 'X';
     }
 
     /** Date au format AAAA-MM-JJ, ou null si absente ou invalide (ex. 1980-02-31). */
-    private function parserDate(?string $saisie): ?DateTimeImmutable
+    private function parseDate(?string $input): ?DateTimeImmutable
     {
-        if ($saisie === null) {
+        if ($input === null) {
             return null;
         }
-        $date = DateTimeImmutable::createFromFormat('!Y-m-d', $saisie);
+        $date = DateTimeImmutable::createFromFormat('!Y-m-d', $input);
 
-        return $date !== false && $date->format('Y-m-d') === $saisie ? $date : null;
+        return $date !== false && $date->format('Y-m-d') === $input ? $date : null;
     }
 
     /** Nettoie une valeur saisie : null si absente ou vide. */
-    private function texte(mixed $valeur): ?string
+    private function text(mixed $value): ?string
     {
-        if (!is_string($valeur)) {
+        if (!is_string($value)) {
             return null;
         }
-        $valeur = trim($valeur);
+        $value = trim($value);
 
-        return $valeur === '' ? null : $valeur;
+        return $value === '' ? null : $value;
     }
 }

@@ -3,49 +3,87 @@
 use Aura\Core\View;
 
 /**
- * Dialogue de validation d'un soin : qui valide, quand, note facultative (balisage et accessibilité
- * seulement). L'enregistrement en base n'existe pas encore : il demande une route POST, une règle
- * métier et une colonne « validé par » sur Appointment (diff de schéma à proposer au responsable
- * BDD). D'ici là, le formulaire est en method="dialog" : « Valider » ferme la fenêtre sans rien
- * envoyer, et le dialogue n'est rendu que si le contrôleur passe validationEnabled = true.
+ * Dialogue d'action sur un soin (AURA-26, AURA-28). Bouton « Valider » : choix « Réalisé » (qui, quand)
+ * ou « Non effectué » (motif obligatoire). Bouton « Note » : note seule, le choix est masqué (action
+ * « note », radio caché). L'option visible « Note seulement » a été retirée le 2026-11-04.
+ * Ouvert par les boutons de components/care_buttons (data-care-action) ; public/js/agenda.js l'envoie en
+ * JSON à POST /agenda-patient/soin (en-tête X-CSRF-Token) et recharge la page. Sans JavaScript, le
+ * formulaire part en POST classique (champ csrf) et le serveur renvoie à la page d'origine (champ back).
+ * Inclus par pages/episode/patient-agenda.php, pages/service/consolidated-view.php et
+ * pages/team/planning.php, seulement quand la validation est activée.
  *
- * @var array<string, string> $validators idPractitioner => « nom (rôle) »
+ * Authentification FACTICE (comme les parties du dossier) : soignant + mot de passe non vérifié.
+ *
+ * @var array<string, string> $validators idPractitioner => « Prénom Nom (rôle) »
+ * @var string $csrfToken jeton de session de l'endpoint
+ * @var string $back page d'origine, pour le retour sans JavaScript ; '' par défaut
  */
+$back = $back ?? '';
 ?>
 <dialog id="validation-dialog" class="dialog" aria-labelledby="validation-dialog-title">
-    <form method="dialog" class="dialog-form">
-        <h2 id="validation-dialog-title">Valider un soin</h2>
+    <form method="post" action="/agenda-patient/soin" class="dialog-form" data-care-form
+          data-csrf="<?= View::e($csrfToken) ?>">
+        <h2 id="validation-dialog-title">Soin</h2>
         <p class="dialog-context" data-dialog-context aria-live="polite"></p>
+        <p class="dialog-allergies" data-dialog-allergies hidden></p>
+        <input type="hidden" name="csrf" value="<?= View::e($csrfToken) ?>">
+        <input type="hidden" name="episodeOfCare" value="">
+        <input type="hidden" name="appointment" value="">
+        <input type="hidden" name="back" value="<?= View::e($back) ?>">
 
-        <div class="dialog-field">
-            <label for="validation-validator">Validé par</label>
-            <select id="validation-validator" name="idValidator" required>
-                <option value="">— soignant —</option>
-                <?php foreach ($validators as $value => $label) : ?>
-                    <option value="<?= View::e($value) ?>"><?= View::e($label) ?></option>
-                <?php endforeach; ?>
-            </select>
+        <?php /* Retours du 2026-11-04 : Réalisé / Non effectué côte à côte ; la note seule s'ouvre par le
+                 bouton « Note » de l'agenda (agenda.js masque alors [data-action-choice]). */ ?>
+        <fieldset class="dialog-field care-actions" data-action-choice>
+            <legend>Le soin a été</legend>
+            <label><input type="radio" name="action" value="done" checked> Réalisé</label>
+            <label><input type="radio" name="action" value="not_done"> Non effectué</label>
+            <label hidden><input type="radio" name="action" value="note"> Note</label>
+        </fieldset>
+
+        <div class="dialog-row">
+            <div class="dialog-field">
+                <label for="validation-performer">Soignant</label>
+                <select id="validation-performer" name="idPerformer" required aria-describedby="validation-auth-error">
+                    <option value="">Choisir un soignant</option>
+                    <?php foreach ($validators as $value => $label) : ?>
+                        <option value="<?= View::e($value) ?>"><?= View::e($label) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+
+            <div class="dialog-field">
+                <label for="validation-password">Mot de passe</label>
+                <input type="password" id="validation-password" name="password" autocomplete="off" required
+                       aria-describedby="validation-auth-error">
+                <p class="form-error" role="alert" id="validation-auth-error" data-error="auth" hidden></p>
+            </div>
+
+            <div class="dialog-field" data-only-action="done">
+                <label for="validation-time">Réalisé le</label>
+                <input type="datetime-local" id="validation-time" name="completedAt"
+                       aria-describedby="validation-time-error">
+                <p class="form-error" role="alert" id="validation-time-error" data-error="completedAt" hidden></p>
+            </div>
         </div>
 
         <div class="dialog-field">
-            <label for="validation-time">Réalisé le</label>
-            <input type="datetime-local" id="validation-time" name="completedAt" required>
-        </div>
-
-        <div class="dialog-field">
-            <label for="validation-note">Note (facultative)</label>
+            <label for="validation-note" data-note-label>Note</label>
             <textarea id="validation-note" name="comment" rows="2" maxlength="100"
-                      placeholder="Retard, refus, particularité…"></textarea>
+                      placeholder="patient au scanner, refus, conditions particulières"
+                      aria-describedby="validation-note-error"></textarea>
+            <p class="form-error" role="alert" id="validation-note-error" data-error="comment" hidden></p>
         </div>
 
+        <p class="form-error" role="alert" data-error="message" hidden></p>
         <p class="dialog-hint">
             <?= View::render('components/icon', ['name' => 'info']) ?>
-            <span>La validation restera visible dans l'agenda : « validé par …, à hh:mm ».</span>
+            <span>Authentification de démonstration : le mot de passe n'est pas vérifié. L'agenda affichera
+                « par … » avec l'heure de réalisation.</span>
         </p>
 
         <div class="dialog-actions">
             <button type="button" class="button button--secondary" data-dialog-close>Annuler</button>
-            <button type="submit" class="button">Valider</button>
+            <button type="submit" class="button">Enregistrer</button>
         </div>
     </form>
 </dialog>

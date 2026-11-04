@@ -33,7 +33,7 @@ final class AuditEventDaoTest extends TestCase
         }
     }
 
-    public function testInsertionPuisLectureDuDossierDuPlusRecentAuPlusAncienAvecLimite(): void
+    public function testInsertThenReadRecordNewestFirstWithLimit(): void
     {
         $dao = new AuditEventDao($this->pdo);
         $id1 = $dao->insert(new AuditEvent(null, 'Patient', 999901, 'medicalHistory', null, 'HTA', 'non identifié'));

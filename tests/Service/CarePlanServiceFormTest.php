@@ -4,19 +4,21 @@ declare(strict_types=1);
 
 namespace Aura\Tests\Service;
 
-use Aura\Dao\AllergieDao;
+use Aura\Dao\AllergyIntoleranceDao;
+use Aura\Dao\AuditEventDao;
 use Aura\Dao\CarePlanDao;
 use Aura\Dao\PatientDao;
 use Aura\Dao\ReferenceDataDao;
-use Aura\Dao\SejourDao;
+use Aura\Dao\EpisodeOfCareDao;
 use Aura\Dao\SubstanceDao;
+use Aura\Dao\Transaction;
 use Aura\Domain\CarePlan;
 use Aura\Domain\MedicationRequest;
 use Aura\Domain\Patient;
-use Aura\Domain\Sejour;
+use Aura\Domain\EpisodeOfCare;
 use Aura\Domain\ServiceRequest;
 use Aura\Service\CarePlanService;
-use Aura\Service\DossierPatientService;
+use Aura\Service\PatientRecordService;
 use DateTimeImmutable;
 use PHPUnit\Framework\TestCase;
 
@@ -26,7 +28,7 @@ use PHPUnit\Framework\TestCase;
  */
 final class CarePlanServiceFormTest extends TestCase
 {
-    public function testMedicamentsEnCoursDuSejourSansLesLignesArreteesNiLesSoins(): void
+    public function testOngoingEpisodeMedicationsWithoutStoppedLinesOrCare(): void
     {
         $start = new DateTimeImmutable('2026-10-10 08:00');
         $carePlans = $this->createStub(CarePlanDao::class);
@@ -60,13 +62,13 @@ final class CarePlanServiceFormTest extends TestCase
 
     private function service(CarePlanDao $carePlans): CarePlanService
     {
-        $sejours = $this->createStub(SejourDao::class);
-        $sejours->method('findById')->willReturn(
-            new Sejour(9, 9, '2026-000009', new DateTimeImmutable('2026-10-10 08:00'))
+        $episodesOfCare = $this->createStub(EpisodeOfCareDao::class);
+        $episodesOfCare->method('findById')->willReturn(
+            new EpisodeOfCare(9, 9, '2026-000009', new DateTimeImmutable('2026-10-10 08:00'))
         );
         $patients = $this->createStub(PatientDao::class);
         $patients->method('findById')->willReturn(new Patient(9, null, 'Durand', 'Alice', null, 'F'));
-        $allergies = $this->createStub(AllergieDao::class);
+        $allergies = $this->createStub(AllergyIntoleranceDao::class);
         $allergies->method('findByPatient')->willReturn([]);
         $substances = $this->createStub(SubstanceDao::class);
         $substances->method('findAll')->willReturn([]);
@@ -79,13 +81,15 @@ final class CarePlanServiceFormTest extends TestCase
         return new CarePlanService(
             $carePlans,
             $references,
-            new DossierPatientService(
-                $sejours,
+            new PatientRecordService(
+                $episodesOfCare,
                 $patients,
                 $allergies,
                 $substances,
                 new DateTimeImmutable('2026-10-14')
-            )
+            ),
+            $this->createStub(Transaction::class),
+            $this->createStub(AuditEventDao::class)
         );
     }
 }

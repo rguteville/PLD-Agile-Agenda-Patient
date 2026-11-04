@@ -7,9 +7,9 @@ namespace Aura\Tests\Service;
 use Aura\Dao\PatientDao;
 use Aura\Dao\Transaction;
 use Aura\Domain\Patient;
-use Aura\Domain\Sejour;
+use Aura\Domain\EpisodeOfCare;
 use Aura\Service\PatientService;
-use Aura\Service\SejourService;
+use Aura\Service\EpisodeOfCareService;
 use DateTimeImmutable;
 use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -22,160 +22,162 @@ use PHPUnit\Framework\TestCase;
  */
 final class PatientServiceTest extends TestCase
 {
-    private const DONNEES_VALIDES = [
-        'nom' => '  Durand ',
-        'prenom' => 'Alice',
-        'date_naissance' => '1990-06-15',
-        'sexe' => 'f',
+    private const VALID_DATA = [
+        'lastName' => '  Durand ',
+        'firstName' => 'Alice',
+        'birthDate' => '1990-06-15',
+        'sex' => 'f',
         'ipp' => '123456',
-        'telephone' => '0601020304',
+        'phone' => '0601020304',
         'email' => 'alice.durand@example.org',
     ];
 
     private PatientDao&MockObject $dao;
-    private SejourService&MockObject $sejours;
+    private EpisodeOfCareService&MockObject $episodesOfCare;
     private PatientService $service;
 
     protected function setUp(): void
     {
         $this->dao = $this->createMock(PatientDao::class);
-        $this->sejours = $this->createMock(SejourService::class);
+        $this->episodesOfCare = $this->createMock(EpisodeOfCareService::class);
 
         // La transaction exécute simplement le traitement : pas de base ici.
         $transaction = $this->createMock(Transaction::class);
-        $transaction->method('run')->willReturnCallback(fn(callable $traitement) => $traitement());
+        $transaction->method('run')->willReturnCallback(fn(callable $treatment) => $treatment());
 
-        $this->service = new PatientService($this->dao, $this->sejours, $transaction);
+        $this->service = new PatientService($this->dao, $this->episodesOfCare, $transaction);
     }
 
-    public function testDonneesValidesInserentLePatientEtOuvrentSonSejour(): void
+    public function testValidDataInsertsPatientAndOpensEpisode(): void
     {
         $this->dao->method('existsByIpp')->with('123456')->willReturn(false);
         $this->dao->expects($this->once())
             ->method('insert')
             ->with($this->callback(function (Patient $p): bool {
                 $this->assertNull($p->getIdPatient());
-                $this->assertSame('Durand', $p->getNom(), 'le nom est nettoyé (trim)');
-                $this->assertSame('Alice', $p->getPrenom());
-                $this->assertSame('F', $p->getSexe(), 'le sexe est normalisé en majuscule');
-                $this->assertSame('1990-06-15', $p->getDateNaissance()->format('Y-m-d'));
+                $this->assertSame('Durand', $p->getLastName(), 'le nom est nettoyé (trim)');
+                $this->assertSame('Alice', $p->getFirstName());
+                $this->assertSame('F', $p->getSex(), 'le sexe est normalisé en majuscule');
+                $this->assertSame('1990-06-15', $p->getBirthDate()->format('Y-m-d'));
                 $this->assertSame('123456', $p->getIpp());
-                $this->assertSame('0601020304', $p->getTelephone());
+                $this->assertSame('0601020304', $p->getPhone());
                 $this->assertSame('alice.durand@example.org', $p->getEmail());
-                $this->assertFalse($p->estAnonyme());
+                $this->assertFalse($p->isAnonymous());
 
                 return true;
             }))
             ->willReturn(42);
 
-        $sejour = $this->sejour(idPatient: 42);
-        $this->sejours->expects($this->once())
-            ->method('ouvrirSejour')
+        $episodeOfCare = $this->episodeOfCare(idPatient: 42);
+        $this->episodesOfCare->expects($this->once())
+            ->method('openEpisodeOfCare')
             ->with(42, null, null)
-            ->willReturn($sejour);
+            ->willReturn($episodeOfCare);
 
-        $this->assertSame($sejour, $this->service->inscrirePatient(self::DONNEES_VALIDES));
+        $this->assertSame($episodeOfCare, $this->service->registerPatient(self::VALID_DATA));
     }
 
-    public function testLitEtBoxDuFormulaireSontTransmisAuSejour(): void
+    public function testFormBedAndBoxArePassedToEpisode(): void
     {
         $this->dao->method('existsByIpp')->willReturn(false);
         $this->dao->method('insert')->willReturn(42);
 
-        $this->sejours->expects($this->once())
-            ->method('ouvrirSejour')
+        $this->episodesOfCare->expects($this->once())
+            ->method('openEpisodeOfCare')
             ->with(42, 'L12', 'B3')
-            ->willReturn($this->sejour(idPatient: 42, numLit: 'L12', numBox: 'B3'));
+            ->willReturn($this->episodeOfCare(idPatient: 42, bedNumber: 'L12', boxNumber: 'B3'));
 
-        $sejour = $this->service->inscrirePatient(['num_lit' => ' L12 ', 'num_box' => 'B3'] + self::DONNEES_VALIDES);
+        $episodeOfCare = $this->service->registerPatient(
+            ['bedNumber' => ' L12 ', 'boxNumber' => 'B3'] + self::VALID_DATA
+        );
 
-        $this->assertSame('L12', $sejour->getNumLit());
+        $this->assertSame('L12', $episodeOfCare->getBedNumber());
     }
 
-    public function testChampsOptionnelsAbsentsSontNuls(): void
+    public function testMissingOptionalFieldsAreNull(): void
     {
         $this->dao->expects($this->never())->method('existsByIpp');
         $this->dao->expects($this->once())
             ->method('insert')
             ->with($this->callback(function (Patient $p): bool {
                 $this->assertNull($p->getIpp());
-                $this->assertNull($p->getTelephone());
+                $this->assertNull($p->getPhone());
                 $this->assertNull($p->getEmail());
 
                 return true;
             }))
             ->willReturn(7);
-        $this->sejours->method('ouvrirSejour')->willReturn($this->sejour(idPatient: 7));
+        $this->episodesOfCare->method('openEpisodeOfCare')->willReturn($this->episodeOfCare(idPatient: 7));
 
-        $sejour = $this->service->inscrirePatient([
-            'nom' => 'Martin',
-            'prenom' => 'Paul',
-            'date_naissance' => '1975-01-31',
-            'sexe' => 'M',
+        $episodeOfCare = $this->service->registerPatient([
+            'lastName' => 'Martin',
+            'firstName' => 'Paul',
+            'birthDate' => '1975-01-31',
+            'sex' => 'M',
             'ipp' => '   ',
             'email' => '',
         ]);
 
-        $this->assertSame(7, $sejour->getIdPatient());
+        $this->assertSame(7, $episodeOfCare->getIdPatient());
     }
 
-    public function testPatientSousXSansDateDeNaissanceEstAccepte(): void
+    public function testAnonymousBirthPatientWithoutBirthDateIsAccepted(): void
     {
         $this->dao->expects($this->once())
             ->method('insert')
             ->with($this->callback(function (Patient $p): bool {
-                $this->assertSame('X', $p->getNom(), 'le nom est normalisé en majuscule');
-                $this->assertSame('X', $p->getPrenom());
-                $this->assertNull($p->getDateNaissance());
-                $this->assertTrue($p->estAnonyme());
+                $this->assertSame('X', $p->getLastName(), 'le nom est normalisé en majuscule');
+                $this->assertSame('X', $p->getFirstName());
+                $this->assertNull($p->getBirthDate());
+                $this->assertTrue($p->isAnonymous());
 
                 return true;
             }))
             ->willReturn(8);
-        $this->sejours->method('ouvrirSejour')->willReturn($this->sejour(idPatient: 8));
+        $this->episodesOfCare->method('openEpisodeOfCare')->willReturn($this->episodeOfCare(idPatient: 8));
 
-        $sejour = $this->service->inscrirePatient(['nom' => 'x', 'prenom' => 'x', 'sexe' => 'F']);
+        $episodeOfCare = $this->service->registerPatient(['lastName' => 'x', 'firstName' => 'x', 'sex' => 'F']);
 
-        $this->assertSame(8, $sejour->getIdPatient());
+        $this->assertSame(8, $episodeOfCare->getIdPatient());
     }
 
     /** @return iterable<string, array{array<string, mixed>, string}> */
-    public static function donneesInvalides(): iterable
+    public static function invalidData(): iterable
     {
-        $base = self::DONNEES_VALIDES;
+        $base = self::VALID_DATA;
 
-        yield 'nom vide' => [['nom' => '  '] + $base, 'obligatoires'];
-        yield 'nom absent' => [array_diff_key($base, ['nom' => 1]), 'obligatoires'];
-        yield 'prenom vide' => [['prenom' => ''] + $base, 'obligatoires'];
-        yield 'nom trop long' => [['nom' => str_repeat('a', 51)] + $base, '50 caractères'];
-        yield 'sexe inconnu' => [['sexe' => 'X'] + $base, 'sexe'];
-        yield 'sexe absent' => [array_diff_key($base, ['sexe' => 1]), 'sexe'];
-        yield 'date absente (patient identifié)' => [array_diff_key($base, ['date_naissance' => 1]), 'obligatoire'];
-        yield 'date mal formée' => [['date_naissance' => '15/06/1990'] + $base, 'date de naissance'];
-        yield 'date inexistante' => [['date_naissance' => '1990-02-30'] + $base, 'date de naissance'];
-        yield 'date future' => [['date_naissance' => '2999-01-01'] + $base, 'futur'];
+        yield 'nom vide' => [['lastName' => '  '] + $base, 'obligatoires'];
+        yield 'nom absent' => [array_diff_key($base, ['lastName' => 1]), 'obligatoires'];
+        yield 'prenom vide' => [['firstName' => ''] + $base, 'obligatoires'];
+        yield 'nom trop long' => [['lastName' => str_repeat('a', 51)] + $base, '50 caractères'];
+        yield 'sexe inconnu' => [['sex' => 'X'] + $base, 'sex'];
+        yield 'sexe absent' => [array_diff_key($base, ['sex' => 1]), 'sex'];
+        yield 'date absente (patient identifié)' => [array_diff_key($base, ['birthDate' => 1]), 'obligatoire'];
+        yield 'date mal formée' => [['birthDate' => '15/06/1990'] + $base, 'date de naissance'];
+        yield 'date inexistante' => [['birthDate' => '1990-02-30'] + $base, 'date de naissance'];
+        yield 'date future' => [['birthDate' => '2999-01-01'] + $base, 'futur'];
         yield 'ipp trop court' => [['ipp' => '12345'] + $base, 'IPP'];
         yield 'ipp non numérique' => [['ipp' => 'ABC1234'] + $base, 'IPP'];
-        yield 'ipp pour un patient sous X' => [['nom' => 'X', 'prenom' => 'X'] + $base, 'sous X'];
-        yield 'téléphone invalide' => [['telephone' => '06 01 02 03 04'] + $base, 'téléphone'];
+        yield 'ipp pour un patient sous X' => [['lastName' => 'X', 'firstName' => 'X'] + $base, 'sous X'];
+        yield 'téléphone invalide' => [['phone' => '06 01 02 03 04'] + $base, 'téléphone'];
         yield 'email invalide' => [['email' => 'pas-un-email'] + $base, 'email'];
     }
 
     /** @param array<string, mixed> $donnees */
-    #[DataProvider('donneesInvalides')]
-    public function testDonneesInvalidesSontRefuseesSansInsertion(array $donnees, string $fragmentMessage): void
+    #[DataProvider('invalidData')]
+    public function testInvalidDataIsRejectedWithoutInsert(array $data, string $fragmentMessage): void
     {
         $this->dao->method('existsByIpp')->willReturn(false);
         $this->dao->expects($this->never())->method('insert');
-        $this->sejours->expects($this->never())->method('ouvrirSejour');
+        $this->episodesOfCare->expects($this->never())->method('openEpisodeOfCare');
 
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage($fragmentMessage);
 
-        $this->service->inscrirePatient($donnees);
+        $this->service->registerPatient($data);
     }
 
-    public function testIppDejaConnuEstRefuse(): void
+    public function testAlreadyKnownIppIsRejected(): void
     {
         $this->dao->method('existsByIpp')->with('123456')->willReturn(true);
         $this->dao->expects($this->never())->method('insert');
@@ -183,84 +185,87 @@ final class PatientServiceTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('IPP 123456');
 
-        $this->service->inscrirePatient(self::DONNEES_VALIDES);
+        $this->service->registerPatient(self::VALID_DATA);
     }
 
-    public function testSejourRefuseAnnuleLInscription(): void
+    public function testRejectedEpisodeCancelsRegistration(): void
     {
         $this->dao->method('existsByIpp')->willReturn(false);
         $this->dao->method('insert')->willReturn(42);
-        $this->sejours->method('ouvrirSejour')
+        $this->episodesOfCare->method('openEpisodeOfCare')
             ->willThrowException(new InvalidArgumentException('Le lit L1 est déjà occupé'));
 
         // L'exception traverse la transaction : c'est elle qui annule l'insertion du patient.
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('déjà occupé');
 
-        $this->service->inscrirePatient(self::DONNEES_VALIDES);
+        $this->service->registerPatient(self::VALID_DATA);
     }
 
-    public function testRechercheParIppQuandIlEstRenseigne(): void
+    public function testSearchByIppWhenProvided(): void
     {
         $alice = $this->patient(3);
         $this->dao->method('findByIpp')->with('123456')->willReturn($alice);
-        $this->dao->expects($this->never())->method('findByIdentite');
+        $this->dao->expects($this->never())->method('findByIdentity');
 
-        $this->assertSame($alice, $this->service->rechercherPatientExistant(self::DONNEES_VALIDES));
+        $this->assertSame($alice, $this->service->searchExistingPatient(self::VALID_DATA));
     }
 
-    public function testRechercheParIdentiteSeulementSiUnique(): void
+    public function testSearchByIdentityOnlyIfUnique(): void
     {
-        $donnees = array_diff_key(self::DONNEES_VALIDES, ['ipp' => 1]);
+        $data = array_diff_key(self::VALID_DATA, ['ipp' => 1]);
         $alice = $this->patient(3);
 
-        $this->dao->method('findByIdentite')
+        $this->dao->method('findByIdentity')
             ->with('Durand', 'Alice', $this->callback(fn($d) => $d->format('Y-m-d') === '1990-06-15'))
             ->willReturnOnConsecutiveCalls([$alice], [$alice, $this->patient(4)], []);
 
-        $this->assertSame($alice, $this->service->rechercherPatientExistant($donnees), 'un seul : trouvé');
-        $this->assertNull($this->service->rechercherPatientExistant($donnees), 'homonymes : ambigu');
-        $this->assertNull($this->service->rechercherPatientExistant($donnees), 'aucun');
+        $this->assertSame($alice, $this->service->searchExistingPatient($data), 'un seul : trouvé');
+        $this->assertNull($this->service->searchExistingPatient($data), 'homonymes : ambigu');
+        $this->assertNull($this->service->searchExistingPatient($data), 'nothing');
     }
 
-    public function testRechercheJamaisPourUnPatientSousX(): void
+    public function testNeverSearchForAnonymousBirthPatient(): void
     {
         $this->dao->expects($this->never())->method('findByIpp');
-        $this->dao->expects($this->never())->method('findByIdentite');
+        $this->dao->expects($this->never())->method('findByIdentity');
 
-        $donnees = ['nom' => 'X', 'prenom' => 'X', 'ipp' => '123456'];
+        $data = ['lastName' => 'X', 'firstName' => 'X', 'ipp' => '123456'];
 
-        $this->assertNull($this->service->rechercherPatientExistant($donnees));
+        $this->assertNull($this->service->searchExistingPatient($data));
     }
 
-    public function testRechercheIncompleteRenvoieNull(): void
+    public function testIncompleteSearchReturnsNull(): void
     {
-        $this->dao->expects($this->never())->method('findByIdentite');
+        $this->dao->expects($this->never())->method('findByIdentity');
 
-        $this->assertNull($this->service->rechercherPatientExistant(['nom' => 'Durand', 'prenom' => 'Alice']));
+        $this->assertNull($this->service->searchExistingPatient(['lastName' => 'Durand', 'firstName' => 'Alice']));
     }
 
-    public function testAdmettrePatientExistantOuvreUnSejour(): void
+    public function testAdmitExistingPatientOpensAnEpisode(): void
     {
         $this->dao->method('findById')->with(3)->willReturn($this->patient(3));
-        $sejour = $this->sejour(idPatient: 3, numLit: 'L2');
-        $this->sejours->expects($this->once())->method('ouvrirSejour')->with(3, 'L2', null)->willReturn($sejour);
+        $episodeOfCare = $this->episodeOfCare(idPatient: 3, bedNumber: 'L2');
+        $this->episodesOfCare->expects($this->once())
+            ->method('openEpisodeOfCare')
+            ->with(3, 'L2', null)
+            ->willReturn($episodeOfCare);
 
-        $this->assertSame($sejour, $this->service->admettrePatientExistant(3, 'L2'));
+        $this->assertSame($episodeOfCare, $this->service->admitExistingPatient(3, 'L2'));
     }
 
-    public function testAdmettrePatientInconnuEstRefuse(): void
+    public function testAdmitUnknownPatientIsRejected(): void
     {
         $this->dao->method('findById')->with(99)->willReturn(null);
-        $this->sejours->expects($this->never())->method('ouvrirSejour');
+        $this->episodesOfCare->expects($this->never())->method('openEpisodeOfCare');
 
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Patient 99 introuvable');
 
-        $this->service->admettrePatientExistant(99);
+        $this->service->admitExistingPatient(99);
     }
 
-    public function testGetPatientInconnuLeveUneException(): void
+    public function testGetUnknownPatientThrows(): void
     {
         $this->dao->method('findById')->with(99)->willReturn(null);
 
@@ -275,15 +280,15 @@ final class PatientServiceTest extends TestCase
         return new Patient($id, null, 'Durand', 'Alice', new DateTimeImmutable('1990-06-15'), 'F');
     }
 
-    private function sejour(int $idPatient, ?string $numLit = null, ?string $numBox = null): Sejour
+    private function episodeOfCare(int $idPatient, ?string $bedNumber = null, ?string $boxNumber = null): EpisodeOfCare
     {
-        return new Sejour(
-            idSejour: 1,
+        return new EpisodeOfCare(
+            idEpisodeOfCare: 1,
             idPatient: $idPatient,
-            numSejour: '2026-000001',
-            dateAdmission: new DateTimeImmutable(),
-            numLit: $numLit,
-            numBox: $numBox
+            episodeNumber: '2026-000001',
+            admissionDate: new DateTimeImmutable(),
+            bedNumber: $bedNumber,
+            boxNumber: $boxNumber
         );
     }
 }

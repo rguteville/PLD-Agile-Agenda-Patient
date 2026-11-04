@@ -11,12 +11,18 @@ use Aura\Domain\RequestLine;
 use Aura\Domain\ServiceRequest;
 use DateTimeImmutable;
 use DateTimeInterface;
+use LogicException;
 use PDO;
 
 /**
  * Accès aux prescriptions (Epic 4) : CarePlan = la prescription (l'ordonnance), ServiceRequest =
  * ses lignes de soin, MedicationRequest = ses lignes de médicament. Classes et colonnes portent
- * les mêmes noms : rien n'est traduit ici, le DAO ne fait que lire et écrire.
+ * les mêmes noms (ressources HL7) : rien n'est traduit ici, le DAO ne fait que lire et écrire.
+ * Écrit aussi les soins planifiés (Appointment) de chaque ligne.
+ *
+ * Ids VARCHAR(20) sans AUTO_INCREMENT, calculés par nextId() (MAX + 1, FOR UPDATE) dans la
+ * transaction d'écriture. Rien n'est supprimé (RG10) : une ligne s'arrête (stoppedAt, AURA-22)
+ * et ses soins futurs passent au statut ANNULE.
  */
 class CarePlanDao
 {
@@ -44,7 +50,7 @@ class CarePlanDao
     {
         $stmt = $this->pdo->prepare(
             'SELECT idCarePlan, idEpisodeOfCare, idPrescriber, mode, recordedAt, idValidator, validatedAt,
-                    idPlanDefinition
+                    idPlanDefinition, note
              FROM CarePlan
              WHERE idEpisodeOfCare = :idEpisodeOfCare
              ORDER BY recordedAt DESC, CAST(idCarePlan AS UNSIGNED) DESC'
@@ -108,6 +114,9 @@ class CarePlanDao
      *
      * Comme pour Patient et EpisodeOfCare, les identifiants n'ont pas d'AUTO_INCREMENT : ils sont
      * calculés ici (plus grand + 1), tables verrouillées (FOR UPDATE) jusqu'à la fin de la transaction.
+     * Chaque ligne reçoit aussi ses soins planifiés (insertAppointments()), dans la même transaction.
+     *
+     * @throws \PDOException contrainte refusée (CHECK, clé étrangère) : rien n'est enregistré
      */
     public function insert(CarePlan $carePlan): int
     {
@@ -116,9 +125,9 @@ class CarePlanDao
 
             $this->pdo->prepare(
                 'INSERT INTO CarePlan (idCarePlan, idEpisodeOfCare, idPrescriber, mode, idValidator, validatedAt,
-                                       idPlanDefinition)
+                                       idPlanDefinition, note)
                  VALUES (:idCarePlan, :idEpisodeOfCare, :idPrescriber, :mode, :idValidator,
-                         IF(:validatedOnRecord, CURRENT_TIMESTAMP, NULL), :idPlanDefinition)'
+                         IF(:validatedOnRecord, CURRENT_TIMESTAMP, NULL), :idPlanDefinition, :note)'
             )->execute([
                 'idCarePlan' => (string) $idCarePlan,
                 'idEpisodeOfCare' => (string) $carePlan->getIdEpisodeOfCare(),
@@ -127,6 +136,7 @@ class CarePlanDao
                 'idValidator' => $carePlan->isValidated() ? $carePlan->getIdValidator() : null,
                 'validatedOnRecord' => $carePlan->isValidated() ? 1 : 0,
                 'idPlanDefinition' => $carePlan->getIdPlanDefinition(),
+                'note' => $carePlan->getNote(),
             ]);
 
             foreach ($carePlan->getLines() as $line) {
@@ -134,7 +144,7 @@ class CarePlanDao
                 $idLine = $isMedication
                     ? $this->insertMedicationRequest($idCarePlan, $line)
                     : $this->insertServiceRequest($idCarePlan, $line);
-                $this->insertAppointments($isMedication, $idLine, $line);
+                $this->insertAppointments($isMedication, $idLine, $line->plannedTimes());
             }
 
             return $idCarePlan;
@@ -162,25 +172,52 @@ class CarePlanDao
 
     /**
      * AURA-22 : arrête une ligne (soin ou médicament). Qui et quand sont enregistrés (RG10) ;
-     * l'heure vient de l'horloge de la base, comme la saisie et la validation.
+     * l'heure est celle de l'application ($now), et l'annulation des soins futurs se fait dans la
+     * même transaction.
      *
      * Renvoie false si la ligne n'existe pas ou est déjà arrêtée : comme pour markValidated(),
      * la condition « stoppedAt IS NULL » est dans la requête, si bien qu'un second arrêt
      * simultané ne peut pas écraser le premier.
+     *
+     * @param bool $isMedication true pour une MedicationRequest, false pour une ServiceRequest
+     * @param ?DateTimeInterface $now heure de l'arrêt ; maintenant par défaut (injectée par les tests)
      */
-    public function markStopped(bool $isMedication, int $idLine, string $idStoppedBy): bool
-    {
+    public function markStopped(
+        bool $isMedication,
+        int $idLine,
+        string $idStoppedBy,
+        ?DateTimeInterface $now = null
+    ): bool {
+        // Heure de l'application (fuseau Europe/Paris), comme plannedTime : jamais l'horloge de la base,
+        // dont le fuseau peut différer (UTC dans un conteneur) et décaler la frontière passé / futur.
+        $at = ($now ?? new DateTimeImmutable('now'))->format('Y-m-d H:i:s');
         // Noms fixés ici, jamais saisis : les concaténer ne permet aucune injection.
         [$table, $column] = $isMedication
             ? ['MedicationRequest', 'idMedicationRequest']
             : ['ServiceRequest', 'idServiceRequest'];
-        $stmt = $this->pdo->prepare(
-            "UPDATE $table SET idStoppedBy = :idStoppedBy, stoppedAt = CURRENT_TIMESTAMP
-             WHERE $column = :idLine AND stoppedAt IS NULL"
-        );
-        $stmt->execute(['idStoppedBy' => $idStoppedBy, 'idLine' => (string) $idLine]);
 
-        return $stmt->rowCount() === 1;
+        return (new Transaction($this->pdo))->run(function () use ($table, $column, $idLine, $idStoppedBy, $at): bool {
+            $stmt = $this->pdo->prepare(
+                "UPDATE $table SET idStoppedBy = :idStoppedBy, stoppedAt = :stoppedAt
+                 WHERE $column = :idLine AND stoppedAt IS NULL"
+            );
+            $stmt->execute(['idStoppedBy' => $idStoppedBy, 'stoppedAt' => $at, 'idLine' => (string) $idLine]);
+            if ($stmt->rowCount() !== 1) {
+                return false;
+            }
+
+            // Critère AURA-22 et sécurité du patient : après l'arrêt, plus aucun soin de la ligne n'est
+            // prévu. Les soins encore planifiés à une heure future passent à ANNULE (jamais supprimés,
+            // RG10), avec l'heure de saisie et le motif. Les soins passés non validés restent PLANIFIE
+            // (une dose donnée avant l'arrêt doit pouvoir être tracée) mais s'affichent « Arrêtée ».
+            $this->pdo->prepare(
+                "UPDATE Appointment
+                 SET status = 'ANNULE', timeRecorded = :at, comment = COALESCE(comment, 'Prescription arrêtée')
+                 WHERE $column = :idLine AND status = 'PLANIFIE' AND plannedTime > :at2"
+            )->execute(['idLine' => (string) $idLine, 'at' => $at, 'at2' => $at]);
+
+            return true;
+        });
     }
 
     /** @return int identifiant de la ligne enregistrée */
@@ -234,18 +271,96 @@ class CarePlanDao
     }
 
     /**
-     * AURA-24.4 : les soins planifiés (Appointment) d'une ligne, un par heure prévue
-     * (RequestLine::plannedTimes()), en statut « PLANIFIE » : c'est ce que l'agenda du séjour
-     * affiche. Même transaction que la ligne : une prescription enregistrée a toujours son agenda.
+     * AURA-24.2 : lignes actives des prescriptions de tous les séjours en cours (dischargeDate NULL),
+     * avec le séjour de chacune : non arrêtées (stoppedAt NULL) et non terminées avant $from. Ce sont
+     * les lignes dont la génération quotidienne complète l'agenda (AgendaGenerationService).
+     *
+     * @return list<array{idEpisodeOfCare: int, line: RequestLine}>
      */
-    private function insertAppointments(bool $isMedication, int $idLine, RequestLine $line): void
+    public function findActiveLinesOfOngoingEpisodes(DateTimeInterface $from): array
     {
+        $lines = [];
+        foreach ([false, true] as $isMedication) {
+            // Noms fixés ici, jamais saisis : les concaténer ne permet aucune injection.
+            [$table, $columns, $key] = $isMedication
+                ? ['MedicationRequest', self::MEDICATION_COLUMNS, 'idMedicationRequest']
+                : ['ServiceRequest', self::SERVICE_COLUMNS, 'idServiceRequest'];
+            $stmt = $this->pdo->prepare(
+                "SELECT $columns,
+                        (SELECT c.idEpisodeOfCare FROM CarePlan c WHERE c.idCarePlan = l.idCarePlan)
+                            AS lineEpisodeOfCare
+                 FROM $table l
+                 WHERE l.stoppedAt IS NULL
+                   AND (l.endDate IS NULL OR l.endDate >= :from)
+                   AND l.idCarePlan IN (
+                       SELECT c.idCarePlan FROM CarePlan c
+                       JOIN EpisodeOfCare e ON e.idEpisodeOfCare = c.idEpisodeOfCare
+                       WHERE e.dischargeDate IS NULL
+                   )
+                 ORDER BY CAST(l.$key AS UNSIGNED)"
+            );
+            $stmt->execute(['from' => self::toSql($from)]);
+            foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
+                $lines[] = [
+                    'idEpisodeOfCare' => (int) $r['lineEpisodeOfCare'],
+                    'line' => $isMedication ? $this->mapToMedicationRequest($r) : $this->mapToServiceRequest($r),
+                ];
+            }
+        }
+
+        return $lines;
+    }
+
+    /**
+     * AURA-24.2 : verrouille la table Appointment jusqu'à la fin de la transaction en cours (lecture
+     * verrouillante de toutes ses lignes, qui bloque aussi les insertions). Deux générations lancées en
+     * même temps s'exécutent donc l'une après l'autre et la seconde voit les soins créés par la première.
+     * À appeler dans Transaction::run(), avant de lire les soins existants.
+     */
+    public function lockAppointments(): void
+    {
+        $this->pdo->query('SELECT idAppointment FROM Appointment FOR UPDATE')->fetchAll();
+    }
+
+    /**
+     * AURA-24.2 : ajoute à une ligne déjà enregistrée des soins planifiés aux heures données, en
+     * statut « PLANIFIE », et renvoie le nombre de soins créés. Aucun soin existant n'est lu ni
+     * modifié : c'est l'appelant (AgendaGenerationService) qui écarte les heures déjà planifiées.
+     *
+     * @param DateTimeImmutable[] $plannedTimes
+     * @throws LogicException si la ligne n'a pas encore d'identifiant
+     * @throws \PDOException si une heure existe déjà pour la ligne (clés UNIQUE de Appointment)
+     */
+    public function addAppointments(RequestLine $line, array $plannedTimes): int
+    {
+        $idLine = $line->getId();
+        if ($idLine === null) {
+            throw new LogicException('CarePlanDao::addAppointments() requiert une ligne enregistrée (id non nul).');
+        }
+
+        return $this->insertAppointments($line instanceof MedicationRequest, $idLine, $plannedTimes);
+    }
+
+    /**
+     * AURA-24.4 : les soins planifiés (Appointment) d'une ligne, un par heure prévue, en statut
+     * « PLANIFIE » : c'est ce que l'agenda du séjour affiche. À l'enregistrement d'une prescription,
+     * les heures sont RequestLine::plannedTimes(), dans la même transaction que la ligne : une
+     * prescription enregistrée a toujours son agenda. Renvoie le nombre de soins créés.
+     *
+     * @param DateTimeImmutable[] $plannedTimes
+     */
+    private function insertAppointments(bool $isMedication, int $idLine, array $plannedTimes): int
+    {
+        if ($plannedTimes === []) {
+            return 0;
+        }
+
         $stmt = $this->pdo->prepare(
             'INSERT INTO Appointment (idAppointment, idServiceRequest, idMedicationRequest, plannedTime, status)
              VALUES (:id, :idServiceRequest, :idMedicationRequest, :plannedTime, :status)'
         );
         $id = $this->nextId('Appointment', 'idAppointment');
-        foreach ($line->plannedTimes() as $plannedTime) {
+        foreach ($plannedTimes as $plannedTime) {
             $stmt->execute([
                 'id' => (string) $id++,
                 'idServiceRequest' => $isMedication ? null : (string) $idLine,
@@ -254,6 +369,8 @@ class CarePlanDao
                 'status' => Appointment::STATUS_PLANNED,
             ]);
         }
+
+        return count($plannedTimes);
     }
 
     /**
@@ -322,7 +439,12 @@ class CarePlanDao
         return $byCarePlan;
     }
 
-    /** @param RequestLine[] $lines */
+    /**
+     * Ligne de CarePlan vers l'entité, avec ses lignes déjà lues (linesOfEpisodeOfCare()).
+     *
+     * @param array<string, ?string> $r
+     * @param RequestLine[] $lines
+     */
     private function mapToCarePlan(array $r, array $lines): CarePlan
     {
         return new CarePlan(
@@ -334,10 +456,16 @@ class CarePlanDao
             recordedAt: new DateTimeImmutable($r['recordedAt']),
             idValidator: $r['idValidator'],
             validatedAt: self::date($r['validatedAt']),
-            idPlanDefinition: $r['idPlanDefinition']
+            idPlanDefinition: $r['idPlanDefinition'],
+            note: $r['note']
         );
     }
 
+    /**
+     * Ligne de ServiceRequest (colonnes de SERVICE_COLUMNS) vers l'entité.
+     *
+     * @param array<string, ?string> $r
+     */
     private function mapToServiceRequest(array $r): ServiceRequest
     {
         return new ServiceRequest(
@@ -353,6 +481,11 @@ class CarePlanDao
         );
     }
 
+    /**
+     * Ligne de MedicationRequest (colonnes de MEDICATION_COLUMNS) vers l'entité.
+     *
+     * @param array<string, ?string> $r
+     */
     private function mapToMedicationRequest(array $r): MedicationRequest
     {
         return new MedicationRequest(
@@ -382,11 +515,13 @@ class CarePlanDao
         );
     }
 
+    /** Valeur DATETIME lue en base vers une date, null si la colonne est NULL. */
     private static function date(?string $value): ?DateTimeImmutable
     {
         return $value !== null ? new DateTimeImmutable($value) : null;
     }
 
+    /** Date vers le format DATETIME de la base (« AAAA-MM-JJ HH:MM:SS »), null si la date l'est. */
     private static function toSql(?DateTimeInterface $date): ?string
     {
         return $date?->format(self::SQL_DATE_FORMAT);

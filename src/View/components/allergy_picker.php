@@ -8,13 +8,14 @@ use Aura\Core\View;
  * élevée). Envoi : allergies[] (identifiants cochés) et allergyCriticality[id] (criticité).
  * Sans JavaScript, tout reste utilisable : le filtre et le compteur sont des conforts
  * (public/js/allergy-picker.js), la criticité s'affiche via CSS dès que la case est cochée.
+ * Inclus par components/field.php (type « allergy-picker ») dans pages/patient/admission.php.
  *
  * @var string $name nom du champ (allergies)
  * @var array<string, string> $options idSubstance => libellé
  * @var list<string> $checked identifiants cochés
- * @var array<string, string> $criticalities idSubstance => criticité choisie
- * @var list<string> $criticalityOptions valeurs autorisées (Allergie::CRITICALITIES)
- * @var string $ariaError attributs aria-invalid / aria-describedby déjà échappés
+ * @var array<string, string> $criticalities idSubstance => criticité choisie ([] si aucune)
+ * @var list<string> $criticalityOptions valeurs autorisées (AllergyIntolerance::CRITICALITIES)
+ * @var string $ariaError attributs aria-invalid / aria-describedby déjà échappés ('' sans erreur)
  */
 ?>
 <div class="allergy-picker" role="group" aria-labelledby="<?= View::e($name) ?>-label" data-allergy-picker>
@@ -22,9 +23,9 @@ use Aura\Core\View;
         <label for="<?= View::e($name) ?>-filtre" class="sr-only">Filtrer les allergènes</label>
         <input type="search" id="<?= View::e($name) ?>-filtre" class="allergy-picker__filter"
                placeholder="Filtrer : pénicilline, latex, iode…" autocomplete="off" data-allergy-filter>
-        <?php $pluriel = count($checked) > 1 ? 's' : ''; ?>
+        <?php $plural = count($checked) > 1 ? 's' : ''; ?>
         <span class="allergy-picker__count" aria-live="polite" data-allergy-count>
-            <?= count($checked) ?> allergène<?= $pluriel ?> coché<?= $pluriel ?>
+            <?= count($checked) ?> allergène<?= $plural ?> coché<?= $plural ?>
         </span>
     </div>
     <ul class="allergy-picker__list">

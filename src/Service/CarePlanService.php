@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace Aura\Service;
 
+use Aura\Dao\AuditEventDao;
 use Aura\Dao\CarePlanDao;
 use Aura\Dao\ReferenceDataDao;
+use Aura\Dao\Transaction;
+use Aura\Domain\AuditEvent;
 use Aura\Domain\CarePlan;
 use Aura\Domain\MedicationRequest;
 use Aura\Domain\Practitioner;
@@ -16,15 +19,16 @@ use InvalidArgumentException;
 
 /**
  * Prescriptions d'un séjour (Epic 4) : liste (tableau des prescriptions, figure 10 du cahier
- * des charges), saisie d'une ordonnance (écran B3 « Nouvelles prescriptions », figures 7 à 9)
- * et validation par un médecin (RG5, AURA-23).
+ * des charges), saisie d'une ordonnance (écran B3 « Nouvelles prescriptions », figures 7 à 9),
+ * validation par un médecin (RG5, AURA-23) et arrêt d'une ligne (AURA-22).
  *
  * Une ordonnance (CarePlan) est saisie en une fois avec toutes ses lignes : chaque « OK » de
  * l'écran B3 ajoute une ligne, « Enregistrer l'ordonnance » envoie le tout.
  * Les clés des données saisies sont les noms des colonnes (idPrescriber, idMedication,
  * frequencyHours…), et ce sont aussi les noms des champs envoyés : un seul vocabulaire.
  * checkInput() est pure (aucun accès à la base) ; prescribe() applique ensuite les règles qui
- * demandent la base : séjour en cours, prescripteur et référentiels existants, droits (RG5).
+ * demandent la base : séjour en cours, prescripteur et référentiels existants, droits (RG5),
+ * allergies du patient (retours du 2026-11-03 : refus sauf confirmation explicite, tracée).
  */
 final class CarePlanService
 {
@@ -42,9 +46,9 @@ final class CarePlanService
     public const KIND_GROUP = 'GROUP';
 
     /**
-     * Catégories de la liste « 1. » de l'écran B3 (figure 8) : id => libellé et nature.
-     * La nature décide de ce que proposent les listes « 2. » et « 3. ».
-     * Une catégorie de plus = une ligne ici, rien d'autre à changer.
+     * Catégories de la liste « Catégorie » de l'écran B3 (figure 8) : id => libellé et nature.
+     * La nature décide de ce que proposent les listes suivantes (médicament puis forme, soin ou
+     * protocole). Une catégorie de plus = une ligne ici, rien d'autre à changer.
      */
     public const CATEGORIES = [
         'GROUPS' => ['label' => 'Protocoles', 'kind' => self::KIND_GROUP],
@@ -118,11 +122,27 @@ final class CarePlanService
     public const FREQUENCY_MAX_DAYS = 1365;
     /** Garde-fou contre une requête forgée : une ordonnance réelle en est très loin. */
     public const MAX_LINES = 50;
+    /** Note libre de l'ordonnance (CarePlan.note, TEXT) : borne fixée ici, pas par la colonne. */
+    public const NOTE_MAX_LENGTH = 1000;
+
+    /**
+     * Case « Je prescris malgré l'allergie » de l'écran B3 : seule la valeur « 1 » confirme. C'est
+     * aussi la clé de l'erreur quand une ligne contient un allergène du patient sans confirmation.
+     */
+    public const ALLERGY_OVERRIDE = 'allergyOverride';
+
+    /**
+     * Validation d'une ordonnance par un médecin : même message et même règle que la fenêtre de
+     * validation du dossier (RecordSectionService) : médecin habilité et mot de passe non vide.
+     */
+    public const AUTH_ERROR = 'Choisissez le médecin qui valide et saisissez son mot de passe.';
 
     public function __construct(
         private CarePlanDao $carePlanDao,
         private ReferenceDataDao $referenceDataDao,
-        private DossierPatientService $dossierPatientService
+        private PatientRecordService $patientRecordService,
+        private Transaction $transaction,
+        private AuditEventDao $auditEventDao
     ) {
     }
 
@@ -134,17 +154,17 @@ final class CarePlanService
      */
     public function listing(int $idEpisodeOfCare): ?array
     {
-        $dossier = $this->dossierPatientService->dossier($idEpisodeOfCare);
-        if ($dossier === null) {
+        $record = $this->patientRecordService->record($idEpisodeOfCare);
+        if ($record === null) {
             return null;
         }
 
         return [
-            // Bandeau identité + allergies : vue-modèle de DossierPatientService (clés existantes).
-            'banner' => $dossier['bandeau'],
+            // Bandeau identité + allergies : vue-modèle de PatientRecordService (clés existantes).
+            'banner' => $record['banner'],
             'idEpisodeOfCare' => $idEpisodeOfCare,
-            'isOpen' => $dossier['sejour']['enCours'],
-            'lines' => $this->presentedLines($idEpisodeOfCare),
+            'isOpen' => $record['episodeOfCare']['ongoing'],
+            'lines' => $this->presentedLines($idEpisodeOfCare, $record['allergens'] ?? []),
         ];
     }
 
@@ -153,12 +173,14 @@ final class CarePlanService
      * un médecin (RG5), sauf celles qui ont été arrêtées. Une ordonnance « non validée » n'y
      * apparaît qu'une fois validée.
      *
+     * @param array<string, string> $allergens allergènes du patient (idSubstance => libellé), pour
+     *        signaler une ligne qui contient un allergène du patient
      * @return list<array<string, mixed>> vue-modèle de presentLine()
      */
-    public function validatedLines(int $idEpisodeOfCare): array
+    public function validatedLines(int $idEpisodeOfCare, array $allergens = []): array
     {
         return array_values(array_filter(
-            $this->presentedLines($idEpisodeOfCare),
+            $this->presentedLines($idEpisodeOfCare, $allergens),
             static fn(array $line) => $line['status'] === CarePlan::STATUS_VALIDATED
         ));
     }
@@ -166,9 +188,10 @@ final class CarePlanService
     /**
      * Toutes les lignes des ordonnances du séjour, de l'ordonnance la plus récente à la plus ancienne.
      *
+     * @param array<string, string> $allergens allergènes du patient (idSubstance => libellé)
      * @return list<array<string, mixed>> vue-modèle de presentLine()
      */
-    private function presentedLines(int $idEpisodeOfCare): array
+    private function presentedLines(int $idEpisodeOfCare, array $allergens): array
     {
         $carePlans = $this->carePlanDao->findByEpisodeOfCare($idEpisodeOfCare);
         if ($carePlans === []) {
@@ -178,11 +201,23 @@ final class CarePlanService
         $medications = $this->referenceDataDao->medications();
         $activityDefinitions = $this->referenceDataDao->activityDefinitions();
         $practitioners = $this->referenceDataDao->practitioners();
+        $patientAllergens = self::medicationAllergens(
+            $allergens,
+            $allergens === [] ? [] : $this->referenceDataDao->medicationSubstances(),
+            $medications
+        );
 
         $lines = [];
         foreach ($carePlans as $carePlan) {
             foreach ($carePlan->getLines() as $line) {
-                $lines[] = self::presentLine($carePlan, $line, $medications, $activityDefinitions, $practitioners);
+                $lines[] = self::presentLine(
+                    $carePlan,
+                    $line,
+                    $medications,
+                    $activityDefinitions,
+                    $practitioners,
+                    $patientAllergens
+                );
             }
         }
 
@@ -204,8 +239,8 @@ final class CarePlanService
         ?int $savedCarePlanId = null,
         ?int $validatedCarePlanId = null
     ): ?array {
-        $dossier = $this->dossierPatientService->dossier($idEpisodeOfCare);
-        if ($dossier === null) {
+        $record = $this->patientRecordService->record($idEpisodeOfCare);
+        if ($record === null) {
             return null;
         }
 
@@ -221,6 +256,13 @@ final class CarePlanService
 
         $medications = $this->referenceDataDao->medications();
         $activityDefinitions = $this->referenceDataDao->activityDefinitions();
+        // Médicaments dont le principe actif est un allergène du patient : idMedication => allergène.
+        $allergens = $record['allergens'] ?? [];
+        $patientAllergens = self::medicationAllergens(
+            $allergens,
+            $allergens === [] ? [] : $this->referenceDataDao->medicationSubstances(),
+            $medications
+        );
         $carePlanIds = [];
         $pendingCarePlans = [];
         // Médicaments déjà prescrits et non arrêtés dans ce séjour (validés ou en attente) : l'écran
@@ -237,24 +279,37 @@ final class CarePlanService
                 continue;
             }
             $lines = [];
+            $allergyAlerts = [];
             foreach ($carePlan->getLines() as $line) {
-                $lines[] = self::summary(
-                    self::presentLine($carePlan, $line, $medications, $activityDefinitions, $practitioners)
+                $presented = self::presentLine(
+                    $carePlan,
+                    $line,
+                    $medications,
+                    $activityDefinitions,
+                    $practitioners,
+                    $patientAllergens
                 );
+                $lines[] = self::summary($presented);
+                if ($presented['allergen'] !== null) {
+                    // Le médecin qui valide doit voir l'allergie avant de valider.
+                    $allergyAlerts[] = sprintf('%s : allergie à %s', $presented['label'], $presented['allergen']);
+                }
             }
             $pendingCarePlans[] = [
                 'idCarePlan' => $carePlan->getIdCarePlan(),
                 'mode' => self::MODE_LABELS[$carePlan->getMode()] ?? $carePlan->getMode(),
                 'recordedAt' => $carePlan->getRecordedAt()?->format('d/m/Y H:i'),
                 'prescriber' => self::name($practitioners, $carePlan->getIdPrescriber()),
+                'note' => $carePlan->getNote(),
                 'lines' => $lines,
+                'allergyAlerts' => $allergyAlerts,
             ];
         }
 
         return [
-            'banner' => $dossier['bandeau'],
+            'banner' => $record['banner'],
             'idEpisodeOfCare' => $idEpisodeOfCare,
-            'isOpen' => $dossier['sejour']['enCours'],
+            'isOpen' => $record['episodeOfCare']['ongoing'],
             'savedCarePlanId' => in_array($savedCarePlanId, $carePlanIds, true) ? $savedCarePlanId : null,
             'validatedCarePlanId' => in_array($validatedCarePlanId, $carePlanIds, true) ? $validatedCarePlanId : null,
             'modes' => self::MODE_LABELS,
@@ -267,6 +322,9 @@ final class CarePlanService
             'routes' => self::ROUTES,
             'pendingCarePlans' => $pendingCarePlans,
             'activeMedications' => array_keys($activeMedications),
+            // Alerte allergie à l'écran (care-plan.js) : idMedication => allergène du patient.
+            'medicationAllergens' => $patientAllergens,
+            'noteMaxLength' => self::NOTE_MAX_LENGTH,
         ];
     }
 
@@ -274,7 +332,8 @@ final class CarePlanService
      * Contrôle de la saisie, sans accès à la base. Une clé absente est traitée comme vide.
      * Les messages (affichés) sont en français et ne reprennent jamais la valeur saisie.
      *
-     * @param array<string, mixed> $input mode, idPrescriber, lines (liste de lignes, clés LINE_FIELDS)
+     * @param array<string, mixed> $input mode, idPrescriber, note, allergyOverride, lines (liste de lignes,
+     *        clés LINE_FIELDS)
      * @return array<string, string> erreurs indexées par champ (lines[0][dose]…) ; [] si tout est valide
      */
     public function checkInput(array $input): array
@@ -286,6 +345,9 @@ final class CarePlanService
         }
         if (self::text($input['idPrescriber'] ?? null) === '') {
             $errors['idPrescriber'] = 'Choisissez le prescripteur (RG4).';
+        }
+        if (mb_strlen(self::text($input['note'] ?? null)) > self::NOTE_MAX_LENGTH) {
+            $errors['note'] = sprintf('La note de l\'ordonnance dépasse %d caractères.', self::NOTE_MAX_LENGTH);
         }
 
         $lines = $input['lines'] ?? [];
@@ -312,7 +374,17 @@ final class CarePlanService
      * urgence ou en paramédical, son ordonnance est enregistrée « non validée » et reste
      * visible jusqu'à la validation par un médecin (validateCarePlan()).
      *
-     * @param array<string, mixed> $input voir checkInput()
+     * Allergies (retours du 2026-11-03) : une ligne de médicament dont le principe actif est un
+     * allergène du patient fait refuser l'ordonnance (PrescriptionRejected, clé allergyOverride),
+     * sauf si le prescripteur a coché « Je prescris malgré l'allergie ». La confirmation est alors
+     * tracée (AuditEvent, une ligne par médicament concerné) dans la même transaction que l'ordonnance.
+     *
+     * Un prescripteur médecin s'authentifie comme pour une validation (FACTICE : prescriberPassword
+     * non vide, non vérifié), puisque son ordonnance est validée d'office.
+     *
+     * @param array<string, mixed> $input voir checkInput(), plus prescriberPassword
+     * @return int idCarePlan de l'ordonnance enregistrée
+     * @throws PrescriptionRejected mot de passe du médecin manquant, ou allergie non confirmée
      * @throws InvalidArgumentException saisie invalide ou ordonnance refusée (message affichable)
      */
     public function prescribe(int $idEpisodeOfCare, array $input): int
@@ -322,17 +394,30 @@ final class CarePlanService
             throw new InvalidArgumentException(implode(' ', $errors));
         }
 
-        $dossier = $this->dossierPatientService->dossier($idEpisodeOfCare);
-        if ($dossier === null) {
+        $record = $this->patientRecordService->record($idEpisodeOfCare);
+        if ($record === null) {
             throw new InvalidArgumentException('Ce séjour n\'existe pas.');
         }
-        if (!$dossier['sejour']['enCours']) {
+        if (!$record['episodeOfCare']['ongoing']) {
             throw new InvalidArgumentException('Ce séjour est clos : on ne peut plus y ajouter de prescription.');
         }
 
         $prescriber = $this->referenceDataDao->practitioner(self::text($input['idPrescriber']));
         if ($prescriber === null) {
             throw new InvalidArgumentException('Ce prescripteur n\'existe pas.');
+        }
+        // RG5 : l'ordonnance d'un médecin est validée d'office ; elle l'engage donc comme une validation :
+        // même authentification (factice) que /care-plans/validate. Sans elle, n'importe qui choisissant un
+        // médecin dans la liste produirait une ordonnance validée à son nom.
+        if ($prescriber->canValidate()) {
+            $authError = self::checkValidatorAuth(
+                $prescriber->getIdPractitioner(),
+                self::text($input['prescriberPassword'] ?? null),
+                $this->doctors()
+            );
+            if ($authError !== null) {
+                throw new PrescriptionRejected(['prescriberPassword' => $authError]);
+            }
         }
         $mode = self::text($input['mode']);
         if ($mode === 'MEDICAL' && !$prescriber->canValidate()) {
@@ -347,10 +432,22 @@ final class CarePlanService
         $medicationActivity = array_search(self::MEDICATION_ACTIVITY, $activityDefinitions, true);
         $medications = $this->referenceDataDao->medications();
 
+        // Relecture adversariale du 2026-11-04 : une ligne ne commence pas avant l'admission (une date en 2020
+        // créait des milliers de soins « en retard »).
+        $admission = DateTimeImmutable::createFromFormat('d/m/Y H:i', (string) ($record['admissionDate'] ?? ''));
+
         // Chaque soin et chaque médicament doit exister ; RG6 : chaque ligne a un type de soin.
         $lines = [];
         foreach (array_values($input['lines']) as $i => $line) {
             $number = $i + 1;
+            $start = self::date(self::text($line['startDate'] ?? null));
+            if ($admission !== false && $start !== null && $start < $admission->setTime(0, 0)) {
+                throw new InvalidArgumentException(sprintf(
+                    'Ligne %d : la date de début précède l\'admission du %s.',
+                    $number,
+                    $admission->format('d/m/Y')
+                ));
+            }
             if (self::text($line['kind']) === self::KIND_CARE) {
                 if (!array_key_exists(self::text($line['idActivityDefinition']), $careTypes)) {
                     throw new InvalidArgumentException(sprintf('Ligne %d : ce soin n\'existe pas.', $number));
@@ -370,6 +467,21 @@ final class CarePlanService
             $lines[] = self::buildLine($line, (string) $medicationActivity);
         }
 
+        // Sécurité du patient : allergène prescrit sans confirmation explicite → refus, rien n'est écrit.
+        $conflicts = self::allergyConflicts(
+            array_values($input['lines']),
+            self::medicationAllergens(
+                $record['allergens'] ?? [],
+                $this->referenceDataDao->medicationSubstances(),
+                $medications
+            ),
+            $medications
+        );
+        $allergyErrors = self::checkAllergies($conflicts, self::text($input[self::ALLERGY_OVERRIDE] ?? null));
+        if ($allergyErrors !== []) {
+            throw new PrescriptionRejected($allergyErrors);
+        }
+
         $validatedOnRecord = $prescriber->canValidate();
         $carePlan = new CarePlan(
             idCarePlan: null,
@@ -379,26 +491,187 @@ final class CarePlanService
             lines: $lines,
             idValidator: $validatedOnRecord ? $prescriber->getIdPractitioner() : null,
             // Seulement pour dire « validée » : la date réellement enregistrée est celle de la base.
-            validatedAt: $validatedOnRecord ? new DateTimeImmutable() : null
+            validatedAt: $validatedOnRecord ? new DateTimeImmutable() : null,
+            note: self::textOrNull($input['note'] ?? null)
         );
 
-        return $this->carePlanDao->insert($carePlan);
+        // Ordonnance et trace de la confirmation : tout ou rien (CarePlanDao::insert() rejoint la transaction).
+        return $this->transaction->run(function () use ($carePlan, $conflicts, $prescriber): int {
+            $idCarePlan = $this->carePlanDao->insert($carePlan);
+            foreach ($conflicts as $conflict) {
+                $this->auditEventDao->insert(new AuditEvent(
+                    null,
+                    AuditEvent::ENTITY_CARE_PLAN,
+                    $idCarePlan,
+                    self::ALLERGY_OVERRIDE,
+                    null,
+                    sprintf('%s ; allergène : %s', $conflict['medication'], $conflict['allergen']),
+                    mb_substr(self::nameAndRole($prescriber), 0, 100),
+                    detail: sprintf('ligne %d prescrite malgré l\'allergie (confirmation explicite)', $conflict['line'])
+                ));
+            }
+
+            return $idCarePlan;
+        });
+    }
+
+    /**
+     * Allergènes du patient portés par les médicaments du référentiel (Medication.idSubstance). Pure.
+     *
+     * Relecture adversariale du 2026-11-04 : le référentiel ne relie un médicament qu'à UNE substance
+     * (Medication.idSubstance, l'amoxicilline à la pénicilline). Un patient allergique à l'« Amoxicilline »
+     * elle-même passait donc sans alerte. En plus du lien, un allergène dont le nom est celui du médicament
+     * (DCI, sans accents ni casse) est signalé. Le vrai remède est un lien médicament ↔ substances multiple,
+     * proposé au responsable de la base.
+     *
+     * @param array<string, string> $allergens allergies du patient : idSubstance => libellé
+     * @param array<string, string> $medicationSubstances idMedication => idSubstance
+     * @param array<string, string> $medications idMedication => « DCI (forme) » (referenceDataDao->medications())
+     * @return array<string, string> idMedication => libellé de l'allergène
+     */
+    public static function medicationAllergens(
+        array $allergens,
+        array $medicationSubstances,
+        array $medications = []
+    ): array {
+        $list = [];
+        foreach ($medicationSubstances as $idMedication => $idSubstance) {
+            if (isset($allergens[$idSubstance])) {
+                $list[(string) $idMedication] = $allergens[$idSubstance];
+            }
+        }
+        $fold = static fn (string $s): string => mb_strtolower(trim((string) preg_replace(
+            '/[\x{0300}-\x{036f}]/u',
+            '',
+            (string) \Normalizer::normalize($s, \Normalizer::FORM_D)
+        )));
+        $byName = [];
+        foreach ($allergens as $label) {
+            $byName[$fold($label)] = $label;
+        }
+        foreach ($medications as $idMedication => $name) {
+            $inn = $fold(explode(' (', $name, 2)[0]);
+            if (!isset($list[(string) $idMedication]) && isset($byName[$inn])) {
+                $list[(string) $idMedication] = $byName[$inn];
+            }
+        }
+
+        return $list;
+    }
+
+    /**
+     * Lignes de médicament de l'ordonnance dont le principe actif est un allergène du patient. Pure.
+     *
+     * @param list<array<string, mixed>> $lines lignes saisies (clés LINE_FIELDS)
+     * @param array<string, string> $medicationAllergens idMedication => allergène (medicationAllergens())
+     * @param array<string, string> $medications idMedication => « DCI (forme) », pour le message
+     * @return list<array{line: int, idMedication: string, medication: string, allergen: string}>
+     *         line : numéro de la ligne affiché (1 pour la première)
+     */
+    public static function allergyConflicts(array $lines, array $medicationAllergens, array $medications): array
+    {
+        $conflicts = [];
+        foreach (array_values($lines) as $i => $line) {
+            if (!is_array($line) || self::text($line['kind'] ?? null) !== self::KIND_MEDICATION) {
+                continue;
+            }
+            $idMedication = self::text($line['idMedication'] ?? null);
+            if (!isset($medicationAllergens[$idMedication])) {
+                continue;
+            }
+            $conflicts[] = [
+                'line' => $i + 1,
+                'idMedication' => $idMedication,
+                'medication' => $medications[$idMedication] ?? $idMedication,
+                'allergen' => $medicationAllergens[$idMedication],
+            ];
+        }
+
+        return $conflicts;
+    }
+
+    /**
+     * Signature d'une confirmation d'allergie : identifiants des médicaments allergènes de l'ordonnance,
+     * triés, séparés par des virgules. La case « Je prescris malgré l'allergie » porte cette valeur
+     * (care-plan.js) : une confirmation ne vaut que pour les médicaments qu'on voyait en la cochant.
+     *
+     * @param list<array{idMedication: string}> $conflicts
+     */
+    public static function allergySignature(array $conflicts): string
+    {
+        $ids = array_values(array_unique(array_map(static fn(array $c): string => $c['idMedication'], $conflicts)));
+        sort($ids);
+
+        return implode(',', $ids);
+    }
+
+    /**
+     * Règle d'allergie, pure : des lignes en conflit sans la case « Je prescris malgré l'allergie »
+     * cochée pour exactement ces médicaments (allergySignature()) donnent une erreur sur allergyOverride,
+     * qui nomme chaque médicament et son allergène. Un allergène ajouté après la confirmation la rend
+     * caduque. Sans conflit, la case est sans effet.
+     *
+     * @param list<array{line: int, idMedication: string, medication: string, allergen: string}> $conflicts
+     * @return array<string, string> [] ou [ALLERGY_OVERRIDE => message]
+     */
+    public static function checkAllergies(array $conflicts, string $override): array
+    {
+        if ($conflicts === [] || $override === self::allergySignature($conflicts)) {
+            return [];
+        }
+
+        $details = array_map(
+            static fn(array $c): string => sprintf(
+                'ligne %d : %s contient %s',
+                $c['line'],
+                $c['medication'],
+                $c['allergen']
+            ),
+            $conflicts
+        );
+
+        return [self::ALLERGY_OVERRIDE => sprintf(
+            'Allergie du patient (%s). Ordonnance non enregistrée : retirez la ligne ou cochez '
+            . '« Je prescris malgré l\'allergie ».',
+            implode(' ; ', $details)
+        )];
+    }
+
+    /**
+     * Authentification FACTICE du médecin qui valide, pure : il doit être dans la liste des médecins
+     * habilités (canValidate) et avoir saisi un mot de passe non vide, qui n'est PAS vérifié (en
+     * attendant l'identification des praticiens, AURA-18). Même règle que la fenêtre du dossier.
+     *
+     * @param array<string, string> $doctors médecins habilités : idPractitioner => libellé (doctors())
+     * @return string|null AUTH_ERROR si refusée, null si acceptée
+     */
+    public static function checkValidatorAuth(string $idValidator, string $password, array $doctors): ?string
+    {
+        return isset($doctors[$idValidator]) && trim($password) !== '' ? null : self::AUTH_ERROR;
     }
 
     /**
      * RG5 / AURA-23 : un médecin valide une ordonnance « non validée » de ce séjour.
      * La validation porte sur toute l'ordonnance ; qui et quand sont enregistrés (RG10).
+     * Le médecin s'authentifie (FACTICE : mot de passe non vide, non vérifié), comme dans le dossier.
      *
+     * @throws PrescriptionRejected authentification refusée (erreur sur la clé auth)
      * @throws InvalidArgumentException validation refusée (message affichable)
      */
-    public function validateCarePlan(int $idEpisodeOfCare, int $idCarePlan, string $idValidator): void
-    {
-        $validator = $idValidator !== '' ? $this->referenceDataDao->practitioner($idValidator) : null;
-        if ($validator === null) {
-            throw new InvalidArgumentException('Choisissez le médecin qui valide.');
+    public function validateCarePlan(
+        int $idEpisodeOfCare,
+        int $idCarePlan,
+        string $idValidator,
+        string $password
+    ): void {
+        $authError = self::checkValidatorAuth($idValidator, $password, $this->doctors());
+        if ($authError !== null) {
+            throw new PrescriptionRejected(['auth' => $authError]);
         }
-        if (!$validator->canValidate()) {
-            throw new InvalidArgumentException('Seul un médecin peut valider une ordonnance (RG5).');
+        // Comme prescrire et arrêter : un séjour clos ne change plus (une requête forgée est refusée aussi).
+        $record = $this->patientRecordService->record($idEpisodeOfCare);
+        if ($record === null || !$record['episodeOfCare']['ongoing']) {
+            throw new InvalidArgumentException('Ce séjour est clos : ses prescriptions ne peuvent plus changer.');
         }
 
         $carePlan = null;
@@ -419,11 +692,20 @@ final class CarePlanService
     /**
      * AURA-22 : un médecin arrête une ligne (soin ou médicament) d'une ordonnance de ce séjour.
      * La ligne quitte alors « Prescriptions en cours » du dossier ; qui et quand sont enregistrés (RG10).
+     * Ses soins encore planifiés à une heure future passent à ANNULE (CarePlanDao::markStopped()).
+     * Même authentification factice que la validation.
      *
      * @throws InvalidArgumentException arrêt refusé (message affichable)
      */
-    public function stopLine(int $idEpisodeOfCare, bool $isMedication, int $idLine, string $idStoppedBy): void
-    {
+    public function stopLine(
+        int $idEpisodeOfCare,
+        bool $isMedication,
+        int $idLine,
+        string $idStoppedBy,
+        string $password
+    ): void {
+        // Arrêter un traitement engage le médecin comme la validation : même authentification factice.
+        $authError = self::checkValidatorAuth($idStoppedBy, $password, $this->doctors());
         $doctor = $idStoppedBy !== '' ? $this->referenceDataDao->practitioner($idStoppedBy) : null;
         if ($doctor === null) {
             throw new InvalidArgumentException('Choisissez le médecin qui arrête la prescription.');
@@ -431,9 +713,12 @@ final class CarePlanService
         if (!$doctor->canValidate()) {
             throw new InvalidArgumentException('Seul un médecin peut arrêter une prescription.');
         }
+        if ($authError !== null) {
+            throw new InvalidArgumentException($authError);
+        }
 
-        $dossier = $this->dossierPatientService->dossier($idEpisodeOfCare);
-        if ($dossier === null || !$dossier['sejour']['enCours']) {
+        $record = $this->patientRecordService->record($idEpisodeOfCare);
+        if ($record === null || !$record['episodeOfCare']['ongoing']) {
             throw new InvalidArgumentException('Ce séjour est clos : ses prescriptions ne peuvent plus changer.');
         }
 
@@ -470,6 +755,13 @@ final class CarePlanService
 
         return $doctors;
     }
+
+    /** Années acceptées pour une date de prescription (au-delà, MariaDB refuse la date). */
+    private const YEAR_MIN = '2000';
+    private const YEAR_MAX = '2099';
+
+    /** Durée maximale d'une ligne de prescription, en jours (au-delà, on la renouvelle). */
+    public const MAX_LINE_DAYS = 365;
 
     /**
      * Erreurs d'une ligne, sans accès à la base. Messages sans majuscule : checkInput() les
@@ -526,6 +818,9 @@ final class CarePlanService
             $errors['startDate'] = 'la date de début (« du ») est obligatoire (RG3).';
         } elseif ($start === null) {
             $errors['startDate'] = 'la date de début est invalide.';
+        } elseif ($start->format('Y') < self::YEAR_MIN || $start->format('Y') > self::YEAR_MAX) {
+            // Relecture adversariale du 2026-11-04 : une date en 9999 faisait planter l'enregistrement.
+            $errors['startDate'] = 'la date de début est hors des limites (vérifiez l\'année).';
         }
 
         $endText = self::text($line['endDate'] ?? null);
@@ -537,6 +832,12 @@ final class CarePlanService
                 $errors['endDate'] = 'une prescription « Une fois » n\'a pas de date de fin.';
             } elseif ($start !== null && $end < $start) {
                 $errors['endDate'] = 'la date de fin (« au ») doit être après la date de début (« du »).';
+            } elseif ($start !== null && $end > $start->modify('+' . self::MAX_LINE_DAYS . ' days')) {
+                // Une ligne « toutes les heures » jusqu'en 2099 épuisait la mémoire.
+                $errors['endDate'] = sprintf(
+                    'une prescription ne peut pas durer plus de %d jours : renouvelez-la ensuite.',
+                    self::MAX_LINE_DAYS
+                );
             }
         }
 
@@ -620,6 +921,8 @@ final class CarePlanService
      * @param array<string, string> $medications idMedication => libellé
      * @param array<string, string> $activityDefinitions idActivityDefinition => libellé
      * @param array<string, Practitioner> $practitioners indexés par idPractitioner
+     * @param array<string, string> $medicationAllergens idMedication => allergène du patient
+     *        (medicationAllergens()) : la ligne est signalée « allergie » (clé allergen)
      * @return array<string, mixed>
      */
     public static function presentLine(
@@ -627,7 +930,8 @@ final class CarePlanService
         RequestLine $line,
         array $medications,
         array $activityDefinitions,
-        array $practitioners
+        array $practitioners,
+        array $medicationAllergens = []
     ): array {
         $activity = $activityDefinitions[$line->getIdActivityDefinition()] ?? $line->getIdActivityDefinition();
         if ($line instanceof MedicationRequest) {
@@ -691,6 +995,12 @@ final class CarePlanService
             'status' => $carePlan->statusOf($line),
             'validation' => $validation,
             'stop' => $stop,
+            // Note libre de l'ordonnance (commune à toutes ses lignes) ; null = aucune.
+            'carePlanNote' => $carePlan->getNote(),
+            // Allergène du patient contenu dans le médicament (signalé dans la liste et le dossier) ; null sinon.
+            'allergen' => $line instanceof MedicationRequest
+                ? ($medicationAllergens[$line->getIdMedication()] ?? null)
+                : null,
         ];
     }
 
@@ -735,7 +1045,7 @@ final class CarePlanService
     }
 
     /**
-     * Soins proposés dans la liste « 2. » : tous les types de soin, sauf l'administration
+     * Soins proposés dans la liste « Soin » : tous les types de soin, sauf l'administration
      * médicamenteuse, qui se prescrit en choisissant un médicament.
      *
      * @param array<string, string> $activityDefinitions idActivityDefinition => name
@@ -746,7 +1056,11 @@ final class CarePlanService
         return array_filter($activityDefinitions, static fn(string $name) => $name !== self::MEDICATION_ACTIVITY);
     }
 
-    /** @param array<string, Practitioner> $practitioners */
+    /**
+     * Nom et rôle d'un praticien ; son identifiant s'il est absent du référentiel, '' sans praticien.
+     *
+     * @param array<string, Practitioner> $practitioners
+     */
     private static function name(array $practitioners, ?string $idPractitioner): string
     {
         if ($idPractitioner === null) {

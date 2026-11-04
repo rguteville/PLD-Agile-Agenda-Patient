@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Aura\Controller;
 
+use Aura\Core\Csrf;
 use Aura\Core\View;
 use Aura\Service\CarePlanService;
 use Aura\Service\PlanDefinitionService;
+use Aura\Service\PrescriptionRejected;
 use DateTimeImmutable;
 use InvalidArgumentException;
 
@@ -17,6 +19,11 @@ use InvalidArgumentException;
  * Même fonctionnement que l'admission (PatientController) : validation serveur avant toute
  * écriture, réponse JSON pour form.js (AJAX) ; après un enregistrement, retour sur l'écran B3
  * avec un message (POST → redirect → GET).
+ *
+ * Les trois POST (enregistrer, valider, arrêter une ligne) exigent le jeton CSRF de la session (champ
+ * « csrf », 403 sinon) : sans lui, une page tierce pourrait faire prescrire, valider ou arrêter à l'insu
+ * du soignant. Ils demandent aussi l'authentification (FACTICE) du médecin : prescripteur à
+ * l'enregistrement, validateur, médecin qui arrête la ligne.
  */
 final class CarePlanController
 {
@@ -44,7 +51,7 @@ final class CarePlanController
 
         $page = $this->carePlanService->listing($idEpisodeOfCare);
         if ($page === null) {
-            View::erreur(404, sprintf('Aucun séjour ne porte l\'identifiant « %d ».', $idEpisodeOfCare));
+            View::error(404, sprintf('Aucun séjour ne porte l\'identifiant « %d ».', $idEpisodeOfCare));
             return;
         }
 
@@ -68,22 +75,25 @@ final class CarePlanController
             self::positiveInt($_GET['validated'] ?? null)
         );
         if ($form === null) {
-            View::erreur(404, sprintf('Aucun séjour ne porte l\'identifiant « %d ».', $idEpisodeOfCare));
+            View::error(404, sprintf('Aucun séjour ne porte l\'identifiant « %d ».', $idEpisodeOfCare));
             return;
         }
         if (!$form['isOpen']) {
-            View::erreur(400, 'Ce séjour est clos : on ne peut plus y ajouter de prescription.');
+            View::error(400, 'Ce séjour est clos : on ne peut plus y ajouter de prescription.');
             return;
         }
 
         $this->showForm($form, '');
     }
 
-    /** POST /care-plans/create?idEpisodeOfCare=… : enregistre l'ordonnance et toutes ses lignes. */
+    /**
+     * POST /care-plans/create?idEpisodeOfCare=… : enregistre l'ordonnance et toutes ses lignes, et planifie
+     * leurs soins (AURA-24.4). Refus : 422 avec les erreurs par champ, rien n'est écrit.
+     */
     public function create(): void
     {
         $idEpisodeOfCare = $this->requestedEpisodeOfCare();
-        if ($idEpisodeOfCare === null) {
+        if ($idEpisodeOfCare === null || !$this->checkCsrf()) {
             return;
         }
 
@@ -96,6 +106,10 @@ final class CarePlanController
 
         try {
             $idCarePlan = $this->carePlanService->prescribe($idEpisodeOfCare, $input);
+        } catch (PrescriptionRejected $e) {
+            // Refus rattaché à un champ (allergie non confirmée…) : rien n'a été écrit.
+            $this->respondWithErrors($idEpisodeOfCare, $e->errors);
+            return;
         } catch (InvalidArgumentException $e) {
             // Refus métier (séjour clos, droits RG5…) : rien n'a été écrit.
             $this->respondWithErrors($idEpisodeOfCare, [self::FORM_ERROR => $e->getMessage()]);
@@ -105,11 +119,14 @@ final class CarePlanController
         $this->redirect(sprintf('/care-plans/new?idEpisodeOfCare=%d&saved=%d', $idEpisodeOfCare, $idCarePlan));
     }
 
-    /** POST /care-plans/validate?idEpisodeOfCare=… : un médecin valide une ordonnance (RG5, AURA-23). */
+    /**
+     * POST /care-plans/validate?idEpisodeOfCare=… : un médecin valide une ordonnance (RG5, AURA-23).
+     * Champs : idCarePlan, idValidator, password (authentification FACTICE), csrf.
+     */
     public function validate(): void
     {
         $idEpisodeOfCare = $this->requestedEpisodeOfCare();
-        if ($idEpisodeOfCare === null) {
+        if ($idEpisodeOfCare === null || !$this->checkCsrf()) {
             return;
         }
 
@@ -123,7 +140,9 @@ final class CarePlanController
             $this->carePlanService->validateCarePlan(
                 $idEpisodeOfCare,
                 $idCarePlan,
-                self::text($_POST['idValidator'] ?? null)
+                self::text($_POST['idValidator'] ?? null),
+                // Pas de trim : le mot de passe est lu tel quel (seul « vide » est refusé).
+                is_string($_POST['password'] ?? null) ? $_POST['password'] : ''
             );
         } catch (InvalidArgumentException $e) {
             $this->respondWithErrors($idEpisodeOfCare, [self::FORM_ERROR => $e->getMessage()]);
@@ -139,12 +158,14 @@ final class CarePlanController
 
     /**
      * POST /care-plans/stop?idEpisodeOfCare=… : un médecin arrête une ligne depuis le dossier du
-     * séjour (AURA-22), puis retour au dossier. Champs : idLine, isMedication (1 ou 0), idStoppedBy.
+     * séjour (AURA-22), puis retour au dossier. Champs : idLine, isMedication (1 ou 0), idStoppedBy,
+     * password (authentification FACTICE), csrf. Les soins encore prévus après l'arrêt sont annulés.
+     * Refus : 422 (JSON {ok:false, errors: {form: message}} pour form.js, sinon page d'erreur).
      */
     public function stop(): void
     {
         $idEpisodeOfCare = $this->requestedEpisodeOfCare();
-        if ($idEpisodeOfCare === null) {
+        if ($idEpisodeOfCare === null || !$this->checkCsrf()) {
             return;
         }
 
@@ -158,14 +179,15 @@ final class CarePlanController
                 $idEpisodeOfCare,
                 $kind === '1',
                 $idLine,
-                self::text($_POST['idStoppedBy'] ?? null)
+                self::text($_POST['idStoppedBy'] ?? null),
+                is_string($_POST['password'] ?? null) ? $_POST['password'] : ''
             );
         } catch (InvalidArgumentException $e) {
             // Erreur affichée dans le formulaire du dossier par form.js ; sans JavaScript, page d'erreur.
             if ($this->expectsJson()) {
-                $this->respondJson(422, ['ok' => false, 'erreurs' => [self::FORM_ERROR => $e->getMessage()]]);
+                $this->respondJson(422, ['ok' => false, 'errors' => [self::FORM_ERROR => $e->getMessage()]]);
             } else {
-                View::erreur(422, $e->getMessage());
+                View::error(422, $e->getMessage());
             }
             return;
         }
@@ -190,7 +212,7 @@ final class CarePlanController
             }
             $lines = $this->planDefinitionService->linesToPrefill($idPlanDefinition, $start);
         } catch (InvalidArgumentException $e) {
-            $this->respondJson(422, ['ok' => false, 'erreurs' => [self::FORM_ERROR => $e->getMessage()]]);
+            $this->respondJson(422, ['ok' => false, 'errors' => [self::FORM_ERROR => $e->getMessage()]]);
             return;
         }
 
@@ -205,10 +227,28 @@ final class CarePlanController
     {
         $id = self::positiveInt($_GET['idEpisodeOfCare'] ?? null);
         if ($id === null) {
-            View::erreur(400, 'Identifiant de séjour manquant ou invalide.');
+            View::error(400, 'Identifiant de séjour manquant ou invalide.');
         }
 
         return $id;
+    }
+
+    /**
+     * Jeton CSRF du formulaire (champ « csrf ») ; sinon 403 (JSON pour form.js) et false.
+     */
+    private function checkCsrf(): bool
+    {
+        if (Csrf::check(is_string($_POST['csrf'] ?? null) ? $_POST['csrf'] : null)) {
+            return true;
+        }
+        $message = 'Session expirée : rechargez la page puis réessayez.';
+        if ($this->expectsJson()) {
+            $this->respondJson(403, ['ok' => false, 'errors' => [self::FORM_ERROR => $message]]);
+        } else {
+            View::error(403, $message);
+        }
+
+        return false;
     }
 
     /** @param array<string, mixed> $form données de CarePlanService::form() */
@@ -219,6 +259,7 @@ final class CarePlanController
             $form + [
                 'formError' => $formError,
                 'planDefinitions' => $this->planDefinitionService->activePlans(),
+                'csrfToken' => Csrf::token(),
             ],
             $this->title('Nouvelles prescriptions', $form),
             self::FORM_SCRIPTS
@@ -234,14 +275,14 @@ final class CarePlanController
     private function respondWithErrors(int $idEpisodeOfCare, array $errors): void
     {
         if ($this->expectsJson()) {
-            // Clé « erreurs » : c'est celle que lit public/js/form.js (partagé avec l'admission).
-            $this->respondJson(422, ['ok' => false, 'erreurs' => $errors]);
+            // Clé « errors » : c'est celle que lit public/js/form.js (partagé avec l'admission).
+            $this->respondJson(422, ['ok' => false, 'errors' => $errors]);
             return;
         }
 
         $form = $this->carePlanService->form($idEpisodeOfCare);
         if ($form === null) {
-            View::erreur(404, sprintf('Aucun séjour ne porte l\'identifiant « %d ».', $idEpisodeOfCare));
+            View::error(404, sprintf('Aucun séjour ne porte l\'identifiant « %d ».', $idEpisodeOfCare));
             return;
         }
         http_response_code(422);
@@ -264,18 +305,20 @@ final class CarePlanController
         return sprintf(
             'AURA - %s - %s %s, séjour %s',
             $subject,
-            $page['banner']['nom'],
-            $page['banner']['prenom'],
-            $page['banner']['numeroSejour']
+            $page['banner']['lastName'],
+            $page['banner']['firstName'],
+            $page['banner']['episodeNumber']
         );
     }
 
     /**
-     * Ordonnance envoyée par l'écran B3 : mode, prescripteur et lignes (lines[n][…], dans l'ordre
-     * du panier). Seuls les champs attendus sont gardés ; une valeur non textuelle compte comme vide.
+     * Ordonnance envoyée par l'écran B3 : mode, prescripteur, note, confirmation d'allergie et lignes
+     * (lines[n][…], dans l'ordre du panier). Seuls les champs attendus sont gardés ; une valeur non
+     * textuelle compte comme vide.
      *
      * @param array<string, mixed> $post
-     * @return array{mode: string, idPrescriber: string, lines: list<array<string, string>>}
+     * @return array{mode: string, idPrescriber: string, prescriberPassword: string, note: string,
+     *               allergyOverride: string, lines: list<array<string, string>>}
      */
     private static function readInput(array $post): array
     {
@@ -292,6 +335,10 @@ final class CarePlanController
         return [
             'mode' => self::text($post['mode'] ?? null),
             'idPrescriber' => self::text($post['idPrescriber'] ?? null),
+            // Authentification FACTICE du médecin prescripteur (non vérifiée, jamais tracée ni réaffichée).
+            'prescriberPassword' => is_string($post['prescriberPassword'] ?? null) ? $post['prescriberPassword'] : '',
+            'note' => self::text($post['note'] ?? null),
+            CarePlanService::ALLERGY_OVERRIDE => self::text($post[CarePlanService::ALLERGY_OVERRIDE] ?? null),
             'lines' => $lines,
         ];
     }
@@ -302,6 +349,7 @@ final class CarePlanController
         return is_string($value) && preg_match('/^[1-9][0-9]{0,17}$/', $value) === 1 ? (int) $value : null;
     }
 
+    /** Valeur texte d'un champ, sans espaces autour ; chaîne vide si absente ou d'un autre type. */
     private static function text(mixed $value): string
     {
         return is_string($value) ? trim($value) : '';

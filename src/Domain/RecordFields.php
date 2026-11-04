@@ -9,12 +9,16 @@ namespace Aura\Domain;
  *
  * Chaque entrée décrit un champ facultatif : sa section d'affichage, son type de saisie, ses
  * bornes et, pour les échelles, ses valeurs autorisées (ClinicalScales). Le nom de la clé est
- * à la fois le nom du champ dans le formulaire, la clé du domaine et la colonne SQL (nouveau
- * code en anglais HL7, décision du 2026-10-21) : les DAO n'ont donc aucune table de traduction
- * à maintenir pour ces champs.
+ * à la fois le nom du champ dans le formulaire, la clé du domaine et la colonne SQL (code en
+ * anglais HL7) : les DAO n'ont donc aucune table de traduction à maintenir pour ces champs.
+ *
+ * Clés facultatives d'une entrée : 'placeholder', 'help', 'max' (longueur), 'options' (liste
+ * fermée), 'admission' => false (absent du formulaire d'admission), 'validatedByDoctor' => true
+ * (modifiable seulement par « Modifier » sur la partie, validé par un médecin et tracé ; une
+ * valeur vide peut être complétée à l'admission, cf. RecordEditService).
  *
  * Ce catalogue est la liste blanche : un champ absent d'ici n'est jamais lu d'un formulaire
- * ni écrit en base (FieldValidationService, PatientDao, SejourDao).
+ * ni écrit en base (FieldValidationService, PatientDao, EpisodeOfCareDao).
  */
 final class RecordFields
 {
@@ -31,24 +35,34 @@ final class RecordFields
     /** Longueur maximale d'une note libre (colonne TEXT) : borne applicative, bien sous les 65 535 octets. */
     public const TEXT_MAX = 10000;
 
-    /**
-     * Champs stables au fil des séjours : table Patient.
-     *
-     * @var array<string, array{label: string, type: string, section: string, max?: int,
-     *                          options?: array<string, string>, help?: string}>
-     */
     /** Groupes sanguins ABO et rhésus D (colonne existante Patient.bloodType VARCHAR(3)). */
     public const BLOOD_TYPES = [
         'A+' => 'A+', 'A-' => 'A−', 'B+' => 'B+', 'B-' => 'B−',
         'AB+' => 'AB+', 'AB-' => 'AB−', 'O+' => 'O+', 'O-' => 'O−',
     ];
 
+    /**
+     * Décès du patient (colonne existante Patient.deceased BOOLEAN, retours des médecins du 2026-11-03).
+     * '0' / '1' tels que relus en base ; null = non renseigné (patients admis avant ce champ).
+     */
+    public const DECEASED_OPTIONS = ['0' => 'Non', '1' => 'Oui'];
+
+    /**
+     * Champs stables au fil des séjours : table Patient.
+     *
+     * @var array<string, array{label: string, type: string, section: string, max?: int,
+     *                          options?: array<string, string>, help?: string, placeholder?: string,
+     *                          admission?: bool, validatedByDoctor?: bool}>
+     */
     public const PATIENT = [
+        // Donnée vitale (retours du 2026-11-04) : comme le décès, elle ne change que par « Modifier » sur
+        // sa partie, validé par un médecin et tracé ; l'admission peut seulement compléter un groupe inconnu.
         'bloodType' => [
             'label' => 'Groupe sanguin',
             'type' => 'select',
             'section' => 'admission',
             'options' => self::BLOOD_TYPES,
+            'validatedByDoctor' => true,
         ],
         'allergyNote' => [
             'placeholder' => 'réaction cutanée au sparadrap',
@@ -201,15 +215,27 @@ final class RecordFields
             'section' => 'admin',
             'max' => self::TEXT_MAX,
         ],
+        // Absent du formulaire d'admission ('admission' => false) et jamais modifiable champ par champ :
+        // seulement par « Modifier » sur la partie, validé par un médecin et tracé ('validatedByDoctor').
+        // Passer à « Oui » termine le séjour en cours (RecordSectionService, retours du 2026-11-04).
+        'deceased' => [
+            'label' => 'Patient(e) décédé(e)',
+            'type' => 'select',
+            'section' => 'admin',
+            'options' => self::DECEASED_OPTIONS,
+            'admission' => false,
+            'validatedByDoctor' => true,
+            'help' => 'Modification validée par un médecin et tracée dans l\'historique.',
+        ],
     ];
 
     /**
      * Champs propres à une hospitalisation : table EpisodeOfCare. Le poids, la taille, les
-     * précautions et le service sont des colonnes antérieures (AURA-10.1) gérées à part par
-     * AdmissionService ; ils ne figurent pas ici.
+     * précautions, le service et le médecin référent sont des colonnes de base gérées à part
+     * (AdmissionService, EpisodeOfCareDao::EDITABLE_BASE_COLUMNS) ; ils ne figurent pas ici.
      *
      * @var array<string, array{label: string, type: string, section: string, max?: int,
-     *                          options?: array<string, string>, help?: string}>
+     *                          options?: array<string, string>, help?: string, placeholder?: string}>
      */
     public const EPISODE = [
         'admissionReason' => [
@@ -324,6 +350,17 @@ final class RecordFields
             'max' => 100,
         ],
     ];
+
+    /**
+     * Champs du patient proposés à l'admission : le catalogue sans ceux marqués 'admission' => false
+     * (le décès ne se déclare pas en admettant un patient). Liste blanche de l'admission.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    public static function admissionPatientFields(): array
+    {
+        return array_filter(self::PATIENT, static fn (array $spec): bool => ($spec['admission'] ?? true) !== false);
+    }
 
     /** @return list<string> noms de colonnes des champs complémentaires du patient */
     public static function patientColumns(): array

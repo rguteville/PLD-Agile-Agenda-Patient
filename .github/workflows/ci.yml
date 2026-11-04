@@ -43,9 +43,10 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ env.PHP_VERSION }}
-          extensions: pdo_mysql
+          extensions: pdo_mysql, curl
           tools: composer:v2
-          coverage: none
+          # pcov : mesure de couverture des tests (résumé dans le journal, rapport HTML en artefact).
+          coverage: pcov
 
       - name: Valider composer.json
         run: composer validate --strict
@@ -54,7 +55,7 @@ jobs:
         run: composer install --no-interaction --no-progress --prefer-dist
 
       - name: Vérifier la syntaxe PHP
-        run: find src tests public config -name '*.php' -print0 | xargs -0 -r -n1 php -l
+        run: find src tests public config bin -name '*.php' -print0 | xargs -0 -r -n1 php -l
 
       - name: Style de code (PSR-12)
         run: composer cs
@@ -65,7 +66,7 @@ jobs:
       - name: Charger les données de test dans MariaDB                                 
         run: docker exec -i ${{ job.services.mariadb.id }} mariadb -u aura -paura_ci aura_test < database/test.sql
 
-      - name: Tests
+      - name: Tests (unitaires, DAO, intégration, puis HTTP de bout en bout) avec couverture
         # Mêmes valeurs que le service MariaDB ci-dessus (pas des secrets) :
         # lues par config/config.example.php pour le test de connexion.
         env:
@@ -74,9 +75,14 @@ jobs:
           DB_NAME: aura_test
           DB_USER: aura
           DB_PASSWORD: aura_ci
-        run: |
-          if find tests -name '*Test.php' | grep -q .; then
-            composer test
-          else
-            echo "Aucun test pour l'instant."
-          fi
+        # La couverture compte le code exécuté dans le processus PHPUnit ; les tests HTTP passent par un
+        # serveur séparé et n'y entrent pas (ils vérifient le comportement de bout en bout).
+        run: vendor/bin/phpunit --coverage-text --only-summary-for-coverage-text --coverage-html build/coverage
+
+      - name: Rapport de couverture (HTML)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: couverture
+          path: build/coverage
+          if-no-files-found: ignore

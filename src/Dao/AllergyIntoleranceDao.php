@@ -1,0 +1,139 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Aura\Dao;
+
+use Aura\Domain\AllergyIntolerance;
+use DateTimeImmutable;
+use PDO;
+
+/**
+ * Allergies connues des patients (RG2, AURA-13) : table AllergyIntolerance, ressource HL7 du même
+ * nom, jointe au référentiel Substance pour le libellé. La clé SQL s'appelle idAllergy, l'entité
+ * l'expose sous le nom idAllergyIntolerance. Id VARCHAR(20) calculé (MAX + 1, FOR UPDATE).
+ * Exception à la suppression logique : delete() efface la ligne (dette tracée, voir delete()).
+ */
+class AllergyIntoleranceDao
+{
+    public function __construct(private PDO $pdo)
+    {
+    }
+
+    /**
+     * Allergies d'un patient, avec le libellé de l'allergène, par ordre alphabétique.
+     * La table n'a pas de colonne removedAt (retrait logique absent du schéma actuel) : toutes
+     * les allergies enregistrées sont donc renvoyées.
+     *
+     * @return AllergyIntolerance[]
+     */
+    public function findByPatient(int $idPatient): array
+    {
+        $stmt = $this->pdo->prepare(
+            'SELECT a.idAllergy AS idAllergyIntolerance, a.idPatient, a.idSubstance,
+                    g.name AS substance, a.criticality, a.recordedAt
+             FROM AllergyIntolerance a
+             JOIN Substance g ON g.idSubstance = a.idSubstance
+             WHERE a.idPatient = :idPatient
+             ORDER BY g.name'
+        );
+        $stmt->execute(['idPatient' => $idPatient]);
+
+        return array_map(fn(array $r) => $this->mapToEntity($r), $stmt->fetchAll(PDO::FETCH_ASSOC));
+    }
+
+    /**
+     * Enregistre une allergie et renvoie son id (AURA-13.2). idAllergy est un VARCHAR sans
+     * AUTO_INCREMENT : l'id est calculé dans une transaction, en verrouillant la table (FOR
+     * UPDATE) comme PatientDao::insert(). recordedAt est rempli par la base.
+     *
+     * La contrainte UNIQUE (idPatient, idSubstance) lève une PDOException (erreur 1062)
+     * si le couple existe déjà : c'est la garantie finale contre les doublons, que le
+     * service traduit en message métier.
+     *
+     * @throws \PDOException doublon (code 1062) ou patient / allergène inconnu (clé étrangère)
+     */
+    public function insert(AllergyIntolerance $a): int
+    {
+        return (new Transaction($this->pdo))->run(function () use ($a): int {
+            $id = (int) $this->pdo
+                ->query('SELECT COALESCE(MAX(CAST(idAllergy AS UNSIGNED)), 0) + 1 FROM AllergyIntolerance FOR UPDATE')
+                ->fetchColumn();
+
+            $stmt = $this->pdo->prepare(
+                'INSERT INTO AllergyIntolerance (idAllergy, idPatient, idSubstance, criticality)
+                 VALUES (:idAllergy, :idPatient, :idSubstance, :criticality)'
+            );
+            $stmt->execute([
+                'idAllergy' => (string) $id,
+                'idPatient' => (string) $a->getIdPatient(),
+                'idSubstance' => $a->getIdSubstance(),
+                'criticality' => $a->getCriticality(),
+            ]);
+
+            return $id;
+        });
+    }
+
+    /**
+     * Change la criticité d'une allergie déjà enregistrée pour ce patient (null = non évaluée).
+     * Le patient est exigé en plus de l'id, comme pour delete().
+     *
+     * @return bool true si une ligne a été modifiée
+     */
+    public function updateCriticality(int $idAllergy, int $idPatient, ?string $criticality): bool
+    {
+        $stmt = $this->pdo->prepare(
+            'UPDATE AllergyIntolerance SET criticality = :criticality
+             WHERE idAllergy = :idAllergy AND idPatient = :idPatient'
+        );
+        $stmt->execute([
+            'criticality' => $criticality,
+            'idAllergy' => (string) $idAllergy,
+            'idPatient' => (string) $idPatient,
+        ]);
+
+        return $stmt->rowCount() === 1;
+    }
+
+    /**
+     * Retire une allergie du dossier (AURA-13.2). Suppression PHYSIQUE : décision d'équipe
+     * du 21/10/2026, le schéma n'ayant pas de colonne removedAt pour cette table.
+     * Dette technique : la trace « allergie connue au moment d'un soin » disparaît ; seule
+     * cette méthode (et le filtre de findByPatient) changera si l'équipe la réactive.
+     *
+     * Le patient est exigé en plus de l'id : un id forgé ne peut pas toucher le dossier
+     * d'un autre patient.
+     *
+     * @return bool true si une allergie a été retirée, false si elle n'existait pas (ou pas chez ce patient)
+     */
+    public function delete(int $idAllergy, int $idPatient): bool
+    {
+        $stmt = $this->pdo->prepare(
+            'DELETE FROM AllergyIntolerance WHERE idAllergy = :idAllergy AND idPatient = :idPatient'
+        );
+        $stmt->execute(['idAllergy' => (string) $idAllergy, 'idPatient' => (string) $idPatient]);
+
+        return $stmt->rowCount() === 1;
+    }
+
+    /**
+     * Ligne de findByPatient() vers l'entité. Une criticité vide ou faite d'espaces devient null
+     * (non évaluée) ; les autres valeurs sont gardées telles quelles, même hors CRITICALITIES.
+     *
+     * @param array<string, ?string> $r
+     */
+    private function mapToEntity(array $r): AllergyIntolerance
+    {
+        return new AllergyIntolerance(
+            idAllergyIntolerance: (int) $r['idAllergyIntolerance'],
+            idPatient: (int) $r['idPatient'],
+            idSubstance: (string) $r['idSubstance'],
+            substance: (string) $r['substance'],
+            criticality: $r['criticality'] !== null && trim((string) $r['criticality']) !== ''
+                ? trim((string) $r['criticality'])
+                : null,
+            recordedAt: new DateTimeImmutable($r['recordedAt'])
+        );
+    }
+}

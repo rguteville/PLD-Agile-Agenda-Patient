@@ -7,9 +7,9 @@ namespace Aura\Domain;
 use DateTimeImmutable;
 
 /**
- * Prescription (« ordonnance ») d'un séjour (Epic 4, table CarePlan) : qui prescrit, dans quel
- * mode, la validation, et ses lignes (ServiceRequest, MedicationRequest). Les prescriptions sont
- * la seule source de l'agenda.
+ * Prescription (« ordonnance ») d'un séjour (Epic 4, ressource HL7 CarePlan, table CarePlan) : qui
+ * prescrit, dans quel mode, la validation, la note libre, et ses lignes (ServiceRequest,
+ * MedicationRequest). Les prescriptions sont la seule source de l'agenda.
  *
  * Le statut n'est jamais stocké : il se déduit des dates de validation et d'arrêt (RG5).
  */
@@ -34,7 +34,8 @@ class CarePlan
         private ?DateTimeImmutable $recordedAt = null,
         private ?string $idValidator = null,
         private ?DateTimeImmutable $validatedAt = null,
-        private ?string $idPlanDefinition = null
+        private ?string $idPlanDefinition = null,
+        private ?string $note = null
     ) {
     }
 
@@ -80,6 +81,7 @@ class CarePlan
         return $this->idValidator;
     }
 
+    /** RG5 / RG10 : heure de validation, fixée par la base ; null si la prescription n'est pas validée. */
     public function getValidatedAt(): ?DateTimeImmutable
     {
         return $this->validatedAt;
@@ -89,6 +91,15 @@ class CarePlan
     public function getIdPlanDefinition(): ?string
     {
         return $this->idPlanDefinition;
+    }
+
+    /**
+     * Note libre du prescripteur sur l'ordonnance (retours du 2026-11-03) ; null = aucune.
+     * Longueur bornée par CarePlanService::NOTE_MAX_LENGTH.
+     */
+    public function getNote(): ?string
+    {
+        return $this->note;
     }
 
     /** RG5 : validée si une date de validation est enregistrée. */

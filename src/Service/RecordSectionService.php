@@ -5,30 +5,40 @@ declare(strict_types=1);
 namespace Aura\Service;
 
 use Aura\Core\DateInput;
+use Aura\Dao\AppointmentDao;
 use Aura\Dao\AuditEventDao;
 use Aura\Dao\PatientDao;
 use Aura\Dao\ReferenceDataDao;
-use Aura\Dao\SejourDao;
+use Aura\Dao\EpisodeOfCareDao;
 use Aura\Dao\Transaction;
 use Aura\Domain\AuditEvent;
 use Aura\Domain\Patient;
 use Aura\Domain\RecordFields;
-use Aura\Domain\Sejour;
+use Aura\Domain\EpisodeOfCare;
 use DateTimeImmutable;
 use InvalidArgumentException;
+use PDOException;
 
 /**
- * Modification d'une partie entière du dossier patient et fin de séjour (retours du 2026-11-02).
+ * Modification d'une partie entière du dossier patient et fin de séjour (retours du 2026-11-02, routes
+ * POST /sejour/partie/modifier et /sejour/cloturer), déclaration du décès (retours du 2026-11-04, POST
+ * /sejour/deces) : le décès termine le séjour en cours et annule ses soins prévus après l'heure du décès.
  *
  * Chaque partie du dossier (le résumé « Dossier » avec l'identité, le séjour et les coordonnées, puis
  * Admission, Antécédents, Histoire de la maladie, Scores, Mesures, Administratif) se modifie d'un bloc,
  * en plus de l'édition champ par champ. Règles :
  *  - liste blanche des champs par partie (partFields()) ; jamais une clé envoyée par le client ;
  *  - validation existante : identité (AdmissionService), catalogue et mesures (RecordEditService),
- *    lit et box (SejourService, contrôle d'occupation) ;
+ *    lit et box (EpisodeOfCareService, contrôle d'occupation) ;
  *  - concurrence optimiste : la valeur d'origine envoyée doit être celle en base ;
  *  - tout ou rien : la partie est écrite dans une transaction, annulée à la première erreur ;
  *  - traçabilité : chaque champ modifié écrit une ligne AuditEvent au nom du médecin qui valide.
+ *
+ * Les champs réservés au médecin (RecordFields, 'validatedByDoctor' : groupe sanguin, décès) ne se
+ * modifient que par ce service : RecordEditService les refuse sans médecin authentifié.
+ *
+ * Médecin référent du séjour (retours des médecins du 2026-11-03) : modifiable dans la partie « Dossier »
+ * et dans « Admission », comme le service ; contrôlé contre la liste des médecins (RecordEditService).
  *
  * AUTHENTIFICATION FACTICE : le médecin est choisi dans la liste des praticiens habilités (RG5) et le
  * mot de passe est exigé mais NON vérifié. Elle prépare l'authentification réelle (AURA-18) ; la
@@ -46,12 +56,12 @@ class RecordSectionService
 
     /** Identité et coordonnées du patient (partie « Dossier »), clé de formulaire => colonne tracée. */
     private const IDENTITY_FIELDS = [
-        'nom' => 'lastName',
-        'prenom' => 'firstName',
-        'dateNaissance' => 'birthDate',
-        'sexe' => 'sex',
+        'lastName' => 'lastName',
+        'firstName' => 'firstName',
+        'birthDate' => 'birthDate',
+        'sex' => 'sex',
         'ipp' => 'ipp',
-        'telephone' => 'phoneNumber',
+        'phone' => 'phoneNumber',
         'email' => 'email',
     ];
 
@@ -61,13 +71,14 @@ class RecordSectionService
 
     public function __construct(
         private PatientDao $patientDao,
-        private SejourDao $sejourDao,
-        private SejourService $sejourService,
+        private EpisodeOfCareDao $episodeOfCareDao,
+        private EpisodeOfCareService $episodeOfCareService,
         private RecordEditService $recordEditService,
         private AuditEventDao $auditEventDao,
         private Transaction $transaction,
         private ReferenceDataDao $referenceDataDao,
-        private AdmissionService $admissionService = new AdmissionService()
+        private AdmissionService $admissionService = new AdmissionService(),
+        private ?AppointmentDao $appointmentDao = null
     ) {
     }
 
@@ -75,29 +86,31 @@ class RecordSectionService
      * Champs modifiables d'une partie : clé => ['entity' => patient|episode|identity|location, 'label',
      * 'type', 'options'?]. [] si la partie est inconnue.
      *
+     * @param array<string, string> $services référentiel des services (id => nom)
+     * @param array<string, string> $doctors médecins pouvant être référents (id => « Dr Prénom Nom »)
      * @return array<string, array<string, mixed>>
      */
-    public static function partFields(string $part, array $services = []): array
+    public static function partFields(string $part, array $services = [], array $doctors = []): array
     {
         if ($part === self::PART_SUMMARY) {
             return [
-                'nom' => [
+                'lastName' => [
                     'entity' => 'identity', 'label' => 'Nom', 'type' => 'text', 'max' => 50, 'required' => true,
                     'placeholder' => 'DUPONT',
                 ],
-                'prenom' => [
+                'firstName' => [
                     'entity' => 'identity', 'label' => 'Prénom', 'type' => 'text', 'max' => 50, 'required' => true,
                     'placeholder' => 'Marie',
                 ],
-                'dateNaissance' => ['entity' => 'identity', 'label' => 'Date de naissance', 'type' => 'date'],
-                'sexe' => [
+                'birthDate' => ['entity' => 'identity', 'label' => 'Date de naissance', 'type' => 'date'],
+                'sex' => [
                     'entity' => 'identity', 'label' => 'Sexe', 'type' => 'radio', 'options' => ['M' => 'M', 'F' => 'F'],
                 ],
                 'ipp' => ['entity' => 'identity',
                 'label' => 'IPP',
                 'type' => 'text',
                 'placeholder' => '100000123'],
-                'telephone' => [
+                'phone' => [
                     'entity' => 'identity',
                     'label' => 'Téléphone',
                     'type' => 'tel',
@@ -110,6 +123,7 @@ class RecordSectionService
                 'idHealthcareService' => [
                     'entity' => 'episode', 'label' => 'Service', 'type' => 'select', 'options' => $services,
                 ],
+                'idReferringPractitioner' => self::referentField($doctors),
                 'admissionReason' => ['entity' => 'episode'] + RecordFields::EPISODE['admissionReason'],
                 'bedNumber' => [
                     'entity' => 'location',
@@ -127,7 +141,7 @@ class RecordSectionService
                 ],
                 'precautions' => [
                     'entity' => 'episode', 'label' => 'Précautions', 'type' => 'textarea',
-                    'max' => AdmissionService::PRECAUTIONS_LONGUEUR_MAX, 'placeholder' => 'Isolement, risque de chute…',
+                    'max' => AdmissionService::PRECAUTIONS_MAX_LENGTH, 'placeholder' => 'Isolement, risque de chute…',
                 ],
             ];
         }
@@ -141,6 +155,7 @@ class RecordSectionService
             $fields['idHealthcareService'] = [
                 'entity' => 'episode', 'label' => 'Service hospitalier', 'type' => 'select', 'options' => $services,
             ];
+            $fields['idReferringPractitioner'] = self::referentField($doctors);
         }
         if ($part === 'measures') {
             $fields['weight'] = [
@@ -164,7 +179,7 @@ class RecordSectionService
         if ($part === 'admin') {
             $fields['precautions'] = [
                 'entity' => 'episode', 'label' => 'Précautions', 'type' => 'textarea',
-                'max' => AdmissionService::PRECAUTIONS_LONGUEUR_MAX, 'placeholder' => 'Isolement, risque de chute…',
+                'max' => AdmissionService::PRECAUTIONS_MAX_LENGTH, 'placeholder' => 'Isolement, risque de chute…',
             ];
         }
 
@@ -172,15 +187,30 @@ class RecordSectionService
     }
 
     /**
+     * Médecin référent (responsable de soin) : liste des médecins, « À désigner » si vide.
+     *
+     * @param array<string, string> $doctors
+     * @return array<string, mixed>
+     */
+    private static function referentField(array $doctors): array
+    {
+        return [
+            'entity' => 'episode', 'label' => 'Médecin référent', 'type' => 'select', 'options' => $doctors,
+            'empty' => 'À désigner',
+            'help' => 'Le médecin de jour qui reprend le patient (après une admission de garde, notamment).',
+        ];
+    }
+
+    /**
      * Valeurs actuelles d'une partie, au format des formulaires (dates en JJ/MM/AAAA).
      *
      * @return array<string, string>
      */
-    public static function currentValues(string $part, Patient $patient, Sejour $sejour): array
+    public static function currentValues(string $part, Patient $patient, EpisodeOfCare $episodeOfCare): array
     {
         $values = [];
         foreach (array_keys(self::partFields($part)) as $field) {
-            $values[$field] = DateInput::fromIso(self::read($field, $patient, $sejour));
+            $values[$field] = DateInput::fromIso(self::read($field, $patient, $episodeOfCare));
         }
 
         return $values;
@@ -204,30 +234,38 @@ class RecordSectionService
     }
 
     /**
-     * Enregistre une partie : valeurs nouvelles et d'origine indexées par clé de partFields().
+     * Enregistre une partie : valeurs nouvelles et d'origine indexées par clé de partFields(). Seuls les
+     * champs changés sont traités ; la moindre erreur annule toute la partie. Si le décès passe à « Oui »
+     * et que le séjour est en cours, le séjour se termine dans la même transaction (endStayAfterDeath()).
      *
      * @param array<string, mixed> $values
-     * @param array<string, mixed> $oldValues
-     * @return array{status: string, errors: array<string, string>, message: ?string}
+     * @param array<string, mixed> $oldValues valeurs affichées au départ (concurrence optimiste)
+     * @param DateTimeImmutable|null $deathTime heure du décès pour la fin de séjour (null : maintenant)
+     * @return array{status: string, errors: array<string, string>, message: ?string} status = STATUS_*
      */
     public function updatePart(
-        int $idSejour,
+        int $idEpisodeOfCare,
         string $part,
         array $values,
         array $oldValues,
         string $idValidator,
-        string $password
+        string $password,
+        ?DateTimeImmutable $deathTime = null
     ): array {
         $author = $this->authenticate($idValidator, $password);
         if ($author === null) {
             return self::result(self::STATUS_AUTH, ['auth' => self::AUTH_ERROR]);
         }
-        $sejour = $this->sejourDao->findById($idSejour);
-        $patient = $sejour === null ? null : $this->patientDao->findById($sejour->getIdPatient());
-        if ($sejour === null || $patient === null) {
+        $episodeOfCare = $this->episodeOfCareDao->findById($idEpisodeOfCare);
+        $patient = $episodeOfCare === null ? null : $this->patientDao->findById($episodeOfCare->getIdPatient());
+        if ($episodeOfCare === null || $patient === null) {
             return self::result(self::STATUS_NOT_FOUND, [], 'Dossier introuvable.');
         }
-        $fields = self::partFields($part, $this->referenceDataDao->healthcareServices());
+        $fields = self::partFields(
+            $part,
+            $this->referenceDataDao->healthcareServices(),
+            $this->referenceDataDao->doctors()
+        );
         if ($fields === []) {
             return self::result(self::STATUS_NOT_FOUND, [], 'Partie du dossier inconnue.');
         }
@@ -249,11 +287,11 @@ class RecordSectionService
         }
 
         try {
-            $this->transaction->run(function () use ($changes, $patient, $sejour, $author): void {
+            $this->transaction->run(function () use ($changes, $patient, $episodeOfCare, $author, $deathTime): void {
                 $errors = [];
                 $conflict = false;
                 $this->applyIdentity($changes, $patient, $author, $errors, $conflict);
-                $this->applyLocation($changes, $sejour, $author, $errors, $conflict);
+                $this->applyLocation($changes, $episodeOfCare, $author, $errors, $conflict);
                 foreach ($changes as $field => $change) {
                     $entity = $change['spec']['entity'];
                     if ($entity !== 'patient' && $entity !== 'episode') {
@@ -261,12 +299,14 @@ class RecordSectionService
                     }
                     $result = $this->recordEditService->update(
                         $entity === 'patient' ? RecordEditService::ENTITY_PATIENT : RecordEditService::ENTITY_EPISODE,
-                        $entity === 'patient' ? (int) $patient->getIdPatient() : (int) $sejour->getIdSejour(),
+                        $entity === 'patient'
+                            ? (int) $patient->getIdPatient()
+                            : (int) $episodeOfCare->getIdEpisodeOfCare(),
                         $field,
                         $change['new'],
                         $change['old'],
                         $author,
-                        (int) $sejour->getIdSejour()
+                        (int) $episodeOfCare->getIdEpisodeOfCare()
                     );
                     if ($result['status'] === RecordEditService::STATUS_CONFLICT) {
                         $conflict = true;
@@ -281,6 +321,16 @@ class RecordSectionService
                 if ($errors !== []) {
                     // Annule toute la partie (rien n'est écrit), puis renvoie les erreurs par champ.
                     throw new PartRejected($errors, $conflict);
+                }
+                // Retours du 2026-11-04 : déclarer le décès met fin au séjour en cours, dans la même transaction.
+                // Relecture adversariale : le séjour en cours DU PATIENT, même si le décès est déclaré depuis
+                // le dossier d'un séjour clos.
+                if (($changes['deceased']['new'] ?? null) === '1') {
+                    foreach ($this->episodeOfCareDao->findByPatient((int) $patient->getIdPatient()) as $stay) {
+                        if ($stay->isOngoing()) {
+                            $this->endStayAfterDeath((int) $stay->getIdEpisodeOfCare(), $deathTime, $author);
+                        }
+                    }
                 }
             });
         } catch (PartRejected $e) {
@@ -302,51 +352,161 @@ class RecordSectionService
      *
      * @return array{status: string, errors: array<string, string>, message: ?string}
      */
-    public function endStay(int $idSejour, string $date, string $time, string $idValidator, string $password): array
-    {
+    public function endStay(
+        int $idEpisodeOfCare,
+        string $date,
+        string $time,
+        string $idValidator,
+        string $password
+    ): array {
         $author = $this->authenticate($idValidator, $password);
         if ($author === null) {
             return self::result(self::STATUS_AUTH, ['auth' => self::AUTH_ERROR]);
         }
-        if ($this->sejourDao->findById($idSejour) === null) {
+        if ($this->episodeOfCareDao->findById($idEpisodeOfCare) === null) {
             return self::result(self::STATUS_NOT_FOUND, [], 'Séjour introuvable.');
         }
 
-        $date = trim($date);
-        $time = trim($time);
-        $dischargeDate = null;
-        if ($date !== '' || $time !== '') {
-            $parsed = DateTimeImmutable::createFromFormat(
-                '!Y-m-d H:i',
-                DateInput::toIso($date) . ' ' . ($time !== '' ? $time : '00:00')
-            );
-            if ($parsed === false || $parsed->format('d/m/Y') !== $date) {
-                return self::result(self::STATUS_INVALID, [
-                    'dischargeDate' => 'Date ou heure de sortie invalide (JJ/MM/AAAA et HH:MM).',
-                ]);
-            }
-            $dischargeDate = $parsed;
+        $dischargeDate = self::parseDischarge($date, $time);
+        if ($dischargeDate === false) {
+            return self::result(self::STATUS_INVALID, [
+                'dischargeDate' => 'Date ou heure de sortie invalide (JJ/MM/AAAA et HH:MM).',
+            ]);
         }
 
         try {
-            $this->transaction->run(function () use ($idSejour, $dischargeDate, $author): void {
-                $closed = $this->sejourService->cloturerSejour($idSejour, $dischargeDate);
+            $this->transaction->run(function () use ($idEpisodeOfCare, $dischargeDate, $author): void {
+                $closed = $this->episodeOfCareService->closeEpisodeOfCare($idEpisodeOfCare, $dischargeDate);
                 $this->auditEventDao->insert(new AuditEvent(
                     null,
                     AuditEvent::ENTITY_EPISODE,
-                    $idSejour,
+                    $idEpisodeOfCare,
                     'dischargeDate',
                     null,
-                    $closed->getDateSortie()?->format('d/m/Y H:i'),
+                    $closed->getDischargeDate()?->format('d/m/Y H:i'),
                     $author,
                     detail: 'fin du séjour'
                 ));
             });
         } catch (InvalidArgumentException $e) {
             return self::result(self::STATUS_INVALID, ['dischargeDate' => $e->getMessage()]);
+        } catch (PDOException $e) {
+            // 1020 (MariaDB 11.8) : un autre onglet vient de modifier ce séjour ; on ne plante pas.
+            if ((int) ($e->errorInfo[1] ?? 0) !== 1020) {
+                throw $e;
+            }
+
+            return self::result(self::STATUS_CONFLICT, [], 'Ce séjour vient d\'être modifié : rechargez la page.');
         }
 
         return self::result(self::STATUS_SAVED);
+    }
+
+    /**
+     * Déclaration du décès (retours du 2026-11-04), validée par un médecin (authentification factice) et
+     * tracée : le patient est déclaré décédé et, si le séjour est en cours, il se termine à l'heure du décès
+     * (JJ/MM/AAAA, HH:MM ; maintenant si vides), ses soins prévus après cette heure sont annulés. Tout ou rien.
+     * Heure du décès dans le futur ou avant l'admission : refusée avant toute écriture. Passe par
+     * updatePart() sur le champ deceased de la partie « admin ».
+     *
+     * @param string $oldDeceased valeur du décès affichée au départ (concurrence optimiste)
+     * @return array{status: string, errors: array<string, string>, message: ?string}
+     */
+    public function declareDeath(
+        int $idEpisodeOfCare,
+        string $date,
+        string $time,
+        string $oldDeceased,
+        string $idValidator,
+        string $password
+    ): array {
+        $deathTime = self::parseDischarge($date, $time);
+        if ($deathTime === false) {
+            return self::result(self::STATUS_INVALID, [
+                'dischargeDate' => 'Date ou heure du décès invalide (JJ/MM/AAAA et HH:MM).',
+            ]);
+        }
+        // Contrôlé avant toute écriture (la fin de séjour le refuserait aussi, après coup).
+        $episodeOfCare = $this->episodeOfCareDao->findById($idEpisodeOfCare);
+        if ($deathTime !== null && $deathTime > new DateTimeImmutable()) {
+            return self::result(self::STATUS_INVALID, [
+                'dischargeDate' => 'L\'heure du décès ne peut pas être dans le futur.',
+            ]);
+        }
+        if (
+            $deathTime !== null && $episodeOfCare !== null && $episodeOfCare->isOngoing()
+            && $deathTime < $episodeOfCare->getAdmissionDate()
+        ) {
+            return self::result(self::STATUS_INVALID, [
+                'dischargeDate' => 'L\'heure du décès ne peut pas précéder l\'admission.',
+            ]);
+        }
+
+        return $this->updatePart(
+            $idEpisodeOfCare,
+            'admin',
+            ['deceased' => '1'],
+            ['deceased' => $oldDeceased],
+            $idValidator,
+            $password,
+            $deathTime ?? new DateTimeImmutable()
+        );
+    }
+
+    /**
+     * Fin du séjour consécutive au décès, dans la transaction de la déclaration : sortie à l'heure du décès
+     * (maintenant à défaut), tracée, puis annulation des soins encore prévus après cette heure.
+     *
+     * @throws PartRejected fin de séjour refusée par EpisodeOfCareService (toute la transaction est annulée)
+     */
+    private function endStayAfterDeath(int $idEpisodeOfCare, ?DateTimeImmutable $deathTime, string $author): void
+    {
+        try {
+            $closed = $this->episodeOfCareService->closeEpisodeOfCare($idEpisodeOfCare, $deathTime);
+        } catch (InvalidArgumentException $e) {
+            throw new PartRejected(['dischargeDate' => $e->getMessage()], false);
+        }
+        $discharge = $closed->getDischargeDate() ?? new DateTimeImmutable();
+        $cancelled = $this->appointmentDao?->cancelPlannedForEpisode(
+            $idEpisodeOfCare,
+            $discharge,
+            'Séjour terminé : décès'
+        ) ?? 0;
+        $plural = $cancelled > 1 ? 's' : '';
+        $this->auditEventDao->insert(new AuditEvent(
+            null,
+            AuditEvent::ENTITY_EPISODE,
+            $idEpisodeOfCare,
+            'dischargeDate',
+            null,
+            $discharge->format('d/m/Y H:i'),
+            $author,
+            detail: 'fin du séjour : décès déclaré' . ($cancelled > 0
+                ? sprintf(', %d soin%s prévu%3$s annulé%3$s', $cancelled, $plural, $plural)
+                : '')
+        ));
+    }
+
+    /**
+     * Date et heure saisies (JJ/MM/AAAA, HH:MM) : null si les deux sont vides (maintenant), false si invalides.
+     */
+    private static function parseDischarge(string $date, string $time): DateTimeImmutable|false|null
+    {
+        $date = trim($date);
+        $time = trim($time);
+        if ($date === '' && $time === '') {
+            return null;
+        }
+        $parsed = DateTimeImmutable::createFromFormat(
+            '!Y-m-d H:i',
+            DateInput::toIso($date) . ' ' . ($time !== '' ? $time : '00:00')
+        );
+
+        // Aller-retour sur la date ET l'heure : « 12:75 » ou « 31/02 » ne sont pas corrigés en silence.
+        $expectedTime = $time !== '' ? $time : '00:00';
+
+        return $parsed === false || $parsed->format('d/m/Y') !== $date || $parsed->format('H:i') !== $expectedTime
+            ? false : $parsed;
     }
 
     private const AUTH_ERROR = 'Choisissez le médecin qui valide et saisissez son mot de passe.';
@@ -398,19 +558,19 @@ class RecordSectionService
         foreach ($identity as $field => $change) {
             $next[$field] = $change['new'];
         }
-        $identityErrors = $this->admissionService->validerPatientIdentite([
-            'nom' => $next['nom'] ?? '',
-            'prenom' => $next['prenom'] ?? '',
+        $identityErrors = $this->admissionService->validatePatientIdentity([
+            'lastName' => $next['lastName'] ?? '',
+            'firstName' => $next['firstName'] ?? '',
             'ipp' => $next['ipp'] ?? '',
-            'dateNaissance' => $next['dateNaissance'] ?? '',
-            'sexe' => $next['sexe'] ?? '',
+            'birthDate' => $next['birthDate'] ?? '',
+            'sex' => $next['sex'] ?? '',
         ]);
         foreach ($identityErrors as $field => $message) {
             $errors[$field] = $message;
         }
-        $phone = $next['telephone'] === null ? null : str_replace(' ', '', $next['telephone']);
+        $phone = $next['phone'] === null ? null : str_replace(' ', '', $next['phone']);
         if ($phone !== null && preg_match(self::PHONE_PATTERN, $phone) !== 1) {
-            $errors['telephone'] = 'Le téléphone doit contenir 10 chiffres.';
+            $errors['phone'] = 'Le téléphone doit contenir 10 chiffres.';
         }
         $email = $next['email'];
         $emailInvalid = $email !== null
@@ -419,8 +579,9 @@ class RecordSectionService
             $errors['email'] = 'L\'adresse e-mail est invalide.';
         }
         if ($next['ipp'] !== null && $next['ipp'] !== $current['ipp']) {
-            $owner = $this->patientDao->findByIpp($next['ipp']);
-            if ($owner !== null && $owner->getIdPatient() !== $patient->getIdPatient()) {
+            // Patients supprimés compris (AURA-12.3) : leur IPP reste réservé.
+            $owner = $this->patientDao->ippOwnerId($next['ipp']);
+            if ($owner !== null && $owner !== $patient->getIdPatient()) {
                 $errors['ipp'] = 'Cet IPP est déjà utilisé par un autre patient.';
             }
         }
@@ -431,19 +592,19 @@ class RecordSectionService
         $this->patientDao->update(new Patient(
             idPatient: $patient->getIdPatient(),
             ipp: $next['ipp'],
-            nom: (string) $next['nom'],
-            prenom: (string) $next['prenom'],
-            dateNaissance: $next['dateNaissance'] === null
+            lastName: (string) $next['lastName'],
+            firstName: (string) $next['firstName'],
+            birthDate: $next['birthDate'] === null
                 ? null
-                : (DateTimeImmutable::createFromFormat('!Y-m-d', $next['dateNaissance']) ?: null),
-            sexe: $next['sexe'],
-            telephone: $phone,
+                : (DateTimeImmutable::createFromFormat('!Y-m-d', $next['birthDate']) ?: null),
+            sex: $next['sex'],
+            phone: $phone,
             email: $email,
             details: $patient->getDetails()
         ));
         // La trace enregistre la valeur réellement écrite (téléphone sans espaces).
-        if (isset($identity['telephone'])) {
-            $identity['telephone']['new'] = $phone;
+        if (isset($identity['phone'])) {
+            $identity['phone']['new'] = $phone;
         }
         foreach ($identity as $field => $change) {
             $this->trace(
@@ -457,14 +618,14 @@ class RecordSectionService
     }
 
     /**
-     * Lit et box : SejourService contrôle que l'emplacement est libre et le séjour en cours.
+     * Lit et box : EpisodeOfCareService contrôle que l'emplacement est libre et le séjour en cours.
      *
      * @param array<string, array{new: ?string, old: ?string, spec: array<string, mixed>}> $changes
      * @param array<string, string> $errors
      */
     private function applyLocation(
         array $changes,
-        Sejour $sejour,
+        EpisodeOfCare $episodeOfCare,
         string $author,
         array &$errors,
         bool &$conflict
@@ -473,7 +634,7 @@ class RecordSectionService
         if ($location === []) {
             return;
         }
-        $current = ['bedNumber' => $sejour->getNumLit(), 'boxNumber' => $sejour->getNumBox()];
+        $current = ['bedNumber' => $episodeOfCare->getBedNumber(), 'boxNumber' => $episodeOfCare->getBoxNumber()];
         foreach ($location as $field => $change) {
             if ($change['old'] !== self::blankToNull($current[$field])) {
                 $conflict = true;
@@ -486,17 +647,27 @@ class RecordSectionService
         $bed = array_key_exists('bedNumber', $location) ? $location['bedNumber']['new'] : $current['bedNumber'];
         $box = array_key_exists('boxNumber', $location) ? $location['boxNumber']['new'] : $current['boxNumber'];
         try {
-            $this->sejourService->changerEmplacement((int) $sejour->getIdSejour(), $bed, $box);
+            $this->episodeOfCareService->changeLocation((int) $episodeOfCare->getIdEpisodeOfCare(), $bed, $box);
         } catch (InvalidArgumentException $e) {
             $errors[isset($location['bedNumber']) ? 'bedNumber' : 'boxNumber'] = $e->getMessage();
             return;
         }
         foreach ($location as $field => $change) {
-            $this->trace(AuditEvent::ENTITY_EPISODE, (int) $sejour->getIdSejour(), $field, $change, $author);
+            $this->trace(
+                AuditEvent::ENTITY_EPISODE,
+                (int) $episodeOfCare->getIdEpisodeOfCare(),
+                $field,
+                $change,
+                $author
+            );
         }
     }
 
-    /** @param array{new: ?string, old: ?string} $change */
+    /**
+     * Trace d'un champ modifié par une partie (AuditEvent, au nom du médecin qui valide).
+     *
+     * @param array{new: ?string, old: ?string} $change
+     */
     private function trace(string $entity, int $id, string $field, array $change, string $author): void
     {
         $this->auditEventDao->insert(new AuditEvent(
@@ -515,33 +686,34 @@ class RecordSectionService
     private static function identityValues(Patient $patient): array
     {
         return [
-            'nom' => self::blankToNull($patient->getNom()),
-            'prenom' => self::blankToNull($patient->getPrenom()),
-            'dateNaissance' => $patient->getDateNaissance()?->format('Y-m-d'),
-            'sexe' => self::blankToNull($patient->getSexe()),
+            'lastName' => self::blankToNull($patient->getLastName()),
+            'firstName' => self::blankToNull($patient->getFirstName()),
+            'birthDate' => $patient->getBirthDate()?->format('Y-m-d'),
+            'sex' => self::blankToNull($patient->getSex()),
             'ipp' => self::blankToNull($patient->getIpp()),
-            'telephone' => self::blankToNull($patient->getTelephone()),
+            'phone' => self::blankToNull($patient->getPhone()),
             'email' => self::blankToNull($patient->getEmail()),
         ];
     }
 
     /** Valeur actuelle d'un champ d'une partie, au format des services (dates ISO). */
-    private static function read(string $field, Patient $patient, Sejour $sejour): ?string
+    private static function read(string $field, Patient $patient, EpisodeOfCare $episodeOfCare): ?string
     {
         if (isset(self::IDENTITY_FIELDS[$field])) {
             return self::identityValues($patient)[$field];
         }
 
         return match ($field) {
-            'bedNumber' => self::blankToNull($sejour->getNumLit()),
-            'boxNumber' => self::blankToNull($sejour->getNumBox()),
-            'idHealthcareService' => self::blankToNull($sejour->getIdService()),
-            'precautions' => self::blankToNull($sejour->getPrecautions()),
-            'weight' => $sejour->getPoids() === null ? null : self::number($sejour->getPoids()),
-            'height' => $sejour->getTaille() === null ? null : self::number($sejour->getTaille()),
+            'bedNumber' => self::blankToNull($episodeOfCare->getBedNumber()),
+            'boxNumber' => self::blankToNull($episodeOfCare->getBoxNumber()),
+            'idHealthcareService' => self::blankToNull($episodeOfCare->getIdService()),
+            'idReferringPractitioner' => self::blankToNull($episodeOfCare->getIdReferringPractitioner()),
+            'precautions' => self::blankToNull($episodeOfCare->getPrecautions()),
+            'weight' => $episodeOfCare->getWeight() === null ? null : self::number($episodeOfCare->getWeight()),
+            'height' => $episodeOfCare->getHeight() === null ? null : self::number($episodeOfCare->getHeight()),
             default => isset(RecordFields::PATIENT[$field])
                 ? self::blankToNull($patient->getDetail($field))
-                : self::blankToNull($sejour->getDetail($field)),
+                : self::blankToNull($episodeOfCare->getDetail($field)),
         };
     }
 
@@ -565,11 +737,13 @@ class RecordSectionService
         return $value === '' ? null : $value;
     }
 
+    /** Nombre au format des formulaires : au plus deux décimales, sans zéros inutiles (68.50 → « 68.5 »). */
     private static function number(float $value): string
     {
         return rtrim(rtrim(number_format($value, 2, '.', ''), '0'), '.');
     }
 
+    /** Texte sans espaces de bord ; vide ou null = null. */
     private static function blankToNull(?string $value): ?string
     {
         $value = $value === null ? null : trim($value);

@@ -6,13 +6,14 @@ use Aura\Core\View;
  * Icône SVG inline (jeu Lucide 1.66.0, licence ISC, https://lucide.dev) : un seul jeu pour toute
  * l'application, pas de police d'icônes ni de CDN. Le tracé est copié ici tel quel ; pour ajouter
  * une icône, coller l'intérieur du <svg> de lucide-static/icons/<nom>.svg dans $icons.
+ * Inclus par la plupart des vues et composants (topbar, badges, bandeau, agendas).
  *
  * Usage : View::render('components/icon', ['name' => 'clock'])                 → décorative (aria-hidden)
  *         View::render('components/icon', ['name' => 'clock', 'label' => '…']) → porteuse de sens (role="img")
  *
  * @var string $name nom Lucide (clock, circle-check, triangle-alert…)
  * @var string|null $label texte alternatif ; null ou absent = icône décorative
- * @var string|null $class classes CSS supplémentaires (icon--lg…)
+ * @var string|null $class classes CSS supplémentaires (icon--lg…), aucune par défaut
  */
 $icons = [
     'ban' => '<circle cx="12" cy="12" r="10"/><path d="M4.929 4.929 19.07 19.071"/>',
@@ -27,6 +28,12 @@ $icons = [
     'clock' => '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
     'clock-alert' => '<path d="M12 6v6l4 2"/><path d="M20 12v5"/><path d="M20 21h.01"/>'
         . '<path d="M21.25 8.2A10 10 0 1 0 16 21.16"/>',
+    'heart-off' => '<path d="M10.5 4.893a5.5 5.5 0 0 1 1.091.931.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5'
+        . 'c0 1.872-1.002 3.356-2.187 4.655"/>'
+        . '<path d="m16.967 16.967-3.459 3.346a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5a5.5 5.5 0 0 1 2.747-4.761"/>'
+        . '<path d="m2 2 20 20"/>',
+    'history' => '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>'
+        . '<path d="M12 7v5l4 2"/>',
     'inbox' => '<polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/>'
         . '<path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24'
         . 'a2 2 0 0 0-1.79 1.11z"/>',

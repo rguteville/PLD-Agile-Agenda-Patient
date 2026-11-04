@@ -3,9 +3,25 @@
 use Aura\Core\DateInput;
 use Aura\Core\View;
 
+/**
+ * Un champ de formulaire accessible (AURA-10.2) : libellé associé, aide reliée par aria-describedby,
+ * erreur serveur annoncée (role="alert", aria-invalid). Inclus par components/form.php,
+ * components/part_form.php et la fenêtre de validation de pages/episode/record.php.
+ *
+ * @var array<string, mixed> $field description du champ :
+ *      - name (obligatoire), id (name par défaut), label (ucfirst(name) par défaut) ;
+ *      - type : text par défaut ; date (texte JJ/MM/AAAA, data-date-input), number, tel, email, password,
+ *        time, hidden, heading (sous-titre), radio, checkbox-group, allergy-picker, select, textarea ;
+ *      - value ('' par défaut ; liste des valeurs cochées pour checkbox-group et allergy-picker),
+ *        error ('' sans erreur), required, help, placeholder, attributes (attributs HTML en plus) ;
+ *      - options (radio, checkbox-group, select, allergy-picker), empty (libellé du choix vide d'un
+ *        select), emptyMessage (liste vide), criticalities et criticalityOptions (allergy-picker) ;
+ *      - button ['id', 'label'] (bouton à côté du champ), status (id d'une zone aria-live sous le champ),
+ *        listbox (id d'une liste de suggestions, combobox de public/js/admission-search.js).
+ */
 $type     = $field['type'] ?? 'text';
 $name     = $field['name'];
-// Identifiant HTML : le nom par défaut ; un préfixe (« summary-nom ») évite les doublons quand plusieurs
+// Identifiant HTML : le nom par défaut ; un préfixe (« summary-lastName ») évite les doublons quand plusieurs
 // formulaires de la même page ont un champ du même nom (parties du dossier).
 $fieldId  = $field['id'] ?? $name;
 $label    = $field['label'] ?? ucfirst($name);

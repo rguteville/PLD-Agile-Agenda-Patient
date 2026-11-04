@@ -8,8 +8,9 @@ use Aura\Domain\ActivityDefinition;
 use PDO;
 
 /**
- * Accès aux séjours : table EpisodeOfCare (noms HL7 depuis AURA-16, cf. database/schema.sql) ;
- * les entités du domaine restent en français.
+ * Référentiel des types de soin (RG6) : table ActivityDefinition, ressource HL7 du même nom.
+ * Lecture seule : le référentiel est chargé par database/test.sql, jamais saisi dans AURA.
+ * La liste complète pour les formulaires est dans ReferenceDataDao::activityDefinitions().
  */
 class ActivityDefinitionDao
 {
@@ -19,6 +20,7 @@ class ActivityDefinitionDao
     {
     }
 
+    /** Type de soin par identifiant (VARCHAR(20)) ; null s'il n'existe pas. */
     public function findById(string $id): ?ActivityDefinition
     {
         $stmt = $this->pdo->prepare(
@@ -30,6 +32,12 @@ class ActivityDefinitionDao
         return $r ? $this->mapToEntity($r) : null;
     }
 
+    /**
+     * Ligne SQL (clés = noms de colonnes) vers l'entité. Ne renvoie jamais null malgré le type
+     * déclaré ; name et description, eux, peuvent l'être (colonnes facultatives).
+     *
+     * @param array<string, ?string> $r
+     */
     public function mapToEntity(array $r): ?ActivityDefinition
     {
         return new ActivityDefinition(

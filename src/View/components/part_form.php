@@ -5,18 +5,22 @@ use Aura\Core\View;
 /**
  * Formulaire de modification d'une partie entière du dossier (retours du 2026-11-02), masqué jusqu'au
  * clic sur le crayon du titre (public/js/part-edit.js). « Enregistrer » ouvre la fenêtre de validation
- * par un médecin ; le serveur valide et trace (RecordSectionService). Les valeurs d'origine (data-old)
- * servent au contrôle de concurrence.
+ * par un médecin, puis part-edit.js envoie la partie en JSON à POST /sejour/partie/modifier ; le serveur
+ * valide et trace (RecordSectionService). Les valeurs d'origine (data-old) servent au contrôle de
+ * concurrence. Inclus par pages/episode/record.php (résumé et chaque section du dossier complet).
+ * Attributs lus par part-edit.js : data-part, data-title, data-old, data-part-error, data-part-cancel.
  *
  * @var string $part identifiant de la partie (summary, history…)
  * @var string $title libellé de la partie
- * @var array<string, array<string, mixed>> $fields RecordSectionService::partFields()
- * @var array<string, string> $values valeurs actuelles (RecordSectionService::currentValues())
+ * @var array<string, array<string, mixed>> $fields RecordSectionService::partFields() (type, label,
+ *      required, placeholder, help, options, empty, max)
+ * @var array<string, string> $values valeurs actuelles (PatientRecordService::partValues(), qui lit
+ *      RecordSectionService::currentValues())
  */
-$champs = [];
+$formFields = [];
 foreach ($fields as $key => $spec) {
     $type = $spec['type'];
-    $champ = [
+    $formField = [
         'name' => $key,
         'id' => $part . '-' . $key,
         'label' => $spec['label'],
@@ -26,31 +30,33 @@ foreach ($fields as $key => $spec) {
         'required' => !empty($spec['required']),
     ];
     if (isset($spec['placeholder'])) {
-        $champ['placeholder'] = $spec['placeholder'];
+        $formField['placeholder'] = $spec['placeholder'];
     }
     if (isset($spec['help'])) {
-        $champ['help'] = $spec['help'];
+        $formField['help'] = $spec['help'];
     }
     if ($type === 'select') {
-        $champ['options'] = $spec['options'] ?? [];
-        $champ['empty'] = 'Non renseigné';
+        $formField['options'] = $spec['options'] ?? [];
+        // Libellé de l'option vide propre au champ (« À désigner » pour le médecin référent).
+        $formField['empty'] = $spec['empty'] ?? 'Non renseigné';
     } elseif ($type === 'radio') {
-        $champ['options'] = $spec['options'] ?? [];
+        $formField['options'] = $spec['options'] ?? [];
     } elseif ($type === 'textarea') {
-        $champ['attributes'] = ['rows' => '3'] + (isset($spec['max']) ? ['maxlength' => (string) $spec['max']] : []);
+        $formField['attributes'] = ['rows' => '3']
+            + (isset($spec['max']) ? ['maxlength' => (string) $spec['max']] : []);
     } elseif ($type === 'number') {
-        $champ['attributes'] = ['inputmode' => 'decimal'];
+        $formField['attributes'] = ['inputmode' => 'decimal'];
     } elseif (isset($spec['max'])) {
-        $champ['attributes'] = ['maxlength' => (string) $spec['max']];
+        $formField['attributes'] = ['maxlength' => (string) $spec['max']];
     }
-    $champs[] = $champ;
+    $formFields[] = $formField;
 }
 ?>
 <form class="part-form" data-part="<?= View::e($part) ?>" data-title="<?= View::e($title) ?>"
       data-old="<?= View::e(json_encode($values, JSON_UNESCAPED_UNICODE | JSON_FORCE_OBJECT)) ?>" novalidate hidden>
     <p class="form-error" role="alert" data-part-error hidden></p>
-    <?php foreach ($champs as $champ) : ?>
-        <?= View::render('components/field', ['field' => $champ]) ?>
+    <?php foreach ($formFields as $formField) : ?>
+        <?= View::render('components/field', ['field' => $formField]) ?>
     <?php endforeach; ?>
     <div class="part-form__actions">
         <button type="submit" class="button">Enregistrer</button>

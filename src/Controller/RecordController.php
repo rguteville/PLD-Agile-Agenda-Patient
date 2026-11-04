@@ -10,12 +10,18 @@ use Aura\Service\RecordSectionService;
 use LogicException;
 
 /**
- * POST /sejour/champ/modifier : modification d'un champ du dossier, sans rechargement de page
- * (public/js/inline-edit.js). Corps JSON {entity, id, sejour, field, value, oldValue} ou formulaire
- * classique avec les mêmes noms ; en-tête X-CSRF-Token (ou champ csrf) obligatoire. `sejour` est
- * le séjour affiché : un patient n'est modifiable que depuis le dossier d'un de ses séjours.
+ * Écritures du dossier de séjour, toutes en JSON avec jeton CSRF (en-tête X-CSRF-Token ou champ csrf) :
+ *  - POST /sejour/champ/modifier (update()) : un champ, édition en ligne (public/js/inline-edit.js) ;
+ *  - POST /sejour/partie/modifier (updatePart()) : une partie entière du dossier ;
+ *  - POST /sejour/cloturer (endStay()) : fin du séjour ;
+ *  - POST /sejour/deces (declareDeath()) : décès, qui termine aussi le séjour.
+ * Les trois dernières passent par la fenêtre de validation par un médecin (public/js/part-edit.js),
+ * authentification FACTICE en attendant l'authentification des praticiens (AURA-50).
  *
- * Réponses JSON : 200 {ok:true, saved, value, display, message} ; 400 corps illisible ;
+ * Champ par champ : corps JSON {entity, id, episodeOfCare, field, value, oldValue} ou formulaire classique
+ * avec les mêmes noms. `episodeOfCare` est le séjour affiché : un patient n'est modifiable que depuis le
+ * dossier d'un de ses séjours. Les champs réservés au médecin (groupe sanguin, décès) y sont refusés.
+ * Réponses JSON : 200 {ok:true, saved, conflict, value, display, message} ; 400 corps illisible ;
  * 403 jeton absent ou faux ; 404 dossier inconnu ; 409 conflit de concurrence (valeur actuelle
  * renvoyée) ; 422 champ refusé ou valeur invalide (message sous le champ).
  */
@@ -49,9 +55,10 @@ final class RecordController
 
     /**
      * POST /sejour/partie/modifier (retours du 2026-11-02) : toute une partie du dossier d'un coup.
-     * Corps JSON {sejour, part, values: {champ: valeur}, oldValues: {champ: valeur}, validator, password},
-     * en-tête X-CSRF-Token. Réponses : 200 {ok, redirect} ; 422 {erreurs} (champ ou « auth ») ;
-     * 409 conflit ; 404 dossier ou partie inconnue ; 403 jeton ; 400 requête incomplète.
+     * Corps JSON {episodeOfCare, part, values: {champ: valeur}, oldValues: {champ: valeur}, validator,
+     * password}, en-tête X-CSRF-Token. Réponses : 200 {ok, redirect} vers l'ancre de la partie ;
+     * 422 {ok:false, conflict, message, errors} (erreur d'un champ ou clé « auth ») ; 409 conflit ;
+     * 404 dossier ou partie inconnue ; 403 jeton ; 400 requête incomplète.
      */
     public function updatePart(): void
     {
@@ -59,31 +66,36 @@ final class RecordController
         if (!$this->checkToken($body)) {
             return;
         }
-        $idSejour = $body['sejour'] ?? null;
+        $idEpisodeOfCare = $body['episodeOfCare'] ?? null;
         $part = $body['part'] ?? null;
         $values = $body['values'] ?? null;
         $oldValues = $body['oldValues'] ?? null;
         if (
             !is_string($part) || !is_array($values) || !is_array($oldValues)
-            || !is_string($idSejour) && !is_int($idSejour) || preg_match(self::ID_PATTERN, (string) $idSejour) !== 1
+            || array_filter(
+                [...array_values($values), ...array_values($oldValues)],
+                static fn (mixed $v): bool => !self::isPlainValue($v)
+            ) !== []
+            || !is_string($idEpisodeOfCare) && !is_int($idEpisodeOfCare)
+            || preg_match(self::ID_PATTERN, (string) $idEpisodeOfCare) !== 1
         ) {
             $this->respond(400, ['ok' => false, 'message' => 'Requête incomplète.']);
             return;
         }
 
         $result = $this->sectionService()->updatePart(
-            (int) $idSejour,
+            (int) $idEpisodeOfCare,
             $part,
             $values,
             $oldValues,
             self::text($body['validator'] ?? null),
             self::text($body['password'] ?? null)
         );
-        $this->respondPart($result, (int) $idSejour, '#dossier-' . preg_replace('/[^a-z]/', '', $part));
+        $this->respondPart($result, (int) $idEpisodeOfCare, '#dossier-' . preg_replace('/[^a-z]/', '', $part));
     }
 
     /**
-     * POST /sejour/cloturer : fin du séjour. Corps JSON {sejour, date (JJ/MM/AAAA), time (HH:MM),
+     * POST /sejour/cloturer : fin du séjour. Corps JSON {episodeOfCare, date (JJ/MM/AAAA), time (HH:MM),
      * validator, password}, en-tête X-CSRF-Token. Mêmes réponses que updatePart().
      */
     public function endStay(): void
@@ -92,39 +104,82 @@ final class RecordController
         if (!$this->checkToken($body)) {
             return;
         }
-        $idSejour = $body['sejour'] ?? null;
-        if (!is_string($idSejour) && !is_int($idSejour) || preg_match(self::ID_PATTERN, (string) $idSejour) !== 1) {
+        $idEpisodeOfCare = $body['episodeOfCare'] ?? null;
+        if (
+            !is_string($idEpisodeOfCare) && !is_int($idEpisodeOfCare)
+            || preg_match(self::ID_PATTERN, (string) $idEpisodeOfCare) !== 1
+        ) {
             $this->respond(400, ['ok' => false, 'message' => 'Requête incomplète.']);
             return;
         }
 
         $result = $this->sectionService()->endStay(
-            (int) $idSejour,
+            (int) $idEpisodeOfCare,
             self::text($body['date'] ?? null),
             self::text($body['time'] ?? null),
             self::text($body['validator'] ?? null),
             self::text($body['password'] ?? null)
         );
-        $this->respondPart($result, (int) $idSejour, '#dossier-resume');
+        $this->respondPart($result, (int) $idEpisodeOfCare, '#dossier-resume');
     }
 
-    /** @param array{status: string, errors: array<string, string>, message: ?string} $result */
-    private function respondPart(array $result, int $idSejour, string $anchor): void
+    /**
+     * POST /sejour/deces (retours du 2026-11-04) : déclaration du décès, qui met fin au séjour en cours à
+     * l'heure du décès. Corps JSON {episodeOfCare, date (JJ/MM/AAAA), time (HH:MM), oldDeceased, validator,
+     * password}, en-tête X-CSRF-Token. Mêmes réponses que updatePart().
+     */
+    public function declareDeath(): void
+    {
+        $body = $this->readBody();
+        if (!$this->checkToken($body)) {
+            return;
+        }
+        $idEpisodeOfCare = $body['episodeOfCare'] ?? null;
+        if (
+            !is_string($idEpisodeOfCare) && !is_int($idEpisodeOfCare)
+            || preg_match(self::ID_PATTERN, (string) $idEpisodeOfCare) !== 1
+        ) {
+            $this->respond(400, ['ok' => false, 'message' => 'Requête incomplète.']);
+            return;
+        }
+
+        $result = $this->sectionService()->declareDeath(
+            (int) $idEpisodeOfCare,
+            self::text($body['date'] ?? null),
+            self::text($body['time'] ?? null),
+            self::text($body['oldDeceased'] ?? null),
+            self::text($body['validator'] ?? null),
+            self::text($body['password'] ?? null)
+        );
+        $this->respondPart($result, (int) $idEpisodeOfCare, '#dossier-resume');
+    }
+
+    /**
+     * Réponse commune aux parties, à la fin de séjour et au décès : 200 {ok, redirect} vers le dossier à
+     * l'ancre donnée, sinon le code de PART_HTTP_STATUS avec {ok:false, conflict, message, errors}.
+     *
+     * @param array{status: string, errors: array<string, string>, message: ?string} $result
+     */
+    private function respondPart(array $result, int $idEpisodeOfCare, string $anchor): void
     {
         $status = self::PART_HTTP_STATUS[$result['status']] ?? 500;
         if ($status === 200) {
-            $this->respond(200, ['ok' => true, 'redirect' => '/sejour?id=' . $idSejour . $anchor]);
+            $this->respond(200, ['ok' => true, 'redirect' => '/sejour?id=' . $idEpisodeOfCare . $anchor]);
             return;
         }
         $this->respond($status, [
             'ok' => false,
             'conflict' => $result['status'] === RecordSectionService::STATUS_CONFLICT,
             'message' => $result['message'],
-            'erreurs' => $result['errors'],
+            'errors' => $result['errors'],
         ]);
     }
 
-    /** @param array<string, mixed> $body */
+    /**
+     * Vérifie le jeton CSRF (en-tête X-CSRF-Token, sinon champ csrf) ; répond 403 et renvoie false s'il est faux.
+     *
+     * @param array<string, mixed> $body
+     */
     private function checkToken(array $body): bool
     {
         $token = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? $body['csrf'] ?? null;
@@ -136,6 +191,7 @@ final class RecordController
         return false;
     }
 
+    /** @throws LogicException si la route n'a pas injecté de RecordSectionService */
     private function sectionService(): RecordSectionService
     {
         if ($this->recordSectionService === null) {
@@ -145,12 +201,16 @@ final class RecordController
         return $this->recordSectionService;
     }
 
+    /** Valeur texte du corps, chaîne vide si absente ou d'un autre type. */
     private static function text(mixed $value): string
     {
         return is_string($value) ? $value : '';
     }
 
-    /** Traite la requête (voir l'en-tête de classe pour le contrat JSON et les codes HTTP). */
+    /**
+     * POST /sejour/champ/modifier : un champ du dossier (voir l'en-tête de classe pour le contrat JSON et
+     * les codes HTTP).
+     */
     public function update(): void
     {
         $body = $this->readBody();
@@ -163,18 +223,19 @@ final class RecordController
         $entity = $body['entity'] ?? null;
         $id = $body['id'] ?? null;
         $field = $body['field'] ?? null;
-        $idSejour = $body['sejour'] ?? null;
+        $idEpisodeOfCare = $body['episodeOfCare'] ?? null;
         $value = $body['value'] ?? null;
         $oldValue = $body['oldValue'] ?? null;
         if (
             !is_string($entity) || !is_string($field) || $field === ''
             || !is_string($id) && !is_int($id)
             || preg_match(self::ID_PATTERN, (string) $id) !== 1
-            || !is_string($idSejour) && !is_int($idSejour)
-            || preg_match(self::ID_PATTERN, (string) $idSejour) !== 1
-            // Une valeur non scalaire (tableau, objet) n'est jamais interprétée comme un vidage du champ.
-            || !is_scalar($value) && $value !== null
-            || !is_scalar($oldValue) && $oldValue !== null
+            || !is_string($idEpisodeOfCare) && !is_int($idEpisodeOfCare)
+            || preg_match(self::ID_PATTERN, (string) $idEpisodeOfCare) !== 1
+            // Une valeur qui n'est ni texte ni nombre (tableau, objet, booléen) n'est jamais interprétée comme un
+            // vidage du champ (relecture adversariale du 2026-11-04 : true effaçait la valeur).
+            || !self::isPlainValue($value)
+            || !self::isPlainValue($oldValue)
         ) {
             $this->respond(400, ['ok' => false, 'message' => 'Requête incomplète.']);
             return;
@@ -186,7 +247,7 @@ final class RecordController
             $field,
             $value,
             $oldValue,
-            idSejour: (int) $idSejour
+            idEpisodeOfCare: (int) $idEpisodeOfCare
         );
 
         $status = self::HTTP_STATUS[$result['status']] ?? 500;
@@ -223,5 +284,11 @@ final class RecordController
         http_response_code($status);
         header('Content-Type: application/json; charset=utf-8');
         echo json_encode($body, JSON_UNESCAPED_UNICODE);
+    }
+
+    /** Valeur d'un champ envoyée par le client : texte, nombre ou null (ni tableau, ni objet, ni booléen). */
+    private static function isPlainValue(mixed $value): bool
+    {
+        return $value === null || is_string($value) || is_int($value) || is_float($value);
     }
 }

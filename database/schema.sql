@@ -9,6 +9,9 @@
 #USE aura;
 
 DROP TABLE IF EXISTS AuditEvent; -- Historique des modifications du dossier (aucune clé étrangère)
+DROP TABLE IF EXISTS CareTeamPatient; -- PatientÉquipe ->[CareTeam,EpisodeOfCare]
+DROP TABLE IF EXISTS CareTeamMember; -- MembreÉquipe ->[CareTeam,Practitioner]
+DROP TABLE IF EXISTS CareTeam; -- Équipe d'une vacation ->[HealthcareService]
 DROP TABLE IF EXISTS Appointment; -- SoinPlanifié ->[ServiceRequest,MedicationRequest]
 DROP TABLE IF EXISTS MedicationRequest; -- PrescriptionMedicament ->[Medication,ActivityDefinition,CarePlan,Practitioner]
 DROP TABLE IF EXISTS ServiceRequest; -- PrescriptionSoin ->[ActivityDefinition,CarePlan,Practitioner]
@@ -16,7 +19,7 @@ DROP TABLE IF EXISTS CarePlan; -- Prescription ->[Practitioner,EpisodeOfCare,Pla
 DROP TABLE IF EXISTS PlanDefinitionAction; -- LigneProtocole ->[PlanDefinition,ActivityDefinition,Medication]
 DROP TABLE IF EXISTS PlanDefinition; -- Protocole ->[Pathology]
 DROP TABLE IF EXISTS Pathology; -- Pathologie
-DROP TABLE IF EXISTS EpisodeOfCare; -- Séjour ->[Patient,HealthcareService]
+DROP TABLE IF EXISTS EpisodeOfCare; -- Séjour ->[Patient,HealthcareService,Practitioner]
 DROP TABLE IF EXISTS Practitioner; -- Praticien ->[PractitionerRole]
 DROP TABLE IF EXISTS AllergyIntolerance; -- Allergie ->[Patient,Substance]
 DROP TABLE IF EXISTS Medication; -- Médicament ->[Substance]
@@ -64,6 +67,10 @@ CREATE TABLE Patient( -- Patient
     foreignTravel TEXT,
     comorbidities TEXT,
     currentTreatment TEXT,
+    -- AURA-12.3 : suppression logique (règle n° 8). NULL = patient actif ; sinon date de la suppression.
+    -- Un patient supprimé n'apparaît plus dans la liste ni dans les recherches (les DAO filtrent
+    -- removedAt IS NULL) ; sa ligne, ses séjours et son IPP restent en base (traçabilité, RG10).
+    removedAt DATETIME NULL,
 
     -- Recherche d'un patient existant à l'admission (PR « admission-recherche-patient ») : index pour le tri
     -- (ORDER BY lastName, firstName), l'égalité « nom exact » et findByIdentite() ; le filtre par début de mot
@@ -175,9 +182,14 @@ CREATE TABLE EpisodeOfCare( -- Séjour
     materialLeftInPlace TEXT,
     removableProstheses VARCHAR(200),
     completedBy VARCHAR(100),
+    -- Médecin référent du séjour (responsable de soin, retours des médecins du 2026-11-03) : le médecin
+    -- de jour qui fait l'admission ou reprend le patient. NULL = « à désigner » (admission de garde :
+    -- un médecin de jour le désigne ensuite depuis le dossier).
+    idReferringPractitioner VARCHAR(20),
 
     CONSTRAINT fk_patient_episode FOREIGN KEY (idPatient) REFERENCES Patient(idPatient),
-    CONSTRAINT fk_healthcareservice_episode FOREIGN KEY (idHealthcareService) REFERENCES HealthcareService(idHealthcareService)
+    CONSTRAINT fk_healthcareservice_episode FOREIGN KEY (idHealthcareService) REFERENCES HealthcareService(idHealthcareService),
+    CONSTRAINT fk_referringpractitioner_episode FOREIGN KEY (idReferringPractitioner) REFERENCES Practitioner(idPractitioner)
 );
 
 -- Référentiel des pathologies auxquelles un protocole s'applique. Pas de nom HL7 : en FHIR,
@@ -231,7 +243,7 @@ CREATE TABLE PlanDefinitionAction( -- LigneProtocole
     frequencyHours SMALLINT,
     timeConstraint VARCHAR(200),
 
-    CONSTRAINT chk_plandefinitionaction_kind CHECK (kind IN ('MEDICATION', 'CARE')),
+    CONSTRAINT chk_plandefinitionaction_kind CHECK (BINARY kind IN ('MEDICATION', 'CARE')),
     CONSTRAINT chk_plandefinitionaction_medication CHECK (
         (kind = 'MEDICATION' AND idMedication IS NOT NULL AND dose IS NOT NULL AND route IS NOT NULL)
         OR (kind = 'CARE' AND idMedication IS NULL AND dose IS NULL AND route IS NULL)
@@ -260,8 +272,11 @@ CREATE TABLE CarePlan( -- Prescription
     validatedAt DATETIME,
     -- Traçabilité : protocole d'où vient l'ordonnance ; NULL = saisie ligne par ligne.
     idPlanDefinition VARCHAR(20),
+    -- Note libre du prescripteur sur l'ordonnance (retours médecins du 2026-11-03) ; NULL = aucune.
+    -- Longueur bornée par CarePlanService::NOTE_MAX_LENGTH.
+    note TEXT,
 
-    CONSTRAINT chk_careplan_mode CHECK (mode IN ('MEDICAL', 'PARAMEDICAL', 'EMERGENCY')),
+    CONSTRAINT chk_careplan_mode CHECK (BINARY mode IN ('MEDICAL', 'PARAMEDICAL', 'EMERGENCY')),
     CONSTRAINT chk_careplan_validation CHECK ((idValidator IS NULL) = (validatedAt IS NULL)),
 
     CONSTRAINT fk_episodeofcare_careplan FOREIGN KEY (idEpisodeOfCare) REFERENCES EpisodeOfCare(idEpisodeOfCare),
@@ -345,7 +360,11 @@ CREATE TABLE Appointment( -- SoinPlanifie
     comment VARCHAR(100),
 
     CONSTRAINT chk_appointment_ligne CHECK ((idServiceRequest IS NULL) <> (idMedicationRequest IS NULL)),
-
+    -- AURA-24.2 / 24.3 : une ligne n'a qu'un soin planifié par heure prévue. La génération quotidienne de
+    -- l'agenda (bin/generate-agenda.php) écarte déjà les heures existantes ; ces clés en sont la garantie
+    -- en base (NULL n'entre pas en conflit : chaque soin ne remplit qu'une des deux colonnes).
+    CONSTRAINT uq_appointment_service_time UNIQUE (idServiceRequest, plannedTime),
+    CONSTRAINT uq_appointment_medication_time UNIQUE (idMedicationRequest, plannedTime),
 
     CONSTRAINT fk_servicerequest_appointment FOREIGN KEY (idServiceRequest) REFERENCES ServiceRequest(idServiceRequest),
     CONSTRAINT fk_medicationrequest_appointment FOREIGN KEY (idMedicationRequest) REFERENCES MedicationRequest(idMedicationRequest)
@@ -370,4 +389,43 @@ CREATE TABLE AuditEvent(
     recordedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     INDEX idx_auditevent_entity (entity, entityId, recordedAt)
+);
+
+-- Équipes et vacations (AURA-30, PROPOSITION 2026-11-03 à valider par le responsable BDD) : au début de
+-- chaque vacation (JOUR 8 h – 20 h, NUIT 20 h – 8 h, hypothèse à confirmer avec le service), le cadre
+-- compose les équipes et leur attribue des patients. Une équipe retirée garde sa ligne (removedAt) ;
+-- activeKey rend le nom unique parmi les équipes actives de la vacation (convention de suppression
+-- logique du README). Un patient n'appartient qu'à une équipe par vacation : contrôlé par le service
+-- (CareTeamService), la base ne pouvant l'exprimer sans dupliquer la vacation dans CareTeamPatient.
+CREATE TABLE CareTeam( -- Équipe d'une vacation
+    idCareTeam INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    idHealthcareService VARCHAR(20) NOT NULL,
+    shiftDate DATE NOT NULL,
+    shift VARCHAR(5) NOT NULL,
+    name VARCHAR(30) NOT NULL,
+    removedAt DATETIME,
+    activeKey TINYINT AS (IF(removedAt IS NULL, 1, NULL)) STORED,
+
+    CONSTRAINT chk_careteam_shift CHECK (BINARY shift IN ('JOUR', 'NUIT')),
+    CONSTRAINT uq_careteam_name UNIQUE (idHealthcareService, shiftDate, shift, name, activeKey),
+    CONSTRAINT fk_healthcareservice_careteam FOREIGN KEY (idHealthcareService)
+        REFERENCES HealthcareService(idHealthcareService)
+);
+
+CREATE TABLE CareTeamMember( -- Soignant d'une équipe
+    idCareTeam INT UNSIGNED NOT NULL,
+    idPractitioner VARCHAR(20) NOT NULL,
+
+    PRIMARY KEY (idCareTeam, idPractitioner),
+    CONSTRAINT fk_careteam_member FOREIGN KEY (idCareTeam) REFERENCES CareTeam(idCareTeam),
+    CONSTRAINT fk_practitioner_member FOREIGN KEY (idPractitioner) REFERENCES Practitioner(idPractitioner)
+);
+
+CREATE TABLE CareTeamPatient( -- Patient attribué à une équipe
+    idCareTeam INT UNSIGNED NOT NULL,
+    idEpisodeOfCare VARCHAR(20) NOT NULL,
+
+    PRIMARY KEY (idCareTeam, idEpisodeOfCare),
+    CONSTRAINT fk_careteam_patient FOREIGN KEY (idCareTeam) REFERENCES CareTeam(idCareTeam),
+    CONSTRAINT fk_episode_careteam FOREIGN KEY (idEpisodeOfCare) REFERENCES EpisodeOfCare(idEpisodeOfCare)
 );

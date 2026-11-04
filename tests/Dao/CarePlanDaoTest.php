@@ -46,7 +46,7 @@ final class CarePlanDaoTest extends TestCase
         }
     }
 
-    public function testEnregistrerUnePrescriptionCreeSesSoinsPlanifies(): void
+    public function testSavingPrescriptionCreatesItsScheduledCare(): void
     {
         $care = new ServiceRequest(null, 'TYP03', new DateTimeImmutable('2026-11-02 06:00'));
         $medication = new MedicationRequest(
@@ -86,5 +86,34 @@ final class CarePlanDaoTest extends TestCase
             'toutes les 12 h, date d\'arrêt incluse'
         );
         self::assertNull($medicationAppointments[0]->getIdServiceRequest());
+    }
+
+    public function testStoppingALineCancelsItsFutureScheduledCareOnly(): void
+    {
+        // Heures écrites par l'application et arrêt à la même horloge : indépendant du fuseau de la base.
+        $now = new DateTimeImmutable('2030-05-06 10:00:00');
+        // Ligne de médicament 1 (séjour 1) : un soin passé prévu, un futur prévu, un futur déjà réalisé.
+        $this->pdo->exec(
+            "INSERT INTO Appointment (idAppointment, idServiceRequest, idMedicationRequest, plannedTime, status) VALUES
+                ('ZZ_PAST', NULL, '1', '2030-05-06 09:00:00', 'PLANIFIE'),
+                ('ZZ_NEXT', NULL, '1', '2030-05-06 11:00:00', 'PLANIFIE'),
+                ('ZZ_DONE', NULL, '1', '2030-05-06 12:00:00', 'REALISE')"
+        );
+
+        self::assertTrue((new CarePlanDao($this->pdo))->markStopped(true, 1, 'PRA01', $now));
+
+        $status = $this->pdo->query(
+            "SELECT idAppointment, status FROM Appointment WHERE idAppointment LIKE 'ZZ\\\\_%' ORDER BY idAppointment"
+        )->fetchAll(PDO::FETCH_KEY_PAIR);
+        self::assertSame(
+            ['ZZ_DONE' => 'REALISE', 'ZZ_NEXT' => 'ANNULE', 'ZZ_PAST' => 'PLANIFIE'],
+            $status,
+            'seul le soin futur encore prévu est annulé ; le passé reste traçable (affiché « Arrêtée »)'
+        );
+        self::assertSame(
+            '2030-05-06 10:00:00',
+            $this->pdo->query("SELECT stoppedAt FROM MedicationRequest WHERE idMedicationRequest = '1'")->fetchColumn()
+        );
+        self::assertFalse((new CarePlanDao($this->pdo))->markStopped(true, 1, 'PRA01', $now), 'déjà arrêtée');
     }
 }

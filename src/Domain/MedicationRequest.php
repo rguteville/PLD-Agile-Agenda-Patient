@@ -7,8 +7,9 @@ namespace Aura\Domain;
 use DateTimeImmutable;
 
 /**
- * Ligne de prescription d'un médicament  : en plus du rythme,
- * le médicament, la dose et la voie, obligatoires, et des textes facultatifs de la figure 9 :
+ * Ligne de prescription d'un médicament (ressource HL7 MedicationRequest, table MedicationRequest) :
+ * en plus du rythme, le médicament, la dose et la voie, obligatoires, et des textes facultatifs de la
+ * figure 9 (écran B3) :
  * « Important -> », « Consignes pour IDE », « (Dose max) », « Volume de dilution », « Solvant »,
  * « Durée d'administration », motif et germe (si antibiotique), adaptation rénale et son critère,
  * « Motif (si hors GHS) ».
@@ -57,6 +58,7 @@ class MedicationRequest extends RequestLine
         return $this->getId();
     }
 
+    /** Médicament du référentiel (Medication.idMedication). */
     public function getIdMedication(): string
     {
         return $this->idMedication;

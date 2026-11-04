@@ -23,106 +23,109 @@ final class PatientControllerSearchTest extends TestCase
 
     #[RunInSeparateProcess]
     #[PreserveGlobalState(false)]
-    public function testSaisieTropCourteEstRefuseeSansInterrogerLeService(): void
+    public function testTooShortInputIsRejectedWithoutQueryingService(): void
     {
         $service = $this->createMock(PatientSearchService::class);
         $service->expects($this->never())->method('search');
 
-        [$statut, $corps] = $this->appeler($service, 'search', ['q' => ' d ']);
+        [$status, $body] = $this->call($service, 'search', ['q' => ' d ']);
 
-        self::assertSame(422, $statut);
-        self::assertSame(['patientSearch'], array_keys($corps['erreurs']));
+        self::assertSame(422, $status);
+        self::assertSame(['patientSearch'], array_keys($body['errors']));
     }
 
     #[RunInSeparateProcess]
     #[PreserveGlobalState(false)]
-    public function testNomInconnuDonneUneListeVideSansErreur(): void
+    public function testUnknownNameGivesEmptyListWithoutError(): void
     {
         $service = $this->createMock(PatientSearchService::class);
         $service->method('search')->with('zzinconnu')->willReturn([
             'mode' => 'name', 'results' => [], 'truncated' => false, 'homonyms' => false,
         ]);
 
-        [$statut, $corps] = $this->appeler($service, 'search', ['q' => 'zzinconnu']);
+        [$status, $body] = $this->call($service, 'search', ['q' => 'zzinconnu']);
 
-        self::assertSame(200, $statut);
+        self::assertSame(200, $status);
         self::assertSame([
-            'ok' => true, 'mode' => 'name', 'resultats' => [], 'total' => 0, 'tronque' => false, 'homonymes' => false,
-        ], $corps);
+            'ok' => true, 'mode' => 'name', 'results' => [], 'total' => 0, 'truncated' => false, 'homonyms' => false,
+        ], $body);
     }
 
     #[RunInSeparateProcess]
     #[PreserveGlobalState(false)]
-    public function testResultatsRenvoyesAvecHomonymesEtTroncature(): void
+    public function testResultsReturnedWithHomonymsAndTruncation(): void
     {
-        $resultat = ['idPatient' => 9, 'nom' => 'Durand', 'prenom' => 'Alice', 'nomNaissance' => null,
-            'dateNaissance' => '15/06/1990', 'age' => 36, 'sexe' => 'F', 'ipp' => null, 'dernierSejour' => null];
+        $result = ['idPatient' => 9, 'lastName' => 'Durand', 'firstName' => 'Alice', 'birthLastName' => null,
+            'birthDate' => '15/06/1990', 'age' => 36, 'sex' => 'F', 'ipp' => null, 'lastEpisodeOfCare' => null];
         $service = $this->createMock(PatientSearchService::class);
         $service->method('search')->willReturn([
-            'mode' => 'name', 'results' => [$resultat, $resultat], 'truncated' => true, 'homonyms' => true,
+            'mode' => 'name', 'results' => [$result, $result], 'truncated' => true, 'homonyms' => true,
         ]);
 
-        [$statut, $corps] = $this->appeler($service, 'search', ['q' => 'durand']);
+        [$status, $body] = $this->call($service, 'search', ['q' => 'durand']);
 
-        self::assertSame(200, $statut);
-        self::assertSame(2, $corps['total']);
-        self::assertTrue($corps['tronque']);
-        self::assertTrue($corps['homonymes']);
+        self::assertSame(200, $status);
+        self::assertSame(2, $body['total']);
+        self::assertTrue($body['truncated']);
+        self::assertTrue($body['homonyms']);
         self::assertSame(
-            ['idPatient', 'nom', 'prenom', 'nomNaissance', 'dateNaissance', 'age', 'sexe', 'ipp', 'dernierSejour'],
-            array_keys($corps['resultats'][0]),
+            [
+                'idPatient', 'lastName', 'firstName', 'birthLastName', 'birthDate', 'age', 'sex', 'ipp',
+                'lastEpisodeOfCare',
+            ],
+            array_keys($body['results'][0]),
             'aucun champ médical dans la réponse'
         );
     }
 
     #[RunInSeparateProcess]
     #[PreserveGlobalState(false)]
-    public function testFicheInconnueDonne404(): void
+    public function testUnknownCardGives404(): void
     {
         $service = $this->createMock(PatientSearchService::class);
         $service->method('record')->with(404)->willReturn(null);
 
-        [$statut] = $this->appeler($service, 'record', ['id' => '404']);
+        [$status] = $this->call($service, 'record', ['id' => '404']);
 
-        self::assertSame(404, $statut);
+        self::assertSame(404, $status);
     }
 
     #[RunInSeparateProcess]
     #[PreserveGlobalState(false)]
-    public function testFicheAuFormatDuFormulaireAvecAllergies(): void
+    public function testCardInFormFormatWithAllergies(): void
     {
         $service = $this->createMock(PatientSearchService::class);
         $service->method('record')->with(9)->willReturn([
-            'identite' => ['idPatient' => '9', 'nom' => 'Durand', 'prenom' => 'Alice', 'ipp' => null,
-                'dateNaissance' => '1990-06-15', 'sexe' => 'F'],
+            'identity' => ['idPatient' => '9', 'lastName' => 'Durand', 'firstName' => 'Alice', 'ipp' => null,
+                'birthDate' => '1990-06-15', 'sex' => 'F'],
             'details' => ['medicalHistory' => 'HTA', 'lifestyle' => null],
-            'allergies' => [['idSubstance' => 'ALG01', 'libelle' => 'Pénicilline']],
+            'allergies' => [['idSubstance' => 'ALG01', 'label' => 'Pénicilline']],
         ]);
 
-        [$statut, $corps] = $this->appeler($service, 'record', ['id' => '9']);
+        [$status, $body] = $this->call($service, 'record', ['id' => '9']);
 
-        self::assertSame(200, $statut);
-        self::assertSame('Durand', $corps['patient']['lastname']);
-        self::assertSame('', $corps['patient']['ipp']);
-        self::assertSame('F', $corps['patient']['gender']);
-        self::assertSame('15/06/1990', $corps['patient']['birthDate'], 'date au format saisi : JJ/MM/AAAA');
-        self::assertSame('HTA', $corps['patient']['medicalHistory']);
-        self::assertSame('', $corps['patient']['lifestyle']);
-        self::assertArrayNotHasKey('searchMode', $corps['patient']);
-        self::assertSame(['ALG01'], $corps['allergies']);
-        self::assertSame(['Pénicilline'], $corps['allergiesLibelles']);
+        self::assertSame(200, $status);
+        self::assertSame('Durand', $body['patient']['lastname']);
+        self::assertSame('', $body['patient']['ipp']);
+        self::assertSame('F', $body['patient']['gender']);
+        self::assertSame('15/06/1990', $body['patient']['birthDate'], 'date au format saisi : JJ/MM/AAAA');
+        self::assertSame('HTA', $body['patient']['medicalHistory']);
+        self::assertSame('', $body['patient']['lifestyle']);
+        self::assertArrayNotHasKey('searchMode', $body['patient']);
+        self::assertSame(['ALG01'], $body['allergies']);
+        self::assertSame(['Pénicilline'], $body['allergyLabels']);
     }
 
     /**
      * @param array<string, string> $get
      * @return array{int, array<string, mixed>}
      */
-    private function appeler(PatientSearchService $service, string $methode, array $get): array
+    private function call(PatientSearchService $service, string $method, array $get): array
     {
         $_GET = $get;
         $controller = new PatientController(patientSearchService: $service);
         ob_start();
-        $controller->$methode();
+        $controller->$method();
         $sortie = (string) ob_get_clean();
 
         return [http_response_code(), json_decode($sortie, true, 512, JSON_THROW_ON_ERROR)];

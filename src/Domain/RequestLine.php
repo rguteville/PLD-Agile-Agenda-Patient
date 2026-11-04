@@ -13,7 +13,8 @@ use DateTimeImmutable;
  *
  * Abstraite : une ligne est toujours l'un ou l'autre. Les propriétés portent le nom des colonnes
  * des tables ServiceRequest / MedicationRequest ; $id est leur clé (idServiceRequest ou
- * idMedicationRequest).
+ * idMedicationRequest). Une ligne n'est jamais supprimée : elle est arrêtée (stoppedAt, AURA-22).
+ * Immuable, sauf setIdActivityDefinition() (voir sa note).
  */
 abstract class RequestLine
 {
@@ -81,6 +82,7 @@ abstract class RequestLine
         return $this->idStoppedBy;
     }
 
+    /** Heure de l'arrêt (AURA-22, heure de PHP) ; null si la ligne n'est pas arrêtée. */
     public function getStoppedAt(): ?DateTimeImmutable
     {
         return $this->stoppedAt;
@@ -96,15 +98,39 @@ abstract class RequestLine
      */
     public function plannedTimes(): array
     {
+        // Relecture adversariale du 2026-11-04 : même avec une date de fin, seuls les PLANNING_HORIZON_DAYS
+        // premiers jours sont générés à l'enregistrement ; la génération quotidienne (AgendaGenerationService)
+        // complète ensuite, jour après jour. Une ligne de plusieurs mois ne crée donc pas des milliers de soins.
+        $horizon = $this->startDate->modify(sprintf('+%d days', self::PLANNING_HORIZON_DAYS));
+        $until = $this->frequencyHours === null
+            ? $this->startDate
+            : ($this->endDate !== null && $this->endDate < $horizon ? $this->endDate : $horizon);
+
+        return $this->plannedTimesBetween($this->startDate, $until);
+    }
+
+    /**
+     * AURA-24.2 : heures prévues de la ligne comprises entre $from et $until (bornes incluses), sans
+     * dépasser endDate. C'est le seul algorithme d'occurrences d'AURA : plannedTimes() (enregistrement
+     * de la prescription) et la génération quotidienne de l'agenda (AgendaGenerationService) l'utilisent
+     * tous les deux, si bien qu'une même ligne donne toujours les mêmes heures (aucun décalage, donc
+     * aucun doublon). Les heures sont toujours comptées depuis startDate, jamais depuis $from.
+     *
+     * @return DateTimeImmutable[]
+     */
+    public function plannedTimesBetween(DateTimeImmutable $from, DateTimeImmutable $until): array
+    {
         if ($this->frequencyHours === null) {
-            return [$this->startDate];
+            return $this->startDate >= $from && $this->startDate <= $until ? [$this->startDate] : [];
         }
 
-        $end = $this->endDate ?? $this->startDate->modify(sprintf('+%d days', self::PLANNING_HORIZON_DAYS));
+        $last = $this->endDate !== null && $this->endDate < $until ? $this->endDate : $until;
         $step = sprintf('+%d hours', $this->frequencyHours);
         $times = [];
-        for ($time = $this->startDate; $time <= $end; $time = $time->modify($step)) {
-            $times[] = $time;
+        for ($time = $this->startDate; $time <= $last; $time = $time->modify($step)) {
+            if ($time >= $from) {
+                $times[] = $time;
+            }
         }
 
         return $times;
@@ -122,6 +148,12 @@ abstract class RequestLine
         return $this->stoppedAt !== null;
     }
 
+    /**
+     * Seule exception à l'immuabilité. AgendaService::getAgenda() remplace l'identifiant par un
+     * LIBELLÉ à afficher (nom du type de soin, ou DCI du médicament pour une MedicationRequest),
+     * sur des lignes lues pour l'agenda et jamais réécrites. Après cet appel, la valeur n'est plus
+     * un idActivityDefinition : ne pas passer la ligne à CarePlanDao.
+     */
     public function setIdActivityDefinition(string $idActivityDefinition): void
     {
         $this->idActivityDefinition = $idActivityDefinition;

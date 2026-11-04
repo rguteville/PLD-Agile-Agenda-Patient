@@ -18,7 +18,7 @@ final class AgendaServicePresentDayTest extends TestCase
     private const DAY = '2026-10-14';
     private const NOW = '2026-10-14 10:30:00';
 
-    public function testJourVideSansAucunSoin(): void
+    public function testEmptyDayWithoutAnyCare(): void
     {
         $agenda = AgendaService::presentDay([], $this->day(), $this->now());
 
@@ -35,7 +35,7 @@ final class AgendaServicePresentDayTest extends TestCase
         }
     }
 
-    public function testSoinPlanifieDontLHeureEstDepasseeEstEnRetardEtEpingle(): void
+    public function testScheduledCarePastItsTimeIsLateAndPinned(): void
     {
         $plans = [$this->plan(
             cares: [$this->line('Soin A', [$this->appointment('S1', '2026-10-14 08:00:00', 'PLANIFIE')])],
@@ -51,7 +51,7 @@ final class AgendaServicePresentDayTest extends TestCase
         self::assertSame([], $agenda['shifts'][1]['items'], 'un retard épinglé ne reste pas dans sa rotation');
     }
 
-    public function testSoinPlanifieAVenirResteDansSaRotation(): void
+    public function testUpcomingScheduledCareStaysInItsShift(): void
     {
         $plans = [$this->plan(
             cares: [$this->line('Soin A', [$this->appointment('S1', '2026-10-14 12:00:00', 'PLANIFIE')])],
@@ -60,13 +60,13 @@ final class AgendaServicePresentDayTest extends TestCase
         $agenda = AgendaService::presentDay($plans, $this->day(), $this->now());
 
         self::assertSame([], $agenda['late']);
-        self::assertSame('matin', $agenda['shifts'][1]['key']);
+        self::assertSame('morning', $agenda['shifts'][1]['key']);
         self::assertCount(1, $agenda['shifts'][1]['items']);
         self::assertSame('planned', $agenda['shifts'][1]['items'][0]['status']);
     }
 
     /** @return iterable<string, array{string, int}> */
-    public static function heuresEtRotations(): iterable
+    public static function hoursAndShifts(): iterable
     {
         yield 'minuit → nuit (fin)' => ['2026-10-14 00:00:00', 0];
         yield '5 h 59 → nuit (fin)' => ['2026-10-14 05:59:00', 0];
@@ -78,8 +78,8 @@ final class AgendaServicePresentDayTest extends TestCase
         yield '23 h 59 → nuit (début)' => ['2026-10-14 23:59:00', 3];
     }
 
-    #[DataProvider('heuresEtRotations')]
-    public function testRepartitionParRotation(string $plannedTime, int $expectedShift): void
+    #[DataProvider('hoursAndShifts')]
+    public function testDistributionByShift(string $plannedTime, int $expectedShift): void
     {
         // Statut REALISE : jamais « en retard », donc toujours dans sa rotation.
         $plans = [$this->plan(
@@ -94,7 +94,7 @@ final class AgendaServicePresentDayTest extends TestCase
     }
 
     /** @return iterable<string, array{string, string}> */
-    public static function statutsEnBase(): iterable
+    public static function statusesInDatabase(): iterable
     {
         yield 'REALISE → done' => ['REALISE', 'done'];
         yield 'ANNULE → cancelled' => ['ANNULE', 'cancelled'];
@@ -102,8 +102,8 @@ final class AgendaServicePresentDayTest extends TestCase
         yield 'valeur inconnue transmise telle quelle' => ['BIZARRE', 'BIZARRE'];
     }
 
-    #[DataProvider('statutsEnBase')]
-    public function testStatutEnBaseTraduitEnCleDeBadge(string $raw, string $expected): void
+    #[DataProvider('statusesInDatabase')]
+    public function testDatabaseStatusTranslatedToBadgeKey(string $raw, string $expected): void
     {
         $plans = [$this->plan(
             cares: [$this->line('Soin A', [$this->appointment('S1', '2026-10-14 08:00:00', $raw)])],
@@ -115,7 +115,7 @@ final class AgendaServicePresentDayTest extends TestCase
         self::assertSame([], $agenda['late'], 'seul PLANIFIE peut être en retard');
     }
 
-    public function testSoinEffectueGardeLHeureDeRealisationEtLaNote(): void
+    public function testDoneCareKeepsCompletionTimeAndNote(): void
     {
         $plans = [$this->plan(
             cares: [$this->line('Soin A', [
@@ -131,7 +131,7 @@ final class AgendaServicePresentDayTest extends TestCase
         self::assertSame('IDE / AS', $item['responsible']);
     }
 
-    public function testMedicamentPorteDoseEtVoieEnDetails(): void
+    public function testMedicationCarriesDoseAndRouteInDetails(): void
     {
         $plans = [$this->plan(
             medications: [$this->line('Médicament B', [
@@ -143,11 +143,11 @@ final class AgendaServicePresentDayTest extends TestCase
 
         self::assertSame('MEDICATION', $item['kind']);
         self::assertSame('Médicament B', $item['label']);
-        self::assertSame('1 unité · IV', $item['details']);
+        self::assertSame('1 unité, IV', $item['details']);
         self::assertSame('IDE', $item['responsible']);
     }
 
-    public function testLesSoinsDesAutresJoursSontIgnores(): void
+    public function testCareOfOtherDaysIsIgnored(): void
     {
         $plans = [$this->plan(
             cares: [$this->line('Soin A', [
@@ -161,7 +161,7 @@ final class AgendaServicePresentDayTest extends TestCase
         self::assertSame(0, $agenda['counts']['total']);
     }
 
-    public function testTriChronologiqueToutesLignesConfondues(): void
+    public function testChronologicalSortAcrossAllLines(): void
     {
         $plans = [$this->plan(
             cares: [$this->line('Soin A', [$this->appointment('S1', '2026-10-14 16:00:00', 'PLANIFIE')])],
@@ -175,17 +175,17 @@ final class AgendaServicePresentDayTest extends TestCase
     }
 
     /** @return iterable<string, array{mixed, string}> */
-    public static function joursDemandes(): iterable
+    public static function requestedDays(): iterable
     {
         yield 'jour valide' => ['2026-10-20', '2026-10-20'];
         yield 'absent' => [null, self::DAY];
         yield 'mal formé' => ['20/10/2026', self::DAY];
-        yield 'tableau' => [['2026-10-20'], self::DAY];
+        yield 'table' => [['2026-10-20'], self::DAY];
         yield 'date impossible' => ['2026-02-30', self::DAY];
     }
 
-    #[DataProvider('joursDemandes')]
-    public function testParseDayRetombeSurAujourdhui(mixed $value, string $expected): void
+    #[DataProvider('requestedDays')]
+    public function testParseDayFallsBackToToday(mixed $value, string $expected): void
     {
         $day = AgendaService::parseDay($value, $this->now());
 
@@ -196,6 +196,34 @@ final class AgendaServicePresentDayTest extends TestCase
     // ---- Fabriques : même forme que AgendaService::getAgenda() ----
 
     /** @return array<string, mixed> */
+    /**
+     * Relecture adversariale du 2026-11-04 : sur l'agenda du jour, une dose de la veille encore prévue et
+     * dépassée reste en retard (« (veille) ») au lieu de disparaître à minuit ; une dose plus ancienne, faite
+     * ou d'une ligne arrêtée, non. La vue Semaine (sans carryOverdue) ne la répète pas.
+     */
+    public function testOverdueDoseOfYesterdayIsCarriedIntoTodayLateList(): void
+    {
+        $plans = [$this->plan(cares: [
+            $this->line('Soin A', [
+                $this->appointment('VEILLE', '2026-10-13 23:00:00', 'PLANIFIE'),
+                $this->appointment('FAIT', '2026-10-13 22:00:00', 'REALISE', '2026-10-13 22:05:00'),
+                $this->appointment('AVANT-HIER', '2026-10-12 23:00:00', 'PLANIFIE'),
+            ]),
+            $this->line('Soin B', [$this->appointment('ARRET', '2026-10-13 21:00:00', 'PLANIFIE')], [
+                'stoppedAt' => new DateTimeImmutable('2026-10-13 20:00:00'),
+            ]),
+        ])];
+
+        $carried = AgendaService::presentDay($plans, $this->day(), $this->now(), carryOverdue: true);
+        self::assertSame(['VEILLE'], array_column($carried['late'], 'id'));
+        self::assertSame('23:00 (veille)', $carried['late'][0]['time']);
+        self::assertTrue($carried['late'][0]['previousDay']);
+
+        self::assertSame([], AgendaService::presentDay($plans, $this->day(), $this->now())['late'], 'sans report');
+        $otherDay = AgendaService::presentDay($plans, new DateTimeImmutable('2026-10-16'), $this->now(), true);
+        self::assertSame([], $otherDay['late'], 'report seulement quand le jour affiché est aujourd\'hui');
+    }
+
     private function plan(array $cares = [], array $medications = []): array
     {
         return [

@@ -18,21 +18,21 @@ use PHPUnit\Framework\TestCase;
 final class DatabaseTest extends TestCase
 {
     /** @var string[] fichiers temporaires à supprimer */
-    private array $fichiersTemporaires = [];
+    private array $temporaryFiles = [];
 
     protected function tearDown(): void
     {
         Database::setConfigPath(null);
 
-        foreach ($this->fichiersTemporaires as $fichier) {
-            if (is_file($fichier)) {
-                unlink($fichier);
+        foreach ($this->temporaryFiles as $file) {
+            if (is_file($file)) {
+                unlink($file);
             }
         }
-        $this->fichiersTemporaires = [];
+        $this->temporaryFiles = [];
     }
 
-    public function testSansFichierDeConfigurationLisible(): void
+    public function testWithoutReadableConfigurationFile(): void
     {
         Database::setConfigPath(sys_get_temp_dir() . '/aura_config_inexistante_' . uniqid() . '.php');
 
@@ -42,10 +42,10 @@ final class DatabaseTest extends TestCase
         Database::get();
     }
 
-    public function testHoteInjoignableSansFuiteDIdentifiants(): void
+    public function testUnreachableHostWithoutCredentialLeak(): void
     {
-        $motDePasse = 'mot-de-passe-tres-secret-' . uniqid();
-        Database::setConfigPath($this->creerConfigTemporaire('127.0.0.1', 1, 'aura_test', 'aura', $motDePasse));
+        $password = 'mot-de-passe-tres-secret-' . uniqid();
+        Database::setConfigPath($this->createTemporaryConfig('127.0.0.1', 1, 'aura_test', 'aura', $password));
 
         try {
             Database::get();
@@ -53,18 +53,18 @@ final class DatabaseTest extends TestCase
         } catch (ConfigurationException $e) {
             $message = $e->getMessage();
             $this->assertStringStartsWith('Connexion à la base impossible : ', $message);
-            $this->assertStringNotContainsString($motDePasse, $message);
+            $this->assertStringNotContainsString($password, $message);
             $this->assertStringNotContainsString('mysql:host=', $message);
             // getTraceAsString() tronque les arguments : on inspecte les arguments bruts de chaque frame.
             foreach ($e->getTrace() as $frame) {
-                $this->assertStringNotContainsString($motDePasse, var_export($frame['args'] ?? [], true));
+                $this->assertStringNotContainsString($password, var_export($frame['args'] ?? [], true));
             }
             // L'exception PDO d'origine n'est pas chaînée : sa trace contiendrait le mot de passe.
             $this->assertNull($e->getPrevious());
         }
     }
 
-    public function testConnexionReelleEtInstanceUnique(): void
+    public function testRealConnectionAndSingleInstance(): void
     {
         $host = getenv('DB_HOST');
         $name = getenv('DB_NAME');
@@ -73,7 +73,7 @@ final class DatabaseTest extends TestCase
             $this->markTestSkipped('DB_HOST et DB_NAME non définis : test de connexion réelle ignoré (hors CI).');
         }
 
-        Database::setConfigPath($this->creerConfigTemporaire(
+        Database::setConfigPath($this->createTemporaryConfig(
             $host,
             (int) (getenv('DB_PORT') ?: 3306),
             $name,
@@ -90,26 +90,26 @@ final class DatabaseTest extends TestCase
         $this->assertFalse($pdo->getAttribute(PDO::ATTR_EMULATE_PREPARES));
     }
 
-    private function creerConfigTemporaire(
+    private function createTemporaryConfig(
         string $host,
         int $port,
         string $name,
         string $user,
         string $password
     ): string {
-        $fichier = tempnam(sys_get_temp_dir(), 'aura_config_');
-        $this->assertNotFalse($fichier, 'Impossible de créer un fichier temporaire.');
-        $this->fichiersTemporaires[] = $fichier;
+        $file = tempnam(sys_get_temp_dir(), 'aura_config_');
+        $this->assertNotFalse($file, 'Impossible de créer un fichier temporaire.');
+        $this->temporaryFiles[] = $file;
 
-        $contenu = '<?php return ' . var_export(['db' => [
+        $content = '<?php return ' . var_export(['db' => [
             'host' => $host,
             'port' => $port,
             'name' => $name,
             'user' => $user,
             'password' => $password,
         ]], true) . ';';
-        file_put_contents($fichier, $contenu);
+        file_put_contents($file, $content);
 
-        return $fichier;
+        return $file;
     }
 }

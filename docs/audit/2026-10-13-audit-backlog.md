@@ -1,5 +1,9 @@
 # Audit backlog Notion ↔ dépôt — AURA (PLD Agile, hexanôme 14)
 
+> Instantané du 2026-10-13, conservé tel quel pour l'historique. Depuis, le code est entièrement en anglais HL7
+> (décision du 2026-11-03 : `Sejour` est devenu `EpisodeOfCare`, `Allergie` `AllergyIntolerance`…) et de nombreux
+> tickets ont avancé : l'état courant est dans `CHANGELOG.md` et le backlog Notion.
+
 Date : 2026-10-13 · Sprint courant : **Sprint 2 (12 → 14 octobre)** (page Notion « Planning - Sprint ») · Dépôt : `rguteville/PLD-Agile-Agenda-Patient`, branche `main` à `5931126`.
 
 Sources : base Notion « Product Backlog » (69 pages : 7 épics, 62 items), corps de chaque page (section « Dépendances »), `git log --all`, branches distantes, API GitHub (PR, runs CI, clés de déploiement), exécution locale de `composer test` et `composer cs`.
