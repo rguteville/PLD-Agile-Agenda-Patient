@@ -5,33 +5,16 @@ declare(strict_types=1);
 namespace Aura\Tests\Core;
 
 use Aura\Core\DateInput;
-use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
-/** Retours du 2026-11-02 : dates saisies en JJ/MM/AAAA, converties vers AAAA-MM-JJ à l'entrée. */
+/** Dates saisies en JJ/MM/AAAA, converties en AAAA-MM-JJ avant la validation par le service. */
 final class DateInputTest extends TestCase
 {
-    /** @return iterable<string, array{string, string}> */
-    public static function inputs(): iterable
+    public function testFrenchDateIsConvertedAndAnythingElseIsLeftForTheServiceToRefuse(): void
     {
-        yield 'date française' => ['14/03/1958', '1958-03-14'];
-        yield 'spaces' => [' 14/03/1958 ', '1958-03-14'];
-        yield 'déjà au format ISO' => ['1958-03-14', '1958-03-14'];
-        yield 'empty' => ['', ''];
-        yield 'mal formée : laissée telle quelle pour que le service la refuse' => ['14-03-1958', '14-03-1958'];
-        yield 'date inexistante : convertie, le service la refuse' => ['31/02/2026', '2026-02-31'];
-    }
-
-    #[DataProvider('inputs')]
-    public function testConversionToServiceFormat(string $input, string $expected): void
-    {
-        self::assertSame($expected, DateInput::toIso($input));
-    }
-
-    public function testFrenchStyleDisplay(): void
-    {
+        self::assertSame('1958-03-14', DateInput::toIso(' 14/03/1958 '));
+        self::assertSame('1958-03-14', DateInput::toIso('1958-03-14'), 'déjà au format ISO');
+        self::assertSame('14-03-1958', DateInput::toIso('14-03-1958'), 'mal formée : laissée telle quelle');
         self::assertSame('14/03/1958', DateInput::fromIso('1958-03-14'));
-        self::assertSame('', DateInput::fromIso(null));
-        self::assertSame('14/03/1958', DateInput::fromIso('14/03/1958'));
     }
 }

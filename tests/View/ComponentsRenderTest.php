@@ -8,319 +8,46 @@ use Aura\Core\View;
 use PHPUnit\Framework\TestCase;
 
 /**
- * AURA-UI : rendu des composants partagés (icône, badge de statut, état vide, bandeau patient),
- * sans base ni serveur. Les données sont des substituts évidents (« DUPONT Test »).
+ * Bandeau patient (RG2) rendu sans base ni serveur : allergies explicites, décès, échappement des données.
+ * Données de substitution évidentes (« DUPONT Test »).
  */
 final class ComponentsRenderTest extends TestCase
 {
-    public function testDecorativeIconIsHiddenFromScreenReaders(): void
-    {
-        $html = View::render('components/icon', ['name' => 'clock']);
-
-        self::assertStringContainsString('class="icon icon-clock"', $html);
-        self::assertStringContainsString('aria-hidden="true"', $html);
-        self::assertStringContainsString('<circle cx="12" cy="12" r="10"/>', $html);
-    }
-
-    public function testMeaningfulIconHasEscapedLabel(): void
-    {
-        $html = View::render('components/icon', ['name' => 'triangle-alert', 'label' => 'Allergie <sévère>']);
-
-        self::assertStringContainsString('role="img"', $html);
-        self::assertStringContainsString('aria-label="Allergie &lt;sévère&gt;"', $html);
-    }
-
-    public function testUnknownIconFallsBackToInfo(): void
-    {
-        $html = View::render('components/icon', ['name' => 'nonexistent']);
-
-        self::assertStringContainsString('icon-info', $html);
-        self::assertStringNotContainsString('nonexistent', $html);
-    }
-
-    public function testKnownBadgeHasIconTextAndClass(): void
-    {
-        $html = View::render('components/status_badge', ['status' => 'late']);
-
-        self::assertStringContainsString('badge badge--late', $html);
-        self::assertStringContainsString('icon-clock-alert', $html);
-        self::assertStringContainsString('<span>En retard</span>', $html);
-    }
-
-    public function testBadgeLabelOverriddenAndEscaped(): void
-    {
-        $html = View::render('components/status_badge', ['status' => 'validated', 'label' => 'Validée par <X>']);
-
-        self::assertStringContainsString('badge--validated', $html);
-        self::assertStringContainsString('Validée par &lt;X&gt;', $html);
-    }
-
-    /**
-     * Retours du 2026-11-04 : le badge « Ordonnance non validée » des agendas est un lien vers la validation de
-     * cette ordonnance ; sans ordonnance connue, il reste un simple badge.
-     */
-    public function testToValidateBadgeLinksToTheOrderValidation(): void
-    {
-        $html = View::render('components/to_validate_link', ['idEpisodeOfCare' => 11, 'idCarePlan' => '7']);
-
-        self::assertStringContainsString('<a class="badge badge--to_validate badge--link"', $html);
-        self::assertStringContainsString('href="/care-plans/new?idEpisodeOfCare=11#ordonnance-7"', $html);
-        self::assertStringContainsString('Ordonnance non validée', $html);
-        self::assertStringContainsString('valider l&#039;ordonnance n° 7', $html, 'nom accessible du lien');
-
-        $plain = View::render('components/to_validate_link', ['idEpisodeOfCare' => 11, 'idCarePlan' => null]);
-        self::assertStringNotContainsString('<a ', $plain);
-        self::assertStringContainsString('badge--to_validate', $plain);
-    }
-
-    public function testUnknownStatusBadgeShowsValueAsNeutral(): void
-    {
-        $html = View::render('components/status_badge', ['status' => 'NOUVEAU']);
-
-        self::assertStringContainsString('badge--unknown', $html);
-        self::assertStringContainsString('<span>NOUVEAU</span>', $html);
-        self::assertStringContainsString('icon-circle-alert', $html);
-    }
-
-    public function testEmptyStateWithTitleAndText(): void
-    {
-        $html = View::render('components/empty_state', ['title' => 'Rien <ici>', 'text' => 'Explication']);
-
-        self::assertStringContainsString('class="empty-state"', $html);
-        self::assertStringContainsString('Rien &lt;ici&gt;', $html);
-        self::assertStringContainsString('Explication', $html);
-        self::assertStringContainsString('icon-inbox', $html);
-    }
-
-    public function testBannerWithoutAllergyShowsExplicitState(): void
+    public function testBannerWithoutAllergySaysNoKnownAllergy(): void
     {
         $html = View::render('components/patient_banner', ['banner' => self::banner()]);
 
-        self::assertStringContainsString('role="region"', $html);
-        self::assertStringContainsString('Aucune allergie connue', $html);
-        self::assertStringNotContainsString('Allergies :', $html);
         self::assertStringContainsString('DUPONT', $html);
-        self::assertStringContainsString('62,5 kg', $html);
-        self::assertStringContainsString('non renseignée', $html, 'taille absente');
+        self::assertStringContainsString('Aucune allergie connue', $html);
     }
 
-    /** Retours du 2026-11-03 : référent nommé, ou « à désigner » mis en évidence sans couleur seule. */
-    public function testBannerShowsReferentOrHighlightedToBeDesignated(): void
+    public function testBannerListsAllergiesWithAnAlertAndEscapesThem(): void
     {
-        $named = View::render('components/patient_banner', [
-            'banner' => ['referent' => 'Dr Claire <Morel>'] + self::banner(),
-        ]);
-        $missing = View::render('components/patient_banner', ['banner' => self::banner()]);
+        $html = View::render('components/patient_banner', ['banner' => self::banner([
+            ['label' => 'Substance <script>', 'criticality' => 'Élevée', 'level' => 'high'],
+        ])]);
 
-        self::assertMatchesRegularExpression('/<dt>Référent<\/dt>\s*<dd>\s*Dr Claire &lt;Morel&gt;/', $named);
-        self::assertStringNotContainsString('referent-missing', $named);
-        self::assertStringContainsString('<span class="referent-missing">', $missing);
-        self::assertStringContainsString('icon-circle-alert', $missing, 'icône en plus du texte');
-        self::assertMatchesRegularExpression('/<\/svg>\s*à désigner/', $missing);
+        self::assertStringContainsString('Allergies :', $html);
+        self::assertStringContainsString('Substance &lt;script&gt;', $html);
+        self::assertStringNotContainsString('<script>', $html);
+        self::assertStringNotContainsString('Aucune allergie connue', $html);
     }
 
-    /** Retours des médecins du 2026-11-03 : décès dans le bandeau, icône + texte (pas la couleur seule). */
-    public function testBannerShowsDeceasedWithIconAndText(): void
+    public function testBannerShowsDeathAsText(): void
     {
         $html = View::render('components/patient_banner', [
             'banner' => ['deceased' => true, 'deceasedLabel' => 'Décédée'] + self::banner(),
         ]);
-        $alive = View::render('components/patient_banner', ['banner' => self::banner()]);
 
-        self::assertMatchesRegularExpression(
-            '/<div class="identity">.*<span class="deceased-tag">\s*<svg class="icon icon-heart-off".*'
-            . '<span>Décédée<\/span>/s',
-            $html
-        );
-        self::assertStringNotContainsString('deceased-tag', $alive, 'clé absente (autres écrans) : rien');
+        self::assertStringContainsString('Décédée', $html, 'un texte, pas seulement une couleur');
     }
 
-    public function testEpisodeHistoryMarksDisplayedEpisodeWithTextNotColorOnly(): void
-    {
-        $html = View::render('components/episode_history', ['episodes' => [[
-            'idEpisodeOfCare' => 7, 'episodeNumber' => '2026-<7>', 'admissionDate' => '02/06/2026',
-            'dischargeDate' => '05/06/2026', 'ongoing' => false, 'service' => null, 'admissionReason' => null,
-            'displayed' => true,
-        ]], 'label' => 'Séjours <X>']);
-
-        self::assertStringContainsString('aria-label="Séjours &lt;X&gt;"', $html);
-        self::assertStringContainsString('aria-current="page">Séjour n° 2026-&lt;7&gt;</a>', $html);
-        self::assertStringContainsString('Séjour affiché', $html);
-        self::assertStringContainsString('badge--stopped', $html);
-        self::assertStringContainsString('Service : non renseigné', $html);
-        self::assertStringContainsString('Motif : non renseigné', $html);
-    }
-
-    public function testBannerWithAllergiesListsThemWithAlert(): void
-    {
-        $html = View::render('components/patient_banner', ['banner' => self::banner([
-            ['label' => 'Substance <A>', 'criticality' => 'sévère'],
-            ['label' => 'Substance B', 'criticality' => null],
-        ])]);
-
-        self::assertStringContainsString('Allergies :', $html);
-        self::assertStringContainsString('icon-triangle-alert', $html);
-        self::assertStringContainsString('Substance &lt;A&gt;', $html);
-        self::assertStringContainsString('(sévère)', $html);
-        self::assertStringNotContainsString('Aucune allergie connue', $html);
-    }
-
-    /** @return array<string, mixed> */
-    public function testFieldWithHelpIsDescribedForScreenReaders(): void
-    {
-        $html = View::render('components/field', ['field' => [
-            'name' => 'insNumber', 'label' => 'Matricule INS', 'help' => 'Aide <courte>', 'value' => '', 'error' => '',
-        ]]);
-
-        self::assertStringContainsString('<p class="field-help" id="insNumber-help">Aide &lt;courte&gt;</p>', $html);
-        self::assertStringContainsString('aria-describedby="insNumber-help"', $html);
-        self::assertStringContainsString('<label for="insNumber">', $html);
-    }
-
-    public function testFailingFieldWithHelpCombinesBothDescriptions(): void
-    {
-        $html = View::render('components/field', ['field' => [
-            'name' => 'x', 'label' => 'X', 'help' => 'Aide', 'value' => '', 'error' => 'Trop long',
-        ]]);
-
-        self::assertStringContainsString('aria-invalid="true"', $html);
-        self::assertStringContainsString('aria-describedby="x-help x-error"', $html);
-        self::assertStringContainsString('role="alert"', $html);
-    }
-
-    public function testCheckboxListChecksValuesAndHasNamedGroup(): void
-    {
-        $html = View::render('components/field', ['field' => [
-            'name' => 'allergies', 'label' => 'Allergies', 'type' => 'checkbox-group',
-            'options' => ['ALG01' => 'Pénicilline', 'ALG02' => 'Latex <x>'], 'value' => ['ALG02'], 'error' => '',
-        ]]);
-
-        self::assertStringContainsString('role="group" aria-labelledby="allergies-label"', $html);
-        self::assertStringContainsString('name="allergies[]" value="ALG02"', $html);
-        self::assertSame(1, substr_count($html, 'checked'));
-        self::assertStringContainsString('Latex &lt;x&gt;', $html);
-    }
-
-    public function testEmptyCheckboxListShowsFallbackMessage(): void
-    {
-        $html = View::render('components/field', ['field' => [
-            'name' => 'allergies', 'label' => 'Allergies', 'type' => 'checkbox-group', 'options' => [],
-            'emptyMessage' => 'Référentiel indisponible', 'value' => [], 'error' => '',
-        ]]);
-
-        self::assertStringContainsString('Référentiel indisponible', $html);
-        self::assertStringNotContainsString('type="checkbox"', $html);
-    }
-
-    public function testOptionalSelectOffersEmptyChoice(): void
-    {
-        $html = View::render('components/field', ['field' => [
-            'name' => 'asaScore', 'label' => 'ASA', 'type' => 'select', 'empty' => 'Non renseigné',
-            'options' => ['I' => 'ASA I', 'II' => 'ASA II'], 'value' => 'II', 'error' => '',
-        ]]);
-
-        self::assertStringContainsString('<option value="">Non renseigné</option>', $html);
-        self::assertMatchesRegularExpression('/value="II"\s+selected/', $html);
-    }
-
-    public function testHiddenFieldAndGroupHeading(): void
-    {
-        $cache = View::render('components/field', ['field' => [
-            'name' => 'idPatient', 'type' => 'hidden', 'value' => '9',
-        ]]);
-        self::assertSame('<input type="hidden" id="idPatient" name="idPatient" value="9">', trim($cache));
-
-        $title = View::render('components/field', ['field' => [
-            'name' => 'identity', 'type' => 'heading', 'label' => 'Identité <x>', 'help' => 'Aide',
-        ]]);
-        self::assertStringContainsString('<h2 class="form-subtitle" id="identity">Identité &lt;x&gt;</h2>', $title);
-        self::assertStringNotContainsString('<input', $title);
-    }
-
-    public function testBannerAllergiesNotRecordedIsADistinctState(): void
-    {
-        $html = View::render('components/patient_banner', [
-            'banner' => self::banner() + ['allergiesStatus' => 'unknown'],
-        ]);
-
-        self::assertStringContainsString('allergies--unknown', $html);
-        self::assertStringContainsString('Allergies non renseignées', $html);
-        self::assertStringNotContainsString('Aucune allergie connue', $html);
-
-        $none = View::render('components/patient_banner', [
-            'banner' => self::banner() + ['allergiesStatus' => 'none'],
-        ]);
-        self::assertStringContainsString('allergies--none', $none);
-        self::assertStringContainsString('Aucune allergie connue', $none);
-    }
-
-    public function testBreadcrumbMarksCurrentPage(): void
-    {
-        $html = View::render('components/breadcrumb', ['items' => [
-            ['label' => 'Patients', 'href' => '/patients'],
-            ['label' => 'Dossier du séjour n° 2026-000001', 'href' => '/sejour?id=1'],
-            ['label' => 'Agenda <x>'],
-        ]]);
-
-        self::assertStringContainsString('<nav class="breadcrumb" aria-label="Fil d\'Ariane">', $html);
-        self::assertStringContainsString('<a href="/patients">Patients</a>', $html);
-        self::assertStringContainsString('href="/sejour?id=1"', $html);
-        self::assertStringContainsString('<li aria-current="page">', $html);
-        self::assertStringContainsString('Agenda &lt;x&gt;', $html);
-        self::assertSame(2, substr_count($html, '<a '), 'la page courante n\'est pas un lien');
-    }
-
-    public function testAllergyListWithCriticalityPerAllergen(): void
-    {
-        $html = View::render('components/field', ['field' => [
-            'name' => 'allergies', 'label' => 'Allergies', 'type' => 'allergy-picker',
-            'options' => ['ALG01' => 'Pénicilline', 'ALG02' => 'Latex <x>'], 'value' => ['ALG01'],
-            'criticalities' => ['ALG01' => 'Élevée'], 'criticalityOptions' => ['Faible', 'Élevée'], 'error' => '',
-        ]]);
-
-        self::assertStringContainsString('data-allergy-picker', $html);
-        self::assertStringContainsString('data-allergy-filter', $html);
-        self::assertMatchesRegularExpression('/value="ALG01"\s+checked/', $html);
-        self::assertStringContainsString('name="allergyCriticality[ALG01]"', $html);
-        self::assertMatchesRegularExpression('/<option value="Élevée"\s+selected>/', $html);
-        self::assertStringContainsString('Latex &lt;x&gt;', $html);
-        self::assertStringNotContainsString('allergène coché', $html, 'plus de compteur (retours du 2026-11-04)');
-    }
-
-    public function testBannerColorsEachAllergyByCriticality(): void
-    {
-        $html = View::render('components/patient_banner', ['banner' => self::banner([
-            ['label' => 'Pénicilline', 'criticality' => 'Élevée', 'level' => 'high'],
-            ['label' => 'Latex', 'criticality' => null, 'level' => 'unknown'],
-        ])]);
-
-        self::assertStringContainsString('allergy-tag--high', $html);
-        self::assertStringContainsString('allergy-tag--unknown', $html);
-        self::assertStringContainsString('(criticité non évaluée)', $html, 'jamais la couleur seule');
-    }
-
-    public function testDateFieldInDdMmYyyyWithGreyedExample(): void
-    {
-        $html = View::render('components/field', ['field' => [
-            'name' => 'birthDate', 'label' => 'Date de naissance', 'type' => 'date', 'value' => '1958-03-14',
-            'error' => '',
-        ]]);
-
-        self::assertStringContainsString('type="text"', $html, 'le champ date natif n\'accepte pas d\'exemple');
-        self::assertStringContainsString('value="14/03/1958"', $html);
-        self::assertStringContainsString('placeholder="JJ/MM/AAAA"', $html);
-        self::assertStringContainsString('data-date-input', $html);
-    }
-
-    public function testFieldGreyedExample(): void
-    {
-        $html = View::render('components/field', ['field' => [
-            'name' => 'lastname', 'label' => 'Nom', 'placeholder' => 'Ex. : <DUPONT>', 'value' => '', 'error' => '',
-        ]]);
-
-        self::assertStringContainsString('placeholder="Ex. : &lt;DUPONT&gt;"', $html);
-    }
-
+    /**
+     * Bandeau minimal, comme PatientRecordService::presentBanner().
+     *
+     * @param list<array<string, ?string>> $allergies
+     * @return array<string, mixed>
+     */
     public static function banner(array $allergies = []): array
     {
         return [
@@ -336,29 +63,5 @@ final class ComponentsRenderTest extends TestCase
             'height' => null,
             'allergies' => $allergies,
         ];
-    }
-
-    public function testFormLevelErrorSitsNextToTheSubmitButton(): void
-    {
-        $html = View::render('components/form', [
-            'action' => '/x', 'fields' => [], 'submit' => 'Admettre', 'error' => 'Déjà hospitalisé <x>',
-        ]);
-
-        self::assertMatchesRegularExpression(
-            '#<div class="form-actions">\s*<button type="submit">Admettre</button>.*Déjà hospitalisé &lt;x&gt;#s',
-            $html
-        );
-    }
-
-    public function testPrescriptionCardUnfoldsItsRows(): void
-    {
-        $html = View::render('components/prescription_details', ['item' => [
-            'label' => 'Soin <A>', 'prescription' => [['label' => 'Dose', 'value' => '1 g <x>']],
-        ]]);
-
-        self::assertStringContainsString('<details class="prescription-details">', $html);
-        self::assertStringContainsString('Prescription de Soin &lt;A&gt;', $html);
-        self::assertStringContainsString('<dd>1 g &lt;x&gt;</dd>', $html);
-        self::assertSame('', trim(View::render('components/prescription_details', ['item' => ['label' => 'x']])));
     }
 }

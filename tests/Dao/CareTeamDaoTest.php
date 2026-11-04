@@ -15,7 +15,7 @@ use PHPUnit\Framework\TestCase;
 
 /**
  * AURA-30 sur base réelle (transaction annulée en tearDown) : composition d'une équipe, lecture par
- * vacation et par soignant, unicité d'un patient par vacation, retrait logique.
+ * rotation et par soignant, un patient dans une seule équipe par rotation, retrait logique.
  */
 final class CareTeamDaoTest extends TestCase
 {
@@ -62,7 +62,7 @@ final class CareTeamDaoTest extends TestCase
         self::assertSame('Zz équipe', $teams[0]->getName());
         self::assertSame(['PRA05' => 'Inès Rousseau'], $teams[0]->getMembers());
         self::assertSame([2, 8], $teams[0]->getEpisodeIds());
-        self::assertSame([], $this->dao->findForShift('SRV01', $this->date, CareTeam::SHIFT_MORNING), 'autre vacation');
+        self::assertSame([], $this->dao->findForShift('SRV01', $this->date, CareTeam::SHIFT_MORNING), 'autre rotation');
         self::assertCount(1, $this->dao->findForPractitioner('PRA05', $this->date, CareTeam::SHIFT_NIGHT));
         self::assertSame([], $this->dao->findForPractitioner('PRA04', $this->date, CareTeam::SHIFT_NIGHT));
 
@@ -74,7 +74,7 @@ final class CareTeamDaoTest extends TestCase
             ['PRA05' => 'Inès Rousseau (IDE)'],
             [1 => 'A', 2 => 'B', 8 => 'C']
         );
-        self::assertSame(CareTeamService::STATUS_INVALID, $again['status'], 'un patient, une équipe par vacation');
+        self::assertSame(CareTeamService::STATUS_INVALID, $again['status'], 'un patient, une équipe par rotation');
 
         self::assertTrue($this->dao->remove($teams[0]->getIdCareTeam(), new DateTimeImmutable('2030-01-02 21:00')));
         self::assertSame([], $this->dao->findForShift('SRV01', $this->date, CareTeam::SHIFT_NIGHT), 'retrait logique');

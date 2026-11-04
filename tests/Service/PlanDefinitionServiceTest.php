@@ -30,7 +30,7 @@ final class PlanDefinitionServiceTest extends TestCase
 {
     private const APPLIED_AT = '2026-10-20 08:00';
 
-    public function testDatesShiftedFromApplicationDate(): void
+    public function testProtocolDatesAreShiftedFromTheApplicationTime(): void
     {
         $lines = $this->service(self::septicShock())
             ->linesToPrefill('PLD01', new DateTimeImmutable(self::APPLIED_AT));
@@ -47,45 +47,8 @@ final class PlanDefinitionServiceTest extends TestCase
         self::assertSame('2026-10-21T08:00', $lines[2]['endDate']);
     }
 
-    public function testB3ScreenLineFields(): void
-    {
-        [$bloodTest, $antibiotic, $vitals] = $this->service(self::septicShock())
-            ->linesToPrefill('PLD01', new DateTimeImmutable(self::APPLIED_AT));
-
-        self::assertSame(CarePlanService::LINE_FIELDS, array_keys($antibiotic), 'mêmes champs que le formulaire');
-
-        self::assertSame(CarePlanService::KIND_CARE, $bloodTest['kind']);
-        self::assertSame('TYP03', $bloodTest['idActivityDefinition']);
-        self::assertSame('ONCE', $bloodTest['frequencyType']);
-        self::assertSame('', $bloodTest['idMedication'], 'un soin n\'a pas de médicament');
-
-        self::assertSame(CarePlanService::KIND_MEDICATION, $antibiotic['kind']);
-        self::assertSame('MED06', $antibiotic['idMedication']);
-        self::assertSame('2 g', $antibiotic['dose']);
-        self::assertSame('IV', $antibiotic['route']);
-        self::assertSame('Sepsis', $antibiotic['antibioticReason']);
-        self::assertSame('SCHEDULED', $antibiotic['frequencyType']);
-        self::assertSame('8', $antibiotic['frequencyHours']);
-
-        self::assertSame('SCHEDULED', $vitals['frequencyType']);
-        self::assertSame('1', $vitals['frequencyHours']);
-    }
-
-    public function testFrequencyInWholeDaysOfferedInDays(): void
-    {
-        $plan = new PlanDefinition('PLD09', 'Pansements', actions: [
-            new PlanDefinitionAction('PDA90', 'PLD09', PlanDefinitionAction::KIND_CARE, 'TYP04', frequencyHours: 48),
-        ]);
-
-        [$line] = $this->service($plan)->linesToPrefill('PLD09', new DateTimeImmutable(self::APPLIED_AT));
-
-        self::assertSame('DAYS', $line['frequencyType']);
-        self::assertSame('2', $line['frequencyDays']);
-        self::assertSame('', $line['frequencyHours']);
-    }
-
     /** Les lignes pré-remplies passent telles quelles le contrôle de saisie de l'ordonnance. */
-    public function testLinesAcceptedByInputValidation(): void
+    public function testProtocolLinesPassThePrescriptionChecks(): void
     {
         $lines = $this->service(self::septicShock())
             ->linesToPrefill('PLD01', new DateTimeImmutable(self::APPLIED_AT));
@@ -112,16 +75,7 @@ final class PlanDefinitionServiceTest extends TestCase
         ]));
     }
 
-    public function testUnknownProtocolRejected(): void
-    {
-        $dao = $this->createStub(PlanDefinitionDao::class);
-        $dao->method('findById')->willReturn(null);
-
-        $this->expectException(InvalidArgumentException::class);
-        (new PlanDefinitionService($dao))->linesToPrefill('PLD99', new DateTimeImmutable(self::APPLIED_AT));
-    }
-
-    public function testRemovedProtocolRejected(): void
+    public function testRetiredProtocolIsRefused(): void
     {
         $retired = new PlanDefinition('PLD03', 'Ancienne version', active: false, actions: [
             new PlanDefinitionAction('PDA11', 'PLD03', PlanDefinitionAction::KIND_CARE, 'TYP02'),

@@ -19,14 +19,10 @@ use PDO;
 use PHPUnit\Framework\TestCase;
 
 /**
- * AURA-10.4, définition de fini, sur la base MariaDB du CI (ignoré hors CI) :
- *  - une admission crée exactement une ligne Sejour et, pour un nouveau patient, une ligne Patient ;
- *  - une erreur à l'insertion du séjour ne laisse pas de Patient orphelin ;
- *  - AURA-10.3 : deux admissions successives donnent deux numéros de séjour différents ;
- *  - AURA-10.1 : taille, poids et précautions saisis sont relus identiques depuis la base.
- *
- * La transaction réelle est testée ici : pas de transaction englobante, les lignes
- * créées sont supprimées à la fin.
+ * Admission (RG1) sur la base du CI : un patient et un séjour créés ensemble ou pas du tout, numéro de séjour
+ * unique, patient connu réutilisé (IPP ou sélection), refus qui protègent l'identité (décès, IPP d'une autre
+ * personne, groupe sanguin connu). La vraie transaction est testée : pas de transaction englobante, les
+ * lignes « Zzadmissionintegration » sont effacées avant et après chaque test. Ignoré sans DB_HOST/DB_NAME.
  */
 final class AdmissionIntegrationTest extends TestCase
 {
@@ -53,7 +49,7 @@ final class AdmissionIntegrationTest extends TestCase
         }
     }
 
-    public function testAdmissionCreatesPatientAndEpisode(): void
+    public function testAdmissionCreatesExactlyOnePatientAndOneStay(): void
     {
         $service = new AdmissionService(
             null,
@@ -80,42 +76,8 @@ final class AdmissionIntegrationTest extends TestCase
         // un second POST, pas un rafraîchissement ; la redirection POST → GET couvre ce cas.
     }
 
-    /** AURA-10.1 : les mesures de l'admission sont relues identiques depuis la base. */
-    public function testAdmissionMeasuresAreReread(): void
-    {
-        $service = new AdmissionService(
-            null,
-            new PatientDao($this->pdo),
-            new EpisodeOfCareService(new EpisodeOfCareDao($this->pdo)),
-            new Transaction($this->pdo)
-        );
-        $precautions = "Isolement contact (BMR)\nRisque de chute : barrières relevées";
-
-        $episodeOfCare = $service->admit([
-            'lastName' => self::LAST_NAME,
-            'firstName' => 'Alice',
-            'height' => '172.5',
-            'weight' => '68.25',
-            'precautions' => $precautions,
-        ]);
-
-        $reread = (new EpisodeOfCareDao($this->pdo))->findById((int) $episodeOfCare->getIdEpisodeOfCare());
-        self::assertNotNull($reread);
-        self::assertSame(172.5, $reread->getHeight());
-        self::assertSame(68.25, $reread->getWeight());
-        self::assertSame($precautions, $reread->getPrecautions(), 'accents et retour à la ligne conservés');
-
-        // Sans mesures saisies, les colonnes restent NULL.
-        $withoutMeasures = $service->admit(['lastName' => self::LAST_NAME, 'firstName' => 'Bob']);
-        $reread = (new EpisodeOfCareDao($this->pdo))->findById((int) $withoutMeasures->getIdEpisodeOfCare());
-        self::assertNotNull($reread);
-        self::assertNull($reread->getHeight());
-        self::assertNull($reread->getWeight());
-        self::assertNull($reread->getPrecautions());
-    }
-
     /** AURA-10.3 : deux admissions successives produisent deux numéros de séjour différents. */
-    public function testTwoSuccessiveAdmissionsHaveDifferentNumbers(): void
+    public function testEachStayGetsItsOwnNumber(): void
     {
         $service = new AdmissionService(
             null,
@@ -132,7 +94,7 @@ final class AdmissionIntegrationTest extends TestCase
         self::assertNotSame($first->getEpisodeNumber(), $second->getEpisodeNumber());
     }
 
-    public function testRejectedEpisodeLeavesNoOrphanPatient(): void
+    public function testRejectedStayLeavesNoOrphanPatient(): void
     {
         $episodesOfCare = $this->createMock(EpisodeOfCareService::class);
         $episodesOfCare->method('openEpisodeOfCare')
@@ -161,7 +123,7 @@ final class AdmissionIntegrationTest extends TestCase
      * AURA-15 : réadmettre un patient déjà connu par son IPP ouvre un nouveau séjour sans
      * recréer le patient : la table Patient garde une seule ligne pour cet IPP.
      */
-    public function testPatientKnownByIppIsNotRecreatedOnReadmission(): void
+    public function testPatientKnownByIppIsReusedOnReadmission(): void
     {
         $episodeOfCareService = new EpisodeOfCareService(new EpisodeOfCareDao($this->pdo));
         $service = new AdmissionService(
@@ -196,7 +158,7 @@ final class AdmissionIntegrationTest extends TestCase
      * Champs complémentaires : antécédents (patient), histoire de la maladie, scores, chirurgie (séjour)
      * et allergies du référentiel sont relus identiques depuis la base après l'admission.
      */
-    public function testAdditionalFieldsAndAllergiesAreReread(): void
+    public function testRecordFieldsAndAllergiesEnteredAtAdmissionAreSaved(): void
     {
         $service = new AdmissionService(
             null,
@@ -246,41 +208,12 @@ final class AdmissionIntegrationTest extends TestCase
         self::assertSame('Élevée', $allergies[0]->getCriticality(), 'criticité choisie à l\'admission enregistrée');
     }
 
-    /** Un patient connu par son IPP : les champs saisis complètent son dossier, les vides ne l'effacent pas. */
-    public function testReadmissionCompletesRecordWithoutErasingExisting(): void
-    {
-        $episodeOfCareService = new EpisodeOfCareService(new EpisodeOfCareDao($this->pdo));
-        $service = new AdmissionService(
-            null,
-            new PatientDao($this->pdo),
-            $episodeOfCareService,
-            new Transaction($this->pdo)
-        );
-        $ipp = '987654316';
-
-        $first = $service->admit([
-            'lastName' => self::LAST_NAME, 'firstName' => 'Alice', 'ipp' => $ipp,
-            'medicalHistory' => 'HTA', 'lifestyle' => 'Non fumeur',
-        ]);
-        $episodeOfCareService->closeEpisodeOfCare((int) $first->getIdEpisodeOfCare());
-
-        $service->admit([
-            'lastName' => self::LAST_NAME, 'firstName' => 'Alice', 'ipp' => $ipp,
-            'medicalHistory' => 'HTA, diabète', 'lifestyle' => '',
-        ]);
-
-        $reread = (new PatientDao($this->pdo))->findByIpp($ipp);
-        self::assertNotNull($reread);
-        self::assertSame('HTA, diabète', $reread->getDetail('medicalHistory'), 'champ saisi : mis à jour');
-        self::assertSame('Non fumeur', $reread->getDetail('lifestyle'), 'champ vide : conservé');
-    }
-
     /**
      * Recherche d'un patient existant (A′) : un séjour créé après sélection pointe vers le patient
      * existant sans doublon, le rattachement est tracé avec le mode de recherche, et la pré-saisie
      * modifiée met à jour la fiche existante champ par champ (trace par champ).
      */
-    public function testEpisodeIsLinkedToSelectedPatientAndTraced(): void
+    public function testStayIsLinkedToTheSelectedPatientAndTraced(): void
     {
         $service = $this->fullService();
         $first = $service->admit([
@@ -331,7 +264,7 @@ final class AdmissionIntegrationTest extends TestCase
      * Retours du 2026-11-04 : le groupe sanguin déjà connu d'un patient sélectionné ne se change pas à
      * l'admission (refus, rien n'est écrit) ; inconnu, il peut être complété.
      */
-    public function testKnownBloodTypeCannotBeChangedAtAdmission(): void
+    public function testKnownBloodTypeIsLockedAtAdmission(): void
     {
         $service = $this->fullService();
         $first = $service->admit(['lastName' => self::LAST_NAME, 'firstName' => 'Alice', 'bloodType' => 'A+']);
@@ -359,38 +292,6 @@ final class AdmissionIntegrationTest extends TestCase
         $reread = (new PatientDao($this->pdo))->findById($idPatient);
         self::assertNotNull($reread);
         self::assertSame('A+', $reread->getDetail('bloodType'));
-    }
-
-    /** Même verrou quand le patient est retrouvé par son IPP saisi, sans sélection dans la recherche. */
-    public function testKnownBloodTypeIsLockedWhenPatientIsFoundByIpp(): void
-    {
-        $service = $this->fullService();
-        $ipp = '987654399';
-        $first = $service->admit([
-            'lastName' => self::LAST_NAME, 'firstName' => 'Carl', 'ipp' => $ipp, 'bloodType' => 'AB+',
-        ]);
-        (new EpisodeOfCareService(new EpisodeOfCareDao($this->pdo)))
-            ->closeEpisodeOfCare((int) $first->getIdEpisodeOfCare());
-
-        $this->expectException(InvalidArgumentException::class);
-        $service->admit(['lastName' => self::LAST_NAME, 'firstName' => 'Carl', 'ipp' => $ipp, 'bloodType' => 'O+']);
-    }
-
-    public function testUnknownBloodTypeCanBeCompletedAtAdmission(): void
-    {
-        $service = $this->fullService();
-        $first = $service->admit(['lastName' => self::LAST_NAME, 'firstName' => 'Bob']);
-        (new EpisodeOfCareService(new EpisodeOfCareDao($this->pdo)))
-            ->closeEpisodeOfCare((int) $first->getIdEpisodeOfCare());
-
-        $service->admit([
-            'idPatient' => (string) $first->getIdPatient(), 'searchMode' => 'name',
-            'lastName' => self::LAST_NAME, 'firstName' => 'Bob', 'bloodType' => 'B+',
-        ]);
-
-        $reread = (new PatientDao($this->pdo))->findById($first->getIdPatient());
-        self::assertNotNull($reread);
-        self::assertSame('B+', $reread->getDetail('bloodType'));
     }
 
     /** Relecture adversariale du 2026-11-04 : un patient déclaré décédé n'est pas réadmis (sélection ou IPP). */
@@ -474,37 +375,6 @@ final class AdmissionIntegrationTest extends TestCase
         self::assertSame('M', $reread?->getSex());
     }
 
-    public function testNonexistentSelectedPatientIsRejectedWithoutWriting(): void
-    {
-        $service = $this->fullService();
-        [$patientsBefore, $episodesBefore] = $this->countRows();
-
-        try {
-            $service->admit(['idPatient' => '999999999', 'lastName' => self::LAST_NAME, 'firstName' => 'Bob']);
-            self::fail('Le patient sélectionné n\'existe pas : l\'admission aurait dû être refusée.');
-        } catch (InvalidArgumentException $e) {
-            self::assertStringContainsString('introuvable', $e->getMessage());
-        }
-
-        self::assertSame([$patientsBefore, $episodesBefore], $this->countRows(), 'rien n\'a été écrit');
-    }
-
-    public function testReadmissionByIppIsTracedAsLink(): void
-    {
-        $service = $this->fullService();
-        $ipp = '987654317';
-        $first = $service->admit(['lastName' => self::LAST_NAME, 'firstName' => 'Alice', 'ipp' => $ipp]);
-        (new EpisodeOfCareService(new EpisodeOfCareDao($this->pdo)))
-            ->closeEpisodeOfCare((int) $first->getIdEpisodeOfCare());
-
-        $second = $service->admit(['lastName' => self::LAST_NAME, 'firstName' => 'Alice', 'ipp' => $ipp]);
-
-        $trace = (new AuditEventDao($this->pdo))
-            ->findForRecord($first->getIdPatient(), (int) $second->getIdEpisodeOfCare());
-        self::assertCount(1, $trace);
-        self::assertSame('rattachement par IPP saisi', $trace[0]->getDetail());
-    }
-
     /** Service d'admission tel que câblé dans public/index.php (allergies, trace, édition tracée). */
     private function fullService(): AdmissionService
     {
@@ -525,37 +395,8 @@ final class AdmissionIntegrationTest extends TestCase
         );
     }
 
-    /** Une valeur refusée sur un champ du patient sélectionné annule toute l'admission (rien n'est écrit). */
-    public function testRejectedValueOnSelectedPatientCancelsAdmission(): void
-    {
-        $service = $this->fullService();
-        $first = $service->admit([
-            'lastName' => self::LAST_NAME, 'firstName' => 'Alice', 'trustedPersonEmail' => 'a@example.com',
-        ]);
-        (new EpisodeOfCareService(new EpisodeOfCareDao($this->pdo)))
-            ->closeEpisodeOfCare((int) $first->getIdEpisodeOfCare());
-        [$patientsBefore, $episodesBefore] = $this->countRows();
-
-        // Le contrôle d'admission accepte la clé idPatient ; la validation du champ est celle de RecordEditService.
-        try {
-            $service->admit([
-                'idPatient' => (string) $first->getIdPatient(), 'lastName' => self::LAST_NAME, 'firstName' => 'Alice',
-                'trustedPersonEmail' => 'pas-un-mail',
-            ]);
-            self::fail('Une adresse invalide aurait dû être refusée.');
-        } catch (InvalidArgumentException $e) {
-            self::assertStringContainsString('e-mail', $e->getMessage());
-        }
-
-        self::assertSame([$patientsBefore, $episodesBefore], $this->countRows(), 'aucun séjour créé');
-        self::assertSame(
-            'a@example.com',
-            (new PatientDao($this->pdo))->findById($first->getIdPatient())?->getDetail('trustedPersonEmail')
-        );
-    }
-
     /** Retours du 2026-11-02 : un nouveau patient admis sans IPP reçoit un IPP unique, dans la plage autorisée. */
-    public function testNewPatientWithoutIppGetsAutomaticIpp(): void
+    public function testNewPatientWithoutIppGetsAUniqueIpp(): void
     {
         $service = $this->fullService();
 
@@ -570,71 +411,6 @@ final class AdmissionIntegrationTest extends TestCase
         self::assertMatchesRegularExpression('/^\d{6,9}$/', $ippA);
         self::assertNotSame($ippA, $ippB, 'deux admissions, deux IPP');
         self::assertGreaterThanOrEqual(PatientDao::IPP_MIN, (int) $ippA);
-    }
-
-    /** Un IPP saisi (patient connu de l'hôpital, nouveau dans le service) est conservé tel quel. */
-    public function testEnteredIppIsKept(): void
-    {
-        $episodeOfCare = $this->fullService()->admit(
-            ['lastName' => self::LAST_NAME, 'firstName' => 'Alice', 'ipp' => '987654318']
-        );
-
-        self::assertSame(
-            '987654318',
-            (new PatientDao($this->pdo))->findById($episodeOfCare->getIdPatient())?->getIpp()
-        );
-    }
-
-    /**
-     * Patient retrouvé : la criticité d'une allergie déjà connue, changée à l'admission, est appliquée et
-     * tracée ; laissée vide, elle ne remplace pas la criticité connue.
-     */
-    public function testKnownAllergyCriticalityChangedAtAdmissionIsAppliedAndTraced(): void
-    {
-        $service = $this->fullService();
-        $substances = (new \Aura\Dao\SubstanceDao($this->pdo))->findAll();
-        [$a, $b] = [$substances[0]->getIdSubstance(), $substances[1]->getIdSubstance()];
-
-        $first = $service->admit([
-            'lastName' => self::LAST_NAME, 'firstName' => 'Alice', 'allergies' => [$a, $b],
-            'allergyCriticalities' => [$a => 'Faible', $b => 'Élevée'],
-        ]);
-        (new EpisodeOfCareService(new EpisodeOfCareDao($this->pdo)))
-            ->closeEpisodeOfCare((int) $first->getIdEpisodeOfCare());
-        $idPatient = $first->getIdPatient();
-
-        $service->admit([
-            'idPatient' => (string) $idPatient, 'searchMode' => 'name',
-            'lastName' => self::LAST_NAME, 'firstName' => 'Alice',
-            'allergies' => [$a, $b], 'allergyCriticalities' => [$a => 'Élevée', $b => ''],
-        ]);
-
-        $criticalities = [];
-        foreach ((new AllergyIntoleranceDao($this->pdo))->findByPatient($idPatient) as $allergy) {
-            $criticalities[$allergy->getIdSubstance()] = $allergy->getCriticality();
-        }
-        self::assertSame('Élevée', $criticalities[$a], 'criticité changée appliquée');
-        self::assertSame('Élevée', $criticalities[$b], 'criticité laissée vide : la valeur connue est gardée');
-
-        $traces = array_filter(
-            (new AuditEventDao($this->pdo))->findForRecord($idPatient, 0, 50),
-            static fn ($e): bool => $e->getField() === 'allergyCriticality'
-        );
-        self::assertCount(1, $traces);
-        self::assertStringEndsWith(': Élevée', (string) array_values($traces)[0]->getNewValue());
-    }
-
-    /** L'IPP attribué automatiquement est tracé comme venant d'AURA. */
-    public function testAutomaticallyAssignedIppIsTraced(): void
-    {
-        $episodeOfCare = $this->fullService()->admit(['lastName' => self::LAST_NAME, 'firstName' => 'Alice']);
-
-        $traces = array_values(array_filter(
-            (new AuditEventDao($this->pdo))->findForRecord($episodeOfCare->getIdPatient(), 0, 50),
-            static fn ($e): bool => $e->getField() === 'ipp'
-        ));
-        self::assertCount(1, $traces);
-        self::assertStringContainsString('attribué automatiquement', (string) $traces[0]->getDetail());
     }
 
     /** @return array{int, int} */

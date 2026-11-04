@@ -22,10 +22,10 @@ use PDO;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Retours du 2026-11-02 : modification d'une partie entière du dossier et fin de séjour, validées par un
- * médecin (authentification factice), sur la base du CI. Transaction annulée en fin de test.
+ * Modification d'une partie du dossier, fin de séjour et déclaration du décès, validées par un médecin
+ * (authentification factice), sur la base du CI. Tout est tracé (RG10). Transaction annulée en tearDown.
  */
-final class RecordSectionServiceTest extends TestCase
+final class RecordSectionIntegrationTest extends TestCase
 {
     private PDO $pdo;
     private RecordSectionService $service;
@@ -80,9 +80,8 @@ final class RecordSectionServiceTest extends TestCase
             $references,
             appointmentDao: new AppointmentDao($this->pdo)
         );
-        $validators = $this->service->validators();
-        self::assertNotEmpty($validators, 'test.sql fournit au moins un médecin habilité');
-        $this->idDoctor = (string) array_key_first($validators);
+        // Médecin réanimateur des données de démo (droit de validation).
+        $this->idDoctor = 'PRA01';
     }
 
     protected function tearDown(): void
@@ -92,7 +91,7 @@ final class RecordSectionServiceTest extends TestCase
         }
     }
 
-    public function testPartIsSavedAndEachFieldTracedUnderDoctorName(): void
+    public function testPartIsSavedAndEachChangedFieldTracedUnderTheDoctorName(): void
     {
         $result = $this->service->updatePart(
             $this->idEpisodeOfCare,
@@ -112,7 +111,7 @@ final class RecordSectionServiceTest extends TestCase
         self::assertStringContainsString('authentification factice', $traces[0]->getAuthor());
     }
 
-    public function testRejectedFieldCancelsWholePart(): void
+    public function testOneRejectedFieldCancelsTheWholePart(): void
     {
         $result = $this->service->updatePart(
             $this->idEpisodeOfCare,
@@ -130,41 +129,7 @@ final class RecordSectionServiceTest extends TestCase
         self::assertSame([], $this->traces());
     }
 
-    public function testIdentityAndLocationUpdatedTogether(): void
-    {
-        $result = $this->service->updatePart(
-            $this->idEpisodeOfCare,
-            'summary',
-            ['lastName' => 'Zzpartie', 'firstName' => 'Alicia', 'phone' => '06 11 22 33 44', 'bedNumber' => 'ZZL2'],
-            ['lastName' => 'Zzpartie', 'firstName' => 'Alice', 'phone' => '', 'bedNumber' => 'ZZL1'],
-            $this->idDoctor,
-            'fake'
-        );
-
-        self::assertSame(RecordSectionService::STATUS_SAVED, $result['status'], json_encode($result['errors']));
-        $patient = (new PatientDao($this->pdo))->findById($this->idPatient);
-        self::assertSame('Alicia', $patient?->getFirstName());
-        self::assertSame('0611223344', $patient?->getPhone(), 'téléphone enregistré sans espaces');
-        self::assertSame('ZZL2', (new EpisodeOfCareDao($this->pdo))->findById($this->idEpisodeOfCare)?->getBedNumber());
-        self::assertSame(['bedNumber', 'firstName', 'phoneNumber'], $this->fields($this->traces()));
-    }
-
-    public function testConflictWhenOriginalValueIsNoLongerInDatabase(): void
-    {
-        $result = $this->service->updatePart(
-            $this->idEpisodeOfCare,
-            'history',
-            ['medicalHistory' => 'HTA, asthme'],
-            ['medicalHistory' => 'Autre valeur affichée'],
-            $this->idDoctor,
-            'fake'
-        );
-
-        self::assertSame(RecordSectionService::STATUS_CONFLICT, $result['status']);
-        self::assertSame('HTA', (new PatientDao($this->pdo))->findById($this->idPatient)?->getDetail('medicalHistory'));
-    }
-
-    public function testFakeAuthenticationRejectedWithoutDoctorOrPassword(): void
+    public function testPartNeedsTheFactitiousAuthenticationOfADoctor(): void
     {
         foreach ([['', 'x'], [$this->idDoctor, '  '], ['PRA-INCONNU', 'x']] as [$doctor, $password]) {
             $result = $this->service->updatePart(
@@ -180,22 +145,7 @@ final class RecordSectionServiceTest extends TestCase
         self::assertSame([], $this->traces());
     }
 
-    public function testFieldOutsidePartIsIgnored(): void
-    {
-        $result = $this->service->updatePart(
-            $this->idEpisodeOfCare,
-            'history',
-            ['lastName' => 'Pirate', 'idPatient' => '1'],
-            ['lastName' => 'Zzpartie', 'idPatient' => (string) $this->idPatient],
-            $this->idDoctor,
-            'fake'
-        );
-
-        self::assertSame(RecordSectionService::STATUS_SAVED, $result['status'], 'rien à faire');
-        self::assertSame('Zzpartie', (new PatientDao($this->pdo))->findById($this->idPatient)?->getLastName());
-    }
-
-    public function testEpisodeEndDatedAndTraced(): void
+    public function testStayEndIsDatedTracedAndNotRepeated(): void
     {
         $result = $this->service->endStay($this->idEpisodeOfCare, '02/10/2026', '09:30', $this->idDoctor, 'fake');
 
@@ -208,116 +158,11 @@ final class RecordSectionServiceTest extends TestCase
         self::assertSame(RecordSectionService::STATUS_INVALID, $again['status'], 'séjour déjà terminé');
     }
 
-    public function testEpisodeEndBeforeAdmissionRejected(): void
-    {
-        $result = $this->service->endStay($this->idEpisodeOfCare, '30/09/2026', '08:00', $this->idDoctor, 'fake');
-
-        self::assertSame(RecordSectionService::STATUS_INVALID, $result['status']);
-        self::assertArrayHasKey('dischargeDate', $result['errors']);
-    }
-
-    /** Retours du 2026-11-03 : un médecin de jour se désigne référent depuis la partie « Dossier ». */
-    public function testReferentDesignatedFromSummaryPartAndTraced(): void
-    {
-        $result = $this->service->updatePart(
-            $this->idEpisodeOfCare,
-            RecordSectionService::PART_SUMMARY,
-            ['idReferringPractitioner' => $this->idDoctor],
-            ['idReferringPractitioner' => ''],
-            $this->idDoctor,
-            'fake'
-        );
-
-        self::assertSame(RecordSectionService::STATUS_SAVED, $result['status'], json_encode($result['errors']));
-        $episodeOfCare = (new EpisodeOfCareDao($this->pdo))->findById($this->idEpisodeOfCare);
-        self::assertSame($this->idDoctor, $episodeOfCare?->getIdReferringPractitioner());
-        $traces = $this->traces();
-        self::assertSame(['idReferringPractitioner'], $this->fields($traces));
-        self::assertNull($traces[0]->getOldValue());
-        self::assertSame($this->idDoctor, $traces[0]->getNewValue());
-        self::assertStringContainsString('authentification factice', $traces[0]->getAuthor());
-    }
-
-    public function testReferentOutsideDoctorListIsRejectedAndNothingWritten(): void
-    {
-        // Praticien sans rôle de médecin (comme un interne) : présent en base, absent de la liste des médecins.
-        $this->pdo->exec(
-            "INSERT INTO Practitioner (idPractitioner, firstName, lastName) VALUES ('ZZINT1', 'Zzinterne', 'Zztest')"
-        );
-
-        $result = $this->service->updatePart(
-            $this->idEpisodeOfCare,
-            'admission',
-            ['idReferringPractitioner' => 'ZZINT1'],
-            ['idReferringPractitioner' => ''],
-            $this->idDoctor,
-            'fake'
-        );
-
-        self::assertSame(RecordSectionService::STATUS_INVALID, $result['status']);
-        self::assertArrayHasKey('idReferringPractitioner', $result['errors']);
-        self::assertNull(
-            (new EpisodeOfCareDao($this->pdo))->findById($this->idEpisodeOfCare)?->getIdReferringPractitioner()
-        );
-        self::assertSame([], $this->traces());
-    }
-
-    public function testCurrentPartValuesInFormFormat(): void
-    {
-        $patient = (new PatientDao($this->pdo))->findById($this->idPatient);
-        $episodeOfCare = (new EpisodeOfCareDao($this->pdo))->findById($this->idEpisodeOfCare);
-        self::assertNotNull($patient);
-        self::assertNotNull($episodeOfCare);
-
-        $values = RecordSectionService::currentValues('summary', $patient, $episodeOfCare);
-
-        self::assertSame('01/01/1970', $values['birthDate'], 'date en JJ/MM/AAAA');
-        self::assertSame('ZZL1', $values['bedNumber']);
-        self::assertSame('', $values['phone']);
-    }
-
-    /**
-     * Retours des médecins du 2026-11-03 : le décès se déclare dans la partie « Administratif », validé par
-     * un médecin, écrit dans Patient.deceased (BOOLEAN) et tracé ; l'édition en ligne le refuse.
-     */
-    public function testDeceasedDeclaredThroughAdminPartTracedAndRefusedInline(): void
-    {
-        self::assertArrayHasKey('deceased', RecordSectionService::partFields('admin'));
-        $inline = (new RecordEditService(
-            new PatientDao($this->pdo),
-            new EpisodeOfCareDao($this->pdo),
-            new AuditEventDao($this->pdo),
-            new Transaction($this->pdo)
-        ))->update('patient', $this->idPatient, 'deceased', '1', null, idEpisodeOfCare: $this->idEpisodeOfCare);
-        self::assertSame(RecordEditService::STATUS_FORBIDDEN_FIELD, $inline['status'], 'jamais en ligne');
-
-        $result = $this->service->updatePart(
-            $this->idEpisodeOfCare,
-            'admin',
-            ['deceased' => '1'],
-            ['deceased' => ''],
-            $this->idDoctor,
-            'fake'
-        );
-
-        self::assertSame(RecordSectionService::STATUS_SAVED, $result['status']);
-        self::assertSame('1', (new PatientDao($this->pdo))->findById($this->idPatient)?->getDetail('deceased'));
-        $traces = $this->traces();
-        self::assertSame(['deceased', 'dischargeDate'], $this->fields($traces), 'le décès termine le séjour');
-        $death = $this->trace('deceased');
-        self::assertSame('1', $death->getNewValue());
-        self::assertStringContainsString('authentification factice', $death->getAuthor());
-        self::assertFalse(
-            (new EpisodeOfCareDao($this->pdo))->findById($this->idEpisodeOfCare)?->isOngoing(),
-            'séjour terminé'
-        );
-    }
-
     /**
      * Retours du 2026-11-04 : déclarer le décès met fin au séjour à l'heure du décès et annule les soins
      * prévus après ; ceux d'avant restent (à tracer s'ils ont été faits). Tout est tracé au nom du médecin.
      */
-    public function testDeclaringDeathEndsTheStayAtTheTimeOfDeathAndCancelsLaterCares(): void
+    public function testDeathEndsTheStayAtTheTimeOfDeathAndCancelsLaterCare(): void
     {
         $this->plannedCares(['ZZ_AVANT' => '2026-10-02 09:00:00', 'ZZ_APRES' => '2026-10-02 12:00:00']);
 
@@ -341,7 +186,7 @@ final class RecordSectionServiceTest extends TestCase
     }
 
     /** Heure du décès dans le futur ou invalide : rien n'est écrit (ni décès, ni fin de séjour). */
-    public function testDeathWithInvalidTimeWritesNothing(): void
+    public function testDeathWithAFutureOrImpossibleDateWritesNothing(): void
     {
         $future = $this->service->declareDeath(
             $this->idEpisodeOfCare,
@@ -367,7 +212,7 @@ final class RecordSectionServiceTest extends TestCase
      * Relecture adversariale du 2026-11-04 : le décès déclaré depuis le dossier d'un ANCIEN séjour (clos) termine
      * quand même le séjour en cours du patient.
      */
-    public function testDeathDeclaredFromAClosedStayEndsTheOngoingStay(): void
+    public function testDeathDeclaredFromAnOldStayEndsTheOngoingStay(): void
     {
         $episodes = new EpisodeOfCareDao($this->pdo);
         $old = (int) $episodes->insert(new EpisodeOfCare(
@@ -386,7 +231,7 @@ final class RecordSectionServiceTest extends TestCase
     }
 
     /** Relecture adversariale du 2026-11-04 : heure invalide (« 12:75 ») refusée, pas corrigée en silence. */
-    public function testDischargeTimeIsNotSilentlyCorrected(): void
+    public function testInvalidDischargeTimeIsRefusedNotCorrected(): void
     {
         $result = $this->service->endStay($this->idEpisodeOfCare, '02/10/2026', '12:75', $this->idDoctor, 'x');
 

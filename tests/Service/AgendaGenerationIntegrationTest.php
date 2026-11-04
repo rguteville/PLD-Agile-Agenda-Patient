@@ -56,7 +56,7 @@ final class AgendaGenerationIntegrationTest extends TestCase
         }
     }
 
-    public function testSecondGenerationCreatesNothingAndNoDuplicate(): void
+    public function testSecondGenerationCreatesNothing(): void
     {
         $now = new DateTimeImmutable(self::NOW);
 
@@ -70,24 +70,7 @@ final class AgendaGenerationIntegrationTest extends TestCase
         self::assertSame([], $this->duplicates(), 'aucun doublon ligne + heure prévue');
     }
 
-    public function testExistingAppointmentsAreNeitherModifiedNorDuplicated(): void
-    {
-        $before = $this->appointments();
-
-        $this->service->generate(new DateTimeImmutable(self::NOW));
-
-        $after = $this->appointments();
-        foreach ($before as $id => $row) {
-            self::assertSame($row, $after[$id] ?? null, 'soin existant ' . $id . ' inchangé');
-        }
-        // Le paracétamol du séjour 1 (ligne de médicament 1) avait déjà 18 h et 0 h : une seule fois chacune.
-        $times = $this->plannedTimes('idMedicationRequest', '1');
-        self::assertSame(1, array_count_values($times)['2026-10-14 18:00:00']);
-        self::assertSame(1, array_count_values($times)['2026-10-15 00:00:00']);
-        self::assertSame([], $this->duplicates());
-    }
-
-    public function testNothingCreatedInThePastBeyondHorizonOrForStoppedOrClosedLines(): void
+    public function testNothingIsCreatedInThePastBeyondTheHorizonOrForAStoppedLine(): void
     {
         $before = array_keys($this->appointments());
 

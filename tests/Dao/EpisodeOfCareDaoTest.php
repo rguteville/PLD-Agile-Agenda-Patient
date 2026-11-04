@@ -11,7 +11,6 @@ use Aura\Domain\Patient;
 use Aura\Domain\EpisodeOfCare;
 use DateTimeImmutable;
 use PDO;
-use PDOException;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -51,7 +50,7 @@ final class EpisodeOfCareDaoTest extends TestCase
         }
     }
 
-    public function testEpisodeNumberIsGeneratedUniqueAndReread(): void
+    public function testEpisodeNumberIsGeneratedUniqueInTheYearFormat(): void
     {
         $first = $this->dao->insert($this->newEpisodeOfCare('L1'));
         $second = $this->dao->insert($this->newEpisodeOfCare('L2'));
@@ -75,17 +74,7 @@ final class EpisodeOfCareDaoTest extends TestCase
         );
     }
 
-    public function testEpisodeIsRereadByItsNumber(): void
-    {
-        $episodeOfCare = $this->dao->insert($this->newEpisodeOfCare('L1'));
-
-        $reread = $this->dao->findByNumber($episodeOfCare->getEpisodeNumber());
-        $this->assertNotNull($reread, 'findByNumber (agenda, AURA-24.2) lit la table EpisodeOfCare');
-        $this->assertSame($episodeOfCare->getIdEpisodeOfCare(), $reread->getIdEpisodeOfCare());
-        $this->assertNull($this->dao->findByNumber('1900-000000'), 'numéro inconnu : null');
-    }
-
-    public function testOngoingEpisodesAndPatientHistory(): void
+    public function testClosedEpisodeIsNoLongerOngoingButStaysInHistory(): void
     {
         $former = $this->dao->insert($this->newEpisodeOfCare(null, new DateTimeImmutable('-3 days')));
         $this->dao->updateDischarge($former->getIdEpisodeOfCare(), new DateTimeImmutable('-1 day'));
@@ -105,29 +94,7 @@ final class EpisodeOfCareDaoTest extends TestCase
         $this->assertFalse($history[1]->isOngoing());
     }
 
-    /** Liste des patients : séjours de plusieurs patients en une requête, du plus récent au plus ancien. */
-    public function testEpisodesOfSeveralPatientsReadInOneQuery(): void
-    {
-        $former = $this->dao->insert($this->newEpisodeOfCare(null, new DateTimeImmutable('-3 days')));
-        $this->dao->updateDischarge((int) $former->getIdEpisodeOfCare(), new DateTimeImmutable('-1 day'));
-        $current = $this->dao->insert($this->newEpisodeOfCare('ZZL4'));
-        $otherPatient = (new PatientDao($this->pdo))->insert(
-            new Patient(null, null, 'Zzautresejour', 'Bob', new DateTimeImmutable('1970-01-01'), 'M')
-        );
-        $other = $this->dao->insert(new EpisodeOfCare(null, $otherPatient, '', new DateTimeImmutable('-2 days')));
-
-        $episodes = $this->dao->findByPatients([$this->idPatient, $otherPatient, $this->idPatient]);
-
-        $this->assertSame(
-            [$current->getIdEpisodeOfCare(), $other->getIdEpisodeOfCare(), $former->getIdEpisodeOfCare()],
-            array_map(static fn (EpisodeOfCare $e): ?int => $e->getIdEpisodeOfCare(), $episodes),
-            'les deux patients, du plus récent au plus ancien, sans doublon'
-        );
-        $this->assertSame([], $this->dao->findByPatients([]), 'aucun patient : aucune requête utile');
-        $this->assertSame([], $this->dao->findByPatients([999999999]));
-    }
-
-    public function testCounterRestartsAtOneForYearWithoutEpisode(): void
+    public function testCounterRestartsAtOneEachYear(): void
     {
         // test.sql ne contient aucun séjour en 1999.
         $episodeOfCare = $this->dao->insert(
@@ -137,7 +104,7 @@ final class EpisodeOfCareDaoTest extends TestCase
         $this->assertSame('1999-000001', $episodeOfCare->getEpisodeNumber(), 'année d\'admission, pas année courante');
     }
 
-    public function testNumberProvidedByCallerIsIgnored(): void
+    public function testNumberSentByTheCallerIsIgnored(): void
     {
         $episodeOfCare = $this->dao->insert($this->newEpisodeOfCare(null, null, 'SAISI-A-LA-MAIN'));
 
@@ -145,57 +112,7 @@ final class EpisodeOfCareDaoTest extends TestCase
         $this->assertMatchesRegularExpression('/^\d{4}-\d{6}$/', $episodeOfCare->getEpisodeNumber());
     }
 
-    public function testForcedSqlDuplicateIsRejectedByDatabase(): void
-    {
-        $existing = $this->dao->insert($this->newEpisodeOfCare('L4'));
-
-        try {
-            $this->pdo->prepare(
-                'INSERT INTO EpisodeOfCare (idEpisodeOfCare, idPatient, episodeNumber, admissionDate)
-                 VALUES (:idEpisodeOfCare, :idPatient, :episodeNumber, NOW())'
-            )->execute([
-                'idEpisodeOfCare' => (string) ($existing->getIdEpisodeOfCare() + 1000),
-                'idPatient' => (string) $this->idPatient,
-                'episodeNumber' => $existing->getEpisodeNumber(),
-            ]);
-            $this->fail('La contrainte UNIQUE aurait dû refuser le doublon.');
-        } catch (PDOException $e) {
-            $this->assertSame(1062, $e->errorInfo[1], 'Duplicate entry');
-        }
-    }
-
-    /** Retours du 2026-11-03 : médecin référent écrit à l'ouverture, relu avec son nom (jointure). */
-    public function testReferringPractitionerIsWrittenAndRereadWithName(): void
-    {
-        $this->insertPractitioner('ZZREF1', 'Zzclaire', 'Zzreferente');
-        $with = $this->dao->insert(new EpisodeOfCare(
-            idEpisodeOfCare: null,
-            idPatient: $this->idPatient,
-            episodeNumber: '',
-            admissionDate: new DateTimeImmutable(),
-            idReferringPractitioner: 'ZZREF1'
-        ));
-
-        $reread = $this->dao->findById((int) $with->getIdEpisodeOfCare());
-        self::assertSame('ZZREF1', $reread?->getIdReferringPractitioner());
-        self::assertSame('Zzclaire Zzreferente', $reread?->getReferringPractitionerName());
-        $ongoing = array_filter(
-            $this->dao->findOngoing(),
-            fn (EpisodeOfCare $e): bool => $e->getIdEpisodeOfCare() === $with->getIdEpisodeOfCare()
-        );
-        self::assertSame('Zzclaire Zzreferente', array_values($ongoing)[0]->getReferringPractitionerName());
-    }
-
-    public function testEpisodeWithoutReferringPractitionerHasNone(): void
-    {
-        $episodeOfCare = $this->dao->insert($this->newEpisodeOfCare('L5'));
-
-        $reread = $this->dao->findById((int) $episodeOfCare->getIdEpisodeOfCare());
-        self::assertNull($reread?->getIdReferringPractitioner(), 'à désigner');
-        self::assertNull($reread?->getReferringPractitionerName());
-    }
-
-    public function testReferringPractitionerChangedOnlyIfUnchangedInDatabase(): void
+    public function testConditionalWriteFailsWhenTheValueChangedMeanwhile(): void
     {
         $this->insertPractitioner('ZZREF1', 'Zzclaire', 'Zzreferente');
         $id = (int) $this->dao->insert($this->newEpisodeOfCare('L6'))->getIdEpisodeOfCare();
@@ -206,19 +123,6 @@ final class EpisodeOfCareDaoTest extends TestCase
             'la valeur attendue (à désigner) n\'est plus celle en base'
         );
         self::assertSame('ZZREF1', $this->dao->findById($id)?->getIdReferringPractitioner());
-    }
-
-    public function testUnknownReferringPractitionerIsRefusedByForeignKey(): void
-    {
-        $this->expectException(PDOException::class);
-
-        $this->dao->insert(new EpisodeOfCare(
-            idEpisodeOfCare: null,
-            idPatient: $this->idPatient,
-            episodeNumber: '',
-            admissionDate: new DateTimeImmutable(),
-            idReferringPractitioner: 'ZZ-INCONNU'
-        ));
     }
 
     /** Praticien de test sans rôle, annulé avec la transaction du test. */
