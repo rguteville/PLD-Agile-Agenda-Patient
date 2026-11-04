@@ -7,8 +7,8 @@ par système, VM, déploiement, scénarios de démo) sans le répéter.
 
 Autres documents : [ARCHITECTURE.md](ARCHITECTURE.md) (diagrammes, modèle de données), [TESTS.md](TESTS.md)
 (suites, base de test, règles RG reliées aux tests), [UI-GUIDE.md](UI-GUIDE.md) (charte, composants,
-accessibilité). Le cahier des charges, le dossier de cadrage et le backlog (tickets AURA-NN) sont dans Notion,
-page « PLD Agile - Agenda Patient » (lien en tête du README).
+accessibilité). Le cahier des charges et le dossier de cadrage (dont les règles de gestion RG1 à RG10) sont dans
+Notion, page « PLD Agile - Agenda Patient » (lien en tête du README) ; les règles sont aussi résumées plus bas.
 
 ## 1. Installer et lancer
 
@@ -107,24 +107,24 @@ Toutes les autres écritures suivent le même schéma : jeton CSRF, contrôleur 
 
 ## 3. Où trouver chaque fonctionnalité
 
-| Fonctionnalité (ticket) | Routes | Contrôleur | Services | Vues et scripts |
+| Fonctionnalité | Routes | Contrôleur | Services | Vues et scripts |
 | --- | --- | --- | --- | --- |
-| Admission (AURA-10) | `GET /`, `POST /patients/create` | `PatientController::showAdmissionForm()`, `create()` | `AdmissionService`, `EpisodeOfCareService`, `FieldValidationService` | `pages/patient/admission.php` ; `form.js`, `form-sections.js`, `allergy-picker.js`, `date-input.js` |
-| Patient déjà connu à l'admission (AURA-15) | `GET /patients/recherche`, `/patients/fiche`, `/patients/recherche-ipp` | `PatientController::search()`, `record()`, `searchByIpp()` | `PatientSearchService`, `IppSearchService` | `admission-search.js` |
-| Liste des patients (AURA-12.1) | `GET /patients?q=` | `PatientController::list()` | `PatientListService`, `EpisodeHistoryService` | `pages/patient/list.php` |
-| Modifier l'identité (AURA-12.2) | `GET` et `POST /patients/modifier?id=` | `PatientController::edit()`, `update()` | `PatientUpdateService` | `pages/patient/edit.php` |
-| Supprimer un patient (AURA-12.3) | `GET` et `POST /patients/supprimer?id=` | `PatientController::confirmDeletion()`, `delete()` | `PatientDeletionService` (suppression logique) | `pages/patient/delete.php` |
-| Dossier du séjour (AURA-14) | `GET /sejour?id=` | `EpisodeOfCareController::show()` | `PatientRecordService`, `DerivedMeasuresService`, `EpisodeHistoryService` | `pages/episode/record.php`, `components/patient_banner.php` ; `record-menu.js`, `confirm.js`, `form.js` |
-| Allergies depuis le dossier (AURA-13.2) | `POST /sejour/allergies/ajouter`, `/retirer` | `EpisodeOfCareController::addAllergy()`, `removeAllergy()` | `AllergyIntoleranceService` | `pages/episode/record.php` |
+| Admission | `GET /`, `POST /patients/create` | `PatientController::showAdmissionForm()`, `create()` | `AdmissionService`, `EpisodeOfCareService`, `FieldValidationService` | `pages/patient/admission.php` ; `form.js`, `form-sections.js`, `allergy-picker.js`, `date-input.js` |
+| Patient déjà connu à l'admission | `GET /patients/recherche`, `/patients/fiche`, `/patients/recherche-ipp` | `PatientController::search()`, `record()`, `searchByIpp()` | `PatientSearchService`, `IppSearchService` | `admission-search.js` |
+| Liste des patients | `GET /patients?q=` | `PatientController::list()` | `PatientListService`, `EpisodeHistoryService` | `pages/patient/list.php` |
+| Modifier l'identité | `GET` et `POST /patients/modifier?id=` | `PatientController::edit()`, `update()` | `PatientUpdateService` | `pages/patient/edit.php` |
+| Supprimer un patient | `GET` et `POST /patients/supprimer?id=` | `PatientController::confirmDeletion()`, `delete()` | `PatientDeletionService` (suppression logique) | `pages/patient/delete.php` |
+| Dossier du séjour | `GET /sejour?id=` | `EpisodeOfCareController::show()` | `PatientRecordService`, `DerivedMeasuresService`, `EpisodeHistoryService` | `pages/episode/record.php`, `components/patient_banner.php` ; `record-menu.js`, `confirm.js`, `form.js` |
+| Allergies depuis le dossier | `POST /sejour/allergies/ajouter`, `/retirer` | `EpisodeOfCareController::addAllergy()`, `removeAllergy()` | `AllergyIntoleranceService` | `pages/episode/record.php` |
 | Édition en ligne d'un champ | `POST /sejour/champ/modifier` | `RecordController::update()` | `RecordEditService` | `inline-edit.js` |
 | Partie du dossier, fin de séjour, décès | `POST /sejour/partie/modifier`, `/sejour/cloturer`, `/sejour/deces` | `RecordController::updatePart()`, `endStay()`, `declareDeath()` | `RecordSectionService` | `components/part_form.php` ; `part-edit.js` |
-| Prescriptions (AURA-20 à 23) | `GET /care-plans`, `/care-plans/new`, `/care-plans/protocol-lines` ; `POST /care-plans/create`, `/validate`, `/stop` | `CarePlanController` | `CarePlanService`, `PlanDefinitionService` (protocoles) | `pages/careplan/list.php`, `pages/careplan/form.php` (écran B3) ; `care-plan.js`, `form.js` |
-| Agenda du patient, jour et semaine (AURA-24, 25) | `GET /agenda-patient?id=&date=&vue=semaine` | `EpisodeOfCareController::getAgenda()` | `AgendaService::getAgenda()`, `presentDay()`, `presentWeek()` | `pages/episode/patient-agenda.php`, `components/agenda_table.php` ; `agenda.js`, `auto-submit.js` |
-| Valider un soin, non effectué, note (AURA-26, 28) | `POST /agenda-patient/soin` | `CareController::act()` | `AppointmentService::apply()` | `components/care_buttons.php`, `components/validation_dialog.php` ; `agenda.js` |
-| Agenda du service (AURA-29, 32) | `GET /agenda-service?idHealthcareService=&date=&vue=lits\|liste&sejour=` | `ServiceController::getAgenda()` | `AgendaService::getAgendaService()`, `presentService()`, `presentBoard()` | `pages/service/consolidated-view.php`, `components/care_line.php` |
-| Équipes par rotation (AURA-30) | `GET /equipes`, `POST /equipes/creer`, `/equipes/retirer` | `TeamController::teams()`, `create()`, `remove()` | `CareTeamService` | `pages/team/teams.php` |
-| Mon planning (AURA-31) | `GET /mon-planning?idPractitioner=&date=&rotation=` | `TeamController::planning()` | `AgendaService::presentShift()` | `pages/team/planning.php` |
-| Génération quotidienne de l'agenda (AURA-24.2, 24.3) | `php bin/generate-agenda.php` | aucun | `AgendaGenerationService`, `RequestLine::plannedTimesBetween()` | aucune |
+| Prescriptions | `GET /care-plans`, `/care-plans/new`, `/care-plans/protocol-lines` ; `POST /care-plans/create`, `/validate`, `/stop` | `CarePlanController` | `CarePlanService`, `PlanDefinitionService` (protocoles) | `pages/careplan/list.php`, `pages/careplan/form.php` (écran B3) ; `care-plan.js`, `form.js` |
+| Agenda du patient, jour et semaine | `GET /agenda-patient?id=&date=&vue=semaine` | `EpisodeOfCareController::getAgenda()` | `AgendaService::getAgenda()`, `presentDay()`, `presentWeek()` | `pages/episode/patient-agenda.php`, `components/agenda_table.php` ; `agenda.js`, `auto-submit.js` |
+| Valider un soin, non effectué, note | `POST /agenda-patient/soin` | `CareController::act()` | `AppointmentService::apply()` | `components/care_buttons.php`, `components/validation_dialog.php` ; `agenda.js` |
+| Agenda du service | `GET /agenda-service?idHealthcareService=&date=&vue=lits\|liste&sejour=` | `ServiceController::getAgenda()` | `AgendaService::getAgendaService()`, `presentService()`, `presentBoard()` | `pages/service/consolidated-view.php`, `components/care_line.php` |
+| Équipes par rotation | `GET /equipes`, `POST /equipes/creer`, `/equipes/retirer` | `TeamController::teams()`, `create()`, `remove()` | `CareTeamService` | `pages/team/teams.php` |
+| Mon planning | `GET /mon-planning?idPractitioner=&date=&rotation=` | `TeamController::planning()` | `AgendaService::presentShift()` | `pages/team/planning.php` |
+| Génération quotidienne de l'agenda | `php bin/generate-agenda.php` | aucun | `AgendaGenerationService`, `RequestLine::plannedTimesBetween()` | aucune |
 
 Communs à tous les écrans : `layouts/main.php`, `components/topbar.php` (navigation, thème), `theme.js`,
 `layout.js`, `components/icon.php` (icônes Lucide en SVG), `components/status_badge.php`.
@@ -170,7 +170,7 @@ couvrent sont listés dans [TESTS.md](TESTS.md).
   commentaire `<!-- -->` part au navigateur).
 - **JavaScript** : un fichier par fonctionnalité, sans bibliothèque. Lire l'URL d'un formulaire par
   `form.getAttribute('action')` : un champ nommé `action` masque `form.action`.
-- **Git** : pas de push sur `main` ; une branche par ticket (`feature/AURA-NN-…`, `fix/…`, `docs/…`, `chore/…`) ;
+- **Git** : pas de push sur `main` ; une branche par fonctionnalité (`feature/nom-court`, `fix/…`, `docs/…`, `chore/…`) ;
   fusion par pull request après CI vert et relecture d'un autre membre. Commits au format
   `type(portée): résumé` en français.
 
@@ -199,7 +199,7 @@ ou dans le commentaire de la constante concernée.
 
 ## 7. Dette connue
 
-- **Authentification factice** (AURA-50, non commencé dans le backlog) : il n'y a ni compte, ni session
+- **Authentification factice** : il n'y a ni compte, ni session
   utilisateur, ni mot de passe vérifié. Les écrans qui engagent un praticien (partie du dossier, fin de séjour,
   décès, validation ou arrêt d'une prescription, action sur un soin) demandent de choisir un praticien et de
   saisir un mot de passe quelconque. L'auteur enregistré dans `AuditEvent` et dans les colonnes `idValidator`,

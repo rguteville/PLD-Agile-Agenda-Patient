@@ -4,7 +4,7 @@ use Aura\Core\DateInput;
 use Aura\Core\View;
 
 /**
- * Un champ de formulaire accessible (AURA-10.2) : libellé associé, aide reliée par aria-describedby,
+ * Un champ de formulaire accessible : libellé associé, aide reliée par aria-describedby,
  * erreur serveur annoncée (role="alert", aria-invalid). Inclus par components/form.php,
  * components/part_form.php et la fenêtre de validation de pages/episode/record.php.
  *
@@ -60,7 +60,7 @@ $attributes = '';
 foreach ($extra as $attrName => $attrValue) {
     $attributes .= ' ' . View::e($attrName) . '="' . View::e($attrValue) . '"';
 }
-// Bouton d'action à côté d'un champ texte (AURA-15) : ['id' => 'ipp-rechercher', 'label' => 'Rechercher']
+// Bouton d'action à côté d'un champ texte : ['id' => 'ipp-rechercher', 'label' => 'Rechercher']
 $button = $field['button'] ?? null;
 // Identifiant d'une zone de message sous le champ, mise à jour par script (annoncée aux lecteurs d'écran)
 $status = $field['status'] ?? null;

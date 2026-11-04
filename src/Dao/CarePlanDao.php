@@ -15,13 +15,13 @@ use LogicException;
 use PDO;
 
 /**
- * Accès aux prescriptions (Epic 4) : CarePlan = la prescription (l'ordonnance), ServiceRequest =
+ * Accès aux prescriptions : CarePlan = la prescription (l'ordonnance), ServiceRequest =
  * ses lignes de soin, MedicationRequest = ses lignes de médicament. Classes et colonnes portent
  * les mêmes noms (ressources HL7) : rien n'est traduit ici, le DAO ne fait que lire et écrire.
  * Écrit aussi les soins planifiés (Appointment) de chaque ligne.
  *
  * Ids VARCHAR(20) sans AUTO_INCREMENT, calculés par nextId() (MAX + 1, FOR UPDATE) dans la
- * transaction d'écriture. Rien n'est supprimé (RG10) : une ligne s'arrête (stoppedAt, AURA-22)
+ * transaction d'écriture. Rien n'est supprimé (RG10) : une ligne s'arrête (stoppedAt)
  * et ses soins futurs passent au statut ANNULE.
  */
 class CarePlanDao
@@ -152,7 +152,7 @@ class CarePlanDao
     }
 
     /**
-     * RG5 / AURA-23 : un médecin valide une prescription « non validée ». La date de validation
+     * RG5 / un médecin valide une prescription « non validée ». La date de validation
      * vient de l'horloge de la base (RG10), comme celle de la saisie.
      *
      * Renvoie false si la prescription n'existe pas ou est déjà validée : la condition
@@ -171,7 +171,7 @@ class CarePlanDao
     }
 
     /**
-     * AURA-22 : arrête une ligne (soin ou médicament). Qui et quand sont enregistrés (RG10) ;
+     * Arrête une ligne (soin ou médicament). Qui et quand sont enregistrés (RG10) ;
      * l'heure est celle de l'application ($now), et l'annulation des soins futurs se fait dans la
      * même transaction.
      *
@@ -206,7 +206,7 @@ class CarePlanDao
                 return false;
             }
 
-            // Critère AURA-22 et sécurité du patient : après l'arrêt, plus aucun soin de la ligne n'est
+            // Sécurité du patient : après l'arrêt, plus aucun soin de la ligne n'est
             // prévu. Les soins encore planifiés à une heure future passent à ANNULE (jamais supprimés,
             // RG10), avec l'heure de saisie et le motif. Les soins passés non validés restent PLANIFIE
             // (une dose donnée avant l'arrêt doit pouvoir être tracée) mais s'affichent « Arrêtée ».
@@ -271,7 +271,7 @@ class CarePlanDao
     }
 
     /**
-     * AURA-24.2 : lignes actives des prescriptions de tous les séjours en cours (dischargeDate NULL),
+     * Lignes actives des prescriptions de tous les séjours en cours (dischargeDate NULL),
      * avec le séjour de chacune : non arrêtées (stoppedAt NULL) et non terminées avant $from. Ce sont
      * les lignes dont la génération quotidienne complète l'agenda (AgendaGenerationService).
      *
@@ -312,7 +312,7 @@ class CarePlanDao
     }
 
     /**
-     * AURA-24.2 : verrouille la table Appointment jusqu'à la fin de la transaction en cours (lecture
+     * Verrouille la table Appointment jusqu'à la fin de la transaction en cours (lecture
      * verrouillante de toutes ses lignes, qui bloque aussi les insertions). Deux générations lancées en
      * même temps s'exécutent donc l'une après l'autre et la seconde voit les soins créés par la première.
      * À appeler dans Transaction::run(), avant de lire les soins existants.
@@ -323,7 +323,7 @@ class CarePlanDao
     }
 
     /**
-     * AURA-24.2 : ajoute à une ligne déjà enregistrée des soins planifiés aux heures données, en
+     * Ajoute à une ligne déjà enregistrée des soins planifiés aux heures données, en
      * statut « PLANIFIE », et renvoie le nombre de soins créés. Aucun soin existant n'est lu ni
      * modifié : c'est l'appelant (AgendaGenerationService) qui écarte les heures déjà planifiées.
      *
@@ -342,7 +342,7 @@ class CarePlanDao
     }
 
     /**
-     * AURA-24.4 : les soins planifiés (Appointment) d'une ligne, un par heure prévue, en statut
+     * Les soins planifiés (Appointment) d'une ligne, un par heure prévue, en statut
      * « PLANIFIE » : c'est ce que l'agenda du séjour affiche. À l'enregistrement d'une prescription,
      * les heures sont RequestLine::plannedTimes(), dans la même transaction que la ligne : une
      * prescription enregistrée a toujours son agenda. Renvoie le nombre de soins créés.

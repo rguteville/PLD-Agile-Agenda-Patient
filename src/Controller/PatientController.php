@@ -19,7 +19,7 @@ use LogicException;
 
 /**
  * Écrans et endpoints autour du patient : admission (formulaire, création), liste, modification
- * de l'identité, suppression (AURA-12.3), recherche par IPP (AURA-15) et par nom / prénom, fiche pour
+ * de l'identité, suppression, recherche par IPP et par nom / prénom, fiche pour
  * pré-remplissage.
  * Le contrôleur lit la requête, mappe les champs du formulaire vers les clés du domaine, appelle
  * le service et répond (HTML ou JSON) ; il ne valide rien lui-même.
@@ -27,9 +27,8 @@ use LogicException;
 class PatientController
 {
     /**
-     * Correspondance entre les noms des champs du formulaire d'admission (PR #5,
-     * AURA-40) et les clés attendues par le domaine. Le mapping vit ici, pas dans
-     * le service, pour que la validation reste indépendante de l'IHM.
+     * Correspondance entre les noms des champs du formulaire d'admission et les clés attendues par le
+     * domaine. Le mapping vit ici, pas dans le service, pour que la validation reste indépendante de l'IHM.
      */
     private const FORM_FIELDS = [
         'lastname' => 'lastName',
@@ -63,7 +62,7 @@ class PatientController
     private const ADMISSION_VIEW = 'patient/admission';
     private const ADMISSION_TITLE = 'AURA - Admission';
     /**
-     * Scripts du formulaire d'admission : envoi AJAX (AURA-10.2), recherche par IPP (AURA-15),
+     * Scripts du formulaire d'admission : envoi AJAX, recherche par IPP,
      * sections repliables avec compteur de champs renseignés (form-sections.js).
      */
     public const SCRIPTS_ADMISSION = [
@@ -74,7 +73,7 @@ class PatientController
         '/js/date-input.js',
     ];
 
-    /** Message renvoyé quand aucun patient ne porte l'IPP recherché (AURA-15). */
+    /** Message renvoyé quand aucun patient ne porte l'IPP recherché. */
     public const UNKNOWN_IPP_MESSAGE = 'IPP inconnu, saisie manuelle.';
 
     private const EDIT_VIEW = 'patient/edit';
@@ -193,7 +192,7 @@ class PatientController
     }
 
     /**
-     * GET /patients/recherche-ipp?ipp=… (AURA-15) : patient déjà connu sous cet IPP, en JSON,
+     * GET /patients/recherche-ipp?ipp=… : patient déjà connu sous cet IPP, en JSON,
      * pour pré-remplir le formulaire d'admission. L'identité est renvoyée avec les noms de
      * champs du formulaire ; les allergies connues (RG2) sont jointes en lecture seule.
      * Réponses : 422 si l'IPP est vide ou hors format ; 200 avec `found: false` si inconnu ;
@@ -236,7 +235,7 @@ class PatientController
         ]);
     }
 
-    /** GET /patients?q=… : liste des patients avec leur séjour en cours (AURA-12.1). */
+    /** GET /patients?q=… : liste des patients avec leur séjour en cours. */
     public function list(): void
     {
         if ($this->patientListService === null) {
@@ -254,7 +253,7 @@ class PatientController
     }
 
     /**
-     * GET /patients/supprimer?id=… (AURA-12.3) : page de confirmation qui rappelle l'identité du
+     * GET /patients/supprimer?id=… : page de confirmation qui rappelle l'identité du
      * patient et, si la suppression est impossible (séjour en cours, soin réalisé), le motif. 400 / 404 sinon.
      */
     public function confirmDeletion(): void
@@ -276,7 +275,7 @@ class PatientController
     }
 
     /**
-     * POST /patients/supprimer?id=… (AURA-12.3) : suppression logique confirmée, puis redirection vers la
+     * POST /patients/supprimer?id=… : suppression logique confirmée, puis redirection vers la
      * liste (303, POST → redirect → GET). Refusée par la règle (RG10) : la page de confirmation est
      * réaffichée en 409 avec le motif, rien n'est écrit. Jeton CSRF obligatoire (403 sinon) : sans lui,
      * une page tierce pourrait soumettre la suppression à l'insu du soignant.
@@ -323,12 +322,12 @@ class PatientController
     public const FORM_ERROR = 'form';
 
     /**
-     * Admission d'un patient (AURA-10).
+     * Admission d'un patient.
      *
-     * AURA-10.2 : la validation serveur est faite AVANT toute écriture ; si elle
+     * La validation serveur est faite AVANT toute écriture ; si elle
      * échoue, rien n'est enregistré et les erreurs sont renvoyées, soit en JSON
      * (requête AJAX), soit en réaffichant le formulaire avec les valeurs saisies.
-     * AURA-10.4 : sur données valides, le patient et son séjour sont enregistrés,
+     * Sur données valides, le patient et son séjour sont enregistrés,
      * puis l'utilisateur est redirigé vers le dossier du séjour (POST → redirect → GET :
      * rafraîchir la page du dossier ne crée pas de second séjour).
      */
@@ -364,7 +363,7 @@ class PatientController
     }
 
     /**
-     * GET /patients/modifier?id=… (AURA-12.2) : formulaire pré-rempli avec l'identité du patient
+     * GET /patients/modifier?id=… : formulaire pré-rempli avec l'identité du patient
      * (nom, prénom, IPP, date de naissance, sexe) ; 400 / 404 sinon.
      */
     public function edit(): void

@@ -13,8 +13,8 @@ use DateTimeImmutable;
 use InvalidArgumentException;
 
 /**
- * Prescriptions d'un séjour (Epic 4) : liste, écran B3 « Nouvelles prescriptions » (saisie d'une
- * ordonnance) et validation d'une ordonnance par un médecin (RG5, AURA-23).
+ * Prescriptions d'un séjour : liste, écran B3 « Nouvelles prescriptions » (saisie d'une
+ * ordonnance) et validation d'une ordonnance par un médecin (RG5).
  *
  * Même fonctionnement que l'admission (PatientController) : validation serveur avant toute
  * écriture, réponse JSON pour form.js (AJAX) ; après un enregistrement, retour sur l'écran B3
@@ -88,7 +88,7 @@ final class CarePlanController
 
     /**
      * POST /care-plans/create?idEpisodeOfCare=… : enregistre l'ordonnance et toutes ses lignes, et planifie
-     * leurs soins (AURA-24.4). Refus : 422 avec les erreurs par champ, rien n'est écrit.
+     * leurs soins. Refus : 422 avec les erreurs par champ, rien n'est écrit.
      */
     public function create(): void
     {
@@ -120,7 +120,7 @@ final class CarePlanController
     }
 
     /**
-     * POST /care-plans/validate?idEpisodeOfCare=… : un médecin valide une ordonnance (RG5, AURA-23).
+     * POST /care-plans/validate?idEpisodeOfCare=… : un médecin valide une ordonnance (RG5).
      * Champs : idCarePlan, idValidator, password (authentification FACTICE), csrf.
      */
     public function validate(): void
@@ -158,7 +158,7 @@ final class CarePlanController
 
     /**
      * POST /care-plans/stop?idEpisodeOfCare=… : un médecin arrête une ligne depuis le dossier du
-     * séjour (AURA-22), puis retour au dossier. Champs : idLine, isMedication (1 ou 0), idStoppedBy,
+     * séjour, puis retour au dossier. Champs : idLine, isMedication (1 ou 0), idStoppedBy,
      * password (authentification FACTICE), csrf. Les soins encore prévus après l'arrêt sont annulés.
      * Refus : 422 (JSON {ok:false, errors: {form: message}} pour form.js, sinon page d'erreur).
      */

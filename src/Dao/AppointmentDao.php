@@ -46,7 +46,7 @@ class AppointmentDao
     }
 
     /**
-     * AURA-12.3 : nombre de soins d'un statut donné dans tous les séjours d'un patient, qu'ils viennent
+     * Nombre de soins d'un statut donné dans tous les séjours d'un patient, qu'ils viennent
      * d'une ligne de soin ou d'une ligne de médicament (ex. Appointment::STATUS_DONE : un soin
      * réalisé interdit la suppression du patient, RG10).
      */
@@ -163,7 +163,7 @@ class AppointmentDao
         return $statement->rowCount();
     }
 
-    /** Remplace la note d'un soin (AURA-28), quel que soit son statut. */
+    /** Remplace la note d'un soin, quel que soit son statut. */
     public function updateComment(string $idAppointment, ?string $comment): void
     {
         $stmt = $this->pdo->prepare('UPDATE Appointment SET comment = :comment WHERE idAppointment = :id');

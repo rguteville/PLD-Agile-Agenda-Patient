@@ -7,7 +7,7 @@ namespace Aura\Domain;
 use DateTimeImmutable;
 
 /**
- * Équipe d'une rotation (AURA-30, ressource HL7 CareTeam, table CareTeam et ses tables de liaison
+ * Équipe d'une rotation (ressource HL7 CareTeam, table CareTeam et ses tables de liaison
  * CareTeamMember, CareTeamPatient) : soignants et patients attribués, pour un service, une date et une
  * rotation (MATIN, APRES_MIDI ou NUIT). Immuable : on recompose en retirant l'équipe.
  *

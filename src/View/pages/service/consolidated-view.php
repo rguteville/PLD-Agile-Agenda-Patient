@@ -3,11 +3,11 @@
 use Aura\Core\View;
 
 /**
- * Agenda du service (AURA-29, route GET /agenda-service), en deux onglets :
+ * Agenda du service (route GET /agenda-service), en deux onglets :
  *  - « Lits » (par défaut) : une ligne par patient, du plus urgent au moins urgent (retards, à faire dans
  *    la rotation, prochain soin), et un panneau de détail du lit choisi (?sejour=…) avec ses soins de la
- *    rotation et les actions (valider, note : AURA-26, AURA-28) ;
- *  - « Liste de travail » (?vue=liste) : les soins de tout le service, en retard (AURA-32, quel que soit le
+ *    rotation et les actions (valider, note) ;
+ *  - « Liste de travail » (?vue=liste) : les soins de tout le service, en retard (quel que soit le
  *    jour), doses de lignes arrêtées à tracer, maintenant (deux heures), plus tard (replié), réalisés (replié).
  * RG2 : allergies (ou « Aucune allergie connue ») dans le panneau du patient choisi ; ni le tableau ni la liste
  * de travail ne les répètent, pour rester lisibles. Vue-modèle : AgendaService::presentBoard().

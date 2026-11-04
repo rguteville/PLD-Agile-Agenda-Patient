@@ -14,7 +14,7 @@ use PDO;
 use PHPUnit\Framework\TestCase;
 
 /**
- * AURA-10.3 : le numéro de séjour est généré côté serveur au format AAAA-NNNNNN,
+ * Le numéro de séjour est généré côté serveur au format AAAA-NNNNNN,
  * unique (contrainte UNIQUE en base), jamais saisi (RG1).
  *
  * Test d'intégration sur la base MariaDB du CI (variables DB_*), ignoré hors CI.

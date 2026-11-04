@@ -4,7 +4,7 @@ use Aura\Core\View;
 use Aura\Domain\CarePlan;
 
 /**
- * Prescriptions d'un séjour (Epic 4, tableau des prescriptions, figure 10 du cahier des charges) :
+ * Prescriptions d'un séjour (tableau des prescriptions, figure 10 du cahier des charges) :
  * une ligne par soin ou médicament prescrit, avec son statut de validation (RG5) et son arrêt éventuel.
  * Rendue par CarePlanController::list() (GET /care-plans?idEpisodeOfCare=…), données de
  * CarePlanService::listing(). Aucun script propre à la page.

@@ -13,7 +13,7 @@ use DateTimeImmutable;
  *
  * Abstraite : une ligne est toujours l'un ou l'autre. Les propriétés portent le nom des colonnes
  * des tables ServiceRequest / MedicationRequest ; $id est leur clé (idServiceRequest ou
- * idMedicationRequest). Une ligne n'est jamais supprimée : elle est arrêtée (stoppedAt, AURA-22).
+ * idMedicationRequest). Une ligne n'est jamais supprimée : elle est arrêtée (stoppedAt).
  * Immuable, sauf setIdActivityDefinition() (voir sa note).
  *
  * Accesseurs get*() : un par colonne, sans logique ni validation.
@@ -21,7 +21,7 @@ use DateTimeImmutable;
 abstract class RequestLine
 {
     /**
-     * AURA-24.4 : une ligne récurrente sans date d'arrêt est planifiée jusqu'à ce nombre de jours
+     * Une ligne récurrente sans date d'arrêt est planifiée jusqu'à ce nombre de jours
      * après son début (hypothèse de travail, à confirmer avec le service : non fixé par le cahier des charges).
      */
     public const PLANNING_HORIZON_DAYS = 7;
@@ -84,14 +84,14 @@ abstract class RequestLine
         return $this->idStoppedBy;
     }
 
-    /** Heure de l'arrêt (AURA-22, heure de PHP) ; null si la ligne n'est pas arrêtée. */
+    /** Heure de l'arrêt (heure de PHP) ; null si la ligne n'est pas arrêtée. */
     public function getStoppedAt(): ?DateTimeImmutable
     {
         return $this->stoppedAt;
     }
 
     /**
-     * AURA-24.4 : heures des soins planifiés (Appointment) issus de cette ligne, celles que
+     * Heures des soins planifiés (Appointment) issus de cette ligne, celles que
      * l'agenda du séjour affiche. RG3 : unique = startDate seul ; récurrente = startDate puis
      * toutes les frequencyHours heures, jusqu'à endDate inclus ou, sans date d'arrêt, jusqu'à
      * PLANNING_HORIZON_DAYS jours après le début.
@@ -112,7 +112,7 @@ abstract class RequestLine
     }
 
     /**
-     * AURA-24.2 : heures prévues de la ligne comprises entre $from et $until (bornes incluses), sans
+     * Heures prévues de la ligne comprises entre $from et $until (bornes incluses), sans
      * dépasser endDate. C'est le seul algorithme d'occurrences d'AURA : plannedTimes() (enregistrement
      * de la prescription) et la génération quotidienne de l'agenda (AgendaGenerationService) l'utilisent
      * tous les deux, si bien qu'une même ligne donne toujours les mêmes heures (aucun décalage, donc
@@ -144,7 +144,7 @@ abstract class RequestLine
         return $this->frequencyHours !== null;
     }
 
-    /** AURA-22 : arrêtée si une date d'arrêt est enregistrée. */
+    /** Arrêtée si une date d'arrêt est enregistrée. */
     public function isStopped(): bool
     {
         return $this->stoppedAt !== null;

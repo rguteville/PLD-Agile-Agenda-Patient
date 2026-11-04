@@ -11,7 +11,7 @@ use Aura\Service\AppointmentService;
 use DateTimeImmutable;
 
 /**
- * GET /agenda-service (AURA-29) : soins de tous les patients en cours d'un service, pour un jour :
+ * GET /agenda-service : soins de tous les patients en cours d'un service, pour un jour :
  * tableau des lits avec panneau de détail, ou liste de travail de la rotation.
  * Sans identifiant, le premier service du référentiel (par identifiant) est affiché, pour que
  * l'onglet « Agenda service » de la barre du haut mène toujours quelque part.
@@ -59,7 +59,7 @@ final class ServiceController
         $selected = filter_var($_GET['sejour'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
         $board = AgendaService::presentBoard($service, $now, $selected === false ? null : $selected);
 
-        // Valider un soin depuis la vue du service (AURA-26), même dialogue que l'agenda du patient.
+        // Valider un soin depuis la vue du service, même dialogue que l'agenda du patient.
         $validationEnabled = $this->appointmentService !== null;
         View::page('service/consolidated-view', [
             'service' => $service,

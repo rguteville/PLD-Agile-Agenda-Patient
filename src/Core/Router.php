@@ -25,7 +25,7 @@ class Router
         $this->routes['POST'][$path] = $handler;
     }
 
-    /** Handler appelé quand aucune route ne correspond (page 404 HTML, AURA-06). */
+    /** Handler appelé quand aucune route ne correspond (page 404 HTML). */
     public function notFound(callable $handler): void
     {
         $this->notFound = \Closure::fromCallable($handler);

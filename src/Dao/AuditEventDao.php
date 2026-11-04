@@ -87,7 +87,7 @@ class AuditEventDao
     }
 
     /**
-     * Dernier auteur d'un changement de statut, par soin planifié (AURA-26 : « réalisé par … »).
+     * Dernier auteur d'un changement de statut, par soin planifié (« réalisé par … »).
      *
      * @param list<string> $idAppointments
      * @return array<string, string> idAppointment => auteur
@@ -115,7 +115,7 @@ class AuditEventDao
     }
 
     /**
-     * Auteur de la note actuelle de chaque soin (AURA-28 : note « signée par son auteur ») : dernière
+     * Auteur de la note actuelle de chaque soin (note « signée par son auteur ») : dernière
      * écriture de la note, seule (champ comment) ou avec une validation (statut avec détail).
      *
      * @param list<string> $idAppointments

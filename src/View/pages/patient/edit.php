@@ -3,7 +3,7 @@
 use Aura\Core\View;
 
 /**
- * Formulaire de modification d'un patient (AURA-12.2). Seuls les champs d'identité sont
+ * Formulaire de modification d'un patient. Seuls les champs d'identité sont
  * modifiables ici : taille, poids et précautions appartiennent au séjour.
  * Rendue par PatientController::edit() (GET /patients/modifier?id=…) et, en 422 après un refus, par
  * PatientController::update() (POST /patients/modifier?id=…). Script : date-input.js seulement ; form.js

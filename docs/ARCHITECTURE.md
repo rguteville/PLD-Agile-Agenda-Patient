@@ -16,7 +16,7 @@ modules, le trajet d'une requête, le modèle de données réel et les décision
 | `src/View` | `layouts/main.php`, `components/` (form, field, patient_banner, breadcrumb, status_badge, empty_state, icon, agenda_table, care_line, care_buttons, validation_dialog…), `pages/`. Chaque gabarit déclare ses variables en `@var` dans son en-tête. | Tout est échappé par `View::e()` ; pas de fonction nommée dans une vue. |
 | `public/css/style.css`, `public/js/*.js`, `public/fonts/` | Un seul fichier CSS (blocs ajoutés en fin de fichier), scripts vanilla par fonctionnalité, police vendorisée. | Aucun CDN. |
 | `database/` | `schema.sql` (structure complète, rejouée sur base vide par le CI), `test.sql` (données de démo fictives), `demo-today.sql` (recale la démo sur le jour courant), `migrations/` (ALTER additifs pour une base existante). | Le schéma est géré par le responsable BDD. |
-| `bin/generate-agenda.php` | Génération quotidienne de l'agenda (cron, AURA-24.2 / 24.3), voir le README. | Même configuration que le site. |
+| `bin/generate-agenda.php` | Génération quotidienne de l'agenda (cron), voir le README. | Même configuration que le site. |
 
 ## Trajet d'une requête
 
@@ -34,16 +34,16 @@ modules, le trajet d'une requête, le modèle de données réel et les décision
 Liste complète des routes de `public/index.php`. Les identifiants passent en query string ou dans le corps du
 POST (pas de paramètre dans le chemin). « CSRF » : jeton de session obligatoire (en-tête `X-CSRF-Token` ou champ
 `csrf`), 403 sinon. « Auth. factice » : praticien choisi dans une liste et mot de passe non vérifié, en attendant
-l'authentification des praticiens (AURA-50 ; praticiens et rôles : AURA-18).
+l'authentification des praticiens.
 
 | Méthode et chemin | Rôle |
 | --- | --- |
 | `GET /` | Formulaire d'admission (recherche d'un patient existant, identité, motif, service, médecin référent, allergies, sections repliables). Affichable sans base. |
 | `POST /patients/create` | Admission : validation, création ou rattachement du patient, ouverture du séjour, allergies, traces ; JSON ou HTML. Pas de CSRF. |
 | `GET /patients?q=` | Liste des patients : séjour en cours, sinon dernier dossier, historique des séjours dépliable, décès signalé ; recherche facultative. |
-| `GET /patients/modifier?id=`, `POST /patients/modifier?id=` | Modification de l'identité d'un patient (AURA-12.2). Pas de CSRF. |
-| `GET /patients/supprimer?id=`, `POST /patients/supprimer?id=` | Confirmation puis suppression logique d'un patient (AURA-12.3, CSRF) ; 409 si refusée (séjour en cours ou soin réalisé). |
-| `GET /patients/recherche-ipp?ipp=` | Identité d'un patient par IPP (JSON, AURA-15, conservé). |
+| `GET /patients/modifier?id=`, `POST /patients/modifier?id=` | Modification de l'identité d'un patient. Pas de CSRF. |
+| `GET /patients/supprimer?id=`, `POST /patients/supprimer?id=` | Confirmation puis suppression logique d'un patient (CSRF) ; 409 si refusée (séjour en cours ou soin réalisé). |
+| `GET /patients/recherche-ipp?ipp=` | Identité d'un patient par IPP (JSON, conservé). |
 | `GET /patients/recherche?q=` | Recherche par IPP ou mots du nom / prénom (JSON, identité seulement, 20 max). |
 | `GET /patients/fiche?id=` | Fiche complète d'un patient pour pré-remplir l'admission (JSON, à la sélection d'un résultat). |
 | `GET /sejour?id=` | Dossier du séjour : bandeau, allergies, dossier complet éditable, prescriptions validées, séjours du patient, historique. |
@@ -53,16 +53,16 @@ l'authentification des praticiens (AURA-50 ; praticiens et rôles : AURA-18).
 | `POST /sejour/cloturer` | Fin du séjour (date et heure de sortie), JSON, CSRF, auth. factice d'un médecin, tracée. |
 | `POST /sejour/deces` | Déclaration du décès (date et heure) : le patient est marqué décédé, le séjour en cours se termine à cette heure et ses soins encore prévus sont annulés. JSON, CSRF, auth. factice d'un médecin, tracée. |
 | `GET /care-plans?idEpisodeOfCare=` | Prescriptions du séjour (statut de validation RG5, période, note, allergène signalé). |
-| `GET /care-plans/new?idEpisodeOfCare=`, `POST /care-plans/create?idEpisodeOfCare=` | Nouvelle prescription (écran B3) ; l'enregistrement (CSRF, auth. factice du prescripteur) planifie aussi ses soins (AURA-24.4). |
+| `GET /care-plans/new?idEpisodeOfCare=`, `POST /care-plans/create?idEpisodeOfCare=` | Nouvelle prescription (écran B3) ; l'enregistrement (CSRF, auth. factice du prescripteur) planifie aussi ses soins. |
 | `POST /care-plans/validate?idEpisodeOfCare=` | Validation d'une ordonnance par un médecin habilité (RG5, CSRF, auth. factice). |
-| `POST /care-plans/stop?idEpisodeOfCare=` | Arrêt d'une ligne par un médecin (AURA-22, CSRF, auth. factice) ; ses soins encore prévus sont annulés. |
+| `POST /care-plans/stop?idEpisodeOfCare=` | Arrêt d'une ligne par un médecin (CSRF, auth. factice) ; ses soins encore prévus sont annulés. |
 | `GET /care-plans/protocol-lines?idPlanDefinition=&startDate=` | Lignes d'un protocole datées à partir d'une date de début, pour pré-remplir l'ordonnance (JSON, #41). |
 | `GET /agenda-patient?id=` ou `?numSejour=`, `&date=`, `&vue=semaine` | Agenda du séjour, jour (retards épinglés, rotations) ou semaine (lundi à dimanche). |
-| `POST /agenda-patient/soin` | Action sur un soin (AURA-26, AURA-28) : réalisé, non effectué (motif obligatoire) ou note. JSON ou formulaire, CSRF, auth. factice du soignant ; validation possible jusqu'à la fin de la rotation en cours, une seule fois. |
-| `GET /agenda-service?idHealthcareService=&date=&vue=&sejour=` | Agenda du service (AURA-29, AURA-32) : « Lits » (`vue=lits`, par défaut ; `sejour=` choisit le patient du panneau de détail) ou « Liste de travail » (`vue=liste`). |
-| `GET /equipes?idHealthcareService=&date=&rotation=` | Équipes de la rotation (matin, après-midi ou nuit) et formulaire de composition (AURA-30). |
+| `POST /agenda-patient/soin` | Action sur un soin : réalisé, non effectué (motif obligatoire) ou note. JSON ou formulaire, CSRF, auth. factice du soignant ; validation possible jusqu'à la fin de la rotation en cours, une seule fois. |
+| `GET /agenda-service?idHealthcareService=&date=&vue=&sejour=` | Agenda du service : « Lits » (`vue=lits`, par défaut ; `sejour=` choisit le patient du panneau de détail) ou « Liste de travail » (`vue=liste`). |
+| `GET /equipes?idHealthcareService=&date=&rotation=` | Équipes de la rotation (matin, après-midi ou nuit) et formulaire de composition. |
 | `POST /equipes/creer`, `POST /equipes/retirer` | Composer une équipe ou la retirer (suppression logique), CSRF, retour à la rotation. |
-| `GET /mon-planning?idPractitioner=&date=&rotation=` | Soins des patients des équipes d'un soignant pendant la rotation (AURA-31), avec les mêmes actions que l'agenda. |
+| `GET /mon-planning?idPractitioner=&date=&rotation=` | Soins des patients des équipes d'un soignant pendant la rotation, avec les mêmes actions que l'agenda. |
 
 Toute autre adresse : page 404 (`View::error()`).
 
@@ -1023,12 +1023,12 @@ classDiagram
 
 - **Identité et IPP** : nom et prénom obligatoires, IPP facultatif (RG1, patient admis en urgence). L'existence d'un
   patient est vérifiée dans la base locale d'AURA (par IPP, puis par nom / prénom, sélection explicite d'un résultat) ;
-  **OpenEMR n'est pas connecté** (AURA-38 hors périmètre), le SI est autonome.
+  **OpenEMR n'est pas connecté** (hors périmètre), le SI est autonome.
 - **Numéro de séjour** `AAAA-NNNNNN` généré uniquement par `EpisodeOfCareDao::insert()` dans une transaction verrouillée,
-  jamais saisi (AURA-10.3).
+  jamais saisi.
 - **Nommage** : SQL camelCase anglais HL7 (diagramme de classes du dossier de cadrage) ; tout le code en anglais
   HL7 (décision du 2026-11-03, qui remplace celle du 2026-10-21) ; messages, URL, commentaires, commits en français.
-- **Soin planifié = rendez-vous de soin** (`Appointment`), généré à l'enregistrement d'une prescription (AURA-24.4) ;
+- **Soin planifié = rendez-vous de soin** (`Appointment`), généré à l'enregistrement d'une prescription ;
   le retard est un calcul d'affichage (`AgendaService::presentDay()`), pas une donnée. Chaque jour,
   `bin/generate-agenda.php` prolonge l'agenda jusqu'à J + 7 sans doublon (RG9).
 - **Trois rotations, une seule référence** (décision du 2026-11-04) : matin 6 h à 14 h, après-midi 14 h à 22 h,
@@ -1041,7 +1041,7 @@ classDiagram
   `AllergyIntolerance` n'a pas de `removedAt` : le retrait d'une allergie est physique (dette tracée, décision du
   2026-10-21). Les lignes de prescription s'arrêtent (`stoppedAt`) et les soins s'annulent (`ANNULE`) : rien
   n'est supprimé.
-- **Pas d'authentification** (AURA-50, authentification des praticiens ; AURA-18, praticiens et rôles) : l'édition en ligne trace « non identifié ». La modification d'une
+- **Pas d'authentification** (authentification des praticiens) : l'édition en ligne trace « non identifié ». La modification d'une
   partie, la fin de séjour, le décès, l'enregistrement, la validation et l'arrêt d'une prescription, et les
   actions sur un soin passent par une **authentification factice** (praticien choisi dans une liste + mot de
   passe non vérifié) ; la trace porte le nom du praticien. Le groupe sanguin et le décès sont réservés au

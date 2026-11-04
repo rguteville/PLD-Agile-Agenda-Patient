@@ -19,12 +19,12 @@ use DateTimeImmutable;
 use DateTimeInterface;
 
 /**
- * Prépare l'affichage du dossier d'un séjour (AURA-14) : le bandeau identité + allergies
+ * Prépare l'affichage du dossier d'un séjour : le bandeau identité + allergies
  * imposé par RG2 en tête de tout écran lié au séjour (avec médecin référent, décès et groupe sanguin),
- * le dossier complet par sections, l'historique des séjours et la gestion des allergies (AURA-13.2 :
- * liste avec retrait, ajout depuis le référentiel).
+ * le dossier complet par sections, l'historique des séjours et la gestion des allergies (liste avec retrait,
+ * ajout depuis le référentiel).
  *
- * Les données viennent de la base via les DAO (AURA-11) ; les méthodes present*()
+ * Les données viennent de la base via les DAO ; les méthodes present*()
  * et availableSubstances() sont pures (pas d'accès aux données) pour être testables sans base.
  */
 final class PatientRecordService
@@ -213,7 +213,7 @@ final class PatientRecordService
             'admissionReason' => self::textOrNull($episodeOfCare->getDetail('admissionReason')),
             'bed' => self::textOrNull($episodeOfCare->getBedNumber()),
             'box' => self::textOrNull($episodeOfCare->getBoxNumber()),
-            // Mesures relevées à l'admission (AURA-10.1) ; null = non renseigné.
+            // Mesures relevées à l'admission ; null = non renseigné.
             'weight' => self::measure($episodeOfCare->getWeight(), 'kg'),
             'height' => self::measure($episodeOfCare->getHeight(), 'cm'),
             'precautions' => self::textOrNull($episodeOfCare->getPrecautions()),
@@ -223,7 +223,7 @@ final class PatientRecordService
     }
 
     /**
-     * Vue-modèle de la section « Allergies connues » du dossier (AURA-13.2) : l'id sert au
+     * Vue-modèle de la section « Allergies connues » du dossier : l'id sert au
      * bouton « Retirer », la date de saisie distingue une allergie connue d'un séjour
      * antérieur d'une allergie découverte pendant le séjour en cours.
      *

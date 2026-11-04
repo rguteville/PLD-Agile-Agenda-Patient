@@ -14,7 +14,7 @@ use DateTimeImmutable;
 use LogicException;
 
 /**
- * AURA-24.2 et 24.3 : génération quotidienne de l'agenda (bin/generate-agenda.php, lancé par cron).
+ * Génération quotidienne de l'agenda (bin/generate-agenda.php, lancé par cron).
  *
  * Pour chaque ligne active (soin ou médicament non arrêté) d'un séjour en cours, crée les soins
  * planifiés (Appointment « PLANIFIE ») manquants entre maintenant et l'horizon (fin du jour
@@ -30,7 +30,7 @@ final class AgendaGenerationService
 {
     /**
      * Horizon de planification, en jours après aujourd'hui : le même que celui de l'enregistrement
-     * d'une prescription (hypothèse de travail AURA-24.4, à confirmer avec le service).
+     * d'une prescription (hypothèse de travail, à confirmer avec le service).
      */
     public const HORIZON_DAYS = RequestLine::PLANNING_HORIZON_DAYS;
 
@@ -52,7 +52,7 @@ final class AgendaGenerationService
 
     /**
      * Heures attendues d'une ligne entre $from et $until (bornes incluses). Une ligne arrêtée n'en a
-     * plus aucune (AURA-22) ; sinon ce sont les occurrences de la ligne (RG3) dans la plage, bornées
+     * plus aucune ; sinon ce sont les occurrences de la ligne (RG3) dans la plage, bornées
      * par sa date de fin.
      *
      * @return DateTimeImmutable[]

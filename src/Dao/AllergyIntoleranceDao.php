@@ -9,7 +9,7 @@ use DateTimeImmutable;
 use PDO;
 
 /**
- * Allergies connues des patients (RG2, AURA-13) : table AllergyIntolerance, ressource HL7 du même
+ * Allergies connues des patients (RG2) : table AllergyIntolerance, ressource HL7 du même
  * nom, jointe au référentiel Substance pour le libellé. La clé SQL s'appelle idAllergy, l'entité
  * l'expose sous le nom idAllergyIntolerance. Id VARCHAR(20) calculé (MAX + 1, FOR UPDATE).
  * Exception à la suppression logique : delete() efface la ligne (dette tracée, voir delete()).
@@ -43,7 +43,7 @@ class AllergyIntoleranceDao
     }
 
     /**
-     * Enregistre une allergie et renvoie son id (AURA-13.2). idAllergy est un VARCHAR sans
+     * Enregistre une allergie et renvoie son id. idAllergy est un VARCHAR sans
      * AUTO_INCREMENT : l'id est calculé dans une transaction, en verrouillant la table (FOR
      * UPDATE) comme PatientDao::insert(). recordedAt est rempli par la base.
      *
@@ -97,7 +97,7 @@ class AllergyIntoleranceDao
     }
 
     /**
-     * Retire une allergie du dossier (AURA-13.2). Suppression PHYSIQUE : décision d'équipe
+     * Retire une allergie du dossier. Suppression PHYSIQUE : décision d'équipe
      * du 21/10/2026, le schéma n'ayant pas de colonne removedAt pour cette table.
      * Dette technique : la trace « allergie connue au moment d'un soin » disparaît ; seule
      * cette méthode (et le filtre de findByPatient) changera si l'équipe la réactive.

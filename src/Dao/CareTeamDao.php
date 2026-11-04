@@ -10,7 +10,7 @@ use DateTimeInterface;
 use PDO;
 
 /**
- * Accès aux équipes de vacation (AURA-30) : CareTeam (ressource HL7 du même nom), CareTeamMember,
+ * Accès aux équipes de vacation : CareTeam (ressource HL7 du même nom), CareTeamMember,
  * CareTeamPatient. Seules les équipes actives (removedAt NULL) sont lues ; retirer une équipe garde
  * sa ligne (suppression logique, colonne générée activeKey pour l'unicité du nom). idCareTeam est
  * un AUTO_INCREMENT. La règle « un patient dans une seule équipe par vacation » est dans CareTeamService.
@@ -39,7 +39,7 @@ class CareTeamDao
     }
 
     /**
-     * Équipes actives d'une vacation dont le soignant fait partie (AURA-31 : « mon planning »).
+     * Équipes actives d'une vacation dont le soignant fait partie (« mon planning »).
      *
      * @return list<CareTeam>
      */

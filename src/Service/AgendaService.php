@@ -22,7 +22,7 @@ use DateTimeInterface;
 use LogicException;
 
 /**
- * Agendas des soins (AURA-24 agenda du patient, AURA-29 agenda du service, AURA-31 « Mon planning »).
+ * Agendas des soins : agenda du patient, agenda du service et « Mon planning ».
  *
  * Deux étages :
  *  - lecture en base : getAgenda() (un séjour) et getAgendaService() (tous les séjours en cours d'un
@@ -98,7 +98,7 @@ final class AgendaService
     }
 
     /**
-     * Agenda du service (AURA-29) : un élément par séjour en cours du service, avec l'identité du
+     * Agenda du service : un élément par séjour en cours du service, avec l'identité du
      * patient, son décès éventuel, ses allergies (RG2), son médecin référent et ses prescriptions au
      * format de getAgenda(). Requiert le PatientDao ; les allergies demandent l'AllergyIntoleranceDao.
      * Sert aussi aux équipes et à « Mon planning » (TeamController).
@@ -339,7 +339,7 @@ final class AgendaService
     }
 
     /**
-     * Agenda d'un séjour (AURA-24) : ses ordonnances, avec pour chaque ligne de soin ou de médicament
+     * Agenda d'un séjour : ses ordonnances, avec pour chaque ligne de soin ou de médicament
      * ses soins planifiés (Appointment). Le champ idActivityDefinition de chaque ligne est remplacé par
      * son libellé : nom du type de soin (ActivityDefinition.name) ou DCI du médicament (Medication.inn).
      * Avec l'AuditEventDao, chaque soin planifié porte aussi performedBy et noteBy (withPerformers()).
@@ -398,7 +398,7 @@ final class AgendaService
     }
 
     /**
-     * Ajoute à chaque soin planifié l'auteur de sa validation (AURA-26), lu dans l'historique ;
+     * Ajoute à chaque soin planifié l'auteur de sa validation, lu dans l'historique ;
      * sans AuditEventDao, la réponse est rendue telle quelle.
      *
      * @param list<array<string, mixed>> $carePlans
@@ -655,7 +655,7 @@ final class AgendaService
     }
 
     /**
-     * Vue-modèle d'une vacation pour un soignant (AURA-31, « Mon planning ») : les soins des patients
+     * Vue-modèle d'une vacation pour un soignant (« Mon planning ») : les soins des patients
      * de son équipe dont l'heure prévue tombe dans la vacation [début, fin[, par ordre chronologique,
      * avec le patient de chaque soin, et un résumé par patient (allergies RG2, retards, à faire).
      * Mêmes règles que presentDay(). Pure : la fenêtre et l'heure courante sont injectées.
@@ -883,7 +883,7 @@ final class AgendaService
         $raw = trim((string) ($appointment['status'] ?? ''));
         // Valeur inconnue en base : transmise telle quelle, le badge l'affiche en neutre plutôt que la cacher.
         $status = self::STATUS_KEYS[$raw] ?? ($raw === '' ? 'planned' : $raw);
-        // Ligne arrêtée (AURA-22) : ses soins futurs sont annulés à l'arrêt ; un soin passé encore prévu
+        // Ligne arrêtée : ses soins futurs sont annulés à l'arrêt ; un soin passé encore prévu
         // n'est plus « à faire » ni « en retard » : il s'affiche « Arrêtée » (badge stopped).
         $lineStopped = ($line['stoppedAt'] ?? null) !== null;
         if ($status === 'planned' && $lineStopped) {
@@ -922,13 +922,13 @@ final class AgendaService
             'status' => $status,
             'completedAt' => $completion instanceof DateTimeInterface ? $completion->format('H:i') : null,
             'comment' => $comment !== '' ? $comment : null,
-            // Qui a validé ou marqué non effectué (historique, AURA-26) ; null tant que personne.
+            // Qui a validé ou marqué non effectué (historique) ; null tant que personne.
             'performedBy' => isset($appointment['performedBy']) ? (string) $appointment['performedBy'] : null,
-            // Auteur de la note (AURA-28) ; null pour une note sans trace (données de démo).
+            // Auteur de la note ; null pour une note sans trace (données de démo).
             'noteBy' => isset($appointment['noteBy']) ? (string) $appointment['noteBy'] : null,
             // Carte de la prescription (bouton « + » de chaque soin de l'agenda).
             'prescription' => self::presentPrescription($line, $plan, $isMedication),
-            // RG5 / AURA-23 : ordonnance pas encore validée par un médecin (urgence, paramédicale) :
+            // RG5 / ordonnance pas encore validée par un médecin (urgence, paramédicale) :
             // ses soins entrent dans l'agenda avec un marqueur visible.
             'notValidated' => $plan !== [] && array_key_exists('validatedAt', $plan) && $plan['validatedAt'] === null,
             // Ordonnance du soin : le badge « Ordonnance non validée » mène à sa validation.

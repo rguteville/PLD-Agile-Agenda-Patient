@@ -14,7 +14,7 @@ use PDO;
 use PHPUnit\Framework\TestCase;
 
 /**
- * AURA-30 sur base réelle (transaction annulée en tearDown) : composition d'une équipe, lecture par
+ * Équipes sur base réelle (transaction annulée en tearDown) : composition d'une équipe, lecture par
  * rotation et par soignant, un patient dans une seule équipe par rotation, retrait logique.
  */
 final class CareTeamDaoTest extends TestCase

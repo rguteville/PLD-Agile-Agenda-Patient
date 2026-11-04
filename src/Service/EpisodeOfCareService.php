@@ -10,8 +10,8 @@ use DateTimeImmutable;
 use InvalidArgumentException;
 
 /**
- * Gestion des séjours (EpisodeOfCare) : lecture, ouverture à l'admission (AURA-10, numéro AAAA-NNNNNN
- * généré par EpisodeOfCareDao::insert(), AURA-10.3), changement de lit ou de box, et sortie (fin de
+ * Gestion des séjours (EpisodeOfCare) : lecture, ouverture à l'admission (numéro AAAA-NNNNNN
+ * généré par EpisodeOfCareDao::insert()), changement de lit ou de box, et sortie (fin de
  * séjour ou décès, appelée par RecordSectionService). Règles : un seul séjour en cours par patient, un
  * lit ou un box occupé par un seul séjour en cours, sortie ni avant l'admission ni dans le futur.
  */
@@ -55,7 +55,7 @@ class EpisodeOfCareService
 
     /**
      * Ouvre un séjour : la date de prise en charge est celle du moment, le numéro est généré.
-     * Poids (kg), taille (cm) et précautions sont les mesures relevées à l'admission (AURA-10.1),
+     * Poids (kg), taille (cm) et précautions sont les mesures relevées à l'admission,
      * déjà validées par l'appelant (AdmissionService::validate()), comme le service hospitalier
      * et les champs complémentaires ($details, clés de RecordFields::EPISODE). Le médecin référent
      * (null = à désigner) a lui aussi été contrôlé contre la liste des médecins par l'appelant.

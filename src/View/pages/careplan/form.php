@@ -4,7 +4,7 @@ use Aura\Core\View;
 use Aura\Service\CarePlanService;
 
 /**
- * AURA-20 / AURA-21 / AURA-23 : fenêtre « B3. Nouvelles prescriptions » (figures 7, 8 et 9 du
+ * Fenêtre « B3. Nouvelles prescriptions » (figures 7, 8 et 9 du
  * sujet). Toutes les listes viennent de CarePlanService::form() ; public/js/care-plan.js anime
  * les listes en cascade (Catégorie → Médicament / Soin / Protocole → Forme), le panier et l'alerte
  * allergie ; public/js/form.js envoie les formulaires (POST /care-plans/create et /care-plans/validate).
@@ -356,7 +356,7 @@ $medicationParams = [
                 <button type="submit" form="care-plan-form" class="b3-primary">Enregistrer l'ordonnance</button>
             </div>
 
-            <?php /* RG5 : ordonnances saisies par un non-médecin, à valider par un médecin (AURA-23) */ ?>
+            <?php /* RG5 : ordonnances saisies par un non-médecin, à valider par un médecin */ ?>
             <h2 class="b3-summary-title">En attente de validation par un médecin</h2>
             <?php if ($pendingCarePlans === []) : ?>
                 <p class="b3-empty">Aucune prescription en attente.</p>
@@ -381,7 +381,7 @@ $medicationParams = [
                     <?php foreach ($carePlan['allergyAlerts'] ?? [] as $alert) : ?>
                         <p class="b3-allergy"><?= View::e($alert) ?></p>
                     <?php endforeach; ?>
-                    <?php /* Authentification FACTICE du médecin (mot de passe non vérifié, AURA-50), comme la
+                    <?php /* Authentification FACTICE du médecin (mot de passe non vérifié), comme la
                              fenêtre de validation du dossier. */ ?>
                     <?php $formId = 'validate-' . $carePlan['idCarePlan']; ?>
                     <form class="b3-validate" action="/care-plans/validate<?= View::e($episodeQuery) ?>"

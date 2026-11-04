@@ -9,7 +9,7 @@ use PDO;
 
 /**
  * Référentiels en lecture seule, chargés par database/test.sql : médicaments, types de soin,
- * praticiens (Epic 4), services hospitaliers (admission). Ils remplissent les listes déroulantes
+ * praticiens, services hospitaliers (admission). Ils remplissent les listes déroulantes
  * (écran B3, admission, médecin référent) et donnent les libellés affichés. Tables Medication,
  * ActivityDefinition, Practitioner, PractitionerRole, HealthcareService.
  *

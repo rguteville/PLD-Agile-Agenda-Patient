@@ -1,5 +1,5 @@
 // Envoi AJAX des formulaires marqués data-ajax et affichage des erreurs
-// renvoyées par le serveur (AURA-10.2) à côté de chaque champ.
+// renvoyées par le serveur à côté de chaque champ.
 // Le contrôle côté serveur reste la garantie : ce script ne valide rien lui-même.
 // Chargé par l'admission (POST /patients/create), le dossier du séjour (arrêt d'une ligne, POST
 // /care-plans/stop) et l'écran B3 (POST /care-plans/create et /care-plans/validate). Pas par la
@@ -102,7 +102,7 @@ document.querySelectorAll('form[data-ajax]').forEach(form => {
             // Les sections repliées (form-sections.js) s'ouvrent sur le champ en erreur.
             form.dispatchEvent(new CustomEvent('aura:form-errors'));
         } else if (data.redirect) {
-            // Succès (AURA-10.4) : le serveur indique le dossier du séjour créé. Le formulaire reste bloqué
+            // Succès : le serveur indique le dossier du séjour créé. Le formulaire reste bloqué
             // pendant le changement de page.
             redirected = true;
             window.location.assign(data.redirect);

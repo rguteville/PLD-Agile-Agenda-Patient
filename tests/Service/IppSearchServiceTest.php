@@ -13,7 +13,7 @@ use DateTimeImmutable;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
-/** AURA-15 : recherche d'un patient déjà connu par son IPP, sans base (DAO simulés). */
+/** Recherche d'un patient déjà connu par son IPP, sans base (DAO simulés). */
 final class IppSearchServiceTest extends TestCase
 {
     private PatientDao&MockObject $patients;

@@ -1,4 +1,4 @@
-// AURA-20 / AURA-21 : écran B3 « Nouvelles prescriptions » (src/View/pages/careplan/form.php).
+// Écran B3 « Nouvelles prescriptions » (src/View/pages/careplan/form.php).
 // Listes en cascade Catégorie → Médicament / Soin / Protocole → Forme galénique, fiche de paramètres
 // (figure 9), puis « OK » ajoute la ligne à l'ordonnance en cours (« Prescriptions non sauvegardées »).
 // L'envoi est fait par form.js et le serveur revérifie tout (CarePlanService::checkInput, prescribe) :

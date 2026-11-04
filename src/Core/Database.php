@@ -8,7 +8,7 @@ use PDO;
 use PDOException;
 
 /**
- * Connexion PDO unique de l'application (AURA-11.1).
+ * Connexion PDO unique de l'application.
  *
  * La connexion est paresseuse : rien n'est ouvert tant que get() n'est pas appelé,
  * ce qui permet aux pages sans accès à la base de fonctionner sans config/config.php.

@@ -12,7 +12,7 @@ use DateTimeImmutable;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
-/** AURA-12.2 : modification d'un patient, sans base (DAO simulé). */
+/** Modification d'un patient, sans base (DAO simulé). */
 final class PatientUpdateServiceTest extends TestCase
 {
     private const DATA = [

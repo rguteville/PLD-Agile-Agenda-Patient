@@ -90,7 +90,7 @@ form {
     border-color: #2b7bb9;
 }
 
-/* Erreur de validation serveur (AURA-10.2) : message sous le champ, dans la colonne du champ */
+/* Erreur de validation serveur : message sous le champ, dans la colonne du champ */
 .form-row .field-error {
     grid-column: 3;
     margin: 4px 0 0;
@@ -258,7 +258,7 @@ body, html {
     background: #f3f6fa;
 }
 
-/* AURA-22 : arrêt d'une ligne depuis le dossier (médecin + bouton, erreur sur sa propre ligne) */
+/* arrêt d'une ligne depuis le dossier (médecin + bouton, erreur sur sa propre ligne) */
 .stop-form {
     display: flex;
     flex-wrap: wrap;
@@ -282,7 +282,7 @@ body, html {
     font-size: 12px;
 }
 
-/* ---------- Liste des patients (AURA-12.1) ---------- */
+/* ---------- Liste des patients ---------- */
 .patient-search {
     display: flex;
     align-items: center;
@@ -338,7 +338,7 @@ body, html {
     background: #fde2e4;
 }
 
-/* ---------- Recherche par IPP sur le formulaire d'admission (AURA-15) ---------- */
+/* ---------- Recherche par IPP sur le formulaire d'admission ---------- */
 .form-row .field-group {
     grid-column: 3;
     display: flex;
@@ -423,7 +423,7 @@ body, html {
     color: #b00020;
 }
 
-/* ---------- Allergies connues (AURA-13.2) ---------- */
+/* ---------- Allergies connues ---------- */
 .record-allergies {
     max-width: 600px;
     margin: 18px 0;
@@ -513,7 +513,7 @@ body, html {
     font-style: italic;
 }
 
-/* ---------- AURA-20 : écran « Nouvelles prescriptions » (B3 du sujet, figures 7, 8 et 9) ---------- */
+/* ---------- écran « Nouvelles prescriptions » (B3 du sujet, figures 7, 8 et 9) ---------- */
 /* Même charte que le dossier du séjour : titre .form-title, champs et tableaux identiques aux
    formulaires d'admission. Les classes b3-* sont lues par public/js/care-plan.js. */
 .b3 {
@@ -845,7 +845,7 @@ body, html {
 
 /* ===== AURA-UI : système de design (jetons, thème sombre, composants, impression) =====
    Définit les jetons de design (:root) puis surcharge les règles historiques ci-dessus pour qu'elles
-   lisent ces jetons. Les blocs suivants (AURA-POLISH, puis un bloc par ticket) surchargent à leur tour
+   lisent ces jetons. Les blocs suivants (AURA-POLISH, puis un bloc par fonctionnalité) surchargent à leur tour
    celui-ci. Documentation : docs/ui.md. */
 
 /* ---------- 1. Jetons de design ---------- */
@@ -3734,7 +3734,7 @@ form.form--columns .form-lead > .form-row {
     margin: var(--sp-3) 0 0;
 }
 
-/* ===== AURA-29 : choix du service dans l'agenda du service ===== */
+/* ===== Choix du service dans l'agenda du service ===== */
 .agenda-nav select {
     min-height: var(--tap);
     padding: var(--sp-2) var(--sp-3);
@@ -3745,7 +3745,7 @@ form.form--columns .form-lead > .form-row {
     border-radius: var(--radius);
 }
 
-/* ===== AURA-12.3 : suppression d'un patient (confirmation, lien dans la liste) ===== */
+/* ===== Suppression d'un patient (confirmation, lien dans la liste) ===== */
 .patient-delete {
     max-width: 640px;
 }
@@ -3811,7 +3811,7 @@ form.form--columns .form-lead > .form-row {
     color: var(--st-alert-fg);
 }
 
-/* ===== AURA-25 / AURA-26 / AURA-28 : actions sur un soin, filtres, vue Semaine ===== */
+/* ===== Actions sur un soin, filtres, vue Semaine ===== */
 .care-buttons {
     display: inline-flex;
     flex-wrap: wrap;
@@ -3908,7 +3908,7 @@ form.form--columns .form-lead > .form-row {
     display: block;
 }
 
-/* ===== AURA-29 / AURA-32 : agenda du service et « Mon planning » (alerte des retards, allergies) ===== */
+/* ===== Agenda du service et « Mon planning » (alerte des retards, allergies) ===== */
 .service-alert {
     margin: var(--sp-4) 0;
     padding: var(--sp-3) var(--sp-4);
@@ -4001,7 +4001,7 @@ form.form--columns .form-lead > .form-row {
     flex: none;
 }
 
-/* ===== AURA-30 / AURA-31 : équipes de vacation et « Mon planning » ===== */
+/* ===== Équipes de vacation et « Mon planning » ===== */
 .team-cards {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -4662,7 +4662,7 @@ form.form--columns .form-lead > .form-row {
     flex-wrap: nowrap;
 }
 
-/* ===== AURA-29 : agenda du service, tableau des lits et liste de travail ===== */
+/* ===== Agenda du service, tableau des lits et liste de travail ===== */
 .view-tabs {
     display: flex;
     gap: var(--sp-1);
@@ -4935,7 +4935,7 @@ form.form--columns .form-lead > .form-row {
     }
 }
 
-/* AURA-29 : chevron ouvert / replié des sections de la liste de travail, étiquettes d'allergies, patient
+/* chevron ouvert / replié des sections de la liste de travail, étiquettes d'allergies, patient
    d'une ligne de soin. */
 .worklist > summary {
     list-style: none;

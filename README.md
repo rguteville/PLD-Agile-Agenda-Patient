@@ -279,7 +279,7 @@ dans l'ordre des dates (`mariadb -u aura -p aura < database/migrations/<fichier>
 
 À l'enregistrement d'une prescription, AURA planifie ses soins sur 7 jours. Chaque jour, `bin/generate-agenda.php`
 prolonge l'agenda de tous les séjours en cours : pour chaque ligne de prescription active (non arrêtée), il crée les
-soins planifiés manquants de maintenant jusqu'à la fin du jour J + 7 (AURA-24.2 / 24.3). Il est **idempotent** :
+soins planifiés manquants de maintenant jusqu'à la fin du jour J + 7. Il est **idempotent** :
 une heure déjà planifiée n'est jamais recréée, un soin existant n'est jamais modifié et rien n'est créé dans le
 passé (RG9). Relancé deux fois de suite, le second passage affiche « 0 soin créé ».
 
@@ -323,25 +323,25 @@ Détails, couverture et comment écrire un test : [docs/TESTS.md](docs/TESTS.md)
 
 ## Travailler au quotidien
 
-Modèle **GitHub Flow** : `main` est toujours fonctionnelle, on crée une branche par ticket.
+Modèle **GitHub Flow** : `main` est toujours fonctionnelle, on crée une branche par fonctionnalité.
 
 ```bash
 git switch main && git pull                      # partir de la dernière version
-git switch -c feature/AURA-10-admission          # une branche par ticket
+git switch -c feature/admission                  # une branche par fonctionnalité
 
 # ... coder ...
 composer cs:fix && composer cs && composer test  # mêmes vérifications que le CI
 git add src/ public/ tests/
-git commit -m "feat(admission): création d'un séjour (AURA-10)"
-git push -u origin feature/AURA-10-admission
+git commit -m "feat(admission): création d'un séjour"
+git push -u origin feature/admission
 ```
 
 Puis ouvrez une **pull request** vers `main` sur GitHub. Merge quand le CI est vert et qu'un autre membre a approuvé.
 
 | Préfixe de branche | Usage                     | Exemple                    |
 | ------------------ | ------------------------- | -------------------------- |
-| `feature/`         | nouvelle user story       | `feature/AURA-13-allergies` |
-| `fix/`             | correction de bug         | `fix/AURA-24-tri-agenda`   |
+| `feature/`         | nouvelle user story       | `feature/allergies`         |
+| `fix/`             | correction de bug         | `fix/tri-agenda`           |
 | `docs/`            | documentation, diagrammes | `docs/diagramme-sequence`  |
 | `chore/`           | outillage, scripts        | `chore/script-deploiement` |
 | `ci/`              | workflow de CI            | `ci/tests-integration`     |
@@ -458,29 +458,29 @@ courant (`database/demo-today.sql`, voir l'installation) : les dates ci-dessous 
    principe actif est un allergène du patient (amoxicilline pour Simpson) déclenche une alerte et n'est accepté
    qu'avec « Je prescris malgré l'allergie » ; catégorie « Protocoles » ; validation par un médecin réanimateur ;
    « Arrêter » une ligne depuis le dossier annule ses soins encore prévus.
-8. **Agenda du patient et action sur un soin (AURA-24, 26, 28)** : `/agenda-patient?id=1&date=2026-10-14` → les
+8. **Agenda du patient et action sur un soin** : `/agenda-patient?id=1&date=2026-10-14` → les
    soins passés non validés sont « En retard » et épinglés en tête. « Valider » (soin en retard, ou prévu avant
    la fin de la rotation en cours) → « Réalisé » ou « Non effectué » (motif obligatoire), un soignant et un mot de
    passe quelconque → statut, « par … » et heure de réalisation. Valider deux fois le même soin est refusé ; un
    soin d'une rotation à venir aussi. « Note » sur tout soin, modifiable par son auteur seulement. Hypothèse
    « catégorie habilitée » : un(e) aide-soignant(e) valide un soin, pas un médicament. « Semaine » affiche
    lundi → dimanche, un clic sur un jour y revient.
-9. **Agenda du service (AURA-29, AURA-32)** : onglet « Agenda service ». « Lits » : un patient par ligne, du plus
+9. **Agenda du service** : onglet « Agenda service ». « Lits » : un patient par ligne, du plus
    urgent au moins urgent (retards, soins à faire dans la rotation, prochain soin) ; cliquer un patient
    (`?sejour=`) ouvre à côté le panneau de ce lit : allergies, référent, soins de la rotation avec « Valider » et
    « Note ». Les allergies ne sont que dans ce panneau. « Liste de travail » (`?vue=liste`) : les soins de tout le
    service en retard, maintenant (deux heures), plus tard (replié), réalisés (replié).
-10. **Équipes et « Mon planning » (AURA-30, AURA-31)** : onglet « Équipes », 14/10/2026, rotation du matin (ou
+10. **Équipes et « Mon planning »** : onglet « Équipes », 14/10/2026, rotation du matin (ou
     après-midi, ou nuit) → équipes A à D de démo ; composer une équipe (un patient n'a qu'une équipe par
     rotation). « Mon planning », Thomas Girard → soins de Simpson et Skywalker pendant la rotation, avec les
     mêmes actions.
-11. **Suppression d'un patient (AURA-12.3)** : `/patients`, « Supprimer » sur la ligne de Peter Parker (séjour
+11. **Suppression d'un patient** : `/patients`, « Supprimer » sur la ligne de Peter Parker (séjour
     clos, aucun soin réalisé) → page de confirmation avec son identité → « Confirmer la suppression » → retour à
     la liste, message « Patient supprimé », Parker n'apparaît plus ni dans la liste, ni dans la recherche de
     l'admission, ni par son IPP `100000004` (qui reste réservé). « Supprimer » sur Marge Simpson (séjour en cours)
     affiche le motif du refus, sans bouton de confirmation ; un patient dont un soin a été réalisé est refusé de
     la même façon. Aussi accessible depuis `/patients/modifier?id=`.
-12. **Génération de l'agenda (AURA-24.2 / 24.3)** : `php bin/generate-agenda.php` deux fois de suite → la seconde
+12. **Génération de l'agenda** : `php bin/generate-agenda.php` deux fois de suite → la seconde
     exécution affiche « 0 soin créé » ; l'agenda des séjours en cours est rempli jusqu'à J + 7.
 13. **Accessibilité** : parcourir le formulaire d'admission et le dossier au clavier seul (Tab, Entrée, Échap,
     flèches dans la liste de suggestions) ; `?theme=light` ou `?theme=dark` pour forcer le thème.
@@ -505,13 +505,13 @@ courant (`database/demo-today.sql`, voir l'installation) : les dates ci-dessous 
 
 ## Règles de l'équipe
 
-1. **Jamais de push direct sur `main`** : une branche par ticket, fusion par pull request.
+1. **Jamais de push direct sur `main`** : une branche par fonctionnalité, fusion par pull request.
 2. **CI vert et relecture** par un autre membre avant toute fusion.
 3. **Aucun identifiant ni mot de passe dans le dépôt**
 4. **On ne modifie pas le code directement sur la VM** : on passe par GitHub puis `deploy.sh`.
 5. La structure de la base ne change que par `database/schema.sql`, géré par le responsable BDD.
-6. **Convention de nommage (AURA-02, révisée le 2026-11-03)** : les tables et colonnes SQL de `database/schema.sql` sont en **camelCase anglais** (`Patient.lastName`, `EpisodeOfCare.admissionDate`), comme le diagramme de classes HL7 du dossier. **Tout le code** (classes, méthodes, variables, clés, noms de tests, fichiers) est aussi en **anglais** (`Patient::getLastName()`, `EpisodeOfCare::getAdmissionDate()`) ; seuls l'affichage (textes, URL) et les commentaires restent en **français**. Aucune colonne SQL ne doit apparaître hors de `src/Dao/`.
-7. **Numéro de séjour (AURA-10.3)** : format `AAAA-NNNNNN`, soit l'année de la date d'admission, un tiret et un compteur sur 6 chiffres qui repart à `000001` chaque année (ex. `2026-000108`). Il est généré uniquement par `EpisodeOfCareDao::insert()`, jamais saisi ni fourni par un formulaire (RG1). La colonne `EpisodeOfCare.episodeNumber` est `NOT NULL UNIQUE` : la base refuse tout doublon. Les jeux de données (`database/test.sql`) doivent suivre ce format.
+6. **Convention de nommage (révisée le 2026-11-03)** : les tables et colonnes SQL de `database/schema.sql` sont en **camelCase anglais** (`Patient.lastName`, `EpisodeOfCare.admissionDate`), comme le diagramme de classes HL7 du dossier. **Tout le code** (classes, méthodes, variables, clés, noms de tests, fichiers) est aussi en **anglais** (`Patient::getLastName()`, `EpisodeOfCare::getAdmissionDate()`) ; seuls l'affichage (textes, URL) et les commentaires restent en **français**. Aucune colonne SQL ne doit apparaître hors de `src/Dao/`.
+7. **Numéro de séjour** : format `AAAA-NNNNNN`, soit l'année de la date d'admission, un tiret et un compteur sur 6 chiffres qui repart à `000001` chaque année (ex. `2026-000108`). Il est généré uniquement par `EpisodeOfCareDao::insert()`, jamais saisi ni fourni par un formulaire (RG1). La colonne `EpisodeOfCare.episodeNumber` est `NOT NULL UNIQUE` : la base refuse tout doublon. Les jeux de données (`database/test.sql`) doivent suivre ce format.
 
 ---
 
@@ -521,11 +521,11 @@ courant (`database/demo-today.sql`, voir l'installation) : les dates ci-dessous 
   en anglais HL7** (`EpisodeOfCare`, `PatientRecordService`, `CarePlan`), décision du 2026-11-03 qui remplace
   celle du 2026-10-21 (classes historiques en français). Commentaires, messages
   utilisateur, URL, commits et PR en français.
-- **Branches** : une par ticket, depuis `main` à jour : `feature/AURA-NN-slug`, `fix/…`, `docs/…`, `chore/…`, `ci/…`.
+- **Branches** : une par fonctionnalité, depuis `main` à jour : `feature/nom-court`, `fix/…`, `docs/…`, `chore/…`, `ci/…`.
   Pour des changements dépendants, PR empilées (`gh pr create --base <branche précédente>`), fusionnées dans l'ordre.
 - **Commits** : Conventional Commits en français, impératif court : `feat(admission): …`, `fix(cs): …`,
   `test(sejour): …`, `docs: …`, `style(ui): …`. Pas de trailer d'attribution automatique.
-- **Pull request** : titre = ticket + résumé ; corps avec Objectif, Changements, Comment tester, Hypothèses et
+- **Pull request** : titre = fonctionnalité + résumé ; corps avec Objectif, Changements, Comment tester, Hypothèses et
   décisions prises seul, Points à vérifier par le relecteur, Non fait / dette laissée. CI vert et relecture par un
   autre membre avant fusion ; tout POST ajouté sans CSRF est signalé.
 - **Suppression** : logique (`removedAt DATETIME NULL`, filtrée par les DAO ; les clés étrangères, sans `ON DELETE`,
@@ -536,4 +536,4 @@ courant (`database/demo-today.sql`, voir l'installation) : les dates ci-dessous 
   existantes, un fichier additif dans `database/migrations/` (jamais de `DROP`, rejouable).
 - **IHM** : `style.css` unique, bloc ajouté en fin de fichier sous `/* ===== AURA-NN : … ===== */` ; composants de
   `src/View/components/` réutilisés avant tout HTML à la main ; tout échappé par `View::e()` ; voir `docs/UI-GUIDE.md`.
-- **Tests** : un ticket sans test de sa règle métier n'est pas terminé ; voir `docs/TESTS.md`.
+- **Tests** : une fonctionnalité sans test de sa règle métier n'est pas terminée ; voir `docs/TESTS.md`.

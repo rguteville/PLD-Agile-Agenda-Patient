@@ -8,7 +8,7 @@ use DateTimeImmutable;
 
 /**
  * Allergie connue d'un patient (ressource HL7 AllergyIntolerance, table AllergyIntolerance),
- * choisie dans le référentiel des allergènes (RG2, AURA-13). Liée au patient et non au séjour.
+ * choisie dans le référentiel des allergènes (RG2). Liée au patient et non au séjour.
  * L'id (colonne idAllergy) est null tant que l'allergie n'est pas enregistrée
  * (AllergyIntoleranceDao::insert() le calcule). Retirer une allergie efface la ligne (pas de removedAt).
  *
@@ -17,7 +17,7 @@ use DateTimeImmutable;
 class AllergyIntolerance
 {
     /**
-     * Criticités acceptées (AURA-13.2) : liste fermée côté PHP, valeurs stockées telles
+     * Criticités acceptées : liste fermée côté PHP, valeurs stockées telles
      * quelles (comme database/test.sql). La criticité est facultative (null = non évaluée).
      */
     public const CRITICALITIES = ['Faible', 'Élevée'];

@@ -76,7 +76,7 @@ final class AdmissionIntegrationTest extends TestCase
         // un second POST, pas un rafraîchissement ; la redirection POST → GET couvre ce cas.
     }
 
-    /** AURA-10.3 : deux admissions successives produisent deux numéros de séjour différents. */
+    /** Deux admissions successives produisent deux numéros de séjour différents. */
     public function testEachStayGetsItsOwnNumber(): void
     {
         $service = new AdmissionService(
@@ -120,7 +120,7 @@ final class AdmissionIntegrationTest extends TestCase
     }
 
     /**
-     * AURA-15 : réadmettre un patient déjà connu par son IPP ouvre un nouveau séjour sans
+     * Réadmettre un patient déjà connu par son IPP ouvre un nouveau séjour sans
      * recréer le patient : la table Patient garde une seule ligne pour cet IPP.
      */
     public function testPatientKnownByIppIsReusedOnReadmission(): void

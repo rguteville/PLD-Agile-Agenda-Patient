@@ -18,12 +18,12 @@ final class AuditEvent
 {
     public const ENTITY_PATIENT = 'Patient';
     public const ENTITY_EPISODE = 'EpisodeOfCare';
-    /** Soin planifié (AURA-26) : id VARCHAR (« SOI01 » dans la démo), d'où un entityId entier ou texte. */
+    /** Soin planifié : id VARCHAR (« SOI01 » dans la démo), d'où un entityId entier ou texte. */
     public const ENTITY_APPOINTMENT = 'Appointment';
     /** Ordonnance : prescription confirmée malgré une allergie du patient (RG2). */
     public const ENTITY_CARE_PLAN = 'CarePlan';
 
-    /** Auteur enregistré tant qu'il n'y a pas d'identification du praticien (AURA-50). */
+    /** Auteur enregistré tant qu'il n'y a pas d'identification du praticien. */
     public const AUTHOR_UNKNOWN = 'non identifié';
 
     public function __construct(
@@ -74,7 +74,7 @@ final class AuditEvent
         return $this->newValue;
     }
 
-    /** Nom (et rôle) de l'auteur, ou AUTHOR_UNKNOWN sans identification (AURA-50). */
+    /** Nom (et rôle) de l'auteur, ou AUTHOR_UNKNOWN sans identification. */
     public function getAuthor(): string
     {
         return $this->author;

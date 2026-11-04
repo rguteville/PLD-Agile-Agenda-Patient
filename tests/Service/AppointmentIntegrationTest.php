@@ -14,7 +14,7 @@ use PDO;
 use PHPUnit\Framework\TestCase;
 
 /**
- * AURA-26 / AURA-28 sur base réelle (données de démo, transaction annulée en tearDown) : un soin
+ * Validation et note d'un soin sur base réelle (données de démo, transaction annulée en tearDown) : un soin
  * validé passe REALISE avec son heure, l'auteur est tracé, et une seconde validation est refusée.
  */
 final class AppointmentIntegrationTest extends TestCase

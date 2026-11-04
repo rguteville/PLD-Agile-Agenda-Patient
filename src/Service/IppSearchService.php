@@ -10,11 +10,11 @@ use Aura\Domain\AllergyIntolerance;
 use Aura\Domain\Patient;
 
 /**
- * Recherche d'un patient déjà connu du service par son IPP (AURA-15).
+ * Recherche d'un patient déjà connu du service par son IPP.
  *
  * L'IPP est unique et conservé toute la vie du patient : à une nouvelle admission, on
  * retrouve son identité et ses allergies connues au lieu de les ressaisir. La recherche
- * se fait dans la base d'AURA uniquement ; l'appel à OpenEMR (AURA-38) est hors périmètre.
+ * se fait dans la base d'AURA uniquement ; l'appel à OpenEMR est hors périmètre.
  */
 class IppSearchService
 {

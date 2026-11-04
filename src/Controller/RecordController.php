@@ -16,7 +16,7 @@ use LogicException;
  *  - POST /sejour/cloturer (endStay()) : fin du séjour ;
  *  - POST /sejour/deces (declareDeath()) : décès, qui termine aussi le séjour.
  * Les trois dernières passent par la fenêtre de validation par un médecin (public/js/part-edit.js),
- * authentification FACTICE en attendant l'authentification des praticiens (AURA-50).
+ * authentification FACTICE en attendant l'authentification des praticiens.
  *
  * Champ par champ : corps JSON {entity, id, episodeOfCare, field, value, oldValue} ou formulaire classique
  * avec les mêmes noms. `episodeOfCare` est le séjour affiché : un patient n'est modifiable que depuis le

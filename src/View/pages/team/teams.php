@@ -5,7 +5,7 @@ use Aura\Domain\CareTeam;
 use Aura\Service\CareTeamService;
 
 /**
- * Équipes d'une rotation (AURA-30) : équipes composées (soignants, patients), patients encore sans
+ * Équipes d'une rotation : équipes composées (soignants, patients), patients encore sans
  * équipe, et formulaire de composition d'une équipe. Contrôles côté serveur (CareTeamService).
  * Rendue par TeamController::teams() (GET /equipes?idHealthcareService=…&date=…&rotation=…) et, en 422
  * après un refus, par TeamController::create() (POST /equipes/creer). Scripts : confirm.js (retrait

@@ -18,9 +18,9 @@ use DateTimeImmutable;
 use InvalidArgumentException;
 
 /**
- * Prescriptions d'un séjour (Epic 4) : liste (tableau des prescriptions, figure 10 du cahier
+ * Prescriptions d'un séjour : liste (tableau des prescriptions, figure 10 du cahier
  * des charges), saisie d'une ordonnance (écran B3 « Nouvelles prescriptions », figures 7 à 9),
- * validation par un médecin (RG5, AURA-23) et arrêt d'une ligne (AURA-22).
+ * validation par un médecin (RG5) et arrêt d'une ligne.
  *
  * Une ordonnance (CarePlan) est saisie en une fois avec toutes ses lignes : chaque « OK » de
  * l'écran B3 ajoute une ligne, « Enregistrer l'ordonnance » envoie le tout.
@@ -639,7 +639,7 @@ final class CarePlanService
     /**
      * Authentification FACTICE du médecin qui valide, pure : il doit être dans la liste des médecins
      * habilités (canValidate) et avoir saisi un mot de passe non vide, qui n'est PAS vérifié (en
-     * attendant l'identification des praticiens, AURA-50). Même règle que la fenêtre du dossier.
+     * attendant l'identification des praticiens). Même règle que la fenêtre du dossier.
      *
      * @param array<string, string> $doctors médecins habilités : idPractitioner => libellé (doctors())
      * @return string|null AUTH_ERROR si refusée, null si acceptée
@@ -650,7 +650,7 @@ final class CarePlanService
     }
 
     /**
-     * RG5 / AURA-23 : un médecin valide une ordonnance « non validée » de ce séjour.
+     * RG5 / un médecin valide une ordonnance « non validée » de ce séjour.
      * La validation porte sur toute l'ordonnance ; qui et quand sont enregistrés (RG10).
      * Le médecin s'authentifie (FACTICE : mot de passe non vide, non vérifié), comme dans le dossier.
      *
@@ -689,7 +689,7 @@ final class CarePlanService
     }
 
     /**
-     * AURA-22 : un médecin arrête une ligne (soin ou médicament) d'une ordonnance de ce séjour.
+     * Un médecin arrête une ligne (soin ou médicament) d'une ordonnance de ce séjour.
      * La ligne quitte alors « Prescriptions en cours » du dossier ; qui et quand sont enregistrés (RG10).
      * Ses soins encore planifiés à une heure future passent à ANNULE (CarePlanDao::markStopped()).
      * Même authentification factice que la validation.

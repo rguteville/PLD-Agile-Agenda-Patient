@@ -80,7 +80,7 @@ Classes utilitaires : `.button` (+ `.button--secondary`, `.button--danger`), `.p
 | `cancelled` | Annulé | `circle-x` | gris | `ANNULE` |
 | `to_validate` | À valider par un médecin | `pen-line` | violet | `CarePlan` sans `idValidator` (RG5) |
 | `validated` | Validée | `shield-check` | vert | `CarePlan` validée |
-| `stopped` | Arrêtée | `ban` | gris | ligne arrêtée (AURA-22) |
+| `stopped` | Arrêtée | `ban` | gris | ligne arrêtée |
 
 Une valeur inconnue en base s'affiche telle quelle, en neutre, avec l'icône `circle-alert` : on ne cache rien.
 
@@ -133,11 +133,11 @@ impression de l'agenda.
 
 ## Hors périmètre (volontairement)
 
-Mis à jour le 2026-11-04. La validation d'un soin (`POST /agenda-patient/soin`, AURA-26, AURA-28) et la vue
-consolidée du service (`GET /agenda-service`, AURA-29) existent désormais ; ils étaient hors périmètre lors de la
+Mis à jour le 2026-11-04. La validation d'un soin (`POST /agenda-patient/soin`) et la vue
+consolidée du service (`GET /agenda-service`) existent désormais ; ils étaient hors périmètre lors de la
 refonte du 2026-11-01.
 
-- **Authentification du praticien** (AURA-50 ; praticiens et rôles : AURA-18) : toute « validation » reste auto-déclarée par une liste déroulante
+- **Authentification du praticien**  : toute « validation » reste auto-déclarée par une liste déroulante
   et un mot de passe non vérifié (authentification factice).
 - **Nettoyage du CSS historique** : les anciennes règles restent et sont surchargées par le bloc AURA-UI pour
   limiter les conflits de fusion ; à nettoyer quand les branches ouvertes seront fusionnées.

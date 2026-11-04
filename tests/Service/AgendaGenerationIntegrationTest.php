@@ -17,7 +17,7 @@ use PDO;
 use PHPUnit\Framework\TestCase;
 
 /**
- * AURA-24.2 et 24.3 : la génération quotidienne de l'agenda est idempotente. Données de
+ * La génération quotidienne de l'agenda est idempotente. Données de
  * database/test.sql au 14/10/2026 : séjours en cours 1, 2, 3, 6 et 8, lignes actives (dont le
  * paracétamol du séjour 1, qui a déjà des soins planifiés le 14 à 18 h et le 15 à 0 h), une ligne
  * arrêtée (midazolam, ligne de médicament 4) et des séjours clos.
