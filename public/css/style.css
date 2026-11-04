@@ -846,7 +846,7 @@ body, html {
 /* ===== AURA-UI : système de design (jetons, thème sombre, composants, impression) =====
    Définit les jetons de design (:root) puis surcharge les règles historiques ci-dessus pour qu'elles
    lisent ces jetons. Les blocs suivants (AURA-POLISH, puis un bloc par fonctionnalité) surchargent à leur tour
-   celui-ci. Documentation : docs/ui.md. */
+   celui-ci. Documentation : docs/UI-GUIDE.md. */
 
 /* ---------- 1. Jetons de design ---------- */
 :root {

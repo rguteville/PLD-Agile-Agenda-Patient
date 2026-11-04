@@ -4,12 +4,27 @@ Format : une entrée par pull request, de la plus récente à la plus ancienne.
 
 ## 2026-11-04
 
-### Nettoyage pour la reprise (`chore/nettoyage-code`)
+### Documentation de reprise vérifiée (`docs/glossaires-coherence`)
+
+- Documents d'audit (`docs/audit/`) et document de soutenance supprimés ; `docs/ui.md` fusionné dans
+  `docs/UI-GUIDE.md`, seul document sur l'interface.
+- Un glossaire à la fin de chaque document (acronymes, termes techniques et métier).
+- Documentation relue contre le code de `main` : CSRF présent sur l'admission et la modification de l'identité,
+  édition en ligne soumise à l'authentification factice d'un médecin, colonne « Responsable » retirée de la
+  description de l'agenda du patient, liens internes réparés, routes alignées entre README, ARCHITECTURE et REPRISE.
+
+### Sans références aux tickets (`chore/sans-tickets`, PR #59)
+
+- Références aux tickets retirées du code et de la documentation de reprise.
+
+### Nettoyage pour la reprise (`chore/livraison-finale`, PR #58)
 
 - Code sans usage réel supprimé : `PatientService` (jamais câblé), méthodes sans appelant, clés de vue-modèle de
   l'ancienne grille de l'agenda du service (`slots`, `cells`, `lateItems`…), filtre par type de soin d'`agenda.js`,
   paramètres de vue jamais passés, règles CSS des anciennes vues. Aucun changement de comportement :
   pages comparées à `main` par capture.
+- Suite de tests réduite aux tests essentiels (`test/suite-essentielle`) : de 902 à 244 tests, chacun lié à une
+  règle de gestion, à la sécurité du patient ou à un défaut réel ; `docs/TESTS.md` réécrit.
 - Commentaires : historique retiré (la règle reste), commentaires faux corrigés, en-têtes complétés.
 - Nouveau document [docs/REPRISE.md](docs/REPRISE.md) : lancer, architecture, admission de bout en bout,
   fonctionnalités, RG1 à RG10, conventions, hypothèses, dette, ajouter une page ou une règle.
@@ -66,13 +81,13 @@ Format : une entrée par pull request, de la plus récente à la plus ancienne.
 - Documentation relue et complétée : docblocks de `src/` (classes, méthodes, exceptions, vues avec leurs `@var`,
   en-têtes des scripts `public/js/` avec l'endpoint appelé), README (toutes les routes, scénario de démo à jour,
   tests, CI), `docs/ARCHITECTURE.md` (routes complètes, diagramme ER régénéré avec les équipes, décisions),
-  `docs/TESTS.md` (création de la base de test), `docs/ui.md` et `docs/UI-GUIDE.md` (agenda du service,
-  validation d'un soin, composants récents). Aucun changement de code.
+  `docs/TESTS.md` (création de la base de test), `docs/ui.md` (depuis fusionné dans `docs/UI-GUIDE.md`) et
+  `docs/UI-GUIDE.md` (agenda du service, validation d'un soin, composants récents). Aucun changement de code.
 
 ### Retours des médecins du 2026-11-04 et audit IHM (`feat/retours-2026-11-04`, PR #54)
 
 - Validation anticipée jusqu'à la fin de la rotation en cours, décès déclarable, filtres derrière un bouton,
-  groupe sanguin verrouillé, écrans plus sobres (docs/audit/2026-11-04-audit-ihm.md), données de démo enrichies.
+  groupe sanguin verrouillé, écrans plus sobres (suite à l'audit IHM), données de démo enrichies.
 
 ## 2026-11-03
 
@@ -81,7 +96,7 @@ Format : une entrée par pull request, de la plus récente à la plus ancienne.
   (bout en bout : serveur `php -S`, pages, parcours qui écrivent, CSRF, refus). La suite `http` remplace le
   smoke shell local, que le CI GitHub ne lançait pas. `composer test:fast`, `test:http`, `test:coverage`.
 - Nouveaux tests : DAO manquants (Appointment, ReferenceData, Medication, ActivityDefinition), `Csrf`, `View`,
-  `Transaction`, contraintes du schéma (cas repris de `database/test_contraintes.sql`, Didac Espin).
+  `Transaction`, contraintes du schéma (cas repris du fichier `test_contraintes.sql` de Didac Espin, absent de `main`).
 - CI GitHub : couverture pcov (résumé dans le journal, rapport HTML en artefact).
 - `docs/TESTS.md` : matrice des règles de gestion RG1–RG10 vers leurs tests.
 - Défauts trouvés et corrigés : `View::render()` laissait un tampon ouvert sur un gabarit en échec ; les CHECK
@@ -192,3 +207,99 @@ Format : une entrée par pull request, de la plus récente à la plus ancienne.
 Voir l'historique Git et les pull requests #1 à #41 (admission AURA-10, liste et modification des patients AURA-12,
 allergies AURA-13, dossier de séjour AURA-14, recherche par IPP AURA-15, prescriptions Epic 4, agenda AURA-24,
 refonte IHM AURA-UI).
+
+## Glossaire
+
+Les acronymes et les termes techniques ou métier employés dans ce document.
+
+| Terme | Signification |
+| --- | --- |
+| Agenda du patient | Écran des soins planifiés d'un séjour, pour un jour (par tranches de rotation, retards en tête) ou une semaine. |
+| Agenda du service | Écran de tous les patients du service : onglet « Lits » (un patient par ligne, du plus urgent au moins urgent) et onglet « Liste de travail ». |
+| Allergène | Substance à laquelle un patient est allergique. Dans AURA, les allergènes sont choisis dans un référentiel (table `Substance`). |
+| Apache | Serveur web utilisé sur la VM de démonstration (pile LAMP). Il sert le dossier `public/` et envoie toute adresse sans fichier vers `index.php`. |
+| Artefact | Fichier produit par une exécution du CI et téléchargeable depuis GitHub, ici le rapport de couverture HTML. |
+| ASA | Classification de l'état de santé d'un patient avant une anesthésie, de I (bonne santé) à VI, publiée par l'American Society of Anesthesiologists. Valeurs et source dans `ClinicalScales`. |
+| Authentification factice | Fenêtre qui demande de choisir un praticien dans une liste et de saisir un mot de passe, mais qui ne vérifie pas ce mot de passe. Elle remplace provisoirement une vraie authentification ; le nom choisi est enregistré dans la trace. |
+| B3 (écran B3) | Numéro, dans le cahier des charges, de l'écran de saisie des prescriptions (`/care-plans/new`). |
+| Bandeau patient | Zone fixée en haut de chaque écran de séjour : identité du patient, séjour, poids, taille et allergies (règle RG2). |
+| Branche | Ligne de développement séparée dans Git. On crée une branche par fonctionnalité ou correction, puis on la fusionne dans `main` par une pull request. |
+| CHECK | Contrainte SQL qui refuse une valeur hors d'une liste ou d'un intervalle (par exemple une rotation autre que MATIN, APRES_MIDI ou NUIT). |
+| CI | Intégration continue : vérifications lancées automatiquement par GitHub Actions à chaque push sur `main` et à chaque pull request (syntaxe, style, schéma, tests). Fichier `.github/workflows/ci.yml`. |
+| Combobox | Champ de saisie accompagné d'une liste de suggestions qu'on parcourt au clavier (recherche d'un patient à l'admission). |
+| Concurrence optimiste | Protection contre deux modifications simultanées : le navigateur renvoie l'ancienne valeur, et le serveur refuse l'écriture (conflit) si la valeur en base a changé entre-temps. |
+| Criticité | Gravité estimée d'une allergie : « Élevée » ou « Faible », ou non évaluée. Elle règle la couleur de l'allergie dans le bandeau. |
+| cron | Planificateur de tâches de Linux. Sur la VM, il lance chaque jour `bin/generate-agenda.php` (ligne ajoutée par `crontab -e`). |
+| CSRF | Cross-Site Request Forgery : attaque qui fait envoyer une requête par le navigateur d'un utilisateur à son insu. Parade : un jeton de session secret, exigé sur chaque POST (`Csrf::check()`). |
+| CSS | Langage de mise en forme des pages web. AURA a un seul fichier : `public/css/style.css`. |
+| DAO | Data Access Object : classe de `src/Dao/` qui lit et écrit une table. C'est le seul endroit où apparaissent les noms de colonnes SQL. |
+| datetime-local | Type de champ HTML qui saisit une date et une heure ensemble. Remplacé par deux champs séparés (jour, heure). |
+| DCI | Dénomination commune internationale : nom générique du principe actif d'un médicament (paracétamol plutôt qu'un nom de marque). Colonne `Medication.inn`. |
+| Déclaration du décès | Action réservée à un médecin (authentification factice) : le patient est marqué décédé, le séjour en cours se termine à l'heure du décès et ses soins encore prévus sont annulés (`POST /sejour/deces`). |
+| Diagramme entité-association (ER) | Schéma des tables, de leurs colonnes et des clés qui les relient. |
+| Directives anticipées | Volontés écrites d'un patient sur sa fin de vie, à respecter s'il ne peut plus s'exprimer. |
+| DMP | Dossier médical partagé : dossier de santé national d'un patient en France. AURA ne stocke que son identifiant, saisi à la main. |
+| Édition en ligne | Modification d'un seul champ du dossier directement dans la page (crayon, puis « Confirmer »). Elle passe par l'authentification factice d'un médecin et est tracée. |
+| Epic | Grand ensemble de fonctionnalités du backlog, découpé en tickets (ici l'Epic 4 : les prescriptions). |
+| Équipe de rotation | Groupe de soignants composé pour une rotation donnée, avec les patients dont il a la charge. Un patient n'appartient qu'à une équipe par rotation. |
+| Fil d'Ariane | Ligne de liens qui montre où se trouve la page (Patients › Dossier › Agenda) et permet de remonter. |
+| Forme galénique | Forme sous laquelle un médicament est présenté (comprimé, solution injectable…). Colonne `Medication.form`. |
+| Fuseau horaire | Zone d'heure légale. AURA fixe Europe/Paris, quel que soit le réglage de PHP. |
+| Fusion (merge) | Intégration des changements d'une branche dans une autre, ici d'une branche de fonctionnalité dans `main`, par une pull request. |
+| GIR | Groupe iso-ressources de la grille AGGIR : niveau de dépendance d'une personne, de GIR 1 (dépendance la plus forte) à GIR 6 (autonome). |
+| Homonyme | Patient qui porte le même nom et le même prénom qu'un autre. Signalé dans la recherche de l'admission pour éviter une confusion. |
+| HTML | Langage des pages web. Les vues PHP de `src/View/` produisent du HTML. |
+| IHM | Interface homme-machine : les écrans de l'application. |
+| IMC | Indice de masse corporelle : poids (kg) divisé par le carré de la taille (m). Calculé par AURA à partir des mesures d'admission. |
+| INS | Identité nationale de santé : identifiant national d'un patient en France. AURA stocke le « matricule INS » saisi, sans le vérifier. |
+| INTERMACS | Classification de l'insuffisance cardiaque avancée en sept profils, du profil 1 (choc cardiogénique critique) au profil 7. |
+| IPP | Identifiant permanent du patient dans l'établissement. Dans AURA : 6 à 9 chiffres, facultatif à la saisie (patient admis en urgence), attribué automatiquement s'il manque ; celui d'un patient supprimé reste réservé. |
+| Jeton CSRF | Valeur secrète liée à la session du navigateur, envoyée avec chaque POST (champ `csrf` ou en-tête `X-CSRF-Token`). Sans jeton valide, le serveur refuse l'écriture (403). |
+| JJ/MM/AAAA | Format de saisie des dates (jour, mois, année), converti par le serveur (`DateInput`). |
+| Knaus | Échelle de l'état de santé antérieur d'un patient admis en réanimation (activité et suivi médical des six mois précédents), classes A à D. |
+| LAMP | Linux, Apache, MariaDB (ou MySQL), PHP : pile logicielle de la VM de démonstration. |
+| Ligne arrêtée | Ligne de prescription stoppée par un médecin (`stoppedAt`) : ses soins encore prévus sont annulés, rien n'est effacé. |
+| Liste blanche | Liste fermée des champs autorisés. Un champ qui n'y figure pas est refusé, quel que soit ce qu'envoie le navigateur. |
+| Liste de travail | Onglet de l'agenda du service : les soins de tout le service regroupés par urgence (en retard, doses de lignes arrêtées à tracer, maintenant, plus tard, réalisés). |
+| Mac Cabe | Échelle du pronostic de la maladie sous-jacente d'un patient de réanimation : 0 (pas de maladie mortelle), 1 (mortelle à 5 ans), 2 (mortelle à 1 an). |
+| Médecin référent | Médecin désigné responsable du patient pendant son séjour, choisi à l'admission. |
+| Migration | Script SQL de `database/migrations/` qui ajoute à une base existante ce qu'un changement de `schema.sql` a introduit (colonnes, index, contraintes), sans effacer les données. |
+| Mon planning | Écran d'un soignant : les soins des patients de ses équipes pendant une rotation, avec les mêmes actions que l'agenda. |
+| NYHA | Classification de la New York Heart Association : gêne causée par une insuffisance cardiaque, de la classe I (aucune limitation) à IV (symptômes au repos). |
+| OFL (SIL Open Font License) | Licence libre de la police Source Sans 3, qui permet de la copier dans le dépôt. |
+| Ordonnance | Ensemble de lignes de prescription enregistrées ensemble pour un séjour (table `CarePlan`). Elle est validée en bloc par un médecin. |
+| Panneau du lit | Zone à côté du tableau des lits de l'agenda du service, qui détaille le patient choisi (`?sejour=`) : allergies, référent, soins de la rotation avec leurs actions. |
+| pcov | Extension PHP qui mesure la couverture de code pendant les tests (`composer test:coverage`). |
+| Personne de confiance | Proche désigné par le patient pour l'accompagner et être consulté s'il ne peut plus s'exprimer. |
+| PHPDoc, docblock | Commentaire structuré placé au-dessus d'une classe ou d'une méthode (`/** … */`), qui décrit son rôle, ses paramètres et ses exceptions. |
+| PHPUnit | Outil de tests automatiques pour PHP (version 10). Configuration dans `phpunit.xml.dist`. |
+| Poids théorique | Poids prédit à partir du sexe et de la taille (formule du protocole ARDSNet). Il sert à régler le volume courant d'un patient ventilé. |
+| PR (pull request) | Demande de fusion d'une branche dans une autre sur GitHub. Elle est relue par un autre membre et doit avoir un CI vert avant d'être fusionnée. |
+| PR empilées | Suite de pull requests dont chacune part de la branche de la précédente. Fusionnée dans sa branche de base, une PR empilée n'arrive pas dans `main` sans fusion supplémentaire. |
+| Prescription | Décision d'un prescripteur de donner un médicament ou de faire un soin à un patient, avec une date de début, une fréquence éventuelle et une date de fin facultative. Chaque ligne de prescription génère des soins planifiés. |
+| Principe actif | Substance d'un médicament qui produit son effet. AURA relie chaque médicament à sa substance pour alerter si elle est un allergène du patient. |
+| Protocole | Modèle d'ordonnance (table `PlanDefinition`) : un groupe de lignes de prescription types, choisi pour pré-remplir une nouvelle ordonnance. |
+| Rattachement | Ouverture d'un séjour sur un patient déjà présent dans la base, choisi par l'utilisateur, au lieu de créer un nouveau patient. Il est tracé. |
+| Relecture adversariale | Relecture qui cherche activement à casser l'application (saisies malformées, accès directs, actions simultanées) pour en trouver les défauts. |
+| RG (RG1 à RG10) | Règle de gestion : règle métier numérotée du dossier de cadrage. Leur énoncé et le code qui les applique sont dans `docs/REPRISE.md`, leurs tests dans `docs/TESTS.md`. |
+| Rotation | Période de travail d'une équipe soignante. AURA en a trois par jour : matin de 6 h à 14 h, après-midi de 14 h à 22 h, nuit de 22 h à 6 h (`CareTeam::SHIFTS`, bornes à confirmer avec le service). Paramètre d'URL `rotation`. |
+| Schéma | Structure de la base (tables, colonnes, contraintes), entièrement décrite par `database/schema.sql`. |
+| Séjour | Passage d'un patient dans le service, de l'admission à la sortie ou au décès (table `EpisodeOfCare`). Un patient n'a qu'un séjour en cours à la fois ; chaque séjour a un numéro unique. |
+| Smoke test | Test rapide qui appelle les pages principales pour vérifier qu'elles répondent sans erreur. Le smoke test local en shell a été remplacé par la suite `http`. |
+| Soin en retard | Soin planifié non validé dont l'heure prévue est passée (règle RG8). Le retard est calculé à l'affichage, jamais enregistré, et ces soins sont épinglés en tête de l'agenda. |
+| Soin planifié | Occurrence datée d'une ligne de prescription : une administration ou un acte à faire à une heure donnée (table `Appointment`). Statuts : prévu, réalisé, non effectué, annulé. |
+| Suppression logique | La ligne n'est pas effacée : une date est écrite dans `removedAt` et les DAO l'ignorent ensuite. L'historique reste en base (traçabilité). |
+| Test de bout en bout | Test qui envoie de vraies requêtes HTTP à un serveur PHP lancé pour l'occasion, comme le ferait un navigateur, et vérifie les réponses (`tests/Http`). |
+| Ticket | Élément numéroté du backlog Notion. Les identifiants de tickets cités dans ce journal sont historiques : le code et la documentation de reprise ne s'y réfèrent plus. |
+| Traçabilité, trace | Enregistrement de qui a fait quoi et quand (table `AuditEvent` et colonnes d'horodatage), exigé par la règle RG10. |
+| Transaction | Groupe d'écritures en base qui réussissent toutes ou sont toutes annulées. Dans AURA : `Transaction::run()`. |
+| TypeError | Erreur PHP levée quand une fonction reçoit une valeur d'un type inattendu. |
+| UTF-8 | Codage des caractères (accents compris) utilisé partout. Une saisie qui n'est pas de l'UTF-8 valide est refusée (400). |
+| Vacation | Ancien nom des périodes de travail des équipes (deux de 12 h par jour), remplacées par les trois rotations de 8 h. L'ancien paramètre d'URL `vacation` est encore lu. |
+| Validation d'une ordonnance | Acceptation d'une ordonnance par un médecin habilité (rôle avec `canValidate`, règle RG5). Une ordonnance faite par un prescripteur sans ce droit (urgence, paramédicale) reste « non validée » jusque-là ; celle d'un médecin habilité est validée d'office. |
+| VARCHAR, INT, DATETIME, TEXT | Types de colonnes SQL : texte de longueur limitée, nombre entier, date et heure, texte long. |
+| Vendorisé | Copié dans le dépôt au lieu d'être chargé depuis internet (police, icônes). |
+| VM | Machine virtuelle : ordinateur simulé. La VM de démonstration (Debian, Apache, MariaDB, PHP) sert la branche `main`. |
+| Vt (volume courant) | Volume d'air insufflé à chaque cycle par le respirateur. AURA affiche une plage de 6 à 8 ml par kg de poids théorique, à titre indicatif. |
+| Vue-modèle | Tableau de données préparé par un service pour une vue (méthodes `present…()`), déjà trié et mis en forme, testable sans base. |
+| WCAG 2.2 AA | Règles internationales d'accessibilité des contenus web (W3C). Le niveau AA fixe notamment un contraste minimal et des cibles assez grandes. |
