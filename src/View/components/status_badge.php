@@ -5,7 +5,7 @@ use Aura\Core\View;
 /**
  * Badge de statut : icône + texte + couleur, jamais la couleur seule (personnel daltonien,
  * écrans de mauvaise qualité). Les clés sont celles renvoyées par les services (AgendaService,
- * CarePlanService) ; pour ajouter un statut, voir docs/ui.md. Inclus par les agendas, le dossier, les
+ * CarePlanService) ; pour ajouter un statut, voir docs/UI-GUIDE.md. Inclus par les agendas, le dossier, les
  * prescriptions et « Mon planning ».
  *
  * Usage : View::render('components/status_badge', ['status' => 'late'])

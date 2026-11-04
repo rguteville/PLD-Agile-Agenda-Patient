@@ -39,16 +39,16 @@ l'authentification des praticiens.
 | Méthode et chemin | Rôle |
 | --- | --- |
 | `GET /` | Formulaire d'admission (recherche d'un patient existant, identité, motif, service, médecin référent, allergies, sections repliables). Affichable sans base. |
-| `POST /patients/create` | Admission : validation, création ou rattachement du patient, ouverture du séjour, allergies, traces ; JSON ou HTML. Pas de CSRF. |
+| `POST /patients/create` | Admission : validation, création ou rattachement du patient, ouverture du séjour, allergies, traces ; JSON ou HTML, CSRF. |
 | `GET /patients?q=` | Liste des patients : séjour en cours, sinon dernier dossier, historique des séjours dépliable, décès signalé ; recherche facultative. |
-| `GET /patients/modifier?id=`, `POST /patients/modifier?id=` | Modification de l'identité d'un patient. Pas de CSRF. |
+| `GET /patients/modifier?id=`, `POST /patients/modifier?id=` | Modification de l'identité d'un patient (CSRF). |
 | `GET /patients/supprimer?id=`, `POST /patients/supprimer?id=` | Confirmation puis suppression logique d'un patient (CSRF) ; 409 si refusée (séjour en cours ou soin réalisé). |
 | `GET /patients/recherche-ipp?ipp=` | Identité d'un patient par IPP (JSON, conservé). |
 | `GET /patients/recherche?q=` | Recherche par IPP ou mots du nom / prénom (JSON, identité seulement, 20 max). |
 | `GET /patients/fiche?id=` | Fiche complète d'un patient pour pré-remplir l'admission (JSON, à la sélection d'un résultat). |
 | `GET /sejour?id=` | Dossier du séjour : bandeau, allergies, dossier complet éditable, prescriptions validées, séjours du patient, historique. |
 | `POST /sejour/allergies/ajouter`, `POST /sejour/allergies/retirer` | Allergies du patient depuis le dossier (CSRF). Le retrait est physique (dette connue). |
-| `POST /sejour/champ/modifier` | Modification d'un champ du dossier (JSON, CSRF, concurrence optimiste, trace AuditEvent). Groupe sanguin et décès refusés ici. |
+| `POST /sejour/champ/modifier` | Modification d'un champ du dossier (édition en ligne) : JSON, CSRF, auth. factice d'un médecin, concurrence optimiste, trace AuditEvent au nom du médecin. Le décès est refusé ici ; le groupe sanguin n'a pas de crayon dans le dossier (il passe par la partie). |
 | `POST /sejour/partie/modifier` | Modification d'une partie entière du dossier (identité, séjour, sections), JSON, CSRF, auth. factice d'un médecin, tout ou rien, tracée. Seule voie pour modifier le groupe sanguin. |
 | `POST /sejour/cloturer` | Fin du séjour (date et heure de sortie), JSON, CSRF, auth. factice d'un médecin, tracée. |
 | `POST /sejour/deces` | Déclaration du décès (date et heure) : le patient est marqué décédé, le séjour en cours se termine à cette heure et ses soins encore prévus sont annulés. JSON, CSRF, auth. factice d'un médecin, tracée. |
@@ -56,7 +56,7 @@ l'authentification des praticiens.
 | `GET /care-plans/new?idEpisodeOfCare=`, `POST /care-plans/create?idEpisodeOfCare=` | Nouvelle prescription (écran B3) ; l'enregistrement (CSRF, auth. factice du prescripteur) planifie aussi ses soins. |
 | `POST /care-plans/validate?idEpisodeOfCare=` | Validation d'une ordonnance par un médecin habilité (RG5, CSRF, auth. factice). |
 | `POST /care-plans/stop?idEpisodeOfCare=` | Arrêt d'une ligne par un médecin (CSRF, auth. factice) ; ses soins encore prévus sont annulés. |
-| `GET /care-plans/protocol-lines?idPlanDefinition=&startDate=` | Lignes d'un protocole datées à partir d'une date de début, pour pré-remplir l'ordonnance (JSON, #41). |
+| `GET /care-plans/protocol-lines?idPlanDefinition=&startDate=` | Lignes d'un protocole datées à partir d'une date de début, pour pré-remplir l'ordonnance (JSON). |
 | `GET /agenda-patient?id=` ou `?numSejour=`, `&date=`, `&vue=semaine` | Agenda du séjour, jour (retards épinglés, rotations) ou semaine (lundi à dimanche). |
 | `POST /agenda-patient/soin` | Action sur un soin : réalisé, non effectué (motif obligatoire) ou note. JSON ou formulaire, CSRF, auth. factice du soignant ; validation possible jusqu'à la fin de la rotation en cours, une seule fois. |
 | `GET /agenda-service?idHealthcareService=&date=&vue=&sejour=` | Agenda du service : « Lits » (`vue=lits`, par défaut ; `sejour=` choisit le patient du panneau de détail) ou « Liste de travail » (`vue=liste`). |
@@ -1041,12 +1041,14 @@ classDiagram
   `AllergyIntolerance` n'a pas de `removedAt` : le retrait d'une allergie est physique (dette tracée, décision du
   2026-10-21). Les lignes de prescription s'arrêtent (`stoppedAt`) et les soins s'annulent (`ANNULE`) : rien
   n'est supprimé.
-- **Pas d'authentification** (authentification des praticiens) : l'édition en ligne trace « non identifié ». La modification d'une
-  partie, la fin de séjour, le décès, l'enregistrement, la validation et l'arrêt d'une prescription, et les
-  actions sur un soin passent par une **authentification factice** (praticien choisi dans une liste + mot de
-  passe non vérifié) ; la trace porte le nom du praticien. Le groupe sanguin et le décès sont réservés au
-  médecin : jamais par l'édition en ligne ; à l'admission d'un patient connu, un groupe sanguin déjà renseigné
-  ne change pas. Jeton CSRF sur toutes les écritures sauf l'admission et la modification de l'identité.
+- **Pas d'authentification réelle des praticiens** : l'édition en ligne d'un champ, la modification d'une partie, la
+  fin de séjour, le décès, l'enregistrement (prescripteur médecin), la validation et l'arrêt d'une prescription, et
+  les actions sur un soin passent par une **authentification factice** (praticien choisi dans une liste + mot de passe
+  non vérifié) ; la trace porte le nom du praticien. L'admission trace « non identifié » ; la modification de
+  l'identité par `/patients/modifier` n'écrit aucune trace (les modifications faites depuis le dossier du séjour sont
+  tracées). Le groupe sanguin et le décès sont réservés au médecin : pas de crayon d'édition en ligne pour eux, le
+  décès est refusé par `POST /sejour/champ/modifier` ; à l'admission d'un patient connu, un groupe sanguin déjà
+  renseigné ne change pas. Jeton CSRF sur toutes les écritures (POST).
 - **Heure** : l'application fixe son fuseau à Europe/Paris (`public/index.php`), quel que soit `date.timezone`.
 - **Formulaires** : validation côté serveur d'abord (`AdmissionService::validate()`, `FieldValidationService`),
   l'HTML (`required`, `min`…) n'est qu'un confort ; envoi AJAX par `form.js` avec repli sans JavaScript.
@@ -1055,3 +1057,109 @@ classDiagram
   (`DerivedMeasuresService`).
 - **Schéma** : toute modification se fait dans `schema.sql` (base recréée) ; les fichiers `migrations/` sont
   additifs et rejouables pour les bases existantes.
+
+## Glossaire
+
+Les acronymes et les termes techniques ou métier employés dans ce document.
+
+| Terme | Signification |
+| --- | --- |
+| AAAA-NNNNNN | Format du numéro de séjour : année d'admission sur quatre chiffres, un tiret, puis un compteur sur six chiffres qui repart à 000001 chaque année (exemple : 2026-000108). Généré par l'application, jamais saisi. |
+| Accesseur (getter) | Méthode qui renvoie une valeur d'un objet sans la modifier (`getLastName()`). |
+| Admission | Entrée d'un patient dans le service : création ou reprise du patient, ouverture d'un séjour, saisie des allergies. C'est la page d'accueil d'AURA (`/`). |
+| AJAX | Envoi d'une requête par JavaScript sans recharger la page. Ici `form.js` envoie le formulaire et reçoit une réponse JSON (erreurs ou adresse de redirection). |
+| Allergène | Substance à laquelle un patient est allergique. Dans AURA, les allergènes sont choisis dans un référentiel (table `Substance`). |
+| ALTER (SQL) | Instruction SQL qui modifie une table existante (ajout d'une colonne, d'un index, d'une contrainte). Les migrations n'en contiennent que des ajouts. |
+| ASA | Classification de l'état de santé d'un patient avant une anesthésie, de I (bonne santé) à VI, publiée par l'American Society of Anesthesiologists. Valeurs et source dans `ClinicalScales`. |
+| Authentification factice | Fenêtre qui demande de choisir un praticien dans une liste et de saisir un mot de passe, mais qui ne vérifie pas ce mot de passe. Elle remplace provisoirement une vraie authentification ; le nom choisi est enregistré dans la trace. |
+| AUTO_INCREMENT | Numérotation automatique d'une clé par la base. Seules `AuditEvent` et `CareTeam` l'utilisent ; les autres identifiants sont calculés par l'application (`MAX + 1` dans une transaction verrouillée). |
+| B3 (écran B3) | Numéro, dans le cahier des charges, de l'écran de saisie des prescriptions (`/care-plans/new`). |
+| Bandeau patient | Zone fixée en haut de chaque écran de séjour : identité du patient, séjour, poids, taille et allergies (règle RG2). |
+| BDD | Base de données. Le « responsable BDD » est le membre de l'équipe qui décide des changements de `database/schema.sql`. |
+| camelCase | Écriture des noms composés en collant les mots, le premier en minuscule et les suivants avec une majuscule (`lastName`, `admissionDate`). Utilisée pour les colonnes SQL et les variables. |
+| CDN | Content Delivery Network : serveur externe qui fournit des fichiers communs (polices, bibliothèques). AURA n'en utilise aucun : tout est dans le dépôt, car la VM n'a pas accès à internet. |
+| Clé étrangère (FK) | Colonne qui désigne une ligne d'une autre table (par exemple `EpisodeOfCare.idPatient`). La base refuse une valeur qui ne correspond à aucune ligne, et refuse d'effacer une ligne encore désignée. |
+| Clé primaire (PK) | Colonne (ou groupe de colonnes) qui identifie de façon unique chaque ligne d'une table. |
+| Clé unique (UK) | Contrainte qui interdit deux lignes avec la même valeur dans une colonne ou un groupe de colonnes (par exemple le numéro de séjour). |
+| Closure | Fonction anonyme PHP. Dans `public/index.php`, chaque route reçoit une closure qui construit le contrôleur et ses dépendances au moment où la route est appelée. |
+| Colonne générée (`activeKey`) | Colonne calculée par la base à partir d'une autre colonne. Ici `activeKey` vaut 1 tant que `removedAt` est vide et NULL sinon : une contrainte d'unicité qui l'inclut ne porte que sur les lignes actives. |
+| Concurrence optimiste | Protection contre deux modifications simultanées : le navigateur renvoie l'ancienne valeur, et le serveur refuse l'écriture (conflit) si la valeur en base a changé entre-temps. |
+| Contrainte d'unicité (UNIQUE) | Contrainte SQL qui interdit deux lignes avec la même valeur dans une colonne ou un groupe de colonnes. Exemple : `EpisodeOfCare.episodeNumber`, le numéro de séjour. |
+| Contrôleur | Classe de `src/Controller/` qui lit la requête, traduit les champs, appelle un service et répond en HTML ou en JSON. Elle ne contient pas de règle métier. |
+| cron | Planificateur de tâches de Linux. Sur la VM, il lance chaque jour `bin/generate-agenda.php` (ligne ajoutée par `crontab -e`). |
+| CSRF | Cross-Site Request Forgery : attaque qui fait envoyer une requête par le navigateur d'un utilisateur à son insu. Parade : un jeton de session secret, exigé sur chaque POST (`Csrf::check()`). |
+| CSS | Langage de mise en forme des pages web. AURA a un seul fichier : `public/css/style.css`. |
+| DAO | Data Access Object : classe de `src/Dao/` qui lit et écrit une table. C'est le seul endroit où apparaissent les noms de colonnes SQL. |
+| DCI | Dénomination commune internationale : nom générique du principe actif d'un médicament (paracétamol plutôt qu'un nom de marque). Colonne `Medication.inn`. |
+| Déclaration du décès | Action réservée à un médecin (authentification factice) : le patient est marqué décédé, le séjour en cours se termine à l'heure du décès et ses soins encore prévus sont annulés (`POST /sejour/deces`). |
+| Diagramme de classes | Schéma des classes du code, de leurs méthodes publiques et de leurs dépendances. |
+| Diagramme entité-association (ER) | Schéma des tables, de leurs colonnes et des clés qui les relient. |
+| DMP | Dossier médical partagé : dossier de santé national d'un patient en France. AURA ne stocke que son identifiant, saisi à la main. |
+| Édition en ligne | Modification d'un seul champ du dossier directement dans la page (crayon, puis « Confirmer »). Elle passe par l'authentification factice d'un médecin et est tracée. |
+| Entité immuable | Objet de `src/Domain/` qui représente une ligne de données (patient, séjour…). Ses valeurs sont fixées à la création et lues par des accesseurs (`get…()`). |
+| Équipe de rotation | Groupe de soignants composé pour une rotation donnée, avec les patients dont il a la charge. Un patient n'appartient qu'à une équipe par rotation. |
+| Fuseau horaire | Zone d'heure légale. AURA fixe Europe/Paris, quel que soit le réglage de PHP. |
+| Gabarit | Fichier PHP de `src/View/` qui produit le HTML d'une page ou d'un composant à partir des variables qu'il reçoit. |
+| GET, POST | Méthodes HTTP. GET lit une page sans rien modifier ; POST envoie des données à enregistrer. |
+| GHS | Groupe homogène de séjours : catégorie de tarification d'un séjour hospitalier en France. Un médicament « hors GHS » est facturé en plus de ce tarif ; la colonne `offGhsReason` garde le motif. |
+| GIR | Groupe iso-ressources de la grille AGGIR : niveau de dépendance d'une personne, de GIR 1 (dépendance la plus forte) à GIR 6 (autonome). |
+| HL7 | Health Level Seven : famille de normes d'échange de données de santé. AURA reprend les noms anglais des ressources de sa norme FHIR (`Patient`, `EpisodeOfCare`, `CarePlan`, `Appointment`…) pour ses tables et classes. |
+| Horizon de planification | Nombre de jours à l'avance pour lesquels les soins planifiés sont créés : 7 jours, à l'enregistrement d'une ordonnance puis chaque nuit par `bin/generate-agenda.php`. |
+| HTML | Langage des pages web. Les vues PHP de `src/View/` produisent du HTML. |
+| HTTP | Protocole d'échange entre le navigateur et le serveur web. Un code de réponse dit le résultat : 200 réussi, 303 redirection, 400 requête invalide, 403 refusé, 404 introuvable, 409 conflit, 422 saisie invalide. |
+| Injection de dépendances | Une classe reçoit à sa construction les objets dont elle a besoin (DAO, services) au lieu de les créer elle-même. Dans AURA, ce câblage est fait à la main dans `public/index.php`. |
+| INS | Identité nationale de santé : identifiant national d'un patient en France. AURA stocke le « matricule INS » saisi, sans le vérifier. |
+| INTERMACS | Classification de l'insuffisance cardiaque avancée en sept profils, du profil 1 (choc cardiogénique critique) au profil 7. |
+| IPP | Identifiant permanent du patient dans l'établissement. Dans AURA : 6 à 9 chiffres, facultatif à la saisie (patient admis en urgence), attribué automatiquement s'il manque ; celui d'un patient supprimé reste réservé. |
+| Jeton CSRF | Valeur secrète liée à la session du navigateur, envoyée avec chaque POST (champ `csrf` ou en-tête `X-CSRF-Token`). Sans jeton valide, le serveur refuse l'écriture (403). |
+| JJ/MM/AAAA | Format de saisie des dates (jour, mois, année), converti par le serveur (`DateInput`). |
+| JSON | Format texte d'échange de données (`{"ok": true}`), utilisé par les réponses aux requêtes envoyées en JavaScript. |
+| Knaus | Échelle de l'état de santé antérieur d'un patient admis en réanimation (activité et suivi médical des six mois précédents), classes A à D. |
+| Ligne arrêtée | Ligne de prescription stoppée par un médecin (`stoppedAt`) : ses soins encore prévus sont annulés, rien n'est effacé. |
+| Ligne de prescription | Élément d'une ordonnance : un médicament (`MedicationRequest`) ou un soin (`ServiceRequest`), avec ses dates et sa fréquence. |
+| Liste blanche | Liste fermée des champs autorisés. Un champ qui n'y figure pas est refusé, quel que soit ce qu'envoie le navigateur. |
+| Liste de travail | Onglet de l'agenda du service : les soins de tout le service regroupés par urgence (en retard, doses de lignes arrêtées à tracer, maintenant, plus tard, réalisés). |
+| Lit, box | Emplacement du patient dans le service. Le séjour garde un numéro de lit et un numéro de box (chambre ou espace individuel). |
+| Mac Cabe | Échelle du pronostic de la maladie sous-jacente d'un patient de réanimation : 0 (pas de maladie mortelle), 1 (mortelle à 5 ans), 2 (mortelle à 1 an). |
+| MariaDB | Système de base de données SQL (version 11.8), compatible avec MySQL. |
+| `MAX(CAST(id AS UNSIGNED)) + 1` | Calcul du prochain identifiant d'une table sans numérotation automatique : le plus grand identifiant existant, lu comme un nombre, plus un. Fait dans une transaction, avec un verrou `FOR UPDATE`. |
+| Médecin référent | Médecin désigné responsable du patient pendant son séjour, choisi à l'admission. |
+| Mermaid | Langage texte de diagrammes, affiché en image par GitHub. Les diagrammes de ce document sont écrits en Mermaid. |
+| Méthode pure | Méthode qui ne lit ni la base ni la requête et dont le résultat ne dépend que de ses paramètres (date courante comprise) : elle se teste sans base. |
+| Migration | Script SQL de `database/migrations/` qui ajoute à une base existante ce qu'un changement de `schema.sql` a introduit (colonnes, index, contraintes), sans effacer les données. |
+| Mon planning | Écran d'un soignant : les soins des patients de ses équipes pendant une rotation, avec les mêmes actions que l'agenda. |
+| NULL | Absence de valeur dans une colonne SQL. Par exemple `removedAt` vaut NULL tant que la ligne n'est pas supprimée, `dischargeDate` tant que le séjour est en cours. |
+| NYHA | Classification de la New York Heart Association : gêne causée par une insuffisance cardiaque, de la classe I (aucune limitation) à IV (symptômes au repos). |
+| OpenEMR | Logiciel libre de dossier patient. AURA n'y est pas connecté : c'est hors périmètre. |
+| Ordonnance | Ensemble de lignes de prescription enregistrées ensemble pour un séjour (table `CarePlan`). Elle est validée en bloc par un médecin. |
+| Panneau du lit | Zone à côté du tableau des lits de l'agenda du service, qui détaille le patient choisi (`?sejour=`) : allergies, référent, soins de la rotation avec leurs actions. |
+| PDO | PHP Data Objects : interface de PHP pour parler à une base de données. AURA ouvre une seule connexion PDO (`Database::get()`), seulement quand une page en a besoin. |
+| PHP | Langage du serveur (version 8.4). AURA n'utilise aucun framework. |
+| Plan blanc | Plan de crise d'un hôpital français face à un afflux massif de victimes. Le champ `whitePlan` n'est rempli que dans ce cas. |
+| Praticien, prescripteur | Membre du personnel enregistré dans `Practitioner` (médecin, infirmier, aide-soignant…), avec un rôle. Le prescripteur est le praticien qui crée une ordonnance ; seul un rôle avec `canValidate` peut la valider. |
+| Prescription | Décision d'un prescripteur de donner un médicament ou de faire un soin à un patient, avec une date de début, une fréquence éventuelle et une date de fin facultative. Chaque ligne de prescription génère des soins planifiés. |
+| Protocole | Modèle d'ordonnance (table `PlanDefinition`) : un groupe de lignes de prescription types, choisi pour pré-remplir une nouvelle ordonnance. |
+| Query string | Partie d'une adresse après le `?`, qui porte des paramètres (`/sejour?id=1`). AURA y passe tous les identifiants. |
+| Rattachement | Ouverture d'un séjour sur un patient déjà présent dans la base, choisi par l'utilisateur, au lieu de créer un nouveau patient. Il est tracé. |
+| Redirection après POST | Après une écriture réussie, le serveur répond par une redirection (303) vers une page GET. Recharger la page n'envoie donc pas une seconde fois les données. |
+| Référentiel | Liste de valeurs de référence communes (services, médicaments, substances, types de soin, praticiens), chargée par `database/test.sql`. |
+| Requête préparée | Requête SQL envoyée à la base séparément de ses valeurs. Une valeur saisie ne peut donc jamais être exécutée comme du SQL (protection contre l'injection SQL). |
+| RG (RG1 à RG10) | Règle de gestion : règle métier numérotée du dossier de cadrage. Leur énoncé et le code qui les applique sont dans `docs/REPRISE.md`, leurs tests dans `docs/TESTS.md`. |
+| Rotation | Période de travail d'une équipe soignante. AURA en a trois par jour : matin de 6 h à 14 h, après-midi de 14 h à 22 h, nuit de 22 h à 6 h (`CareTeam::SHIFTS`, bornes à confirmer avec le service). Paramètre d'URL `rotation`. |
+| Schéma | Structure de la base (tables, colonnes, contraintes), entièrement décrite par `database/schema.sql`. |
+| Séjour | Passage d'un patient dans le service, de l'admission à la sortie ou au décès (table `EpisodeOfCare`). Un patient n'a qu'un séjour en cours à la fois ; chaque séjour a un numéro unique. |
+| Service (classe) | Classe de `src/Service/` qui porte les règles métier. Sa validation est pure (sans base ni requête), ses écritures passent par une transaction. À distinguer du service hospitalier (réanimation). |
+| SI | Système d'information. AURA est un « SI miroir » : il reproduit, pour le projet, les fonctions du système d'information d'un service de réanimation. |
+| Soin en retard | Soin planifié non validé dont l'heure prévue est passée (règle RG8). Le retard est calculé à l'affichage, jamais enregistré, et ces soins sont épinglés en tête de l'agenda. |
+| Soin planifié | Occurrence datée d'une ligne de prescription : une administration ou un acte à faire à une heure donnée (table `Appointment`). Statuts : prévu, réalisé, non effectué, annulé. |
+| SQL | Langage des bases de données relationnelles (création de tables, lectures, écritures). |
+| Substance | Entrée du référentiel des allergènes et principes actifs (table `Substance`), reliée aux allergies des patients et aux médicaments. |
+| Suppression logique | La ligne n'est pas effacée : une date est écrite dans `removedAt` et les DAO l'ignorent ensuite. L'historique reste en base (traçabilité). |
+| Traçabilité, trace | Enregistrement de qui a fait quoi et quand (table `AuditEvent` et colonnes d'horodatage), exigé par la règle RG10. |
+| Transaction | Groupe d'écritures en base qui réussissent toutes ou sont toutes annulées. Dans AURA : `Transaction::run()`. |
+| URL | Adresse d'une page web (`http://localhost:8000/sejour?id=1`). |
+| Validation d'un soin | Déclaration qu'un soin planifié a été réalisé ou non effectué, avec le soignant, l'heure de réalisation et l'heure de saisie (règle RG7). Possible une seule fois, au plus tard jusqu'à la fin de la rotation en cours. |
+| Validation d'une ordonnance | Acceptation d'une ordonnance par un médecin habilité (rôle avec `canValidate`, règle RG5). Une ordonnance faite par un prescripteur sans ce droit (urgence, paramédicale) reste « non validée » jusque-là ; celle d'un médecin habilité est validée d'office. |
+| VARCHAR, INT, DATETIME, TEXT | Types de colonnes SQL : texte de longueur limitée, nombre entier, date et heure, texte long. |
+| Verrou (`FOR UPDATE`) | Clause SQL qui verrouille les lignes lues jusqu'à la fin de la transaction. Deux admissions simultanées ne peuvent donc pas calculer le même numéro. |
+| Vue-modèle | Tableau de données préparé par un service pour une vue (méthodes `present…()`), déjà trié et mis en forme, testable sans base. |

@@ -166,7 +166,7 @@ l'erreur PHP du serveur y apparaît.
    dans l'artefact « couverture » de l'exécution.
 
 Une pull request ne se fusionne qu'avec un CI vert et la relecture d'un autre membre. Le script local
-`.claude/scripts/ci-local.sh` (outil de Raphaël, non versionné) rejoue ces étapes sur une base jetable ; sans lui,
+`.claude/scripts/ci-local.sh` (outil local de l'équipe d'origine, non versionné) rejoue ces étapes sur une base jetable ; sans lui,
 les commandes des sections 2.2 à 2.4 suffisent.
 
 ## 3. Règles de gestion → tests
@@ -197,7 +197,7 @@ Autres garanties essentielles :
 | CSRF sur les POST | `CsrfTest`, `RecordControllerTest::testWithoutCsrfTokenNothingIsWritten`, `WorkflowsHttpTest` (admission, soin, équipe, arrêt d'une ligne, décès : refusés sans jeton) |
 | Échappement HTML, UTF-8 invalide | `ViewTest`, `ComponentsRenderTest`, `PagesRenderTest`, `PagesHttpTest` (octet UTF-8 invalide : 400) |
 | Paramètres malformés : 400 ou 404, jamais un plantage | `PagesHttpTest`, `RecordControllerTest::testMalformedRequestGives400`, `PatientControllerTest`, `AgendaServiceTest::testMalformedDayFallsBackToToday`, `CareTeamServiceTest::testUnknownRotationInTheUrlIsIgnored` |
-| Contraintes essentielles de `schema.sql` (unicité, CHECK, clé étrangère, suppression refusée) | `SchemaConstraintsTest`, cas choisis parmi ceux de `database/test_contraintes.sql` (écrit par Didac Espin) |
+| Contraintes essentielles de `schema.sql` (unicité, CHECK, clé étrangère, suppression refusée) | `SchemaConstraintsTest`, cas choisis parmi ceux du fichier `test_contraintes.sql` écrit par Didac Espin (resté sur une branche, absent de `main`) |
 
 ## 4. Ce qui n'est pas testé, et pourquoi
 
@@ -212,3 +212,76 @@ Autres garanties essentielles :
   près), libellés et formats d'affichage, tris des listes déroulantes, liste des patients et historique des séjours,
   contenu des données de démo, variantes multiples d'un même cas. Ces points se voient à l'écran ; un test pour
   chacun coûterait plus en maintenance qu'il ne protège.
+
+## Glossaire
+
+Les acronymes et les termes techniques ou métier employés dans ce document.
+
+| Terme | Signification |
+| --- | --- |
+| AAAA-NNNNNN | Format du numéro de séjour : année d'admission sur quatre chiffres, un tiret, puis un compteur sur six chiffres qui repart à 000001 chaque année (exemple : 2026-000108). Généré par l'application, jamais saisi. |
+| Aide-soignant(e) | Soignant qui assiste l'infirmier pour les soins d'hygiène et de confort. Hypothèse du projet : un aide-soignant peut valider un soin, pas l'administration d'un médicament. |
+| Artefact | Fichier produit par une exécution du CI et téléchargeable depuis GitHub, ici le rapport de couverture HTML. |
+| Assertion | Vérification écrite dans un test (`assertSame(attendu, obtenu)`). Si elle est fausse, le test échoue. |
+| Authentification factice | Fenêtre qui demande de choisir un praticien dans une liste et de saisir un mot de passe, mais qui ne vérifie pas ce mot de passe. Elle remplace provisoirement une vraie authentification ; le nom choisi est enregistré dans la trace. |
+| Branche | Ligne de développement séparée dans Git. On crée une branche par fonctionnalité ou correction, puis on la fusionne dans `main` par une pull request. |
+| Catégorie habilitée | Catégorie de soignant autorisée à valider un type de soin (règle RG7). Hypothèse du projet : reconnue par le libellé du rôle du soignant. |
+| CHECK | Contrainte SQL qui refuse une valeur hors d'une liste ou d'un intervalle (par exemple une rotation autre que MATIN, APRES_MIDI ou NUIT). |
+| CI | Intégration continue : vérifications lancées automatiquement par GitHub Actions à chaque push sur `main` et à chaque pull request (syntaxe, style, schéma, tests). Fichier `.github/workflows/ci.yml`. |
+| Clé étrangère (FK) | Colonne qui désigne une ligne d'une autre table (par exemple `EpisodeOfCare.idPatient`). La base refuse une valeur qui ne correspond à aucune ligne, et refuse d'effacer une ligne encore désignée. |
+| Composer | Gestionnaire de dépendances de PHP. `composer install` installe les bibliothèques ; `composer test`, `composer cs`… lancent les commandes déclarées dans `composer.json`. |
+| Contrainte d'unicité (UNIQUE) | Contrainte SQL qui interdit deux lignes avec la même valeur dans une colonne ou un groupe de colonnes. Exemple : `EpisodeOfCare.episodeNumber`, le numéro de séjour. |
+| Couverture de code | Part du code exécutée par les tests, mesurée par l'extension pcov. |
+| CSRF | Cross-Site Request Forgery : attaque qui fait envoyer une requête par le navigateur d'un utilisateur à son insu. Parade : un jeton de session secret, exigé sur chaque POST (`Csrf::check()`). |
+| CSS | Langage de mise en forme des pages web. AURA a un seul fichier : `public/css/style.css`. |
+| DAO | Data Access Object : classe de `src/Dao/` qui lit et écrit une table. C'est le seul endroit où apparaissent les noms de colonnes SQL. |
+| DataProvider | Attribut PHPUnit (`#[DataProvider]`) qui fait tourner une même méthode de test sur une liste de cas (valeurs d'entrée et résultat attendu). |
+| Déclaration du décès | Action réservée à un médecin (authentification factice) : le patient est marqué décédé, le séjour en cours se termine à l'heure du décès et ses soins encore prévus sont annulés (`POST /sejour/deces`). |
+| Données de démo | Jeu de données fictives de `database/test.sql`, dont le jour de référence est le mercredi 14 octobre 2026. `database/demo-today.sql` le recale sur le jour courant pour une démonstration. |
+| Échappement | Transformation des caractères spéciaux (`<`, `>`, `&`, guillemets) avant de les afficher dans une page, pour qu'une donnée ne soit jamais interprétée comme du HTML ou du JavaScript. Fait par `View::e()`. |
+| Édition en ligne | Modification d'un seul champ du dossier directement dans la page (crayon, puis « Confirmer »). Elle passe par l'authentification factice d'un médecin et est tracée. |
+| Équipe de rotation | Groupe de soignants composé pour une rotation donnée, avec les patients dont il a la charge. Un patient n'appartient qu'à une équipe par rotation. |
+| Fusion (merge) | Intégration des changements d'une branche dans une autre, ici d'une branche de fonctionnalité dans `main`, par une pull request. |
+| GET, POST | Méthodes HTTP. GET lit une page sans rien modifier ; POST envoie des données à enregistrer. |
+| GitHub, GitHub Actions | Site qui héberge le dépôt Git, les pull requests et le CI (GitHub Actions, onglet « Actions » du dépôt). |
+| HTML | Langage des pages web. Les vues PHP de `src/View/` produisent du HTML. |
+| HTTP | Protocole d'échange entre le navigateur et le serveur web. Un code de réponse dit le résultat : 200 réussi, 303 redirection, 400 requête invalide, 403 refusé, 404 introuvable, 409 conflit, 422 saisie invalide. |
+| Idempotent | Se dit d'une opération qu'on peut relancer sans changer le résultat : un second passage de `bin/generate-agenda.php` ne crée aucun soin. |
+| IPP | Identifiant permanent du patient dans l'établissement. Dans AURA : 6 à 9 chiffres, facultatif à la saisie (patient admis en urgence), attribué automatiquement s'il manque ; celui d'un patient supprimé reste réservé. |
+| JavaScript (JS) | Langage exécuté par le navigateur. Dans AURA, un fichier par fonctionnalité dans `public/js/`, sans bibliothèque ; il n'est qu'un confort, le serveur revalide tout. |
+| Jeton CSRF | Valeur secrète liée à la session du navigateur, envoyée avec chaque POST (champ `csrf` ou en-tête `X-CSRF-Token`). Sans jeton valide, le serveur refuse l'écriture (403). |
+| Ligne arrêtée | Ligne de prescription stoppée par un médecin (`stoppedAt`) : ses soins encore prévus sont annulés, rien n'est effacé. |
+| MariaDB | Système de base de données SQL (version 11.8), compatible avec MySQL. |
+| Méthode pure | Méthode qui ne lit ni la base ni la requête et dont le résultat ne dépend que de ses paramètres (date courante comprise) : elle se teste sans base. |
+| pcov | Extension PHP qui mesure la couverture de code pendant les tests (`composer test:coverage`). |
+| phpcs | PHP_CodeSniffer : outil qui vérifie le style du code (`composer cs`) ; `phpcbf` (`composer cs:fix`) corrige automatiquement. |
+| PHPUnit | Outil de tests automatiques pour PHP (version 10). Configuration dans `phpunit.xml.dist`. |
+| Playwright | Outil qui pilote un vrai navigateur pour tester l'interface, JavaScript compris. Il n'est pas installé dans AURA. |
+| PR (pull request) | Demande de fusion d'une branche dans une autre sur GitHub. Elle est relue par un autre membre et doit avoir un CI vert avant d'être fusionnée. |
+| Prescription | Décision d'un prescripteur de donner un médicament ou de faire un soin à un patient, avec une date de début, une fréquence éventuelle et une date de fin facultative. Chaque ligne de prescription génère des soins planifiés. |
+| Prescription d'urgence, paramédicale | Modes d'une ordonnance (`EMERGENCY`, `PARAMEDICAL`) faite hors des droits habituels du prescripteur ; elle reste « non validée » jusqu'à la validation d'un médecin (RG5). |
+| PSR-12 | Règles de présentation du code PHP (indentation, accolades, longueur des lignes), publiées par le PHP-FIG. Vérifiées par `composer cs`. |
+| Redirection après POST | Après une écriture réussie, le serveur répond par une redirection (303) vers une page GET. Recharger la page n'envoie donc pas une seconde fois les données. |
+| RG (RG1 à RG10) | Règle de gestion : règle métier numérotée du dossier de cadrage. Leur énoncé et le code qui les applique sont dans `docs/REPRISE.md`, leurs tests dans `docs/TESTS.md`. |
+| Rotation | Période de travail d'une équipe soignante. AURA en a trois par jour : matin de 6 h à 14 h, après-midi de 14 h à 22 h, nuit de 22 h à 6 h (`CareTeam::SHIFTS`, bornes à confirmer avec le service). Paramètre d'URL `rotation`. |
+| Schéma | Structure de la base (tables, colonnes, contraintes), entièrement décrite par `database/schema.sql`. |
+| Séjour | Passage d'un patient dans le service, de l'admission à la sortie ou au décès (table `EpisodeOfCare`). Un patient n'a qu'un séjour en cours à la fois ; chaque séjour a un numéro unique. |
+| Session, cookie | La session est une mémoire du serveur associée à un navigateur par un cookie. AURA ne s'en sert que pour le jeton CSRF : il n'y a pas de compte utilisateur. L'attribut `Secure` réserverait le cookie aux connexions HTTPS. |
+| setUp, tearDown, rollBack | `setUp()` et `tearDown()` sont lancées par PHPUnit avant et après chaque test. Les tests sur base y ouvrent une transaction puis l'annulent (`rollBack()`), pour ne rien laisser en base. |
+| Simulacre (mock, stub) | Faux objet qui remplace un DAO dans un test sans base : il renvoie des valeurs prévues (stub) ou vérifie la façon dont il est appelé (mock). |
+| Soin en retard | Soin planifié non validé dont l'heure prévue est passée (règle RG8). Le retard est calculé à l'affichage, jamais enregistré, et ces soins sont épinglés en tête de l'agenda. |
+| Soin planifié | Occurrence datée d'une ligne de prescription : une administration ou un acte à faire à une heure donnée (table `Appointment`). Statuts : prévu, réalisé, non effectué, annulé. |
+| SQL | Langage des bases de données relationnelles (création de tables, lectures, écritures). |
+| Suppression logique | La ligne n'est pas effacée : une date est écrite dans `removedAt` et les DAO l'ignorent ensuite. L'historique reste en base (traçabilité). |
+| Test d'intégration | Test qui fait travailler ensemble un service, ses DAO et une vraie base de test. |
+| Test de bout en bout | Test qui envoie de vraies requêtes HTTP à un serveur PHP lancé pour l'occasion, comme le ferait un navigateur, et vérifie les réponses (`tests/Http`). |
+| Test risqué | Test sans aucune assertion (lettre R). La configuration du projet le compte comme un échec. |
+| Test sauté | Test non exécuté (lettre S), par exemple faute de base de données. Il n'a rien vérifié. |
+| Test unitaire | Test d'une règle isolée, sans base de données, avec des données et une date fixées par le test. |
+| Traçabilité, trace | Enregistrement de qui a fait quoi et quand (table `AuditEvent` et colonnes d'horodatage), exigé par la règle RG10. |
+| Transaction | Groupe d'écritures en base qui réussissent toutes ou sont toutes annulées. Dans AURA : `Transaction::run()`. |
+| TypeError | Erreur PHP levée quand une fonction reçoit une valeur d'un type inattendu. |
+| UTF-8 | Codage des caractères (accents compris) utilisé partout. Une saisie qui n'est pas de l'UTF-8 valide est refusée (400). |
+| Validation d'un soin | Déclaration qu'un soin planifié a été réalisé ou non effectué, avec le soignant, l'heure de réalisation et l'heure de saisie (règle RG7). Possible une seule fois, au plus tard jusqu'à la fin de la rotation en cours. |
+| Validation d'une ordonnance | Acceptation d'une ordonnance par un médecin habilité (rôle avec `canValidate`, règle RG5). Une ordonnance faite par un prescripteur sans ce droit (urgence, paramédicale) reste « non validée » jusque-là ; celle d'un médecin habilité est validée d'office. |
+| Worktree | Second dossier de travail Git lié au même dépôt, sur une autre branche. Utile pour lancer les tests sans le `config/config.php` du dossier principal. |
