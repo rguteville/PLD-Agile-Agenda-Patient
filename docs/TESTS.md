@@ -197,7 +197,7 @@ Autres garanties essentielles :
 | CSRF sur les POST | `CsrfTest`, `RecordControllerTest::testWithoutCsrfTokenNothingIsWritten`, `WorkflowsHttpTest` (admission, soin, équipe, arrêt d'une ligne, décès : refusés sans jeton) |
 | Échappement HTML, UTF-8 invalide | `ViewTest`, `ComponentsRenderTest`, `PagesRenderTest`, `PagesHttpTest` (octet UTF-8 invalide : 400) |
 | Paramètres malformés : 400 ou 404, jamais un plantage | `PagesHttpTest`, `RecordControllerTest::testMalformedRequestGives400`, `PatientControllerTest`, `AgendaServiceTest::testMalformedDayFallsBackToToday`, `CareTeamServiceTest::testUnknownRotationInTheUrlIsIgnored` |
-| Contraintes essentielles de `schema.sql` (unicité, CHECK, clé étrangère, suppression refusée) | `SchemaConstraintsTest`, cas choisis parmi ceux de `database/test_contraintes.sql` (Didac Espin, branche `tests/AURA-16.2`) |
+| Contraintes essentielles de `schema.sql` (unicité, CHECK, clé étrangère, suppression refusée) | `SchemaConstraintsTest`, cas choisis parmi ceux de `database/test_contraintes.sql` (écrit par Didac Espin) |
 
 ## 4. Ce qui n'est pas testé, et pourquoi
 

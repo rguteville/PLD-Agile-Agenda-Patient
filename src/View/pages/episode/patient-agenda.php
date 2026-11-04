@@ -3,10 +3,10 @@
 use Aura\Core\View;
 
 /**
- * Agenda du séjour (AURA-24, AURA-25) : bandeau identité + allergies en tête (RG2), puis
+ * Agenda du séjour : bandeau identité + allergies en tête (RG2), puis
  * - vue Jour : retards épinglés en tête, puis les soins par rotation (la nuit : « de 22 h à 0 h » et
  *   « de 0 h à 6 h »), avec filtres par statut regroupés derrière le bouton « Filtres », et sur chaque
- *   soin « Valider » (Réalisé ou Non effectué dans le dialogue) et « Note » (AURA-26, AURA-28) ;
+ *   soin « Valider » (Réalisé ou Non effectué dans le dialogue) et « Note » ;
  *   un soin se valide s'il est en retard ou prévu avant la fin de la rotation en cours ;
  * - vue Semaine : une ligne par soin prescrit, une colonne par jour (lundi → dimanche).
  * Toute la logique (filtre du jour, tri, retard, rotations, semaine) est dans AgendaService,

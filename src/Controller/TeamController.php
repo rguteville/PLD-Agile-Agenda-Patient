@@ -13,13 +13,13 @@ use Aura\Service\CareTeamService;
 use DateTimeImmutable;
 
 /**
- * Équipes et rotations (AURA-30) et agenda par soignant (AURA-31).
+ * Équipes et rotations et agenda par soignant.
  *
  * - GET /equipes?idHealthcareService=…&date=AAAA-MM-JJ&rotation=matin|apres-midi|nuit : équipes de la rotation
  *   (rotation en cours par défaut) et formulaire de composition ;
  * - POST /equipes/creer, POST /equipes/retirer : jeton CSRF, puis retour à la rotation (303) ;
  * - GET /mon-planning?idPractitioner=…&date=…&rotation=… : soins des patients des équipes du
- *   soignant pendant la rotation. Sans identification des praticiens (AURA-50), le soignant se
+ *   soignant pendant la rotation. Sans identification des praticiens, le soignant se
  *   choisit dans une liste.
  */
 final class TeamController

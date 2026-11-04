@@ -14,7 +14,7 @@ use PHPUnit\Framework\TestCase;
  * Contraintes essentielles de database/schema.sql, vérifiées par la base elle-même : chaque instruction
  * invalide est refusée avec le bon code d'erreur ET par la bonne contrainte (un refus pour une autre
  * raison ne compte pas). Deux instructions valides vérifient que les contraintes ne refusent pas trop.
- * Cas choisis parmi ceux de database/test_contraintes.sql (Didac Espin, branche tests/AURA-16.2).
+ * Cas choisis parmi ceux de database/test_contraintes.sql (écrit par Didac Espin).
  *
  * Codes MariaDB (SQLSTATE 23000) : 1062 doublon, 1048 colonne NULL, 1452 parent absent, 1451 parent
  * encore référencé, 4025 CHECK. Transaction annulée en tearDown ; ignoré sans DB_HOST/DB_NAME.
@@ -204,7 +204,7 @@ final class SchemaConstraintsTest extends TestCase
     public static function validStatements(): array
     {
         return [
-            'plusieurs patients sans IPP (admission en urgence, AURA-05)' => [
+            'plusieurs patients sans IPP (admission en urgence)' => [
                 [],
                 "INSERT INTO Patient (idPatient, ipp, lastName) VALUES ('ZZP1', NULL, 'Zzun'), ('ZZP2', NULL,
                     'Zzdeux')",

@@ -19,12 +19,12 @@ use LogicException;
 use PDOException;
 
 /**
- * Règles métier de l'admission d'un patient (AURA-10).
+ * Règles métier de l'admission d'un patient.
  *
- * AURA-10.2 : contrôle serveur des champs. La validation est pure : aucun accès
+ * Contrôle serveur des champs. La validation est pure : aucun accès
  * à la base, aucune dépendance PDO, aucune sortie HTTP.
- * AURA-10.4 : admit() enregistre le patient (ou le retrouve par son IPP) et
- * ouvre son séjour (numéro généré, AURA-10.3) dans une seule transaction.
+ * Admit() enregistre le patient (ou le retrouve par son IPP) et
+ * ouvre son séjour (numéro généré) dans une seule transaction.
  * Les champs facultatifs du catalogue RecordFields (antécédents, histoire de la maladie, scores,
  * administratif), le service hospitalier et les allergies choisies dans le référentiel sont validés et
  * enregistrés dans la même transaction. Leur règle de validation vit dans FieldValidationService.
@@ -56,7 +56,7 @@ class AdmissionService
     /** Longueur maximale des précautions, en caractères (colonne EpisodeOfCare.precautions VARCHAR(500)). */
     public const PRECAUTIONS_MAX_LENGTH = 500;
 
-    /** AURA-12.3 : IPP saisi qui appartient à un patient supprimé (il reste réservé). */
+    /** IPP saisi qui appartient à un patient supprimé (il reste réservé). */
     public const REMOVED_PATIENT_IPP_MESSAGE =
         'Cet IPP appartient à un patient supprimé de la liste : il ne peut pas être réutilisé.';
 
@@ -89,7 +89,7 @@ class AdmissionService
      * transaction. Si le séjour est refusé (patient déjà hospitalisé, lit occupé…),
      * rien n'est écrit : aucun patient orphelin.
      *
-     * Taille, poids et précautions sont des mesures du séjour (AURA-10.1) : elles sont
+     * Taille, poids et précautions sont des mesures du séjour : elles sont
      * enregistrées sur le séjour ouvert, pas sur le patient.
      *
      * Nouveau patient sans IPP saisi : un IPP est attribué automatiquement (PatientDao::nextIpp()).
@@ -259,7 +259,7 @@ class AdmissionService
                     $removedOwner = $existing === null && $patient->getIpp() !== null
                         && $patientDao->existsByIpp($patient->getIpp());
                     if ($removedOwner) {
-                        // AURA-12.3 : IPP d'un patient supprimé, toujours réservé (colonne UNIQUE).
+                        // IPP d'un patient supprimé, toujours réservé (colonne UNIQUE).
                         throw new InvalidArgumentException(self::REMOVED_PATIENT_IPP_MESSAGE);
                     }
                     if ($existing !== null) {
@@ -397,7 +397,7 @@ class AdmissionService
 
         if ($changes !== []) {
             if (isset($changes['ipp']) && $changes['ipp'] !== null) {
-                // Patients supprimés compris (AURA-12.3) : leur IPP reste réservé.
+                // Patients supprimés compris : leur IPP reste réservé.
                 $carrier = $this->patientDao?->ippOwnerId($changes['ipp']);
                 if ($carrier !== null && $carrier !== $idPatient) {
                     throw new InvalidArgumentException('Cet IPP est déjà utilisé par un autre patient.');
@@ -797,7 +797,7 @@ class AdmissionService
     /**
      * Message d'erreur si l'IPP saisi ne tient pas dans la colonne INT (6 à 9 chiffres), sinon null.
      * Un IPP vide est accepté : il est facultatif à l'admission (RG1). Partagé avec la recherche
-     * par IPP (AURA-15) pour que les deux écrans appliquent la même règle.
+     * par IPP pour que les deux écrans appliquent la même règle.
      */
     public static function validateIpp(string $ipp): ?string
     {

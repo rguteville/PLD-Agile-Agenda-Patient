@@ -11,7 +11,7 @@ use Aura\Domain\Patient;
 use Aura\Domain\EpisodeOfCare;
 
 /**
- * Liste des patients du service (AURA-12.1), avec le séjour en cours mis en avant (numéro, lit, service,
+ * Liste des patients du service, avec le séjour en cours mis en avant (numéro, lit, service,
  * depuis le …), un lien vers le dossier pour chaque patient (séjour en cours, sinon dernier séjour),
  * l'historique de ses séjours et le décès.
  *

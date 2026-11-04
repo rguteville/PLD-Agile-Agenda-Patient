@@ -3,7 +3,7 @@
 use Aura\Core\View;
 
 /**
- * Tableau d'une tranche de l'agenda du patient (AURA-24, AURA-25 : retards épinglés ou une rotation) :
+ * Tableau d'une tranche de l'agenda du patient (retards épinglés ou une rotation) :
  * heure, type, soin avec le « + » de sa prescription à droite du titre, statut, notes, et les boutons
  * d'action (components/care_buttons) quand la validation est activée.
  * Inclus par pages/episode/patient-agenda.php (vue Jour). Chaque ligne porte data-appointment-row et

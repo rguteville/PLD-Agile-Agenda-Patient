@@ -3,7 +3,7 @@
 use Aura\Core\View;
 
 /**
- * Formulaire POST marqué data-ajax (AURA-10.2), envoyé par public/js/form.js quand la page charge ce
+ * Formulaire POST marqué data-ajax, envoyé par public/js/form.js quand la page charge ce
  * script ; sinon POST classique. Inclus par pages/patient/admission.php et pages/patient/edit.php.
  * Pour un formulaire long, chaque section est rendue en <details> repliée par défaut, avec le nombre de
  * champs renseignés dans l'en-tête (mis à jour par form-sections.js) ; une section est ouverte si l'un de

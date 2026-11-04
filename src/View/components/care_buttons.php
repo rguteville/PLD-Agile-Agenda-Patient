@@ -3,7 +3,7 @@
 use Aura\Core\View;
 
 /**
- * Boutons d'action sur un soin (AURA-26, AURA-28) : « Valider » pour un soin validable (canValidate de
+ * Boutons d'action sur un soin : « Valider » pour un soin validable (canValidate de
  * AgendaService : en retard, ou prévu avant la fin de la rotation en cours, AgendaService::shiftEnd() ;
  * ligne arrêtée si la dose a été faite avant l'arrêt) et « Note » pour tout soin. « Non effectué » se
  * choisit dans le dialogue ouvert par « Valider » (Réalisé / Non effectué) ; « Note » ouvre le même

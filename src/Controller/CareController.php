@@ -9,7 +9,7 @@ use Aura\Service\AppointmentService;
 use DateTimeImmutable;
 
 /**
- * POST /agenda-patient/soin (AURA-26, AURA-28) : valider un soin, le marquer non effectué ou y
+ * POST /agenda-patient/soin : valider un soin, le marquer non effectué ou y
  * ajouter une note, depuis l'agenda du patient ou celui du service.
  *
  * Corps (JSON envoyé par public/js/agenda.js, ou formulaire classique) : episodeOfCare, appointment,

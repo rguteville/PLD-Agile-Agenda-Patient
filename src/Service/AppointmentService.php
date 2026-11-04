@@ -13,7 +13,7 @@ use DateTimeImmutable;
 use LogicException;
 
 /**
- * Actions sur un soin planifié depuis l'agenda (AURA-26 valider un soin réalisé, AURA-28 note) :
+ * Actions sur un soin planifié depuis l'agenda (valider un soin réalisé, déclarer non effectué, note) :
  * « réalisé » (qui, quand, note facultative), « non effectué » (motif obligatoire), ou note seule par
  * le bouton « Note » de l'agenda (ACTION_NOTE). Réalisé ou non effectué : seulement pour un soin prévu
  * avant la fin de la rotation en cours (AgendaService::shiftEnd()). Qui agit est tracé dans AuditEvent (RG10) : la
@@ -21,7 +21,7 @@ use LogicException;
  * le schéma.
  *
  * Authentification FACTICE, comme les parties du dossier : un soignant de la liste et un mot de
- * passe non vide, non vérifié, en attendant l'identification des praticiens (AURA-50).
+ * passe non vide, non vérifié, en attendant l'identification des praticiens.
  */
 final class AppointmentService
 {
@@ -45,7 +45,7 @@ final class AppointmentService
     private const AUTH_ERROR = 'Choisissez le soignant et saisissez son mot de passe.';
 
     /**
-     * AURA-26, catégorie habilitée (HYPOTHÈSE à valider avec le service, documentée dans le README) :
+     * Catégorie habilitée (HYPOTHÈSE à valider avec le service, documentée dans le README) :
      * l'administration d'un médicament est un acte infirmier ou médical ; un(e) aide-soignant(e) peut
      * valider un soin, pas un médicament. Le rôle est reconnu par son libellé (PractitionerRole.title).
      */
@@ -64,7 +64,7 @@ final class AppointmentService
     ) {
     }
 
-    /** Catégorie habilitée (AURA-26) : ce rôle peut-il valider ou déclarer non fait ce soin ? PURE. */
+    /** Catégorie habilitée : ce rôle peut-il valider ou déclarer non fait ce soin ? PURE. */
     public static function canPerform(?string $role, bool $isMedication): bool
     {
         if (!$isMedication || $role === null) {
@@ -139,7 +139,7 @@ final class AppointmentService
      * « réalisé » et « non effectué » ne s'appliquent qu'à un soin encore prévu (écriture conditionnelle :
      * si quelqu'un l'a validé entre-temps, rien n'est écrit et la réponse est un conflit), prévu avant la
      * fin de la rotation en cours, par une catégorie habilitée (canPerform()) ; sur une ligne arrêtée,
-     * seule une dose faite avant l'arrêt se valide. Une note ne se modifie que par son auteur (AURA-28).
+     * seule une dose faite avant l'arrêt se valide. Une note ne se modifie que par son auteur.
      *
      * @param array<string, mixed> $input voir validate()
      * @return array{status: string, errors?: array<string, string>, message?: string} status = STATUS_*
@@ -178,7 +178,7 @@ final class AppointmentService
         $author = mb_substr($this->performers[(string) $input['idPerformer']] . ', authentification factice', 0, 100);
 
         if ($action === self::ACTION_NOTE) {
-            // AURA-28 : une note se modifie par son auteur seulement (une note sans trace reste libre).
+            // Une note se modifie par son auteur seulement (une note sans trace reste libre).
             $noteBy = $this->auditEventDao->appointmentNoteAuthors([$appointment->getIdAppointment()])
                 [$appointment->getIdAppointment()] ?? null;
             if ($appointment->getComment() !== null && $noteBy !== null && !str_starts_with($noteBy, $author)) {
@@ -233,7 +233,7 @@ final class AppointmentService
                 )],
             ];
         }
-        // AURA-22 : ligne arrêtée. Seule une dose faite AVANT l'arrêt peut encore être tracée.
+        // Ligne arrêtée. Seule une dose faite AVANT l'arrêt peut encore être tracée.
         $stoppedAt = $found['lineStoppedAt'] ?? null;
         $completion = $action === self::ACTION_DONE ? self::parseCompletion($input['completedAt']) : null;
         if ($stoppedAt !== null && $completion !== null && $completion >= $stoppedAt) {

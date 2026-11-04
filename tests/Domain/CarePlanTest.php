@@ -57,7 +57,7 @@ final class CarePlanTest extends TestCase
         );
 
         self::assertSame(CarePlan::STATUS_VALIDATED, $carePlan->statusOf($paracetamol));
-        self::assertSame(CarePlan::STATUS_STOPPED, $carePlan->statusOf($midazolam), 'AURA-22');
+        self::assertSame(CarePlan::STATUS_STOPPED, $carePlan->statusOf($midazolam), 'ligne arrêtée');
         self::assertCount(2, $carePlan->getLines());
     }
 }

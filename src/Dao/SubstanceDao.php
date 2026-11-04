@@ -8,7 +8,7 @@ use Aura\Domain\Substance;
 use PDO;
 
 /**
- * Référentiel des allergènes (AURA-13.1) : table Substance, ressource HL7 du même nom (cf.
+ * Référentiel des allergènes : table Substance, ressource HL7 du même nom (cf.
  * database/schema.sql). Lecture seule : le référentiel est chargé par database/test.sql, jamais
  * saisi dans l'application.
  */

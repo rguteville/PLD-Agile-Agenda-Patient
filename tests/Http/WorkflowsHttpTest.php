@@ -146,7 +146,7 @@ final class WorkflowsHttpTest extends HttpTestCase
             self::assertSame(
                 'ANNULE',
                 $this->pdo()->query("SELECT status FROM Appointment WHERE idAppointment = 'ZZ_STOP'")->fetchColumn(),
-                'AURA-22 : le soin futur de la ligne arrêtée est annulé'
+                'le soin futur de la ligne arrêtée est annulé'
             );
         } finally {
             $this->pdo()->exec("DELETE FROM Appointment WHERE idServiceRequest = '900001'");

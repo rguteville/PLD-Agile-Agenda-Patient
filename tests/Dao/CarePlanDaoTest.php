@@ -16,7 +16,7 @@ use PDO;
 use PHPUnit\Framework\TestCase;
 
 /**
- * AURA-24.4 : enregistrer une prescription crée ses soins planifiés (Appointment), ceux que
+ * Enregistrer une prescription crée ses soins planifiés (Appointment), ceux que
  * l'agenda du séjour affiche. Données de database/test.sql : séjour 1, praticien PRA01,
  * types de soin TYP01 / TYP03, médicament MED01.
  *

@@ -1,5 +1,5 @@
 // Recherche d'un patient existant à l'admission : un seul champ en tête (« IPP, nom ou prénom »).
-// Recherche par IPP (AURA-15, prioritaire) ou par nom / prénom, par un seul chemin de code : le
+// Recherche par IPP (prioritaire) ou par nom / prénom, par un seul chemin de code : le
 // serveur (/patients/recherche?q=…) reconnaît un IPP (6 à 9 chiffres) et renvoie alors 0 ou 1 résultat.
 //
 // Identitovigilance : rien n'est sélectionné automatiquement. Les résultats affichent nom, prénom,

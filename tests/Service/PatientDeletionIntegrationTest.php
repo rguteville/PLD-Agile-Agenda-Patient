@@ -20,7 +20,7 @@ use PDO;
 use PHPUnit\Framework\TestCase;
 
 /**
- * AURA-12.3 : suppression logique d'un patient sur la base réelle. Données de database/test.sql :
+ * Suppression logique d'un patient sur la base réelle. Données de database/test.sql :
  * patient 4 (Peter Parker, IPP 100000004) n'a qu'un séjour clos sans soin réalisé ; patient 1 a un
  * séjour en cours.
  *

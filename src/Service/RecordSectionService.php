@@ -41,7 +41,7 @@ use PDOException;
  * et dans « Admission », comme le service ; contrôlé contre la liste des médecins (RecordEditService).
  *
  * AUTHENTIFICATION FACTICE : le médecin est choisi dans la liste des praticiens habilités (RG5) et le
- * mot de passe est exigé mais NON vérifié. Elle prépare l'authentification réelle (AURA-50) ; la
+ * mot de passe est exigé mais NON vérifié. Elle prépare l'authentification réelle ; la
  * trace le dit explicitement (« authentification factice »).
  */
 class RecordSectionService
@@ -587,7 +587,7 @@ class RecordSectionService
             $errors['email'] = 'L\'adresse e-mail est invalide.';
         }
         if ($next['ipp'] !== null && $next['ipp'] !== $current['ipp']) {
-            // Patients supprimés compris (AURA-12.3) : leur IPP reste réservé.
+            // Patients supprimés compris : leur IPP reste réservé.
             $owner = $this->patientDao->ippOwnerId($next['ipp']);
             if ($owner !== null && $owner !== $patient->getIdPatient()) {
                 $errors['ipp'] = 'Cet IPP est déjà utilisé par un autre patient.';

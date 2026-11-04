@@ -7,7 +7,7 @@ namespace Aura\Domain;
 use DateTimeImmutable;
 
 /**
- * Prescription (« ordonnance ») d'un séjour (Epic 4, ressource HL7 CarePlan, table CarePlan) : qui
+ * Prescription (« ordonnance ») d'un séjour (ressource HL7 CarePlan, table CarePlan) : qui
  * prescrit, dans quel mode, la validation, la note libre, et ses lignes (ServiceRequest,
  * MedicationRequest). Les prescriptions sont la seule source de l'agenda.
  *

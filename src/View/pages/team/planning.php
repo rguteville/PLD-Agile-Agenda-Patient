@@ -5,10 +5,10 @@ use Aura\Domain\CareTeam;
 use Aura\Service\CareTeamService;
 
 /**
- * « Mon planning » (AURA-31) : les soins des patients attribués au soignant pendant la rotation, par
+ * « Mon planning » : les soins des patients attribués au soignant pendant la rotation, par
  * ordre chronologique, retards en tête d'écran, patients de l'équipe (allergies RG2) et actions sur
  * chaque soin (« Valider » et « Note », components/care_buttons). Le soignant se choisit dans la liste
- * tant que l'identification n'existe pas (AURA-50).
+ * tant que l'identification n'existe pas.
  * Rendue par TeamController::planning() (GET /mon-planning?idPractitioner=…&date=…&rotation=…).
  * Scripts : agenda.js (filtres, dialogue), auto-submit.js (choix du soignant et de la rotation).
  *

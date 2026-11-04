@@ -19,8 +19,8 @@ use LogicException;
 
 /**
  * Écrans d'un séjour : dossier (bandeau RG2, allergies, dossier complet éditable, prescriptions
- * validées, historique), ajout / retrait d'allergie (AURA-13.2) et agenda du patient, jour ou semaine
- * (AURA-24, AURA-26 pour la validation d'un soin).
+ * validées, historique), ajout / retrait d'allergie et agenda du patient, jour ou semaine
+ * (validation d'un soin).
  *
  * Routes : GET /sejour, POST /sejour/allergies/ajouter, POST /sejour/allergies/retirer, GET /agenda-patient.
  * Les modifications du dossier (champ, partie, fin de séjour, décès) passent par RecordController.
@@ -67,7 +67,7 @@ final class EpisodeOfCareController
     ) {
     }
 
-    /** GET /sejour?id=… : dossier d'un séjour, bandeau identité + allergies en tête (RG2, AURA-14). */
+    /** GET /sejour?id=… : dossier d'un séjour, bandeau identité + allergies en tête (RG2). */
     public function show(): void
     {
         $id = self::readId($_GET['id'] ?? null);
@@ -80,7 +80,7 @@ final class EpisodeOfCareController
     }
 
     /**
-     * POST /sejour/allergies/ajouter (AURA-13.2) : champs csrf, idEpisodeOfCare, idSubstance, criticality.
+     * POST /sejour/allergies/ajouter : champs csrf, idEpisodeOfCare, idSubstance, criticality.
      * Jeton faux : 403 ; séjour invalide : 400.
      * Succès : redirection 303 vers le dossier (POST → redirect → GET : rafraîchir la page
      * n'enregistre pas l'allergie une seconde fois). Refus métier : le dossier est réaffiché
@@ -114,7 +114,7 @@ final class EpisodeOfCareController
     }
 
     /**
-     * POST /sejour/allergies/retirer (AURA-13.2) : champs csrf, idEpisodeOfCare, idAllergy. Même schéma que
+     * POST /sejour/allergies/retirer : champs csrf, idEpisodeOfCare, idAllergy. Même schéma que
      * l'ajout. Le retrait est physique (DELETE), exception connue à la suppression logique.
      */
     public function removeAllergy(): void
@@ -147,7 +147,7 @@ final class EpisodeOfCareController
     }
 
     /**
-     * GET /agenda-patient?id=… ou ?numSejour=… : agenda du séjour, bandeau en tête (RG2, AURA-24).
+     * GET /agenda-patient?id=… ou ?numSejour=… : agenda du séjour, bandeau en tête (RG2).
      * Paramètres facultatifs : `date` (AAAA-MM-JJ, aujourd'hui par défaut), `vue=semaine`. Les actions sur
      * un soin ne sont proposées que pour un séjour en cours.
      *
@@ -201,7 +201,7 @@ final class EpisodeOfCareController
             $record['banner']['firstName'],
             $record['banner']['episodeNumber']
         );
-        // Valider un soin (AURA-26) : seulement pour un séjour en cours et si le service est câblé.
+        // Valider un soin : seulement pour un séjour en cours et si le service est câblé.
         $validationEnabled = $this->appointmentService !== null && ($record['episodeOfCare']['ongoing'] ?? false);
         View::page('episode/patient-agenda', [
             'banner' => $record['banner'],
@@ -247,12 +247,12 @@ final class EpisodeOfCareController
         ] : ['editable' => false, 'csrfToken' => Csrf::token(), 'history' => []];
 
         View::page(self::RECORD_VIEW, $record + $editing + [
-            // idEpisodeOfCare : lien du bouton « Prescription » vers l'écran B3 (AURA-20) et formulaires d'allergie.
+            // idEpisodeOfCare : lien du bouton « Prescription » vers l'écran B3 et formulaires d'allergie.
             'idEpisodeOfCare' => $idEpisodeOfCare,
             // Prescriptions validées par un médecin (RG5), sans les lignes arrêtées ; une ligne qui contient un
             // allergène du patient est signalée (prescrite malgré l'allergie).
             'prescriptions' => $this->carePlanService?->validatedLines($idEpisodeOfCare, $record['allergens']) ?? [],
-            // Médecins proposés pour le bouton « Arrêter » (AURA-22).
+            // Médecins proposés pour le bouton « Arrêter ».
             'doctors' => $this->carePlanService?->doctors() ?? [],
         ], $title, self::RECORD_SCRIPTS);
     }

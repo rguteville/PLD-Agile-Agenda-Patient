@@ -4,7 +4,7 @@ use Aura\Core\View;
 use Aura\Service\RecordSectionService;
 
 /**
- * Dossier du séjour (AURA-14) et gestion des allergies connues du patient (AURA-13.2) : bandeau (RG2),
+ * Dossier du séjour et gestion des allergies connues du patient : bandeau (RG2),
  * menu figé, résumé, allergies, dossier complet éditable, historique des modifications, séjours du
  * patient, prescriptions en cours, et fenêtre de validation par un médecin (authentification FACTICE).
  * Rendue par EpisodeOfCareController::show() (GET /sejour?id=…), et en 422 après un ajout ou un retrait
@@ -17,7 +17,7 @@ use Aura\Service\RecordSectionService;
  * @var int $idEpisodeOfCare
  * @var list<array<string, mixed>> $prescriptions lignes validées, vue-modèle de CarePlanService::presentLine()
  * @var array<string, string> $doctors médecins : idPractitioner => « nom (rôle) », pour arrêter une ligne
- *      (AURA-22) et pour la fenêtre de validation
+ * et pour la fenêtre de validation
  * @var list<array{idAllergy: ?int, label: string, criticality: ?string, level: string, recordedAt: ?string}>
  *      $allergies
  * @var array<string, string> $substances allergènes du référentiel non encore enregistrés, id => libellé
@@ -439,7 +439,7 @@ if ($editable) {
         <h2 class="record-subtitle" id="titre-prescriptions">Prescriptions en cours</h2>
         <p class="record-aside__actions">
             <?php if ($episodeOfCare['ongoing']) : ?>
-                <?php /* AURA-20 : vers l'écran B3 « Nouvelles prescriptions » (séjour en cours seulement). */ ?>
+                <?php /* Vers l'écran B3 « Nouvelles prescriptions » (séjour en cours seulement). */ ?>
                 <a class="button"
                    href="/care-plans/new?idEpisodeOfCare=<?= View::e($idEpisodeOfCare) ?>">Nouvelle prescription</a>
             <?php endif; ?>
@@ -503,7 +503,7 @@ if ($editable) {
                         <p class="prescription-card__note">Validée : <?= View::e($line['validation']) ?></p>
                     </details>
                     <?php if ($episodeOfCare['ongoing']) : ?>
-                        <?php /* AURA-22 : un médecin arrête la ligne ; elle quitte alors cette liste. Le formulaire
+                        <?php /* Un médecin arrête la ligne ; elle quitte alors cette liste. Le formulaire
                                  ne s'ouvre qu'à la demande. */ ?>
                         <details class="prescription-card__stop">
                             <summary>Arrêter…<span class="sr-only"> : <?= View::e($line['label']) ?></span></summary>
@@ -520,7 +520,7 @@ if ($editable) {
                                         <option value="<?= View::e($value) ?>"><?= View::e($label) ?></option>
                                     <?php endforeach; ?>
                                 </select>
-                                <?php /* Authentification FACTICE : mot de passe exigé, non vérifié (AURA-50). */ ?>
+                                <?php /* Authentification FACTICE : mot de passe exigé, non vérifié. */ ?>
                                 <input type="password" name="password" autocomplete="off" placeholder="mot de passe"
                                        aria-label="Mot de passe du médecin qui arrête : <?= View::e($line['label']) ?>">
                                 <button type="submit">Arrêter</button>
@@ -537,7 +537,7 @@ if ($editable) {
 
 <?php if ($editable) : ?>
     <?php /* Fenêtre de validation par un médecin : AUTHENTIFICATION FACTICE (le mot de passe n'est pas
-             vérifié) en attendant l'identification des praticiens (AURA-50). Elle sert aux modifications
+             vérifié) en attendant l'identification des praticiens. Elle sert aux modifications
              d'une partie, à la fin du séjour et à la déclaration du décès (public/js/part-edit.js) : pour ces
              deux dernières, la date et l'heure (de sortie ou du décès) s'affichent. */ ?>
     <dialog id="auth-dialog" class="auth-dialog" aria-labelledby="auth-dialog-title">

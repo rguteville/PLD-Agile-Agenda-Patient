@@ -10,7 +10,7 @@ use DateTimeImmutable;
 use InvalidArgumentException;
 
 /**
- * Modification de l'identité d'un patient (AURA-12.2) : mêmes règles que l'admission
+ * Modification de l'identité d'un patient : mêmes règles que l'admission
  * (AdmissionService::validatePatientIdentity()), plus l'unicité de l'IPP entre patients.
  * Les mesures (taille, poids, précautions) appartiennent au séjour et ne sont pas touchées.
  */
@@ -49,7 +49,7 @@ final class PatientUpdateService
         }
 
         // L'IPP doit être unique : refusé seulement s'il est porté par un AUTRE patient, même supprimé
-        // (AURA-12.3 : l'IPP d'un patient supprimé reste réservé).
+        // (l'IPP d'un patient supprimé reste réservé).
         $ipp = $this->text($data['ipp'] ?? null);
         if ($ipp !== null) {
             $carrier = $this->patientDao->ippOwnerId($ipp);

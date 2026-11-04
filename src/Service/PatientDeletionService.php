@@ -16,7 +16,7 @@ use Aura\Domain\Patient;
 use InvalidArgumentException;
 
 /**
- * AURA-12.3 : suppression d'un patient, après confirmation. Suppression logique (Patient.removedAt,
+ * Suppression d'un patient, après confirmation. Suppression logique (Patient.removedAt,
  * README, « Conventions ») : le patient disparaît de la liste et des recherches, sa ligne et ses séjours restent en
  * base. Refusée (RG10, traçabilité) si le patient a un séjour en cours ou si au moins un soin a été
  * réalisé pendant l'un de ses séjours. La règle (refusalReason()) est pure et testée sans base.

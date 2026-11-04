@@ -119,7 +119,7 @@ try {
         exit;
     }
 
-    // AURA-10.4 : l'admission écrit en base (patient + séjour + allergies) ; connexion ouverte pour cette route.
+    // L'admission écrit en base (patient + séjour + allergies) ; connexion ouverte pour cette route.
     $admitPatient = static function () use ($admissionReferenceData): void {
         $pdo = Database::get();
         $controller = new PatientController(
@@ -153,9 +153,9 @@ try {
         );
     };
 
-    // AURA-14 : le dossier de séjour lit la base ; la connexion n'est ouverte que pour ces routes.
+    // Le dossier de séjour lit la base ; la connexion n'est ouverte que pour ces routes.
     // Il affiche aussi les prescriptions validées du séjour (CarePlanService).
-    // AURA-13.2 : le même contrôleur sert l'ajout et le retrait d'allergies (POST) depuis le dossier.
+    // Le même contrôleur sert l'ajout et le retrait d'allergies (POST) depuis le dossier.
     // Édition champ par champ du dossier (liste blanche, validation, concurrence optimiste, historique AuditEvent).
     $recordEditService = static function (): RecordEditService {
         $pdo = Database::get();
@@ -199,7 +199,7 @@ try {
         );
     };
 
-    // AURA-12.1 : la liste des patients lit la base ; même principe que le dossier de séjour.
+    // La liste des patients lit la base ; même principe que le dossier de séjour.
     $listPatients = static function (): void {
         $pdo = Database::get();
         $controller = new PatientController(
@@ -212,7 +212,7 @@ try {
         $controller->list();
     };
 
-    // Prescriptions d'un séjour (AURA-20 à 23) (liste, écran B3, validation) ; même principe que le dossier.
+    // Prescriptions d'un séjour (liste, écran B3, validation) ; même principe que le dossier.
     $carePlans = static function (): CarePlanController {
         $pdo = Database::get();
         return new CarePlanController(
@@ -234,14 +234,14 @@ try {
         );
     };
 
-    // AURA-12.2 : modification d'un patient ; le même contrôleur sert le formulaire (GET) et la soumission (POST).
+    // Modification d'un patient ; le même contrôleur sert le formulaire (GET) et la soumission (POST).
     $patientUpdateController = static fn (): PatientController => new PatientController(
         patientUpdateService: new PatientUpdateService(
             new PatientDao(Database::get()),
             new AdmissionService()
         )
     );
-    // AURA-12.3 : suppression d'un patient ; le même contrôleur sert la confirmation (GET) et la suppression (POST).
+    // Suppression d'un patient ; le même contrôleur sert la confirmation (GET) et la suppression (POST).
     $patientDeletionController = static function (): PatientController {
         $pdo = Database::get();
 
@@ -255,7 +255,7 @@ try {
             )
         );
     };
-    // AURA-15 : recherche d'un patient déjà connu par son IPP (JSON pour le formulaire d'admission).
+    // Recherche d'un patient déjà connu par son IPP (JSON pour le formulaire d'admission).
     $searchByIpp = static function (): void {
         $pdo = Database::get();
         $controller = new PatientController(
@@ -264,7 +264,7 @@ try {
         $controller->searchByIpp();
     };
 
-    // Agenda (AURA-24 à 29) : même service pour l'agenda d'un séjour et celui du service, avec
+    // Agenda : même service pour l'agenda d'un séjour et celui du service, avec
     // l'identité des patients et l'auteur des validations (historique).
     $agendaService = static function (PDO $pdo): AgendaService {
         // Noms des praticiens pour la carte de prescription (« Prescrit par », « Validation »).
@@ -286,7 +286,7 @@ try {
             $names
         );
     };
-    // Valider un soin (AURA-26) : tous les praticiens peuvent le faire, affichés « Prénom Nom (rôle) ».
+    // Valider un soin : tous les praticiens peuvent le faire, affichés « Prénom Nom (rôle) ».
     $appointmentService = static function (PDO $pdo): AppointmentService {
         $performers = [];
         $roles = [];
@@ -305,7 +305,7 @@ try {
         );
     };
 
-    // AURA-24 : agenda d'un séjour, bandeau identité + allergies en tête (RG2).
+    // Agenda d'un séjour, bandeau identité + allergies en tête (RG2).
     $getAgenda = static function () use ($agendaService, $appointmentService): void {
         $pdo = Database::get();
         $controller = new EpisodeOfCareController(
@@ -335,7 +335,7 @@ try {
         $controller->getAgenda();
     };
 
-    // AURA-30 / AURA-31 : équipes de vacation et « Mon planning » par soignant.
+    // Équipes de vacation et « Mon planning » par soignant.
     $teamController = static function () use ($agendaService, $appointmentService): TeamController {
         $pdo = Database::get();
         $appointments = $appointmentService($pdo);
@@ -350,7 +350,7 @@ try {
         );
     };
 
-    // AURA-26 / AURA-28 : valider un soin, le marquer non effectué, ou y ajouter une note.
+    // Valider un soin, le marquer non effectué, ou y ajouter une note.
     $careAction = static function () use ($appointmentService): void {
         (new CareController($appointmentService(Database::get())))->act();
     };
@@ -370,7 +370,7 @@ try {
     $router->post('/sejour/allergies/ajouter', static fn () => $episodeOfCareController()->addAllergy());
     $router->post('/sejour/allergies/retirer', static fn () => $episodeOfCareController()->removeAllergy());
     // Modification d'une partie entière du dossier, fin de séjour et décès, validées par un médecin
-    // (authentification factice en attendant AURA-50).
+    // (authentification factice : le mot de passe n'est pas vérifié).
     $recordController = static function () use ($recordEditService): RecordController {
         $pdo = Database::get();
 

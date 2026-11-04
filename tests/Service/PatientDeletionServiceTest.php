@@ -19,7 +19,7 @@ use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
 /**
- * AURA-12.3 : règle de suppression d'un patient (RG10, traçabilité) et enchaînement de la suppression
+ * Règle de suppression d'un patient (RG10, traçabilité) et enchaînement de la suppression
  * logique, sans base (DAO simulés).
  */
 final class PatientDeletionServiceTest extends TestCase

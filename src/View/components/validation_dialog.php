@@ -3,7 +3,7 @@
 use Aura\Core\View;
 
 /**
- * Dialogue d'action sur un soin (AURA-26, AURA-28). Bouton « Valider » : choix « Réalisé » (qui, quand)
+ * Dialogue d'action sur un soin. Bouton « Valider » : choix « Réalisé » (qui, quand)
  * ou « Non effectué » (motif obligatoire). Bouton « Note » : note seule, le choix est masqué (action
  * « note », radio caché).
  * Ouvert par les boutons de components/care_buttons (data-care-action) ; public/js/agenda.js l'envoie en

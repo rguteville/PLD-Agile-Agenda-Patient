@@ -15,13 +15,13 @@ use PDO;
  * la colonne phoneNumber devient phone dans l'entité. Id VARCHAR(20) calculé par insert()
  * (MAX + 1, FOR UPDATE) ; IPP calculé par nextIpp() quand l'admission n'en fournit pas.
  *
- * AURA-12.3 : un patient supprimé (removedAt renseigné, suppression logique) n'est renvoyé par
+ * Un patient supprimé (removedAt renseigné, suppression logique) n'est renvoyé par
  * aucune lecture (liste, recherches, findById, findByIpp). Seuls existsByIpp(),
  * ippOwnerId() et nextIpp() le voient encore : son IPP reste réservé (colonne UNIQUE).
  */
 class PatientDao
 {
-    /** Condition des patients actifs (non supprimés, AURA-12.3), ajoutée à toutes les lectures. */
+    /** Condition des patients actifs (non supprimés), ajoutée à toutes les lectures. */
     private const ACTIVE = 'removedAt IS NULL';
 
     /** Colonnes d'identité, lues et écrites par toutes les méthodes. */
@@ -68,7 +68,7 @@ class PatientDao
     }
 
     /**
-     * Patients dont le nom, le prénom ou l'IPP contient le terme saisi (AURA-12.1),
+     * Patients dont le nom, le prénom ou l'IPP contient le terme saisi,
      * triés par nom puis prénom. Le terme est passé en paramètre préparé et ses
      * caractères joker (% et _) sont échappés : il est impossible d'injecter du SQL
      * ni d'élargir la recherche avec un joker. Patients supprimés exclus ; lecture partielle
@@ -261,7 +261,7 @@ class PatientDao
     }
 
     /**
-     * AURA-12.3 : suppression logique (README, « Conventions ») ; la date vient de l'horloge de la base, comme
+     * Suppression logique (README, « Conventions ») ; la date vient de l'horloge de la base, comme
      * CarePlan.recordedAt (l'arrêt d'une ligne et la fin de séjour prennent, eux, l'heure de PHP).
      * Renvoie false si le patient n'existe pas ou est déjà supprimé : la condition
      * est dans la requête, deux suppressions simultanées ne comptent qu'une fois. Les règles (séjour en
@@ -317,7 +317,7 @@ class PatientDao
     }
 
     /**
-     * Met à jour toutes les colonnes du patient (AURA-12.2), champs complémentaires compris :
+     * Met à jour toutes les colonnes du patient, champs complémentaires compris :
      * l'appelant doit donc transmettre les détails existants s'il ne veut pas les effacer.
      * L'id n'est jamais modifié ; une seule instruction SQL, donc pas de transaction ici.
      * Ni removedAt ni l'historique (AuditEvent) ne sont touchés : la traçabilité est le rôle du service.

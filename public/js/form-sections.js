@@ -78,7 +78,7 @@
     if (form) {
         // Contrôle HTML natif (required, min, max…) : l'événement « invalid » ne remonte pas, on l'écoute en capture.
         form.addEventListener('invalid', () => openSectionsWithErrors(form), true);
-        // Refus serveur affiché par form.js (AURA-10.2).
+        // Refus serveur affiché par form.js.
         form.addEventListener('aura:form-errors', () => openSectionsWithErrors(form));
         openSectionsWithErrors(form);
     }

@@ -1,5 +1,5 @@
 // Agendas (patient, service, « Mon planning ») : impression, filtres par statut, et dialogue d'action sur
-// un soin (AURA-26 : « Valider », puis Réalisé ou Non effectué ; AURA-28 : « Note », note seule).
+// un soin (« Valider », puis Réalisé ou Non effectué ; « Note », note seule).
 // Chargé par EpisodeOfCareController::getAgenda() (GET /agenda-patient), ServiceController::getAgenda()
 // (GET /agenda-service) et TeamController::planning() (GET /mon-planning).
 // Attend : #print-page ; [data-agenda-filters] avec ses boutons [data-filter] et [data-filter-state] ;

@@ -1,7 +1,7 @@
 <?php
 
 /**
- * AURA-24.2 et 24.3 : génération quotidienne de l'agenda des séjours en cours.
+ * Génération quotidienne de l'agenda des séjours en cours.
  *
  * Crée les soins planifiés manquants de chaque ligne de prescription active, de maintenant jusqu'à
  * la fin du jour J + AgendaGenerationService::HORIZON_DAYS. Idempotent : relancé deux fois de suite,

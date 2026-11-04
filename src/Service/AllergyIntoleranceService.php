@@ -14,7 +14,7 @@ use InvalidArgumentException;
 use PDOException;
 
 /**
- * Ajout et retrait des allergies connues d'un patient depuis le dossier de séjour (AURA-13.2).
+ * Ajout et retrait des allergies connues d'un patient depuis le dossier de séjour.
  *
  * Les formulaires envoient l'id du séjour affiché ; le patient est retrouvé ici, côté
  * serveur : un POST forgé ne peut pas rattacher une allergie à un autre patient.

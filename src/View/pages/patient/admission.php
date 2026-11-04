@@ -6,7 +6,7 @@ use Aura\Domain\RecordFields;
 use Aura\Service\AdmissionService;
 
 /**
- * Formulaire d'admission (AURA-10, AURA-15), avec les champs du SI réel de l'hôpital.
+ * Formulaire d'admission, avec les champs du SI réel de l'hôpital.
  * L'essentiel reste visible en haut (identité, IPP, motif, service, allergies) ; le reste est réparti en
  * sections repliées par défaut (RecordFields::SECTIONS), toutes facultatives.
  * Patient connu sélectionné : son groupe sanguin déjà renseigné n'est pas modifiable ici (donnée vitale,
@@ -139,7 +139,7 @@ $essentials = [
     $catalogField('allergyNote', RecordFields::PATIENT['allergyNote']),
 ];
 
-// Mesures à l'admission (AURA-10.1), enregistrées sur le séjour. Bornes = colonnes DECIMAL(5,2) ;
+// Mesures à l'admission, enregistrées sur le séjour. Bornes = colonnes DECIMAL(5,2) ;
 // le contrôle serveur (AdmissionService::validate()) reste la garantie.
 $measures = [
     [
