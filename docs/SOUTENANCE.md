@@ -9,8 +9,8 @@ techniques et d'architecture. Les durées sont indicatives, à caler sur le temp
 La démonstration se fait sur la VM de démo, qui sert la branche `main`. Tout ce qui est montré ci-dessous doit donc
 être fusionné et déployé avant.
 
-1. Faire relire puis fusionner les pull requests dans cet ordre, chacune vers `main` : #52, #53, #54, #55. Après
-   chaque fusion, attendre que le CI GitHub soit vert.
+1. Tout est fusionné dans `main` (PR #52 à #56, CI GitHub vert le 2026-11-04). Vérifier seulement que la dernière
+   exécution du CI sur `main` est verte (onglet Actions).
 2. Sur la VM : `bash scripts/deploy.sh` (voir le README, section « VM de démo et déploiement »).
 3. Recharger la base de démo, la recaler sur le jour de la soutenance et générer l'agenda :
 
@@ -24,6 +24,10 @@ La démonstration se fait sur la VM de démo, qui sert la branche `main`. Tout c
 
    `demo-today.sql` décale toutes les dates de démonstration pour que le jour de référence (14/10/2026) devienne
    aujourd'hui. Ne jamais l'appliquer à une base de test : les tests s'appuient sur les dates fixes.
+
+   La base doit être recréée ainsi (ou mise à jour avec les scripts de `database/migrations/`, dont
+   `2026-11-04-trois-rotations.sql`) : une base plus ancienne n'a pas les équipes par rotation, et la page Équipes
+   resterait vide. Les données de démo contiennent des équipes pour les trois rotations du jour.
 4. Répéter le scénario une fois en entier sur la VM, avec le chronomètre. Recharger la base après la répétition
    (les validations et le décès de la répétition restent sinon).
 5. Préparer un terminal sur un poste avec la base de test (`aura_test`) pour la partie tests, et un onglet GitHub
@@ -33,16 +37,16 @@ La démonstration se fait sur la VM de démo, qui sert la branche `main`. Tout c
 
 ### Ce qu'il faut dire
 
-Le projet a 893 tests PHPUnit répartis en deux suites, définies dans `phpunit.xml.dist`.
+Le projet a 902 tests PHPUnit répartis en deux suites, définies dans `phpunit.xml.dist`.
 
-La suite `aura` (858 tests) couvre tout sauf le HTTP. Les services métier sont testés sans base : la date est
+La suite `aura` (866 tests) couvre tout sauf le HTTP. Les services métier sont testés sans base : la date est
 injectée (`new DateTimeImmutable('2026-10-14')`) et les variantes passent par des `#[DataProvider]`. Les DAO et les
 tests d'intégration tournent sur une vraie base MariaDB, chacun dans une transaction annulée à la fin, avec des
 données aux noms improbables (`Zz…`) pour ne jamais toucher aux données de démo. Les vues sont testées par leur
 rendu HTML (échappement, accessibilité, éléments attendus). Le fichier `tests/Dao/SchemaConstraintsTest.php`
 vérifie chaque contrainte de `schema.sql` (unicité, CHECK, clés étrangères) directement par la base.
 
-La suite `http` (35 tests) lance un vrai serveur PHP sur l'application et enchaîne de vraies requêtes, comme un
+La suite `http` (36 tests) lance un vrai serveur PHP sur l'application et enchaîne de vraies requêtes, comme un
 navigateur : session et cookie, jeton CSRF, POST, redirections. Elle refuse de tourner si la base ouverte n'est pas
 une base de test, parce qu'elle écrit pour de vrai.
 
@@ -66,7 +70,7 @@ qu'avec un CI vert et la relecture d'un autre membre.
    composer test:fast
    ```
 
-   Résultat attendu : « OK, but some tests were skipped », 858 tests dont 306 sautés (ceux qui demandent la base).
+   Résultat attendu : « OK, but some tests were skipped », 866 tests dont 306 sautés (ceux qui demandent la base).
 
 2. Avec la base de test, la suite complète (environ dix secondes) :
 
@@ -75,7 +79,7 @@ qu'avec un CI vert et la relecture d'un autre membre.
    composer test
    ```
 
-   Résultat attendu : « OK (893 tests, … assertions) ».
+   Résultat attendu : « OK (902 tests, … assertions) ».
 
 3. Un test lisible à l'écran, pour montrer comment une règle s'écrit en test. Bon exemple court :
    `tests/Service/AgendaServiceShiftEndTest.php`. Un `#[DataProvider]` donne six instants (après minuit, dernière
