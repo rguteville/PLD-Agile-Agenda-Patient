@@ -23,7 +23,7 @@ SI miroir du service de réanimation d'un hôpital (projet PLD Agile, 4IF INSA L
 chaque fonctionnalité, règles RG1 à RG10, hypothèses, dette, ajouter une page ou une règle).
 
 Documentation détaillée : [architecture](docs/ARCHITECTURE.md), [tests](docs/TESTS.md),
-[interface](docs/UI-GUIDE.md), [journal des changements](CHANGELOG.md). Un glossaire termine chaque document.
+[interface](docs/UI-GUIDE.md). Un glossaire termine chaque document.
 
 ---
 
@@ -56,7 +56,6 @@ src/                code PHP (PSR-4, namespace Aura\)
   Domain/           entités immuables, catalogues (RecordFields, ClinicalScales)
   View/             layouts/, components/, pages/
 tests/              miroir de src/ ; Dao/* et *IntegrationTest = base réelle, sautés sans DB_HOST ; Http/ = bout en bout
-CHANGELOG.md        une entrée par pull request
 ```
 
 ---
