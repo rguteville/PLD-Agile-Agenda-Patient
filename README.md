@@ -406,20 +406,9 @@ mariadb -u aura -p aura < database/test.sql
 ### Checklist avant une démo
 
 - [ ] CI vert sur `main`
-- [ ] Release créée sur GitHub (`v0.1` pour le sprint 1, `v0.2`…)
 - [ ] Version déployée sur la VM, base rechargée avec les données de démo
 - [ ] Scénario de démo répété une fois
 - [ ] Plus aucune fusion dans `main` jusqu'à la démo
-      Pour déployer exactement une release plutôt que `main` :
-
-```bash
-cd /var/www/aura
-git fetch --tags
-git checkout v0.1
-composer install --no-dev --optimize-autoloader
-```
-
-`bash scripts/deploy.sh` ramène ensuite la VM sur `main`.
 
 ---
 
@@ -637,7 +626,6 @@ Les acronymes et les termes techniques ou métier employés dans ce document.
 | QWERTY | Disposition de clavier anglo-saxonne. La VM peut démarrer avec elle : des touches sont alors inversées par rapport au clavier français (A et Q, Z et W). |
 | Réanimation | Service hospitalier qui prend en charge les patients dont une ou plusieurs fonctions vitales sont défaillantes ; les soins y sont planifiés heure par heure. |
 | Référentiel | Liste de valeurs de référence communes (services, médicaments, substances, types de soin, praticiens), chargée par `database/test.sql`. |
-| Release | Version figée et nommée du dépôt sur GitHub (étiquette `v0.1`, `v0.2`…), qu'on peut redéployer à l'identique. |
 | Requête préparée | Requête SQL envoyée à la base séparément de ses valeurs. Une valeur saisie ne peut donc jamais être exécutée comme du SQL (protection contre l'injection SQL). |
 | RG (RG1 à RG10) | Règle de gestion : règle métier numérotée du dossier de cadrage. Leur énoncé et le code qui les applique sont dans `docs/REPRISE.md`, leurs tests dans `docs/TESTS.md`. |
 | Rotation | Période de travail d'une équipe soignante. AURA en a trois par jour : matin de 6 h à 14 h, après-midi de 14 h à 22 h, nuit de 22 h à 6 h (`CareTeam::SHIFTS`, bornes à confirmer avec le service). Paramètre d'URL `rotation`. |
