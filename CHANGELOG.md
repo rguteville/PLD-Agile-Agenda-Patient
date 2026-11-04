@@ -4,6 +4,17 @@ Format : une entrée par pull request, de la plus récente à la plus ancienne.
 
 ## 2026-11-04
 
+### Relecture adversariale (`feat/agenda-service-refonte`)
+
+- Trois relectures adversariales (points d'entrée et DAO, services patient et prescription, agendas et
+  JavaScript) : chaque défaut reproduit puis corrigé, 17 tests de non-régression (893 tests).
+- Sécurité du patient : retards de la veille et de la vacation précédente toujours visibles, décès qui termine
+  le séjour en cours même déclaré depuis un séjour clos, patient décédé non réadmissible, IPP d'une autre
+  personne refusé, alerte allergie sur le nom du médicament, allergies dans la fenêtre de validation, double
+  envoi impossible.
+- Robustesse : filet d'erreur global, UTF-8 invalide refusé, bornes sur les noms, IPP, dates et durées de
+  prescription, génération limitée à 7 jours, transactions rejouées sur conflit, verrous, CSRF à l'admission.
+
 ### Refonte de l'agenda du service (`feat/agenda-service-refonte`, AURA-29, AURA-32)
 
 - Retour de Raphaël : la grille créneaux × patients montrait trop d'informations. Trois maquettes comparées

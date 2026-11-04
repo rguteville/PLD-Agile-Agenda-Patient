@@ -33,16 +33,16 @@ La démonstration se fait sur la VM de démo, qui sert la branche `main`. Tout c
 
 ### Ce qu'il faut dire
 
-Le projet a 876 tests PHPUnit répartis en deux suites, définies dans `phpunit.xml.dist`.
+Le projet a 893 tests PHPUnit répartis en deux suites, définies dans `phpunit.xml.dist`.
 
-La suite `aura` (845 tests) couvre tout sauf le HTTP. Les services métier sont testés sans base : la date est
+La suite `aura` (858 tests) couvre tout sauf le HTTP. Les services métier sont testés sans base : la date est
 injectée (`new DateTimeImmutable('2026-10-14')`) et les variantes passent par des `#[DataProvider]`. Les DAO et les
 tests d'intégration tournent sur une vraie base MariaDB, chacun dans une transaction annulée à la fin, avec des
 données aux noms improbables (`Zz…`) pour ne jamais toucher aux données de démo. Les vues sont testées par leur
 rendu HTML (échappement, accessibilité, éléments attendus). Le fichier `tests/Dao/SchemaConstraintsTest.php`
 vérifie chaque contrainte de `schema.sql` (unicité, CHECK, clés étrangères) directement par la base.
 
-La suite `http` (31 tests) lance un vrai serveur PHP sur l'application et enchaîne de vraies requêtes, comme un
+La suite `http` (35 tests) lance un vrai serveur PHP sur l'application et enchaîne de vraies requêtes, comme un
 navigateur : session et cookie, jeton CSRF, POST, redirections. Elle refuse de tourner si la base ouverte n'est pas
 une base de test, parce qu'elle écrit pour de vrai.
 
@@ -66,7 +66,7 @@ qu'avec un CI vert et la relecture d'un autre membre.
    composer test:fast
    ```
 
-   Résultat attendu : « OK, but some tests were skipped », 845 tests dont 300 sautés (ceux qui demandent la base).
+   Résultat attendu : « OK, but some tests were skipped », 858 tests dont 306 sautés (ceux qui demandent la base).
 
 2. Avec la base de test, la suite complète (environ dix secondes) :
 
@@ -75,7 +75,7 @@ qu'avec un CI vert et la relecture d'un autre membre.
    composer test
    ```
 
-   Résultat attendu : « OK (876 tests, … assertions) ».
+   Résultat attendu : « OK (893 tests, … assertions) ».
 
 3. Un test lisible à l'écran, pour montrer comment une règle s'écrit en test. Bon exemple court :
    `tests/Service/AgendaServiceShiftEndTest.php`. Un `#[DataProvider]` donne six instants (après minuit, dernière
@@ -259,6 +259,11 @@ ensuite.
 
 Les dire avant qu'on les découvre.
 
+Avant la soutenance, trois relectures adversariales ont attaqué l'application (saisies malformées, accès
+concurrents, passage de minuit, double clic, octets invalides). Chaque défaut a été reproduit puis corrigé, avec
+un test de non-régression. C'est un bon argument : « nous avons cherché à casser notre propre application ».
+Ce qui reste ouvert est listé ci-dessous.
+
 L'authentification est factice : le mot de passe n'est pas vérifié, c'est une décision de l'équipe pour ce lot (il
 n'y a ni compte ni session de praticien). Les règles d'habilitation sont pourtant appliquées sur le rôle choisi.
 
@@ -272,3 +277,15 @@ La sortie normale d'un séjour n'annule pas les soins prévus après la sortie (
 
 Hypothèses à faire valider par les médecins : bornes des rotations (6 h, 14 h, 22 h), ordre d'urgence de l'agenda du
 service, fenêtre « maintenant » de deux heures, horizon de génération de l'agenda.
+
+Les changements d'heure (fin mars, fin octobre) décalent les soins « toutes les N heures » : la règle (heure
+murale ou durée réelle) est à décider avec le service.
+
+Deux découpages coexistent : les rotations (6 h, 14 h, 22 h) pour l'agenda et la validation, les vacations (8 h à
+20 h, 20 h à 8 h) pour les équipes. Un seul devrait faire foi.
+
+Un aide-soignant peut saisir une prescription paramédicale de médicament (elle reste « non validée » jusqu'à un
+médecin) ; le dossier d'un séjour clos reste modifiable : deux règles à trancher avec les médecins.
+
+Le référentiel ne relie un médicament qu'à une seule substance : l'alerte allergie compare aussi le nom du
+médicament, mais le vrai remède est une table de liaison, proposée au responsable de la base.
