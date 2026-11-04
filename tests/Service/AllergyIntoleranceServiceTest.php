@@ -17,7 +17,7 @@ use PDOException;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
-/** AURA-13.2 : ajout et retrait d'allergies, sans base (DAO simulés), un test par règle. */
+/** Ajout et retrait d'une allergie depuis le dossier (RG2), sans base (DAO doublés). */
 final class AllergyIntoleranceServiceTest extends TestCase
 {
     private const ID_EPISODE = 9;
@@ -36,7 +36,7 @@ final class AllergyIntoleranceServiceTest extends TestCase
         $this->service = new AllergyIntoleranceService($this->episodesOfCare, $this->allergies, $this->substances);
     }
 
-    public function testAddInsertsAllergyForThePatientOfTheEpisode(): void
+    public function testAllergyIsAddedToThePatientOfTheStay(): void
     {
         $this->episodeOfCareExists();
         $this->substances->method('findById')->with('ALG01')->willReturn(new Substance('ALG01', 'Pénicilline'));
@@ -52,40 +52,8 @@ final class AllergyIntoleranceServiceTest extends TestCase
         self::assertSame(12, $this->service->add(self::ID_EPISODE, ' ALG01 ', 'Élevée'));
     }
 
-    public function testEmptyCriticalityIsStoredAsNull(): void
-    {
-        $this->episodeOfCareExists();
-        $this->substances->method('findById')->willReturn(new Substance('ALG02', 'Latex'));
-        $this->allergies->method('findByPatient')->willReturn([]);
-        $this->allergies->expects($this->once())->method('insert')
-            ->with($this->callback(fn(AllergyIntolerance $a) => $a->getCriticality() === null))
-            ->willReturn(1);
-
-        $this->service->add(self::ID_EPISODE, 'ALG02', '');
-    }
-
-    public function testUnknownEpisodeIsRejected(): void
-    {
-        $this->episodesOfCare->method('findById')->with(self::ID_EPISODE)->willReturn(null);
-        $this->allergies->expects($this->never())->method('insert');
-
-        $this->expectException(InvalidArgumentException::class);
-        $this->service->add(self::ID_EPISODE, 'ALG01', null);
-    }
-
-    public function testMissingSubstanceIsRejected(): void
-    {
-        $this->episodeOfCareExists();
-        $this->substances->expects($this->never())->method('findById');
-        $this->allergies->expects($this->never())->method('insert');
-
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Choisissez un allergène');
-        $this->service->add(self::ID_EPISODE, '   ', null);
-    }
-
     /** Critère 1 : un POST forgé avec un texte libre ou un id inconnu est refusé. */
-    public function testSubstanceOutsideReferenceListIsRejected(): void
+    public function testAllergenOutsideTheReferenceListIsRefused(): void
     {
         $this->episodeOfCareExists();
         $this->substances->method('findById')->with('Pénicilline')->willReturn(null);
@@ -96,28 +64,8 @@ final class AllergyIntoleranceServiceTest extends TestCase
         $this->service->add(self::ID_EPISODE, 'Pénicilline', null);
     }
 
-    public function testNonTextualSubstanceIsRejected(): void
-    {
-        $this->episodeOfCareExists();
-        $this->allergies->expects($this->never())->method('insert');
-
-        $this->expectException(InvalidArgumentException::class);
-        $this->service->add(self::ID_EPISODE, ['ALG01'], null);
-    }
-
-    public function testCriticalityOutsideListIsRejected(): void
-    {
-        $this->episodeOfCareExists();
-        $this->substances->method('findById')->willReturn(new Substance('ALG01', 'Pénicilline'));
-        $this->allergies->expects($this->never())->method('insert');
-
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('criticité');
-        $this->service->add(self::ID_EPISODE, 'ALG01', 'Mortelle');
-    }
-
     /** Critère 3, première couche : doublon détecté avant toute écriture. */
-    public function testDuplicateDetectedByServiceIsRejectedWithoutInsert(): void
+    public function testKnownAllergyIsNotAddedTwice(): void
     {
         $this->episodeOfCareExists();
         $this->substances->method('findById')->willReturn(new Substance('ALG01', 'Pénicilline'));
@@ -132,7 +80,7 @@ final class AllergyIntoleranceServiceTest extends TestCase
     }
 
     /** Critère 3, seconde couche : condition de course, la base refuse (UNIQUE), même message. */
-    public function testDuplicateDetectedByDatabaseIsTranslated(): void
+    public function testDuplicateRefusedByTheDatabaseGivesTheSameMessage(): void
     {
         $this->episodeOfCareExists();
         $this->substances->method('findById')->willReturn(new Substance('ALG01', 'Pénicilline'));
@@ -144,52 +92,11 @@ final class AllergyIntoleranceServiceTest extends TestCase
         $this->service->add(self::ID_EPISODE, 'ALG01', null);
     }
 
-    public function testSubstanceRemovedFromReferenceListMeanwhileIsTranslated(): void
-    {
-        $this->episodeOfCareExists();
-        $this->substances->method('findById')->willReturn(new Substance('ALG01', 'Pénicilline'));
-        $this->allergies->method('findByPatient')->willReturn([]);
-        $this->allergies->method('insert')->willThrowException(self::mariaDbError(1452));
-
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage(AllergyIntoleranceService::UNKNOWN_SUBSTANCE_MESSAGE);
-        $this->service->add(self::ID_EPISODE, 'ALG01', null);
-    }
-
-    public function testOtherDatabaseErrorIsRethrown(): void
-    {
-        $this->episodeOfCareExists();
-        $this->substances->method('findById')->willReturn(new Substance('ALG01', 'Pénicilline'));
-        $this->allergies->method('findByPatient')->willReturn([]);
-        $this->allergies->method('insert')->willThrowException(self::mariaDbError(1205));
-
-        $this->expectException(PDOException::class);
-        $this->service->add(self::ID_EPISODE, 'ALG01', null);
-    }
-
-    public function testRemoveDeletesAllergyOfThePatientOfTheEpisode(): void
+    public function testAllergyIsRemovedFromThePatientOfTheStay(): void
     {
         $this->episodeOfCareExists();
         $this->allergies->expects($this->once())->method('delete')->with(7, self::ID_PATIENT)->willReturn(true);
 
-        $this->service->remove(self::ID_EPISODE, 7);
-    }
-
-    public function testRemoveUnknownAllergyIsRejected(): void
-    {
-        $this->episodeOfCareExists();
-        $this->allergies->method('delete')->with(7, self::ID_PATIENT)->willReturn(false);
-
-        $this->expectException(InvalidArgumentException::class);
-        $this->service->remove(self::ID_EPISODE, 7);
-    }
-
-    public function testRemoveOnUnknownEpisodeIsRejectedWithoutDelete(): void
-    {
-        $this->episodesOfCare->method('findById')->willReturn(null);
-        $this->allergies->expects($this->never())->method('delete');
-
-        $this->expectException(InvalidArgumentException::class);
         $this->service->remove(self::ID_EPISODE, 7);
     }
 

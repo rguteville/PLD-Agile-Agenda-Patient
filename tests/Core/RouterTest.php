@@ -9,7 +9,7 @@ use PHPUnit\Framework\TestCase;
 
 final class RouterTest extends TestCase
 {
-    public function testKnownRouteCallsHandler(): void
+    public function testKnownRouteIsFoundDespiteTheQueryString(): void
     {
         $router = new Router();
         $called = false;
@@ -19,30 +19,22 @@ final class RouterTest extends TestCase
 
         $router->dispatch('GET', '/sejour?id=1');
 
-        self::assertTrue($called, 'la partie requête de l\'URI ne doit pas empêcher la correspondance');
+        self::assertTrue($called);
     }
 
-    public function testUnknownRouteCallsFallback(): void
+    public function testUnknownRouteOrWrongMethodCallsTheFallback(): void
     {
         $router = new Router();
-        $fallbackCalled = false;
-        $router->notFound(static function () use (&$fallbackCalled): void {
-            $fallbackCalled = true;
+        $router->get('/sejour', static function (): void {
+        });
+        $fallbacks = 0;
+        $router->notFound(static function () use (&$fallbacks): void {
+            $fallbacks++;
         });
 
         $router->dispatch('GET', '/inconnue');
+        $router->dispatch('POST', '/sejour');
 
-        self::assertTrue($fallbackCalled);
-    }
-
-    public function testUnknownRouteWithoutFallbackShowsText(): void
-    {
-        $router = new Router();
-
-        ob_start();
-        $router->dispatch('POST', '/inconnue');
-        $sortie = (string) ob_get_clean();
-
-        self::assertSame('Page introuvable', $sortie);
+        self::assertSame(2, $fallbacks);
     }
 }

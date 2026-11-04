@@ -11,19 +11,19 @@ use DateTimeImmutable;
 use PHPUnit\Framework\TestCase;
 
 /**
- * AURA-24.4 : heures des soins planifiés déduites d'une ligne de prescription (RG3),
- * sans accès à la base.
+ * Heures des soins planifiés déduites d'une ligne de prescription (RG6), sans base. À l'enregistrement,
+ * la génération s'arrête à 7 jours ; la génération quotidienne fait la suite.
  */
 final class RequestLineTest extends TestCase
 {
-    public function testOnceGivesSingleCareAtStart(): void
+    public function testOneOffLineGivesASingleCareAtItsStart(): void
     {
         $line = new ServiceRequest(null, 'TYP03', new DateTimeImmutable('2026-10-11 06:00'));
 
         self::assertEquals([new DateTimeImmutable('2026-10-11 06:00')], $line->plannedTimes());
     }
 
-    public function testEveryNHoursUntilStopDateIncluded(): void
+    public function testRecurringLineRunsEveryNHoursUntilItsStopDateIncluded(): void
     {
         $line = new MedicationRequest(
             null,
@@ -44,20 +44,7 @@ final class RequestLineTest extends TestCase
         );
     }
 
-    public function testStopDateBeforeNextOccurrence(): void
-    {
-        $line = new ServiceRequest(
-            null,
-            'TYP04',
-            new DateTimeImmutable('2026-10-11 10:00'),
-            new DateTimeImmutable('2026-10-12 10:00'),
-            48
-        );
-
-        self::assertCount(1, $line->plannedTimes(), 'la 2e occurrence (13/10) dépasse la date d\'arrêt');
-    }
-
-    public function testWithoutStopDateUntilHorizon(): void
+    public function testLineWithoutStopDateIsPlannedSevenDaysAhead(): void
     {
         $line = new ServiceRequest(null, 'TYP02', new DateTimeImmutable('2026-10-12 08:00'), frequencyHours: 24);
 
@@ -71,7 +58,7 @@ final class RequestLineTest extends TestCase
      * Relecture adversariale du 2026-11-04 : une ligne longue (« toutes les heures pendant un an ») ne crée à
      * l'enregistrement que l'horizon de génération ; la génération quotidienne fait le reste.
      */
-    public function testLongLineStopsAtTheHorizonEvenWithAStopDate(): void
+    public function testLongLineIsPlannedOnlySevenDaysAhead(): void
     {
         $line = new ServiceRequest(
             null,

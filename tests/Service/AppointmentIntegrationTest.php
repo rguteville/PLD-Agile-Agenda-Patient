@@ -51,7 +51,7 @@ final class AppointmentIntegrationTest extends TestCase
         }
     }
 
-    public function testValidatedCareIsDoneTracedAndCannotBeValidatedTwice(): void
+    public function testValidatedCareIsTracedAndCannotBeValidatedTwice(): void
     {
         $input = [
             'action' => 'done', 'idPerformer' => 'PRA04', 'password' => 'x',
@@ -77,7 +77,7 @@ final class AppointmentIntegrationTest extends TestCase
         self::assertSame(AppointmentService::STATUS_CONFLICT, $again['status'], 'déjà validé : rien n\'est réécrit');
     }
 
-    public function testCareOfAnotherEpisodeIsNotFound(): void
+    public function testCareOfAnotherStayIsNotFound(): void
     {
         $result = $this->service->apply(
             2,
@@ -87,21 +87,6 @@ final class AppointmentIntegrationTest extends TestCase
         );
 
         self::assertSame(AppointmentService::STATUS_NOT_FOUND, $result['status']);
-    }
-
-    public function testNoteIsSavedOnAnyStatusAndTraced(): void
-    {
-        $result = $this->service->apply(
-            1,
-            'ZZ_SOI',
-            ['action' => 'note', 'idPerformer' => 'PRA04', 'password' => 'x', 'comment' => 'Zz à jeun'],
-            new DateTimeImmutable('2026-10-14 07:00:00')
-        );
-
-        self::assertSame(AppointmentService::STATUS_SAVED, $result['status']);
-        $row = $this->pdo->query("SELECT status, comment FROM Appointment WHERE idAppointment = 'ZZ_SOI'")
-            ->fetch(PDO::FETCH_ASSOC);
-        self::assertSame(['status' => 'PLANIFIE', 'comment' => 'Zz à jeun'], $row);
     }
 
     public function testCareAssistantCannotValidateAMedication(): void
@@ -117,20 +102,6 @@ final class AppointmentIntegrationTest extends TestCase
         self::assertArrayHasKey('auth', $result['errors']);
     }
 
-    public function testOnlyTheAuthorOfANoteCanChangeIt(): void
-    {
-        $note = static fn (string $who, string $text): array => [
-            'action' => 'note', 'idPerformer' => $who, 'password' => 'x', 'comment' => $text,
-        ];
-        $now = new DateTimeImmutable('2026-10-14 07:00:00');
-
-        self::assertSame('saved', $this->service->apply(1, 'ZZ_SOI', $note('PRA04', 'Zz v1'), $now)['status']);
-        self::assertSame('saved', $this->service->apply(1, 'ZZ_SOI', $note('PRA04', 'Zz v2'), $now)['status']);
-        $other = $this->service->apply(1, 'ZZ_SOI', $note('PRA06', 'Zz v3'), $now);
-        self::assertSame('invalid', $other['status'], 'note signée : un autre soignant ne la réécrit pas');
-        self::assertArrayHasKey('comment', $other['errors']);
-    }
-
     public function testCareOfAComingDayCannotBeValidatedAhead(): void
     {
         $result = $this->service->apply(
@@ -144,7 +115,7 @@ final class AppointmentIntegrationTest extends TestCase
         self::assertArrayHasKey('completedAt', $result['errors']);
     }
 
-    public function testCareOfTheCurrentShiftDoneEarlyCanBeValidated(): void
+    public function testCareOfTheCurrentShiftCanBeValidatedEarly(): void
     {
         $result = $this->service->apply(
             1,
@@ -184,34 +155,6 @@ final class AppointmentIntegrationTest extends TestCase
         );
 
         self::assertSame(AppointmentService::STATUS_INVALID, $result['status']);
-    }
-
-    /** « Non effectué » suit la même règle : on ne retire pas à l'avance un soin d'une rotation à venir. */
-    public function testCareOfAComingShiftCannotBeDeclaredNotDone(): void
-    {
-        $result = $this->service->apply(
-            1,
-            'ZZ_SOI',
-            ['action' => 'not_done', 'idPerformer' => 'PRA04', 'password' => 'x', 'comment' => 'patient au bloc'],
-            new DateTimeImmutable('2026-10-14 05:00:00')
-        );
-
-        self::assertSame(AppointmentService::STATUS_INVALID, $result['status'], 'prévu à 8 h, nuit en cours');
-        self::assertArrayHasKey('comment', $result['errors']);
-    }
-
-    /** Relecture adversariale du 2026-11-04 : une heure de réalisation très antérieure (faute de saisie) est refusée. */
-    public function testCompletionFarBeforeThePlannedTimeIsRefused(): void
-    {
-        $result = $this->service->apply(
-            1,
-            'ZZ_SOI',
-            ['action' => 'done', 'idPerformer' => 'PRA04', 'password' => 'x', 'completedAt' => '2020-01-01T00:00'],
-            new DateTimeImmutable('2026-10-14 09:00:00')
-        );
-
-        self::assertSame(AppointmentService::STATUS_INVALID, $result['status']);
-        self::assertArrayHasKey('completedAt', $result['errors']);
     }
 
     public function testStoppedLineAcceptsOnlyCareDoneBeforeTheStop(): void

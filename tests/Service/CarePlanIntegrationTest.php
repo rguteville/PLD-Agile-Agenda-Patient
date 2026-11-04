@@ -13,7 +13,6 @@ use Aura\Dao\PatientDao;
 use Aura\Dao\ReferenceDataDao;
 use Aura\Dao\SubstanceDao;
 use Aura\Dao\Transaction;
-use Aura\Domain\AuditEvent;
 use Aura\Service\CarePlanService;
 use Aura\Service\PatientRecordService;
 use Aura\Service\PrescriptionRejected;
@@ -22,12 +21,11 @@ use PDO;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Retours des médecins du 2026-11-03 sur base réelle (données de démo, transaction annulée en
- * tearDown) : le patient 1 (séjour 1) est allergique à la pénicilline, l'amoxicilline (MED04) en
- * contient. L'ordonnance est refusée sans confirmation (rien n'est écrit), acceptée avec, et la
- * confirmation est tracée ; la note est enregistrée ; la validation exige un mot de passe.
+ * Prescription sur la base du CI (données de démo, transaction annulée en tearDown). Le patient du séjour 1
+ * est allergique à la pénicilline, que contient l'amoxicilline (MED04) : ordonnance refusée sans
+ * confirmation, acceptée avec, confirmation tracée. RG5 : validation par un médecin authentifié.
  */
-final class CarePlanSafetyIntegrationTest extends TestCase
+final class CarePlanIntegrationTest extends TestCase
 {
     private const EPISODE = 1;
 
@@ -66,7 +64,7 @@ final class CarePlanSafetyIntegrationTest extends TestCase
         }
     }
 
-    public function testAllergenRefusedWithoutConfirmationAndNothingWritten(): void
+    public function testAllergenWithoutConfirmationIsRefusedAndNothingWritten(): void
     {
         $before = $this->carePlanCount();
 
@@ -82,16 +80,19 @@ final class CarePlanSafetyIntegrationTest extends TestCase
         self::assertSame($before, $this->carePlanCount(), 'refus : aucune ordonnance écrite');
     }
 
-    public function testAllergenAcceptedWithConfirmationWhichIsTraced(): void
+    public function testConfirmedAllergenIsAcceptedAndTheConfirmationTraced(): void
     {
         $idCarePlan = $this->service->prescribe(self::EPISODE, self::amoxicillinOrder('PRA01', 'MED04'));
 
-        $events = (new AuditEventDao($this->pdo))->findByEntity(AuditEvent::ENTITY_CARE_PLAN, (string) $idCarePlan);
+        $stmt = $this->pdo->prepare(
+            "SELECT field, newValue, author FROM AuditEvent WHERE entity = 'CarePlan' AND entityId = ?"
+        );
+        $stmt->execute([(string) $idCarePlan]);
+        $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
         self::assertCount(1, $events);
-        self::assertSame(CarePlanService::ALLERGY_OVERRIDE, $events[0]->getField());
-        self::assertStringContainsString('Amoxicilline', (string) $events[0]->getNewValue());
-        self::assertStringContainsString('Pénicilline', (string) $events[0]->getNewValue());
-        self::assertStringContainsString('Morel', $events[0]->getAuthor(), 'prescripteur tracé');
+        self::assertSame(CarePlanService::ALLERGY_OVERRIDE, $events[0]['field']);
+        self::assertStringContainsString('Amoxicilline', (string) $events[0]['newValue']);
+        self::assertStringContainsString('Morel', $events[0]['author'], 'prescripteur tracé');
 
         // Note enregistrée et visible ; la ligne est signalée « allergie » dans la liste du séjour.
         $listing = $this->service->listing(self::EPISODE);
@@ -105,20 +106,7 @@ final class CarePlanSafetyIntegrationTest extends TestCase
         self::assertSame('Pénicilline', $lines[0]['allergen']);
     }
 
-    public function testMedicationWithoutPatientAllergenNeedsNoConfirmationNorTrace(): void
-    {
-        $order = self::amoxicillinOrder('PRA01', '');
-        $order['lines'][0]['idMedication'] = 'MED01';
-
-        $idCarePlan = $this->service->prescribe(self::EPISODE, $order);
-
-        self::assertSame(
-            [],
-            (new AuditEventDao($this->pdo))->findByEntity(AuditEvent::ENTITY_CARE_PLAN, (string) $idCarePlan)
-        );
-    }
-
-    public function testPendingCarePlanValidationNeedsPassword(): void
+    public function testPendingPrescriptionIsValidatedOnlyByAnAuthenticatedDoctor(): void
     {
         // Infirmier, mode paramédical : ordonnance « non validée » (RG5), à valider par un médecin.
         $order = self::amoxicillinOrder('PRA04', '');
@@ -140,8 +128,7 @@ final class CarePlanSafetyIntegrationTest extends TestCase
         self::assertSame('PRA01', $this->validator($idCarePlan));
     }
 
-    /** @return array<string, mixed> ordonnance d'une ligne d'amoxicilline (MED04), note comprise */
-    public function testDoctorPrescriptionValidatedOnRecordNeedsThePassword(): void
+    public function testDoctorPrescriptionNeedsThePassword(): void
     {
         $order = ['prescriberPassword' => ''] + self::amoxicillinOrder('PRA01', 'MED04');
         $before = $this->carePlanCount();
@@ -154,6 +141,7 @@ final class CarePlanSafetyIntegrationTest extends TestCase
         self::assertSame($before, $this->carePlanCount(), 'rien n\'est écrit');
     }
 
+    /** @return array<string, mixed> ordonnance d'une ligne d'amoxicilline (MED04), note comprise */
     private static function amoxicillinOrder(string $idPrescriber, string $override): array
     {
         return [

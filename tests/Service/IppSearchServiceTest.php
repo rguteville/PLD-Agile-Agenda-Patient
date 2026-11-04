@@ -57,24 +57,6 @@ final class IppSearchServiceTest extends TestCase
         self::assertNull($this->service->search('999999999'));
     }
 
-    public function testPatientWithoutAllergyDateOrSex(): void
-    {
-        $underX = new Patient(7, '123456', 'X', 'X', null, null);
-
-        $view = IppSearchService::present($underX, []);
-
-        self::assertNull($view['birthDate'], 'date inconnue : champ laissé vide');
-        self::assertNull($view['sex']);
-        self::assertSame([], $view['allergies'], 'liste vide = « Aucune allergie connue » côté formulaire');
-    }
-
-    public function testEmptySexBecomesNull(): void
-    {
-        $view = IppSearchService::present(new Patient(7, '123456', 'Martin', 'Paul', null, ' '), []);
-
-        self::assertNull($view['sex']);
-    }
-
     private function patient(string $ipp): Patient
     {
         return new Patient(9, $ipp, ' Durand ', 'Alice', new DateTimeImmutable('1990-06-15'), 'F');

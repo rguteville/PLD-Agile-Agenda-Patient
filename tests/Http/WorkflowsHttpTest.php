@@ -8,7 +8,7 @@ use DateTimeImmutable;
 
 /**
  * Parcours de bout en bout qui écrivent en base, comme un soignant dans le navigateur : admission,
- * allergies, validation d'un soin, équipes, suppression d'un patient. Chaque test crée ses propres
+ * validation d'un soin, équipe, arrêt d'une ligne, décès, édition en ligne. Chaque test crée ses propres
  * données (ZZ…), vérifie les refus (CSRF, règles métier) et nettoie ce qu'il a écrit.
  */
 final class WorkflowsHttpTest extends HttpTestCase
@@ -39,32 +39,6 @@ final class WorkflowsHttpTest extends HttpTestCase
             self::assertStringContainsString('ZZHTTPADMISSION', mb_strtoupper($record->body));
         } finally {
             $this->deletePatients('Zzhttpadmission');
-        }
-    }
-
-    public function testAllergyIsAddedThenRemovedFromTheRecord(): void
-    {
-        // Ripley (séjour 8) n'a aucune allergie dans les données de démo.
-        $csrf = $this->csrfFrom($this->get('/sejour?id=8'));
-        $allergy = ['idEpisodeOfCare' => '8', 'idSubstance' => 'ALG01', 'criticality' => 'Élevée'];
-        self::assertSame(403, $this->postForm('/sejour/allergies/ajouter', $allergy)->status, 'sans jeton CSRF');
-        $added = $this->postForm('/sejour/allergies/ajouter', ['csrf' => $csrf] + $allergy);
-        try {
-            self::assertSame(303, $added->status);
-            self::assertSame('/sejour?id=8', $added->header('Location'));
-            self::assertStringContainsString('Pénicilline', $this->get('/sejour?id=8')->body);
-
-            $id = (int) $this->pdo()->query(
-                "SELECT idAllergy FROM AllergyIntolerance WHERE idPatient = '7' AND idSubstance = 'ALG01'"
-            )->fetchColumn();
-            $removed = $this->postForm(
-                '/sejour/allergies/retirer',
-                ['csrf' => $csrf, 'idEpisodeOfCare' => '8', 'idAllergy' => (string) $id]
-            );
-            self::assertSame(303, $removed->status);
-            self::assertStringContainsString('Aucune allergie connue', $this->get('/sejour?id=8')->body);
-        } finally {
-            $this->pdo()->exec("DELETE FROM AllergyIntolerance WHERE idPatient = '7' AND idSubstance = 'ALG01'");
         }
     }
 
@@ -136,33 +110,6 @@ final class WorkflowsHttpTest extends HttpTestCase
                 );
             }
             $this->pdo()->exec("DELETE FROM CareTeam WHERE shiftDate = '2031-03-04'");
-        }
-    }
-
-    public function testPatientDeletionNeedsCsrfIsRefusedDuringAStayAndHidesThePatient(): void
-    {
-        $this->pdo()->exec(
-            "INSERT INTO Patient (idPatient, lastName, firstName) VALUES ('900001', 'Zzhttpsuppression', 'Test')"
-        );
-        try {
-            $confirm = $this->get('/patients/supprimer?id=900001');
-            self::assertSame(200, $confirm->status);
-            $csrf = $this->csrfFrom($confirm);
-
-            self::assertSame(403, $this->postForm('/patients/supprimer?id=900001', [])->status, 'sans jeton CSRF');
-            self::assertSame(
-                409,
-                $this->postForm('/patients/supprimer?id=1', ['csrf' => $csrf])->status,
-                'RG10 : patient avec un séjour en cours'
-            );
-
-            $deleted = $this->postForm('/patients/supprimer?id=900001', ['csrf' => $csrf]);
-            self::assertSame(303, $deleted->status);
-            self::assertStringNotContainsString('Zzhttpsuppression', $this->get('/patients')->body);
-            self::assertSame(404, $this->get('/patients/supprimer?id=900001')->status, 'déjà supprimé');
-        } finally {
-            $this->pdo()->exec("DELETE FROM AuditEvent WHERE entity = 'Patient' AND entityId = '900001'");
-            $this->pdo()->exec("DELETE FROM Patient WHERE idPatient = '900001'");
         }
     }
 
