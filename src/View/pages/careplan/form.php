@@ -65,6 +65,7 @@ $medicationParams = [
     ['med-important', 'Important ->', false, 'text'],
     ['med-nurseInstructions', 'Consignes pour IDE', false, 'text'],
     ['med-start', 'Du', true, 'date'],
+    // Sans heure, la date de fin vaut jusqu'à 23 h 59 ce jour-là (care-plan.js).
     ['med-end', 'Au (date de fin)', false, 'date'],
     ['med-administrationDuration', "Durée d'administration", false, 'dose'],
     ['med-antibioticReason', 'Motif (si antibiotique)', false, 'text'],
@@ -192,10 +193,13 @@ $medicationParams = [
                     </div>
 
                     <?php foreach ($medicationParams as [$id, $label, $required, $type]) : ?>
-                        <label for="<?= View::e($id) ?>"
+                        <?php /* Dates (2026-11-04) : jour et heure séparés (#…-date, #…-time) ; « Une fois » n'a qu'une
+                                 ligne « Le » (care-plan.js masque la ligne de fin, data-row). */ ?>
+                        <label for="<?= View::e($type === 'date' ? $id . '-date' : $id) ?>"
+                               id="<?= View::e($id) ?>-label" data-row="<?= View::e($id) ?>"
                                class="<?= $type === 'readonly' ? 'b3-greyed' : '' ?>"><?= View::e($label) ?></label>
-                        <span class="b3-required"><?= $required ? '*' : '' ?></span>
-                        <div class="b3-value">
+                        <span class="b3-required" data-row="<?= View::e($id) ?>"><?= $required ? '*' : '' ?></span>
+                        <div class="b3-value" data-row="<?= View::e($id) ?>">
                             <?php if ($type === 'route') : ?>
                                 <select id="<?= View::e($id) ?>">
                                     <option value=""></option>
@@ -204,7 +208,11 @@ $medicationParams = [
                                     <?php endforeach; ?>
                                 </select>
                             <?php elseif ($type === 'date') : ?>
-                                <input type="datetime-local" id="<?= View::e($id) ?>">
+                                <span class="b3-datetime">
+                                    <input type="date" id="<?= View::e($id) ?>-date">
+                                    <input type="time" id="<?= View::e($id) ?>-time"
+                                           aria-label="Heure (<?= View::e($label) ?>)">
+                                </span>
                             <?php elseif ($type === 'readonly') : ?>
                                 <input type="text" id="<?= View::e($id) ?>" readonly tabindex="-1">
                             <?php else : ?>
@@ -248,13 +256,23 @@ $medicationParams = [
                         </span>
                     </div>
 
-                    <label for="care-start">Du</label>
+                    <label for="care-start-date" id="care-start-label">Du</label>
                     <span class="b3-required">*</span>
-                    <div class="b3-value"><input type="datetime-local" id="care-start"></div>
+                    <div class="b3-value">
+                        <span class="b3-datetime">
+                            <input type="date" id="care-start-date">
+                            <input type="time" id="care-start-time" aria-label="Heure (début)">
+                        </span>
+                    </div>
 
-                    <label for="care-end">Au (date de fin)</label>
-                    <span class="b3-required"></span>
-                    <div class="b3-value"><input type="datetime-local" id="care-end"></div>
+                    <label for="care-end-date" data-row="care-end">Au (date de fin)</label>
+                    <span class="b3-required" data-row="care-end"></span>
+                    <div class="b3-value" data-row="care-end">
+                        <span class="b3-datetime">
+                            <input type="date" id="care-end-date">
+                            <input type="time" id="care-end-time" aria-label="Heure (fin)">
+                        </span>
+                    </div>
 
                     <label for="care-timeConstraint">Contrainte horaire</label>
                     <span class="b3-required"></span>
@@ -346,7 +364,8 @@ $medicationParams = [
                 <p class="b3-empty">Aucune prescription en attente.</p>
             <?php endif; ?>
             <?php foreach ($pendingCarePlans as $carePlan) : ?>
-                <div class="b3-pending">
+                <?php /* Cible du badge « Ordonnance non validée » des agendas (#ordonnance-<id>). */ ?>
+                <div class="b3-pending" id="ordonnance-<?= View::e($carePlan['idCarePlan']) ?>">
                     <p class="b3-pending-header">
                         <?= View::render('components/status_badge', ['status' => 'to_validate']) ?>
                         Ordonnance n° <?= View::e($carePlan['idCarePlan']) ?>

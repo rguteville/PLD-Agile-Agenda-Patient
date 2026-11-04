@@ -4,6 +4,17 @@ Format : une entrée par pull request, de la plus récente à la plus ancienne.
 
 ## 2026-11-04
 
+### Retours du 2026-11-04 (3)
+
+- Liste des patients : cœur barré à gauche du nom d'un patient décédé.
+- Badge « Ordonnance non validée » cliquable partout où il s'affiche (agendas, Mon planning, liste des
+  prescriptions) : il ouvre l'écran « Nouvelles prescriptions » sur l'ordonnance à valider (#ordonnance-<id>).
+- Agenda du service, onglet « Lits » : toute la ligne d'un patient ouvre son panneau.
+- Prescription « Une fois » : un seul champ « Le » ; « du … au … » seulement pour une prescription récurrente.
+- Correctif : une date de fin saisie sans heure était ignorée (champ datetime-local considéré vide par le
+  navigateur). Jour et heure sont maintenant deux champs ; sans heure, la fin vaut 23 h 59 ce jour-là, le début
+  demande l'heure.
+
 ### Relecture adversariale (`feat/agenda-service-refonte`)
 
 - Trois relectures adversariales (points d'entrée et DAO, services patient et prescription, agendas et

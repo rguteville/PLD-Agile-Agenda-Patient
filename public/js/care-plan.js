@@ -76,6 +76,48 @@ if (carePlanForm) {
         return date.toISOString().slice(0, 16);
     }
 
+    // ── Dates des fiches médicament et soin (retours du 2026-11-04) : jour et heure dans deux champs
+    // (#…-date, #…-time). Avant, un champ datetime-local rempli sans l'heure valait « vide » dans le
+    // navigateur : la date de fin disparaissait sans prévenir.
+    function setDateTime(id, value) {
+        const [day, time] = value.split('T');
+        $(`#${id}-date`).value = day ?? '';
+        $(`#${id}-time`).value = time ?? '';
+    }
+
+    // Lit « AAAA-MM-JJTHH:MM ». Sans heure : endOfDay (« 23:59 ») pour une fin, erreur pour un début.
+    // Renvoie { value } (value '' si les deux champs sont vides) ou { error }.
+    function readDateTime(id, what, endOfDay = null) {
+        const day = $(`#${id}-date`);
+        const time = $(`#${id}-time`);
+        if (day.validity.badInput || time.validity.badInput) {
+            return { error: `${what} : date ou heure incomplète.` };
+        }
+        if (day.value === '' && time.value === '') {
+            return { value: '' };
+        }
+        if (day.value === '') {
+            return { error: `${what} : indiquez aussi le jour.` };
+        }
+        if (time.value === '') {
+            if (endOfDay === null) {
+                return { error: `${what} : indiquez aussi l'heure.` };
+            }
+            time.value = endOfDay;
+        }
+        return { value: `${day.value}T${time.value}` };
+    }
+
+    // « Une fois » : une seule date, « Le », pas de date de fin (ligne masquée et vidée). Sinon « Du » et « Au ».
+    function applyOnce(prefix) {
+        const once = $(`#${prefix}-frequency`).value === 'ONCE';
+        $(`#${prefix}-start-label`).textContent = once ? 'Le' : 'Du';
+        carePlanForm.querySelectorAll(`[data-row="${prefix}-end"]`).forEach(element => { element.hidden = once; });
+        if (once) {
+            setDateTime(`${prefix}-end`, '');
+        }
+    }
+
     // 2026-10-20T08:00 → 20/10/2026 08:00
     function readableDate(value) {
         const [day, time] = value.split('T');
@@ -146,7 +188,8 @@ if (carePlanForm) {
         } else if (categoryKind() === 'CARE' && item.value !== '') {
             openParams(careParams);
             $('#care-name').value = chosenLabel(item);
-            $('#care-start').value = localNow();
+            setDateTime('care-start', localNow());
+            applyOnce('care');
         } else if (categoryKind() === 'GROUP' && item.value !== '') {
             openParams(groupParams);
             $('#group-name').value = chosenLabel(item);
@@ -170,7 +213,8 @@ if (carePlanForm) {
         openParams(medicationParams);
         $('#med-inn').value = chosenLabel(item);
         $('#med-form').value = chosenLabel(dosageForm);
-        $('#med-start').value = localNow();
+        setDateTime('med-start', localNow());
+        applyOnce('med');
     });
 
     // « Toutes les … heures » / « Tous les … jours » : affiche le nombre à saisir
@@ -179,6 +223,7 @@ if (carePlanForm) {
         select.addEventListener('change', () => {
             $(`#${prefix}-hours-block`).hidden = select.value !== 'SCHEDULED';
             $(`#${prefix}-days-block`).hidden = select.value !== 'DAYS';
+            applyOnce(prefix);
         });
     });
 
@@ -212,7 +257,9 @@ if (carePlanForm) {
             return 'Indiquez tous les combien de jours.';
         }
         if (fields.startDate === '') {
-            return 'La date de début (« du ») est obligatoire.';
+            return fields.frequencyType === 'ONCE'
+                ? 'La date (« le ») est obligatoire.'
+                : 'La date de début (« du ») est obligatoire.';
         }
         if (fields.endDate !== '' && fields.frequencyType === 'ONCE') {
             return 'Une prescription « Une fois » n\'a pas de date de fin.';
@@ -223,14 +270,34 @@ if (carePlanForm) {
         return '';
     }
 
-    // « du 20/10/2026 08:00 au 27/10/2026 08:00 », ou « du …, sans date de fin »
-    const period = fields => ` du ${readableDate(fields.startDate)}`
-        + (fields.endDate !== '' ? ` au ${readableDate(fields.endDate)}` : ', sans date de fin');
+    // « du 20/10/2026 08:00 au 27/10/2026 08:00 », « du …, sans date de fin », ou « le … » (une fois)
+    const period = fields => (fields.frequencyType === 'ONCE'
+        ? ` le ${readableDate(fields.startDate)}`
+        : ` du ${readableDate(fields.startDate)}`
+            + (fields.endDate !== '' ? ` au ${readableDate(fields.endDate)}` : ', sans date de fin'));
+
+    // Dates d'une fiche : { startDate, endDate } ou { error }.
+    function readPeriod(prefix) {
+        const once = $(`#${prefix}-frequency`).value === 'ONCE';
+        const start = readDateTime(`${prefix}-start`, once ? 'Date' : 'Date de début');
+        if (start.error) {
+            return start;
+        }
+        const end = once ? { value: '' } : readDateTime(`${prefix}-end`, 'Date de fin', '23:59');
+        if (end.error) {
+            return end;
+        }
+        return { startDate: start.value, endDate: end.value };
+    }
 
     // ── Lecture des fiches : renvoie la ligne à ajouter, ou { error }.
     // Les clés de « fields » sont les noms envoyés au serveur (CarePlanService::LINE_FIELDS).
     function medicationLine() {
         const frequencyType = $('#med-frequency').value;
+        const dates = readPeriod('med');
+        if (dates.error) {
+            return { error: dates.error };
+        }
         const fields = {
             kind: 'MEDICATION',
             idMedication: dosageForm.value,
@@ -248,8 +315,8 @@ if (carePlanForm) {
             adjustmentCriterion: $('#med-adjustmentCriterion').value.trim(),
             offGhsReason: $('#med-offGhsReason').value.trim(),
             ...frequencyFields('med', frequencyType),
-            startDate: $('#med-start').value,
-            endDate: $('#med-end').value,
+            startDate: dates.startDate,
+            endDate: dates.endDate,
         };
 
         if (frequencyType === '') {
@@ -294,12 +361,16 @@ if (carePlanForm) {
     // Lecture de la fiche d'un soin : renvoie la ligne à ajouter, ou { error }.
     function careLine() {
         const frequencyType = $('#care-frequency').value;
+        const dates = readPeriod('care');
+        if (dates.error) {
+            return { error: dates.error };
+        }
         const fields = {
             kind: 'CARE',
             idActivityDefinition: item.value,
             ...frequencyFields('care', frequencyType),
-            startDate: $('#care-start').value,
-            endDate: $('#care-end').value,
+            startDate: dates.startDate,
+            endDate: dates.endDate,
             timeConstraint: $('#care-timeConstraint').value.trim(),
         };
 
@@ -442,6 +513,10 @@ if (carePlanForm) {
     // ajoutées au panier ; celles déjà présentes ne sont pas dupliquées.
     async function addGroup() {
         const startDate = $('#group-start').value;
+        if ($('#group-start').validity.badInput) {
+            showMessage('Début du protocole : date ou heure incomplète.');
+            return;
+        }
         if (startDate === '') {
             showMessage('La date de début est obligatoire.');
             return;

@@ -14,6 +14,9 @@ use Aura\Core\View;
  * @var string $status clé de statut (planned, late, done, to_validate, validated, stopped, cancelled, not_done) ;
  *      une clé inconnue est affichée telle quelle, en neutre
  * @var string|null $label texte affiché à la place du libellé par défaut, aucun par défaut
+ * @var string|null $href rend le badge cliquable (lien), aucun par défaut. Retours du 2026-11-04 : « À valider par
+ *      un médecin » mène à l'ordonnance à valider (components/to_validate_link calcule l'adresse)
+ * @var string|null $title infobulle et nom accessible du lien, en plus du libellé
  */
 $statuses = [
     'planned' => ['label' => 'Prévu', 'icon' => 'clock'],
@@ -32,7 +35,18 @@ $key = $known ? $status : 'unknown';
 $text = $label ?? ($known ? $statuses[$status]['label'] : $status);
 $icon = $known ? $statuses[$status]['icon'] : 'circle-alert';
 ?>
+<?php if (($href ?? null) !== null) : ?>
+<a class="badge badge--<?= View::e($key) ?> badge--link" data-status="<?= View::e($status) ?>"
+   href="<?= View::e($href) ?>"<?= ($title ?? null) !== null ? ' title="' . View::e($title) . '"' : '' ?>>
+    <?= View::render('components/icon', ['name' => $icon]) ?>
+    <span><?= View::e($text) ?></span>
+    <?php if (($title ?? null) !== null) : ?>
+        <span class="sr-only"> : <?= View::e($title) ?></span>
+    <?php endif; ?>
+</a>
+<?php else : ?>
 <span class="badge badge--<?= View::e($key) ?>" data-status="<?= View::e($status) ?>">
     <?= View::render('components/icon', ['name' => $icon]) ?>
     <span><?= View::e($text) ?></span>
 </span>
+<?php endif; ?>

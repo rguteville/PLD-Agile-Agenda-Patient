@@ -537,6 +537,11 @@ final class PagesRenderTest extends TestCase
             $html
         );
         self::assertStringNotContainsString('<span>Décédée</span>', $html, 'plus d\'étiquette sous le nom');
+        self::assertMatchesRegularExpression(
+            '/<td><span class="deceased-tag deceased-tag--icon"[^>]*>.*?<\/span>\s*[^<\s][^<]*<\/td>/s',
+            $html,
+            'le cœur est à gauche du nom'
+        );
         self::assertSame(1, substr_count($html, 'deceased-tag--icon'), 'seul le patient décédé est marqué');
     }
 
@@ -639,6 +644,7 @@ final class PagesRenderTest extends TestCase
         self::assertStringContainsString('aria-current="page">Lits</a>', $html);
         self::assertStringContainsString('1 soin en retard', $html, 'AURA-32 : retards du service');
         self::assertStringContainsString('board-row is-selected', $html, 'premier lit détaillé par défaut');
+        self::assertStringContainsString('data-row-link', $html, 'toute la ligne est cliquable (agenda.js)');
         self::assertStringContainsString('href="/agenda-service?idHealthcareService=SRV01&amp;date=2026-10-14'
             . '&amp;sejour=1#detail-lit"', $html);
         self::assertStringContainsString('id="detail-lit"', $html);

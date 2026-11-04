@@ -136,7 +136,9 @@ $agendaUrl = static fn (int $idEpisodeOfCare): string => '/agenda-patient?id=' .
                             <?php foreach ($rows as $row) : ?>
                                 <?php $isSelected = ($board['selected']['idEpisodeOfCare'] ?? null)
                                     === $row['idEpisodeOfCare']; ?>
-                                <tr class="board-row<?= $isSelected ? ' is-selected' : '' ?>">
+                                <?php /* Retours du 2026-11-04 : toute la ligne ouvre le panneau du patient (agenda.js,
+                                         data-row-link) ; le lien sur le nom reste pour le clavier et sans JS. */ ?>
+                                <tr class="board-row<?= $isSelected ? ' is-selected' : '' ?>" data-row-link>
                                     <td class="board-row__bed"><?= View::e($row['bed'] ?? 'sans lit') ?></td>
                                     <th scope="row" class="board-row__patient">
                                         <?php $rowUrl = $dayUrl($service['date'], 'lits', $row['idEpisodeOfCare']); ?>

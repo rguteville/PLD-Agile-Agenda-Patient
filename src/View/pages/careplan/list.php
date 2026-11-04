@@ -105,7 +105,11 @@ use Aura\Domain\CarePlan;
                                 <span class="trace">par <?= View::e($line['validation']) ?></span>
                             <?php else : ?>
                                 <?php /* Le « petit stylo » du SI réel (RG5) : visible mais non validée. */ ?>
-                                <?= View::render('components/status_badge', ['status' => 'to_validate']) ?>
+                                <?php /* Cliquable : mène à la validation de l'ordonnance (2026-11-04). */ ?>
+                                <?= View::render('components/to_validate_link', [
+                                    'idEpisodeOfCare' => $idEpisodeOfCare,
+                                    'idCarePlan' => $line['idCarePlan'] ?? null,
+                                ]) ?>
                             <?php endif; ?>
                         </td>
                     </tr>

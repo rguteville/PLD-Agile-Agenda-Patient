@@ -57,9 +57,9 @@ $idEpisodeOfCare = $idEpisodeOfCare ?? null;
                     <td class="col-status">
                         <?= View::render('components/status_badge', ['status' => $item['status']]) ?>
                         <?php if ($item['notValidated'] ?? false) : ?>
-                            <?= View::render('components/status_badge', [
-                                'status' => 'to_validate',
-                                'label' => 'Ordonnance non validée',
+                            <?= View::render('components/to_validate_link', [
+                                'idEpisodeOfCare' => $idEpisodeOfCare ?? null,
+                                'idCarePlan' => $item['idCarePlan'] ?? null,
                             ]) ?>
                         <?php endif; ?>
                         <?php if ($item['completedAt'] !== null) : ?>

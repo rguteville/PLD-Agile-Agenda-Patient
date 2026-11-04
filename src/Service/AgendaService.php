@@ -818,7 +818,8 @@ final class AgendaService
         ));
         $start = $date($line['startDate'] ?? null);
         if ($start !== null) {
-            $add('Période', CarePlanService::period($start, $date($line['endDate'] ?? null)));
+            $once = !isset($line['frequencyHours']) || $line['frequencyHours'] === null;
+            $add($once ? 'Date' : 'Période', CarePlanService::period($start, $date($line['endDate'] ?? null), $once));
         }
         $add('Consigne', $line['timeConstraint'] ?? null);
         $add('Mode', CarePlanService::MODE_LABELS[$plan['mode'] ?? ''] ?? null);
@@ -1003,6 +1004,8 @@ final class AgendaService
             // RG5 / AURA-23 : ordonnance pas encore validée par un médecin (urgence, paramédicale) :
             // ses soins entrent dans l'agenda avec un marqueur visible.
             'notValidated' => $plan !== [] && array_key_exists('validatedAt', $plan) && $plan['validatedAt'] === null,
+            // Ordonnance du soin : le badge « Ordonnance non validée » mène à sa validation (2026-11-04).
+            'idCarePlan' => isset($plan['idCarePlan']) ? (string) $plan['idCarePlan'] : null,
             // Validable : en retard, ou prévu avant la fin de la rotation en cours (retours du 2026-11-04 :
             // un soin fait en avance doit pouvoir être validé ; la nuit, la dose de minuit aussi), pas un
             // soin d'une rotation à venir ; une ligne arrêtée se trace si la dose a été faite avant l'arrêt.

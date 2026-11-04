@@ -137,6 +137,7 @@ final class AgendaServicePresentWeekTest extends TestCase
         self::assertTrue($items['SOON']['canValidate'], 'soin de la rotation en cours (matin) fait en avance');
         self::assertFalse($items['LATER']['canValidate'], 'soin de la rotation à venir (20 h) : pas encore');
         self::assertTrue($items['LATER']['notValidated'], 'RG5 : ordonnance non validée signalée');
+        self::assertSame('1', $items['LATER']['idCarePlan'], 'le badge mène à la validation de cette ordonnance');
     }
 
     public function testEachCareCarriesItsPrescriptionCard(): void
