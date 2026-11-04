@@ -335,7 +335,7 @@ try {
         $controller->getAgenda();
     };
 
-    // Équipes de vacation et « Mon planning » par soignant.
+    // Équipes de rotation et « Mon planning » par soignant.
     $teamController = static function () use ($agendaService, $appointmentService): TeamController {
         $pdo = Database::get();
         $appointments = $appointmentService($pdo);

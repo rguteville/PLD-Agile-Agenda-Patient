@@ -1006,7 +1006,8 @@ final class CarePlanService
 
     /**
      * Une ligne en une phrase, comme dans « Prescriptions non sauvegardées » : « [IV] Paracétamol
-     * (Solution injectable) 1 g (Toutes les 6 h) -> consignes du 20/10/2026 08:00 au … ».
+     * (Solution injectable) 1 g (Toutes les 6 h) -> consignes du 20/10/2026 08:00 au … » ; « le … » pour une
+     * prescription « Une fois ».
      *
      * @param array<string, mixed> $line vue-modèle de presentLine()
      */
@@ -1018,12 +1019,8 @@ final class CarePlanService
                 $text .= ' -> ' . $line[$note];
             }
         }
-        $text .= ' du ' . $line['startDate'];
-        if ($line['endDate'] !== null) {
-            $text .= ' au ' . $line['endDate'];
-        }
-
-        return $text;
+        // « le … » pour une prescription « Une fois », « du … au … » sinon (period()).
+        return $text . ' ' . $line['period'];
     }
 
     /**

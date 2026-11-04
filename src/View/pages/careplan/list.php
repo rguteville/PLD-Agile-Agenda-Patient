@@ -109,6 +109,7 @@ use Aura\Domain\CarePlan;
                                 <?= View::render('components/to_validate_link', [
                                     'idEpisodeOfCare' => $idEpisodeOfCare,
                                     'idCarePlan' => $line['idCarePlan'] ?? null,
+                                    'closed' => !$isOpen,
                                 ]) ?>
                             <?php endif; ?>
                         </td>

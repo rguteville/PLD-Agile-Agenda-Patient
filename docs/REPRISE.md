@@ -12,8 +12,8 @@ Notion, page « PLD Agile - Agenda Patient » (lien en tête du README) ; les r�
 
 ## 1. Installer et lancer
 
-Prérequis : PHP 8.4 (extensions `pdo_mysql`, `mbstring`), MariaDB 11.8, Composer 2. Les commandes par système
-sont dans le README, section « Installation ».
+Prérequis : PHP 8.4 avec les extensions `pdo_mysql` et `mbstring`, plus `curl` pour les tests HTTP, MariaDB 11.8,
+Composer 2. Les commandes par système sont dans le README, section « Installation ».
 
 ```bash
 composer install
@@ -23,7 +23,8 @@ composer install
 #   GRANT ALL PRIVILEGES ON aura.* TO 'aura'@'localhost';
 mariadb -u aura -p aura < database/schema.sql    # structure
 mariadb -u aura -p aura < database/test.sql      # données fictives (jour de référence : 14/10/2026)
-cp config/config.example.php config/config.php    # puis y mettre le mot de passe (fichier ignoré par Git)
+cp config/config.example.php config/config.php    # fichier ignoré par Git ; puis, comme dans le README :
+#   '127.0.0.1' → 'localhost' (hôte) et '' → le mot de passe de l'utilisateur aura
 php -S localhost:8000 -t public public/index.php  # http://localhost:8000
 ```
 
@@ -223,8 +224,8 @@ ou dans le commentaire de la constante concernée.
   `ActivityDefinition::getDescription()`, `Appointment::getTimeRecorded()`. Ils reflètent des colonnes et
   servent aux tests des DAO ; ils n'ont pas d'usage dans l'application.
 - **JavaScript non testé automatiquement** : les suites PHPUnit ne l'exécutent pas.
-- **Pas de migrations versionnées** : `database/migrations/` contient des scripts additifs datés, à rejouer à la
-  main sur une base existante ; sinon recréer la base depuis `schema.sql`.
+- **Pas de migrations versionnées** : `database/migrations/` contient des scripts datés et rejouables, à appliquer à
+  la main sur une base existante dans l'ordre de leurs noms ; sinon recréer la base depuis `schema.sql`.
 - **OpenEMR** : aucune interconnexion (hors périmètre du premier lot).
 
 ## 8. Ajouter une page ou une règle
@@ -262,7 +263,7 @@ ou dans le commentaire de la constante concernée.
 5. Citer la règle dans le commentaire (`RGn`) et ajouter la ligne correspondante dans
    [TESTS.md](TESTS.md).
 6. Une contrainte qui demande une colonne ou un `CHECK` passe par le responsable BDD : proposer le diff de
-   `schema.sql` et un fichier additif dans `database/migrations/` dans la pull request.
+   `schema.sql` et un fichier de migration rejouable dans `database/migrations/` dans la pull request.
 
 ## Glossaire
 
@@ -278,13 +279,17 @@ Les acronymes et les termes techniques ou métier employés dans ce document.
 | Aide-soignant(e) | Soignant qui assiste l'infirmier pour les soins d'hygiène et de confort. Hypothèse du projet : un aide-soignant peut valider un soin, pas l'administration d'un médicament. |
 | AJAX | Envoi d'une requête par JavaScript sans recharger la page. Ici `form.js` envoie le formulaire et reçoit une réponse JSON (erreurs ou adresse de redirection). |
 | Allergène | Substance à laquelle un patient est allergique. Dans AURA, les allergènes sont choisis dans un référentiel (table `Substance`). |
+| Apache | Serveur web utilisé sur la VM de démonstration. Il sert le dossier `public/` et envoie toute adresse sans fichier vers `index.php`. |
+| ARDSNet | ARDS Network : réseau américain de recherche clinique sur le syndrome de détresse respiratoire aiguë (SDRA). Son protocole de ventilation fournit la formule du poids théorique. |
 | Authentification factice | Fenêtre qui demande de choisir un praticien dans une liste et de saisir un mot de passe, mais qui ne vérifie pas ce mot de passe. Elle remplace provisoirement une vraie authentification ; le nom choisi est enregistré dans la trace. |
 | AUTO_INCREMENT | Numérotation automatique d'une clé par la base. Seules `AuditEvent` et `CareTeam` l'utilisent ; les autres identifiants sont calculés par l'application (`MAX + 1` dans une transaction verrouillée). |
 | Autoload (PSR-4) | Chargement automatique des classes PHP par Composer : la classe `Aura\Service\AgendaService` est lue dans `src/Service/AgendaService.php`, selon la norme PSR-4. |
 | B3 (écran B3) | Numéro, dans le cahier des charges, de l'écran de saisie des prescriptions (`/care-plans/new`). |
+| Backlog | Liste ordonnée des fonctionnalités et corrections à réaliser, tenue par le PO dans Notion. |
 | Bandeau patient | Zone fixée en haut de chaque écran de séjour : identité du patient, séjour, poids, taille et allergies (règle RG2). |
 | BDD | Base de données. Le « responsable BDD » est le membre de l'équipe qui décide des changements de `database/schema.sql`. |
 | Branche | Ligne de développement séparée dans Git. On crée une branche par fonctionnalité ou correction, puis on la fusionne dans `main` par une pull request. |
+| Cahier des charges | Document qui décrit le besoin du service de réanimation et les fonctionnalités attendues ; il est dans Notion. |
 | camelCase | Écriture des noms composés en collant les mots, le premier en minuscule et les suivants avec une majuscule (`lastName`, `admissionDate`). Utilisée pour les colonnes SQL et les variables. |
 | Catégorie habilitée | Catégorie de soignant autorisée à valider un type de soin (règle RG7). Hypothèse du projet : reconnue par le libellé du rôle du soignant. |
 | CHECK | Contrainte SQL qui refuse une valeur hors d'une liste ou d'un intervalle (par exemple une rotation autre que MATIN, APRES_MIDI ou NUIT). |
@@ -302,6 +307,7 @@ Les acronymes et les termes techniques ou métier employés dans ce document.
 | CSS | Langage de mise en forme des pages web. AURA a un seul fichier : `public/css/style.css`. |
 | DAO | Data Access Object : classe de `src/Dao/` qui lit et écrit une table. C'est le seul endroit où apparaissent les noms de colonnes SQL. |
 | DataProvider | Attribut PHPUnit (`#[DataProvider]`) qui fait tourner une même méthode de test sur une liste de cas (valeurs d'entrée et résultat attendu). |
+| Debian | Distribution Linux de la VM de démonstration (Debian 13 fournit PHP 8.4 et MariaDB 11.8). |
 | Déclaration du décès | Action réservée à un médecin (authentification factice) : le patient est marqué décédé, le séjour en cours se termine à l'heure du décès et ses soins encore prévus sont annulés (`POST /sejour/deces`). |
 | Dette technique | Défaut ou raccourci connu, laissé volontairement pour plus tard. |
 | Données de démo | Jeu de données fictives de `database/test.sql`, dont le jour de référence est le mercredi 14 octobre 2026. `database/demo-today.sql` le recale sur le jour courant pour une démonstration. |
@@ -309,32 +315,41 @@ Les acronymes et les termes techniques ou métier employés dans ce document.
 | Édition en ligne | Modification d'un seul champ du dossier directement dans la page (crayon, puis « Confirmer »). Elle passe par l'authentification factice d'un médecin et est tracée. |
 | Entité immuable | Objet de `src/Domain/` qui représente une ligne de données (patient, séjour…). Ses valeurs sont fixées à la création et lues par des accesseurs (`get…()`). |
 | Équipe de rotation | Groupe de soignants composé pour une rotation donnée, avec les patients dont il a la charge. Un patient n'appartient qu'à une équipe par rotation. |
+| FHIR | Fast Healthcare Interoperability Resources : norme de HL7 pour l'échange de données de santé, découpée en ressources (`Patient`, `EpisodeOfCare`, `CarePlan`, `Appointment`…) dont AURA reprend les noms. |
+| Framework | Ensemble de bibliothèques et de conventions qui structure une application. AURA n'en utilise aucun : routeur, vues et accès à la base sont écrits dans `src/Core/`. |
 | Fuseau horaire | Zone d'heure légale. AURA fixe Europe/Paris, quel que soit le réglage de PHP. |
 | Fusion (merge) | Intégration des changements d'une branche dans une autre, ici d'une branche de fonctionnalité dans `main`, par une pull request. |
 | GET, POST | Méthodes HTTP. GET lit une page sans rien modifier ; POST envoie des données à enregistrer. |
 | Git | Logiciel de gestion de versions : il garde l'historique de chaque fichier et permet de travailler à plusieurs sur des branches. |
+| GitHub, GitHub Actions | Site qui héberge le dépôt Git, les pull requests et le CI (GitHub Actions, onglet « Actions » du dépôt). |
 | Heure murale | Heure affichée par l'horloge locale, qui saute d'une heure aux changements d'heure. Ajouter 6 heures en heure murale ne fait donc pas toujours 6 heures réelles. |
 | HL7 | Health Level Seven : famille de normes d'échange de données de santé. AURA reprend les noms anglais des ressources de sa norme FHIR (`Patient`, `EpisodeOfCare`, `CarePlan`, `Appointment`…) pour ses tables et classes. |
 | Horizon de planification | Nombre de jours à l'avance pour lesquels les soins planifiés sont créés : 7 jours, à l'enregistrement d'une ordonnance puis chaque nuit par `bin/generate-agenda.php`. |
 | HTML | Langage des pages web. Les vues PHP de `src/View/` produisent du HTML. |
 | HTTP | Protocole d'échange entre le navigateur et le serveur web. Un code de réponse dit le résultat : 200 réussi, 303 redirection, 400 requête invalide, 403 refusé, 404 introuvable, 409 conflit, 422 saisie invalide. |
+| HTTPS | Version chiffrée de HTTP. Un cookie marqué `Secure` n'est envoyé par le navigateur que sur une connexion HTTPS. |
 | Hypothèse | Choix fait faute de réponse du service ou du PO, signalé « HYPOTHÈSE » dans le code et à confirmer. |
 | Idempotent | Se dit d'une opération qu'on peut relancer sans changer le résultat : un second passage de `bin/generate-agenda.php` ne crée aucun soin. |
 | Identitovigilance | Ensemble des précautions qui évitent de confondre deux patients. Ici, le choix d'un patient existant à l'admission est toujours une sélection explicite de l'utilisateur. |
+| Injection SQL | Attaque qui glisse du SQL dans une valeur saisie pour le faire exécuter par la base. Les requêtes préparées l'empêchent. |
+| INSA Lyon | Institut national des sciences appliquées de Lyon, école où le projet a été réalisé. |
 | Interblocage | Situation où deux transactions attendent chacune un verrou tenu par l'autre. La base en annule une ; AURA la rejoue (trois essais au plus pour l'admission). |
 | IPP | Identifiant permanent du patient dans l'établissement. Dans AURA : 6 à 9 chiffres, facultatif à la saisie (patient admis en urgence), attribué automatiquement s'il manque ; celui d'un patient supprimé reste réservé. |
+| ISC (licence) | Licence libre très permissive, celle des icônes Lucide. |
 | JavaScript (JS) | Langage exécuté par le navigateur. Dans AURA, un fichier par fonctionnalité dans `public/js/`, sans bibliothèque ; il n'est qu'un confort, le serveur revalide tout. |
 | Jeton CSRF | Valeur secrète liée à la session du navigateur, envoyée avec chaque POST (champ `csrf` ou en-tête `X-CSRF-Token`). Sans jeton valide, le serveur refuse l'écriture (403). |
 | JJ/MM/AAAA | Format de saisie des dates (jour, mois, année), converti par le serveur (`DateInput`). |
 | JSON | Format texte d'échange de données (`{"ok": true}`), utilisé par les réponses aux requêtes envoyées en JavaScript. |
 | Ligne arrêtée | Ligne de prescription stoppée par un médecin (`stoppedAt`) : ses soins encore prévus sont annulés, rien n'est effacé. |
+| Linux | Famille de systèmes d'exploitation libres, dont Debian, système de la VM de démonstration. |
 | Liste de travail | Onglet de l'agenda du service : les soins de tout le service regroupés par urgence (en retard, doses de lignes arrêtées à tracer, maintenant, plus tard, réalisés). |
 | Lit, box | Emplacement du patient dans le service. Le séjour garde un numéro de lit et un numéro de box (chambre ou espace individuel). |
 | Lucide | Jeu d'icônes libre (licence ISC). Les tracés utilisés sont copiés dans `components/icon.php`. |
+| MariaDB | Système de base de données SQL (version 11.8), compatible avec MySQL. |
 | `MAX(CAST(id AS UNSIGNED)) + 1` | Calcul du prochain identifiant d'une table sans numérotation automatique : le plus grand identifiant existant, lu comme un nombre, plus un. Fait dans une transaction, avec un verrou `FOR UPDATE`. |
 | Médecin référent | Médecin désigné responsable du patient pendant son séjour, choisi à l'admission. |
 | Méthode pure | Méthode qui ne lit ni la base ni la requête et dont le résultat ne dépend que de ses paramètres (date courante comprise) : elle se teste sans base. |
-| Migration | Script SQL de `database/migrations/` qui ajoute à une base existante ce qu'un changement de `schema.sql` a introduit (colonnes, index, contraintes), sans effacer les données. |
+| Migration | Script SQL de `database/migrations/` qui met à jour une base existante après un changement de `schema.sql` (colonnes, index, contraintes), sans effacer les données. Les fichiers se jouent dans l'ordre de leurs noms et chacun se rejoue sans erreur. |
 | Mon planning | Écran d'un soignant : les soins des patients de ses équipes pendant une rotation, avec les mêmes actions que l'agenda. |
 | MVC | Modèle, Vue, Contrôleur : découpage du code entre données et règles (modèle : services, DAO, entités), affichage (vues) et traitement de la requête (contrôleurs). |
 | Notion | Outil de documentation en ligne où se trouvent le cahier des charges, le dossier de cadrage et le backlog (lien en tête du README). |
@@ -344,6 +359,7 @@ Les acronymes et les termes techniques ou métier employés dans ce document.
 | PascalCase | Écriture des noms composés en collant les mots, chacun avec une majuscule (`EpisodeOfCare`). Utilisée pour les classes et les tables. |
 | PDO | PHP Data Objects : interface de PHP pour parler à une base de données. AURA ouvre une seule connexion PDO (`Database::get()`), seulement quand une page en a besoin. |
 | PHP | Langage du serveur (version 8.4). AURA n'utilise aucun framework. |
+| PHP-FIG | PHP Framework Interop Group : groupe qui publie les recommandations PSR suivies par le code (PSR-4 pour le chargement des classes, PSR-12 pour la présentation). |
 | PHPUnit | Outil de tests automatiques pour PHP (version 10). Configuration dans `phpunit.xml.dist`. |
 | PLD Agile, hexanôme | Cadre pédagogique du projet à l'INSA Lyon : projet de 4e année mené en méthode agile par un hexanôme, l'équipe d'étudiants qui a réalisé AURA. |
 | PO (Product Owner) | Personne qui porte le besoin, priorise le backlog et valide ce qui est livré. |

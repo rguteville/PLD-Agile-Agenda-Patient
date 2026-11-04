@@ -71,7 +71,7 @@ $url = static fn (string $date, string $shift): string => '/mon-planning?idPract
         <input type="date" id="planning-date" name="date" value="<?= View::e($shiftView['date']) ?>">
         <label for="planning-shift" class="sr-only">Rotation</label>
         <select id="planning-shift" name="rotation">
-            <?php foreach (CareTeamService::SHIFTS as $key => $shift) : ?>
+            <?php foreach (CareTeamService::shifts() as $key => $shift) : ?>
                 <?php $selected = $key === $shiftView['shift'] ? ' selected' : ''; ?>
                 <option value="<?= View::e(CareTeamService::urlValue($key)) ?>"<?= $selected ?>>
                     <?= View::e($shift['label'] . ' (' . $shift['hours'] . ')') ?>

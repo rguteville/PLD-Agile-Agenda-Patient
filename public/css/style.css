@@ -139,8 +139,8 @@ form {
   padding: 16px;
 }
 
-/* Règles de base historiques, redéfinies par les blocs AURA-UI et AURA-POLISH plus bas. Pleine hauteur pour
-   html et body. */
+/* Règles de base historiques, redéfinies par les blocs « système de design » et « finitions » plus bas.
+   Pleine hauteur pour html et body. */
 body, html {
   height: 100%;
   margin: 0;
@@ -843,14 +843,14 @@ body, html {
     background: #f3f6fa;
 }
 
-/* ===== AURA-UI : système de design (jetons, thème sombre, composants, impression) =====
+/* ===== Système de design (jetons, thème sombre, composants, impression) =====
    Définit les jetons de design (:root) puis surcharge les règles historiques ci-dessus pour qu'elles
-   lisent ces jetons. Les blocs suivants (AURA-POLISH, puis un bloc par fonctionnalité) surchargent à leur tour
+   lisent ces jetons. Les blocs suivants (finitions, puis un bloc par fonctionnalité) surchargent à leur tour
    celui-ci. Documentation : docs/UI-GUIDE.md. */
 
 /* ---------- 1. Jetons de design ---------- */
 :root {
-    /* Typographie : police système (remplacée par Source Sans 3 dans le bloc AURA-POLISH), chiffres
+    /* Typographie : police système (remplacée par Source Sans 3 dans le bloc des finitions), chiffres
        tabulaires pour aligner heures et doses. Tailles pensées pour un poste 1366×768 et une tablette. */
     --font-ui: system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -2478,8 +2478,8 @@ h2,
     font-weight: 600;
 }
 
-/* ===== AURA-POLISH : finition visuelle (police vendorisée, base 16 px, fond chaud, cibles 44 px, tableaux) =====
-   Redéfinit les jetons du bloc AURA-UI et surcharge les règles au-dessus.
+/* ===== Finitions visuelles (police vendorisée, base 16 px, fond chaud, cibles 44 px, tableaux) =====
+   Redéfinit les jetons du bloc du système de design et surcharge les règles au-dessus.
    Principes et sources : docs/UI-GUIDE.md. Aucune logique métier, aucun CDN. */
 
 /* ---------- 1. Police : Source Sans 3 (Adobe, licence SIL OFL 1.1, public/fonts/), variable 200–900 ---------- */
@@ -4001,7 +4001,7 @@ form.form--columns .form-lead > .form-row {
     flex: none;
 }
 
-/* ===== Équipes de vacation et « Mon planning » ===== */
+/* ===== Équipes de rotation et « Mon planning » ===== */
 .team-cards {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));

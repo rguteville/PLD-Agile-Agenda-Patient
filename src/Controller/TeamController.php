@@ -49,7 +49,7 @@ final class TeamController
     /**
      * POST /equipes/creer : jeton CSRF, puis CareTeamService::create() (nom unique dans la rotation, au moins
      * un soignant, un patient dans une seule équipe par rotation). Refus : 422 et formulaire réaffiché avec
-     * la saisie ; succès : 303 vers la rotation. 403 jeton faux, 404 service inconnu.
+     * la saisie ; succès : 303 vers la rotation. 403 jeton faux, 404 service inconnu, 422 rotation inconnue.
      */
     public function create(): void
     {
@@ -60,6 +60,12 @@ final class TeamController
         [$service, $date, $shift] = $this->context($_POST);
         if ($service === null) {
             View::error(404, 'Service inconnu.');
+            return;
+        }
+        // Une équipe se compose pour une rotation précise : rotation absente ou inconnue = refus, jamais la
+        // rotation en cours par défaut (l'équipe serait créée sur une autre rotation que celle demandée).
+        if (CareTeamService::parseShift($_POST['rotation'] ?? $_POST['vacation'] ?? null) === null) {
+            View::error(422, 'Rotation inconnue : choisissez matin, après-midi ou nuit.');
             return;
         }
         $result = $this->careTeamService->create(
@@ -207,9 +213,9 @@ final class TeamController
             'shift' => $shift,
             'label' => sprintf(
                 '%s du %s (%s)',
-                CareTeamService::SHIFTS[$shift]['label'],
+                CareTeamService::shifts()[$shift]['label'],
                 AgendaService::dayLabel($date),
-                CareTeamService::SHIFTS[$shift]['hours']
+                CareTeamService::shifts()[$shift]['hours']
             ),
             'previous' => ['date' => $previous[0]->format('Y-m-d'), 'shift' => $previous[1]],
             'next' => ['date' => $next[0]->format('Y-m-d'), 'shift' => $next[1]],

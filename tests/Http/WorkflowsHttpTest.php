@@ -89,6 +89,8 @@ final class WorkflowsHttpTest extends HttpTestCase
         try {
             $team = $context + ['name' => 'Zz équipe', 'members' => ['PRA05'], 'patients' => ['1', '2']];
             self::assertSame(403, $this->postForm('/equipes/creer', $team)->status, 'sans jeton CSRF');
+            $unknown = $this->postForm('/equipes/creer', ['csrf' => $csrf, 'rotation' => 'jour'] + $team);
+            self::assertSame(422, $unknown->status, 'rotation inconnue : pas d\'équipe sur la rotation en cours');
 
             $created = $this->postForm('/equipes/creer', ['csrf' => $csrf] + $team);
             self::assertSame(303, $created->status, $created->body);

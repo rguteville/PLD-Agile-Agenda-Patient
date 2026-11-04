@@ -1,4 +1,4 @@
--- Données de démonstration AURA (schéma AURA-16, noms HL7), 100 % fictives (aucune donnée réelle de patient).
+-- Données de démonstration AURA (schéma aux noms HL7), 100 % fictives (aucune donnée réelle de patient).
 -- À charger APRÈS schema.sql :  mariadb -u aura -p aura < database/test.sql
 -- Ordre des INSERT : d'abord les tables sans clé étrangère, puis celles qui les référencent.
 --
@@ -15,7 +15,8 @@
 --   - 21 ordonnances, dont 4 non validées (PARAMEDICAL ou EMERGENCY : 4, 8, 11, 20), 22 lignes de
 --     médicament et 21 lignes de soin, et les soins planifiés du 13 au 15 octobre (réalisés, en retard,
 --     planifiés, un non fait avec motif, des annulés après arrêt de ligne) ;
---   - 4 équipes de la vacation de jour du 14 octobre en réanimation médicale (A, B, C, D).
+--   - 4 équipes de la rotation du matin (MATIN 6 h à 14 h) du 14 octobre en réanimation médicale (A, B, C, D) ;
+--     les deux autres rotations sont APRES_MIDI 14 h à 22 h et NUIT 22 h à 6 h.
 -- Les blocs « Données complémentaires » (fin de chaque section) ont été ajoutés sans modifier les lignes
 -- d'origine, sur lesquelles s'appuient les tests (tests/Dao, tests/Http).
 
@@ -40,7 +41,7 @@ INSERT INTO PractitionerRole (idPractitionerRole, title, canValidate) VALUES
     ('QUA03', 'Infirmier(e) diplômé(e) d''État', FALSE),
     ('QUA04', 'Aide-soignant(e)', FALSE);
 
--- Référentiel d'allergènes génériques (AURA-13.1). name est UNIQUE.
+-- Référentiel d'allergènes génériques. name est UNIQUE.
 INSERT INTO Substance (idSubstance, name) VALUES
     ('ALG01', 'Pénicilline'),
     ('ALG02', 'Latex'),
@@ -141,7 +142,7 @@ INSERT INTO Practitioner (idPractitioner, idPractitionerRole, firstName, lastNam
 -- Patients (aucune dépendance)
 -- idPatient et idEpisodeOfCare sont des VARCHAR mais DOIVENT contenir des entiers : les DAO
 -- les lisent en int et calculent le prochain id par MAX(CAST(... AS UNSIGNED)) + 1.
--- Le patient 7 n'a pas d'IPP (ipp NULL, AURA-05) : admis en urgence, son IPP n'est
+-- Le patient 7 n'a pas d'IPP (ipp NULL) : admis en urgence, son IPP n'est
 -- pas encore attribué. Le bandeau et la liste doivent afficher « sans IPP ».
 -- ---------------------------------------------------------------------------
 
@@ -197,7 +198,7 @@ UPDATE Patient SET trustedPersonName = 'Primrose Everdeen (sœur)', trustedPerso
 -- ---------------------------------------------------------------------------
 -- Séjours (dépend de Patient, HealthcareService et Practitioner)
 -- dischargeDate NULL = patient encore hospitalisé.
--- Mesures à l'admission (AURA-10.1) : seuls certains séjours en ont (« non renseigné » sinon).
+-- Mesures à l'admission : seuls certains séjours en ont (« non renseigné » sinon).
 -- ---------------------------------------------------------------------------
 
 INSERT INTO EpisodeOfCare (idEpisodeOfCare, idPatient, idHealthcareService, episodeNumber, admissionDate, dischargeDate, bedNumber, boxNumber, admissionReason, weight, height, precautions) VALUES
@@ -663,7 +664,7 @@ INSERT INTO Appointment (idAppointment, idServiceRequest, idMedicationRequest, p
     ('SOI221', NULL, '17', '2026-10-15 23:30:00', 'PLANIFIE', NULL                 , NULL                 , NULL);
 
 -- ---------------------------------------------------------------------------
--- Équipes de la rotation du matin du 14 octobre 2026 en réanimation médicale (AURA-30) :
+-- Équipes de la rotation du matin du 14 octobre 2026 en réanimation médicale :
 --   Équipe A : Thomas Girard (IDE) + Julien Perrin (AS) → Simpson (1) et Skywalker (2)
 --   Équipe B : Inès Rousseau (IDE) → Ripley (8)
 INSERT INTO CareTeam (idCareTeam, idHealthcareService, shiftDate, shift, name) VALUES

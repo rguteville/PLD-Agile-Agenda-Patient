@@ -1,6 +1,6 @@
 # Tests
 
-AURA a une suite de tests volontairement courte : 244 tests PHPUnit 10, chacun lié à une règle de gestion, à la
+AURA a une suite de tests volontairement courte : 245 tests PHPUnit 10, chacun lié à une règle de gestion, à la
 sécurité du patient ou à un défaut réel déjà rencontré. Un test qui ne vérifie qu'un getter, un constructeur ou le
 balisage au caractère près n'a pas sa place ici : il casse à chaque retouche sans rien protéger.
 
@@ -18,19 +18,19 @@ Chaque règle est testée au niveau le plus bas qui suffit à la prouver.
 | Sur la vraie base | `tests/Dao/*`, `tests/Service/*IntegrationTest.php` | SQL des DAO, contraintes de `schema.sql`, transactions, enchaînements service + DAO | un simulacre ne voit ni une colonne renommée ni une contrainte qui bloque (cas réel : la PR #52 a corrigé deux DAO cassés par un renommage) |
 | HTTP de bout en bout | `tests/Http` | parcours réels : session, jeton CSRF, POST, redirections, codes 400/404 | vérifie le câblage de `public/index.php`, que les autres niveaux ne voient pas |
 
-Répartition (244 tests) :
+Répartition (245 tests) :
 
 | Dossier | Tests | Dont sur base |
 | --- | --- | --- |
 | `tests/Core` | 9 | 0 |
-| `tests/Controller` | 9 | 0 |
+| `tests/Controller` | 10 | 0 |
 | `tests/Domain` | 6 | 0 |
 | `tests/Dao` | 35 | 35 |
 | `tests/Service` | 160 | 36 |
 | `tests/View` | 5 | 0 |
 | `tests/Http` | 20 | 20 |
 
-Les deux suites de `phpunit.xml.dist` : `aura` (tout sauf `tests/Http`, 224 tests) et `http` (`tests/Http`,
+Les deux suites de `phpunit.xml.dist` : `aura` (tout sauf `tests/Http`, 225 tests) et `http` (`tests/Http`,
 20 tests).
 
 ### Écrire un test
@@ -55,7 +55,8 @@ Les deux suites de `phpunit.xml.dist` : `aura` (tout sauf `tests/Http`, 224 test
 
 ### 2.1 Installation
 
-PHP 8.4 avec les extensions `pdo_mysql` et `curl`, Composer 2, puis à la racine du dépôt :
+PHP 8.4 avec les extensions `pdo_mysql` et `mbstring`, plus `curl` pour les tests HTTP, Composer 2, puis à la racine
+du dépôt :
 
 ```bash
 composer install
@@ -67,7 +68,7 @@ Sans aucune base, les tests purs tournent déjà :
 composer test:fast
 ```
 
-Résultat attendu : « OK, but some tests were skipped! », 224 tests dont 71 sautés (ceux qui demandent la base).
+Résultat attendu : « OK, but some tests were skipped! », 225 tests dont 71 sautés (ceux qui demandent la base).
 
 ### 2.2 Créer la base de test `aura_test` et l'utilisateur `aura_ci`
 
@@ -93,15 +94,16 @@ mariadb -u aura_ci -paura_ci -h 127.0.0.1 aura_test < database/test.sql
 ```
 
 À refaire après chaque changement de `schema.sql` (pas de migration : on supprime et on recrée la base). Les tests
-s'appuient sur les dates fixes de `test.sql` (jour de référence : mercredi 14 octobre 2026) : ne jamais appliquer
-`database/demo-today.sql` à la base de test.
+s'appuient sur les dates fixes de `test.sql` (jour de référence : mercredi 14 octobre 2026) : ne jamais lancer
+`database/demo-today.sql` ni `bin/generate-agenda.php` sur la base de test. Le premier décale toutes les dates, le
+second crée des soins à partir du jour courant.
 
 ### 2.4 Lancer les tests avec la base
 
 ```bash
 export DB_HOST=127.0.0.1 DB_PORT=3306 DB_NAME=aura_test DB_USER=aura_ci DB_PASSWORD=aura_ci
-composer test            # les deux suites : « OK (244 tests, … assertions) »
-composer test:fast       # suite « aura » seulement (224 tests)
+composer test            # les deux suites : « OK (245 tests, … assertions) »
+composer test:fast       # suite « aura » seulement (225 tests)
 composer test:http       # suite « http » seulement (20 tests, base requise)
 composer test:coverage   # couverture texte, et HTML dans build/coverage (extension pcov requise)
 ```
@@ -113,10 +115,12 @@ vendor/bin/phpunit tests/Service/AgendaServiceTest.php
 vendor/bin/phpunit --filter testShiftEndFollowsTheRotations
 ```
 
-Attention : `Database` lit d'abord `config/config.php` s'il existe, et ne lit les variables `DB_*` (via
-`config/config.example.php`) qu'en son absence. Dans un clone qui a un `config/config.php` pointant vers la base de
-développement, les tests sur base l'utiliseraient : lancez-les depuis un clone ou un worktree sans
-`config/config.php`, comme le CI.
+Qui l'emporte entre `config/config.php` et les variables `DB_*` : `Database` lit `config/config.php` s'il existe,
+sinon `config/config.example.php` quand `DB_HOST` est défini. Un `config.php` copié du modèle garde ses
+`getenv('DB_…') ?: valeur` : les variables `DB_*` l'emportent donc, et les tests visent bien `aura_test`. Le risque
+n'existe que si `config.php` contient des valeurs écrites en dur (par exemple `'name' => 'aura'` à la place de
+`getenv('DB_NAME') ?: 'aura'`) : les tests sur base utiliseraient alors la base qu'il désigne. Dans ce cas, lancez-les
+depuis un clone ou un worktree sans `config/config.php`, comme le CI.
 
 Couverture en local : `pecl install pcov` une fois, puis `composer test:coverage`. Elle ne compte que le code
 exécuté dans le processus PHPUnit : les tests HTTP passent par un serveur séparé et n'y entrent pas.
@@ -129,10 +133,10 @@ avec le code 0.
 
 Un test sauté n'a rien vérifié. Une suite verte avec des sautés prouve les règles pures, pas les DAO, les
 contraintes de la base ni les parcours HTTP. Avant de pousser, lancez la suite avec la base (ou laissez le CI le
-faire) : elle doit afficher « OK (244 tests, … assertions) », sans aucun saut.
+faire) : elle doit afficher « OK (245 tests, … assertions) », sans aucun saut.
 
 Les tests HTTP peuvent aussi être sautés avec le message « Base ouverte « … » » : la base réellement ouverte n'est
-pas une base de test (souvent un `config/config.php` qui prend le pas sur `DB_*`). Pour voir le motif de chaque
+pas une base de test (souvent un `config/config.php` aux valeurs écrites en dur, qui ignore `DB_*`). Pour voir le motif de chaque
 saut : `vendor/bin/phpunit --display-skipped`.
 
 ### 2.6 Lire un échec
@@ -165,9 +169,9 @@ l'erreur PHP du serveur y apparaît.
 4. lance les deux suites avec les variables `DB_*` et la couverture (pcov) : résumé dans le journal, rapport HTML
    dans l'artefact « couverture » de l'exécution.
 
-Une pull request ne se fusionne qu'avec un CI vert et la relecture d'un autre membre. Le script local
-`.claude/scripts/ci-local.sh` (outil local de l'équipe d'origine, non versionné) rejoue ces étapes sur une base jetable ; sans lui,
-les commandes des sections 2.2 à 2.4 suffisent.
+Une pull request ne se fusionne qu'avec un CI vert et la relecture d'un autre membre. Pour rejouer ces étapes en
+local avant de pousser : `composer validate --strict`, `php -l` sur chaque fichier PHP modifié, `composer cs`, puis
+les commandes des sections 2.3 et 2.4 (recharger `aura_test`, exporter les variables `DB_*`, `composer test`).
 
 ## 3. Règles de gestion → tests
 
@@ -202,8 +206,9 @@ Autres garanties essentielles :
 ## 4. Ce qui n'est pas testé, et pourquoi
 
 - **Le JavaScript** (`public/js/*.js`) n'a aucun test automatique. Le serveur revalide tout ce que le navigateur
-  envoie, et la suite `http` vérifie ces refus côté serveur. Le comportement de l'interface se vérifie à la main et
-  dans Chrome, piloté par un script local (`.claude/scripts/e2e-validate.mjs`, non versionné) et par des captures.
+  envoie, et la suite `http` vérifie ces refus côté serveur. Le comportement de l'interface se vérifie à la main : lancer
+  `php -S localhost:8000 -t public public/index.php` sur une base de démonstration, puis refaire le parcours dans le
+  navigateur (par exemple « Valider » un soin depuis l'agenda du service et vérifier qu'il passe à « Réalisé »).
   La limite est connue : le bouton « Valider » d'un soin n'envoyait rien à cause d'un champ nommé `action` dans le
   formulaire, et aucun test ne l'a vu, puisque la suite `http` appelle le serveur directement. Un test navigateur
   (Playwright) serait la suite logique ; c'est un outil de plus à installer et à maintenir, à décider en équipe.
@@ -246,6 +251,7 @@ Les acronymes et les termes techniques ou métier employés dans ce document.
 | GitHub, GitHub Actions | Site qui héberge le dépôt Git, les pull requests et le CI (GitHub Actions, onglet « Actions » du dépôt). |
 | HTML | Langage des pages web. Les vues PHP de `src/View/` produisent du HTML. |
 | HTTP | Protocole d'échange entre le navigateur et le serveur web. Un code de réponse dit le résultat : 200 réussi, 303 redirection, 400 requête invalide, 403 refusé, 404 introuvable, 409 conflit, 422 saisie invalide. |
+| HTTPS | Version chiffrée de HTTP. Un cookie marqué `Secure` n'est envoyé par le navigateur que sur une connexion HTTPS. |
 | Idempotent | Se dit d'une opération qu'on peut relancer sans changer le résultat : un second passage de `bin/generate-agenda.php` ne crée aucun soin. |
 | IPP | Identifiant permanent du patient dans l'établissement. Dans AURA : 6 à 9 chiffres, facultatif à la saisie (patient admis en urgence), attribué automatiquement s'il manque ; celui d'un patient supprimé reste réservé. |
 | JavaScript (JS) | Langage exécuté par le navigateur. Dans AURA, un fichier par fonctionnalité dans `public/js/`, sans bibliothèque ; il n'est qu'un confort, le serveur revalide tout. |
@@ -254,6 +260,7 @@ Les acronymes et les termes techniques ou métier employés dans ce document.
 | MariaDB | Système de base de données SQL (version 11.8), compatible avec MySQL. |
 | Méthode pure | Méthode qui ne lit ni la base ni la requête et dont le résultat ne dépend que de ses paramètres (date courante comprise) : elle se teste sans base. |
 | pcov | Extension PHP qui mesure la couverture de code pendant les tests (`composer test:coverage`). |
+| PHP-FIG | PHP Framework Interop Group : groupe qui publie les recommandations PSR suivies par le code (PSR-4 pour le chargement des classes, PSR-12 pour la présentation). |
 | phpcs | PHP_CodeSniffer : outil qui vérifie le style du code (`composer cs`) ; `phpcbf` (`composer cs:fix`) corrige automatiquement. |
 | PHPUnit | Outil de tests automatiques pour PHP (version 10). Configuration dans `phpunit.xml.dist`. |
 | Playwright | Outil qui pilote un vrai navigateur pour tester l'interface, JavaScript compris. Il n'est pas installé dans AURA. |
@@ -284,4 +291,4 @@ Les acronymes et les termes techniques ou métier employés dans ce document.
 | UTF-8 | Codage des caractères (accents compris) utilisé partout. Une saisie qui n'est pas de l'UTF-8 valide est refusée (400). |
 | Validation d'un soin | Déclaration qu'un soin planifié a été réalisé ou non effectué, avec le soignant, l'heure de réalisation et l'heure de saisie (règle RG7). Possible une seule fois, au plus tard jusqu'à la fin de la rotation en cours. |
 | Validation d'une ordonnance | Acceptation d'une ordonnance par un médecin habilité (rôle avec `canValidate`, règle RG5). Une ordonnance faite par un prescripteur sans ce droit (urgence, paramédicale) reste « non validée » jusque-là ; celle d'un médecin habilité est validée d'office. |
-| Worktree | Second dossier de travail Git lié au même dépôt, sur une autre branche. Utile pour lancer les tests sans le `config/config.php` du dossier principal. |
+| Worktree | Second dossier de travail Git lié au même dépôt, sur une autre branche. Utile pour lancer les tests sans le `config/config.php` du dossier principal quand celui-ci contient des valeurs écrites en dur. |

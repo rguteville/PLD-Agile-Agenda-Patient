@@ -21,10 +21,10 @@ rendue plus calme : typographie, espacements et clarté, sans animation décorat
 6. Pas de CDN, pas de build, pas de framework : serveur PHP, CSS natif, JavaScript vanilla, tout est servi tel quel
    depuis `public/` (VM sans accès internet). Un seul fichier de styles : `public/css/style.css`.
 
-## Jetons (`:root`, fin de `public/css/style.css`, bloc « AURA-POLISH »)
+## Jetons (`:root`, fin de `public/css/style.css`, bloc des finitions)
 
-Les jetons ont d'abord été posés par le bloc « AURA-UI » de `style.css` (2026-11-01), puis redéfinis par le bloc
-« AURA-POLISH » (2026-11-02). Les valeurs ci-dessous sont celles qui s'appliquent.
+Les jetons ont d'abord été posés par le bloc « système de design » de `style.css` (2026-11-01), puis redéfinis par
+le bloc « finitions » (2026-11-02). Les valeurs ci-dessous sont celles qui s'appliquent.
 
 | Famille | Jetons | Valeurs (clair) | Usage |
 | --- | --- | --- | --- |
@@ -199,14 +199,14 @@ Ajouter un statut :
 ## Vérifier un écran
 
 ```bash
-composer cs && composer test                                        # PSR-12, tests (dont tests/View, sans base)
-bash .claude/scripts/screenshot.sh "/sejour?id=1&theme=light" 1280   # clair, poste fixe
-bash .claude/scripts/screenshot.sh "/sejour?id=1&theme=light" 1024   # tablette de service
-bash .claude/scripts/screenshot.sh "/sejour?id=1" 1280               # thème du système (sombre sur un Mac en sombre)
+composer cs && composer test                        # PSR-12, tests (dont tests/View, sans base)
+php -S localhost:8000 -t public public/index.php    # puis ouvrir l'écran dans le navigateur
 ```
 
-`screenshot.sh` est un outil local de l'équipe d'origine, non versionné (capture Chrome headless) : sans lui,
-faire la capture à la main aux mêmes largeurs. Pour la base de test, suivre [TESTS.md](TESTS.md).
+Dans le navigateur, ouvrir l'écran avec `?theme=light` puis `?theme=dark` (par exemple
+`http://localhost:8000/sejour?id=1&theme=light`), et régler la largeur de la fenêtre, ou le mode « appareil » des
+outils de développement, sur 1280 px (poste fixe) puis 1024 px (tablette de service). Pour la base de démonstration
+ou de test, suivre [TESTS.md](TESTS.md).
 
 Contrôles manuels avant une pull request qui touche l'interface : navigation au clavier (Tab, Entrée, Échap sur le
 menu et les dialogues), focus visible, lecteur d'écran sur les badges et le bandeau, rendu en 1366 px, 1024 px et
@@ -216,8 +216,8 @@ menu et les dialogues), focus visible, lecteur d'écran sur les badges et le ban
 
 - **Authentification du praticien** : toute « validation » reste auto-déclarée par une liste déroulante et un mot
   de passe non vérifié (authentification factice).
-- **Nettoyage du CSS historique** : les anciennes règles restent et sont surchargées par les blocs « AURA-UI » et
-  « AURA-POLISH » pour limiter les conflits de fusion.
+- **Nettoyage du CSS historique** : les anciennes règles restent et sont surchargées par les blocs « système de design »
+  et « finitions » pour limiter les conflits de fusion.
 
 ## Sources consultées
 
@@ -255,12 +255,11 @@ Les acronymes et les termes techniques ou métier employés dans ce document.
 | Agenda du patient | Écran des soins planifiés d'un séjour, pour un jour (par tranches de rotation, retards en tête) ou une semaine. |
 | Agenda du service | Écran de tous les patients du service : onglet « Lits » (un patient par ligne, du plus urgent au moins urgent) et onglet « Liste de travail ». |
 | Allergène | Substance à laquelle un patient est allergique. Dans AURA, les allergènes sont choisis dans un référentiel (table `Substance`). |
-| Attributs ARIA | Attributs HTML (`aria-invalid`, `aria-describedby`, `aria-live`…) qui décrivent aux lecteurs d'écran l'état et le rôle d'un élément. |
+| Attributs ARIA (`aria-*`) | Attributs HTML (`aria-invalid`, `aria-describedby`, `aria-live`…) qui décrivent aux lecteurs d'écran l'état et le rôle d'un élément. |
 | Authentification factice | Fenêtre qui demande de choisir un praticien dans une liste et de saisir un mot de passe, mais qui ne vérifie pas ce mot de passe. Elle remplace provisoirement une vraie authentification ; le nom choisi est enregistré dans la trace. |
 | Bandeau patient | Zone fixée en haut de chaque écran de séjour : identité du patient, séjour, poids, taille et allergies (règle RG2). |
 | BDD | Base de données. Le « responsable BDD » est le membre de l'équipe qui décide des changements de `database/schema.sql`. |
 | CDN | Content Delivery Network : serveur externe qui fournit des fichiers communs (polices, bibliothèques). AURA n'en utilise aucun : tout est dans le dépôt, car la VM n'a pas accès à internet. |
-| Chrome headless | Chrome lancé sans fenêtre, pour faire des captures d'écran par script. |
 | Collant (sticky) | Élément qui reste visible en haut de l'écran pendant le défilement (bandeau, en-têtes de tableau). |
 | Combobox | Champ de saisie accompagné d'une liste de suggestions qu'on parcourt au clavier (recherche d'un patient à l'admission). |
 | Composant | Morceau de vue réutilisable de `src/View/components/` (bandeau patient, formulaire, badge de statut…). |
@@ -305,6 +304,7 @@ Les acronymes et les termes techniques ou métier employés dans ce document.
 | prefers-reduced-motion | Réglage du système qui demande moins d'animations. AURA coupe alors toutes les transitions. |
 | Prescription | Décision d'un prescripteur de donner un médicament ou de faire un soin à un patient, avec une date de début, une fréquence éventuelle et une date de fin facultative. Chaque ligne de prescription génère des soins planifiés. |
 | PSR-12 | Règles de présentation du code PHP (indentation, accolades, longueur des lignes), publiées par le PHP-FIG. Vérifiées par `composer cs`. |
+| px | Pixel CSS, unité de longueur de l'écran (16 px pour le texte de base). Les tailles de ce guide sont données en px. |
 | RG (RG1 à RG10) | Règle de gestion : règle métier numérotée du dossier de cadrage. Leur énoncé et le code qui les applique sont dans `docs/REPRISE.md`, leurs tests dans `docs/TESTS.md`. |
 | Rotation | Période de travail d'une équipe soignante. AURA en a trois par jour : matin de 6 h à 14 h, après-midi de 14 h à 22 h, nuit de 22 h à 6 h (`CareTeam::SHIFTS`, bornes à confirmer avec le service). Paramètre d'URL `rotation`. |
 | Séjour | Passage d'un patient dans le service, de l'admission à la sortie ou au décès (table `EpisodeOfCare`). Un patient n'a qu'un séjour en cours à la fois ; chaque séjour a un numéro unique. |
@@ -321,3 +321,4 @@ Les acronymes et les termes techniques ou métier employés dans ce document.
 | Vue-modèle | Tableau de données préparé par un service pour une vue (méthodes `present…()`), déjà trié et mis en forme, testable sans base. |
 | W3C | World Wide Web Consortium, organisme qui publie les normes du web, dont les WCAG. |
 | WCAG 2.2 AA | Règles internationales d'accessibilité des contenus web (W3C). Le niveau AA fixe notamment un contraste minimal et des cibles assez grandes. |
+| woff2 | Format de fichier de police compressé pour le web. La police Source Sans 3 est servie dans ce format depuis `public/fonts/`. |

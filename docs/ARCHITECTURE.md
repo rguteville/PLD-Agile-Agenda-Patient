@@ -15,7 +15,7 @@ modules, le trajet d'une requête, le modèle de données réel et les décision
 | `src/Domain` | Entités immuables (getters), constantes métier (`ClinicalScales`, `RecordFields`, statuts). | Pas d'accès aux données. |
 | `src/View` | `layouts/main.php`, `components/` (form, field, patient_banner, breadcrumb, status_badge, empty_state, icon, agenda_table, care_line, care_buttons, validation_dialog…), `pages/`. Chaque gabarit déclare ses variables en `@var` dans son en-tête. | Tout est échappé par `View::e()` ; pas de fonction nommée dans une vue. |
 | `public/css/style.css`, `public/js/*.js`, `public/fonts/` | Un seul fichier CSS (blocs ajoutés en fin de fichier), scripts vanilla par fonctionnalité, police vendorisée. | Aucun CDN. |
-| `database/` | `schema.sql` (structure complète, rejouée sur base vide par le CI), `test.sql` (données de démo fictives), `demo-today.sql` (recale la démo sur le jour courant), `migrations/` (ALTER additifs pour une base existante). | Le schéma est géré par le responsable BDD. |
+| `database/` | `schema.sql` (structure complète, rejouée sur base vide par le CI), `test.sql` (données de démo fictives), `demo-today.sql` (recale la démo sur le jour courant), `migrations/` (mises à jour rejouables d'une base existante, dans l'ordre des noms). | Le schéma est géré par le responsable BDD. |
 | `bin/generate-agenda.php` | Génération quotidienne de l'agenda (cron), voir le README. | Même configuration que le site. |
 
 ## Trajet d'une requête
@@ -26,7 +26,7 @@ modules, le trajet d'une requête, le modèle de données réel et les décision
 4. Le contrôleur mappe la requête vers les clés du domaine et appelle le service.
 5. Le service valide (pur), puis écrit dans une transaction via les DAO.
 6. Le contrôleur répond : page HTML (`View::page`, layout + bandeau + contenu), redirection 303 après un POST réussi
-   (POST → redirect → GET), ou JSON (`{ok, erreurs}` en 422, `{ok, redirect}` ou données en 200).
+   (POST → redirect → GET), ou JSON (`{ok, errors}` en 422, `{ok, redirect}` ou données en 200).
 7. `ConfigurationException` (config absente, base injoignable) est rattrapée dans `index.php` : message en texte brut, sans identifiant.
 
 ## Pages et endpoints
@@ -1055,8 +1055,8 @@ classDiagram
 - **Champs complémentaires** : catalogue déclaratif `RecordFields` (champ = colonne = clé de domaine), liste blanche
   pour l'admission et l'édition en ligne ; échelles cliniques sourcées (`ClinicalScales`), formules sourcées
   (`DerivedMeasuresService`).
-- **Schéma** : toute modification se fait dans `schema.sql` (base recréée) ; les fichiers `migrations/` sont
-  additifs et rejouables pour les bases existantes.
+- **Schéma** : toute modification se fait dans `schema.sql` (base recréée) ; les fichiers `migrations/` mettent à
+  jour une base existante, dans l'ordre de leurs noms, et se rejouent sans erreur.
 
 ## Glossaire
 
@@ -1069,7 +1069,7 @@ Les acronymes et les termes techniques ou métier employés dans ce document.
 | Admission | Entrée d'un patient dans le service : création ou reprise du patient, ouverture d'un séjour, saisie des allergies. C'est la page d'accueil d'AURA (`/`). |
 | AJAX | Envoi d'une requête par JavaScript sans recharger la page. Ici `form.js` envoie le formulaire et reçoit une réponse JSON (erreurs ou adresse de redirection). |
 | Allergène | Substance à laquelle un patient est allergique. Dans AURA, les allergènes sont choisis dans un référentiel (table `Substance`). |
-| ALTER (SQL) | Instruction SQL qui modifie une table existante (ajout d'une colonne, d'un index, d'une contrainte). Les migrations n'en contiennent que des ajouts. |
+| ALTER (SQL) | Instruction SQL qui modifie une table existante (ajout d'une colonne, d'un index, d'une contrainte). Les migrations ajoutent surtout ; certaines suppriment puis recréent une contrainte. |
 | ASA | Classification de l'état de santé d'un patient avant une anesthésie, de I (bonne santé) à VI, publiée par l'American Society of Anesthesiologists. Valeurs et source dans `ClinicalScales`. |
 | Authentification factice | Fenêtre qui demande de choisir un praticien dans une liste et de saisir un mot de passe, mais qui ne vérifie pas ce mot de passe. Elle remplace provisoirement une vraie authentification ; le nom choisi est enregistré dans la trace. |
 | AUTO_INCREMENT | Numérotation automatique d'une clé par la base. Seules `AuditEvent` et `CareTeam` l'utilisent ; les autres identifiants sont calculés par l'application (`MAX + 1` dans une transaction verrouillée). |
@@ -1078,6 +1078,7 @@ Les acronymes et les termes techniques ou métier employés dans ce document.
 | BDD | Base de données. Le « responsable BDD » est le membre de l'équipe qui décide des changements de `database/schema.sql`. |
 | camelCase | Écriture des noms composés en collant les mots, le premier en minuscule et les suivants avec une majuscule (`lastName`, `admissionDate`). Utilisée pour les colonnes SQL et les variables. |
 | CDN | Content Delivery Network : serveur externe qui fournit des fichiers communs (polices, bibliothèques). AURA n'en utilise aucun : tout est dans le dépôt, car la VM n'a pas accès à internet. |
+| CI | Intégration continue : vérifications lancées automatiquement par GitHub Actions à chaque push sur `main` et à chaque pull request (syntaxe, style, schéma, tests). Fichier `.github/workflows/ci.yml`. |
 | Clé étrangère (FK) | Colonne qui désigne une ligne d'une autre table (par exemple `EpisodeOfCare.idPatient`). La base refuse une valeur qui ne correspond à aucune ligne, et refuse d'effacer une ligne encore désignée. |
 | Clé primaire (PK) | Colonne (ou groupe de colonnes) qui identifie de façon unique chaque ligne d'une table. |
 | Clé unique (UK) | Contrainte qui interdit deux lignes avec la même valeur dans une colonne ou un groupe de colonnes (par exemple le numéro de séjour). |
@@ -1126,7 +1127,7 @@ Les acronymes et les termes techniques ou métier employés dans ce document.
 | Médecin référent | Médecin désigné responsable du patient pendant son séjour, choisi à l'admission. |
 | Mermaid | Langage texte de diagrammes, affiché en image par GitHub. Les diagrammes de ce document sont écrits en Mermaid. |
 | Méthode pure | Méthode qui ne lit ni la base ni la requête et dont le résultat ne dépend que de ses paramètres (date courante comprise) : elle se teste sans base. |
-| Migration | Script SQL de `database/migrations/` qui ajoute à une base existante ce qu'un changement de `schema.sql` a introduit (colonnes, index, contraintes), sans effacer les données. |
+| Migration | Script SQL de `database/migrations/` qui met à jour une base existante après un changement de `schema.sql` (colonnes, index, contraintes), sans effacer les données. Les fichiers se jouent dans l'ordre de leurs noms et chacun se rejoue sans erreur. |
 | Mon planning | Écran d'un soignant : les soins des patients de ses équipes pendant une rotation, avec les mêmes actions que l'agenda. |
 | NULL | Absence de valeur dans une colonne SQL. Par exemple `removedAt` vaut NULL tant que la ligne n'est pas supprimée, `dischargeDate` tant que le séjour est en cours. |
 | NYHA | Classification de la New York Heart Association : gêne causée par une insuffisance cardiaque, de la classe I (aucune limitation) à IV (symptômes au repos). |

@@ -19,12 +19,19 @@ use PDOException;
  */
 final class CareTeamService
 {
-    /** Rotations : code (CareTeam.shift) => libellé, heures affichées et heure de début (CareTeam::SHIFTS). */
-    public const SHIFTS = [
-        CareTeam::SHIFT_MORNING => ['label' => 'Matin', 'hours' => '6 h à 14 h', 'from' => 6],
-        CareTeam::SHIFT_AFTERNOON => ['label' => 'Après-midi', 'hours' => '14 h à 22 h', 'from' => 14],
-        CareTeam::SHIFT_NIGHT => ['label' => 'Nuit', 'hours' => '22 h à 6 h', 'from' => 22],
-    ];
+    /**
+     * Rotations de CareTeam::SHIFTS avec leurs heures affichées (« 6 h à 14 h ») : listes de choix des pages
+     * Équipes et Mon planning.
+     *
+     * @return array<string, array{label: string, from: int, to: int, hours: string}>
+     */
+    public static function shifts(): array
+    {
+        return array_map(
+            static fn (array $shift): array => $shift + ['hours' => $shift['from'] . ' h à ' . $shift['to'] . ' h'],
+            CareTeam::SHIFTS
+        );
+    }
 
     /** Longueur maximale du nom d'une équipe (colonne CareTeam.name VARCHAR(30)). */
     public const NAME_MAX = 30;
@@ -48,7 +55,7 @@ final class CareTeamService
         $hour = (int) $now->format('G');
         $today = $now->setTime(0, 0);
         $current = null;
-        foreach (self::SHIFTS as $shift => $definition) {
+        foreach (CareTeam::SHIFTS as $shift => $definition) {
             if ($hour >= $definition['from']) {
                 $current = $shift;
             }
@@ -56,7 +63,7 @@ final class CareTeamService
 
         // Avant la première rotation du jour (6 h) : la dernière rotation, commencée la veille.
         return $current === null
-            ? ['date' => $today->modify('-1 day'), 'shift' => array_key_last(self::SHIFTS)]
+            ? ['date' => $today->modify('-1 day'), 'shift' => array_key_last(CareTeam::SHIFTS)]
             : ['date' => $today, 'shift' => $current];
     }
 
@@ -67,7 +74,7 @@ final class CareTeamService
      */
     public static function window(DateTimeImmutable $date, string $shift): array
     {
-        $start = $date->setTime(self::SHIFTS[$shift]['from'], 0);
+        $start = $date->setTime(CareTeam::SHIFTS[$shift]['from'], 0);
 
         return [$start, $start->modify('+' . CareTeam::SHIFT_HOURS . ' hours')];
     }
@@ -80,7 +87,7 @@ final class CareTeamService
      */
     public static function neighbours(DateTimeImmutable $date, string $shift): array
     {
-        $order = array_keys(self::SHIFTS);
+        $order = array_keys(CareTeam::SHIFTS);
         $i = (int) array_search($shift, $order, true);
         $last = count($order) - 1;
 
@@ -107,7 +114,7 @@ final class CareTeamService
         }
         $shift = strtoupper(str_replace(['-', ' ', 'è', 'È'], ['_', '_', 'E', 'E'], trim($value)));
 
-        return isset(self::SHIFTS[$shift]) ? $shift : null;
+        return isset(CareTeam::SHIFTS[$shift]) ? $shift : null;
     }
 
     /**
