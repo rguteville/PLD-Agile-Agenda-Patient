@@ -42,9 +42,9 @@ class Transaction
                 return $result;
             } catch (\Throwable $e) {
                 $this->pdo->rollBack();
-                // Relecture adversariale du 2026-11-04 : un interblocage (1213) ou une ligne modifiée depuis sa
-                // lecture (1020, isolation par instantané de MariaDB 11.8) vient d'un autre onglet qui écrivait
-                // en même temps. Tout a été annulé : on rejoue le traitement, au plus MAX_ATTEMPTS fois.
+                // Un interblocage (1213) ou une ligne modifiée depuis sa lecture (1020, isolation par instantané
+                // de MariaDB 11.8) vient d'un autre onglet qui écrivait en même temps. Tout a été annulé : on
+                // rejoue le traitement, au plus MAX_ATTEMPTS fois.
                 $code = $e instanceof PDOException ? (int) ($e->errorInfo[1] ?? 0) : 0;
                 if (!in_array($code, self::RETRYABLE_ERRORS, true) || $attempt >= self::MAX_ATTEMPTS) {
                     throw $e;

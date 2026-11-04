@@ -65,7 +65,7 @@ class ReferenceDataDao
 
     /**
      * Allergène du principe actif de chaque médicament qui en a un (Medication.idSubstance) :
-     * idMedication => idSubstance. Sert à l'alerte allergie de l'écran B3 (retours du 2026-11-03).
+     * idMedication => idSubstance. Sert à l'alerte allergie de l'écran B3 (RG2).
      *
      * @return array<string, string>
      */

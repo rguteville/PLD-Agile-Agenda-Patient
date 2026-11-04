@@ -91,7 +91,7 @@ Une valeur inconnue en base s'affiche telle quelle, en neutre, avec l'icône `ci
    si l'icône manque, coller son tracé dans `components/icon.php`).
 3. **Couleurs** : dans `style.css`, réutiliser une famille `--st-*` existante ou en créer une (clair **et** sombre),
    puis déclarer `.badge--<clé>`.
-4. **Tests** : un cas dans `tests/Service/AgendaServicePresentDayTest.php` (traduction) et un dans
+4. **Tests** : un cas dans `tests/Service/AgendaServiceTest.php` (traduction) et un dans
    `tests/View/ComponentsRenderTest.php` (rendu).
 5. Mettre à jour le tableau ci-dessus.
 

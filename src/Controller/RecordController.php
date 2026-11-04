@@ -54,7 +54,7 @@ final class RecordController
     }
 
     /**
-     * POST /sejour/partie/modifier (retours du 2026-11-02) : toute une partie du dossier d'un coup.
+     * POST /sejour/partie/modifier : toute une partie du dossier d'un coup.
      * Corps JSON {episodeOfCare, part, values: {champ: valeur}, oldValues: {champ: valeur}, validator,
      * password}, en-tête X-CSRF-Token. Réponses : 200 {ok, redirect} vers l'ancre de la partie ;
      * 422 {ok:false, conflict, message, errors} (erreur d'un champ ou clé « auth ») ; 409 conflit ;
@@ -124,7 +124,7 @@ final class RecordController
     }
 
     /**
-     * POST /sejour/deces (retours du 2026-11-04) : déclaration du décès, qui met fin au séjour en cours à
+     * POST /sejour/deces : déclaration du décès, qui met fin au séjour en cours à
      * l'heure du décès. Corps JSON {episodeOfCare, date (JJ/MM/AAAA), time (HH:MM), oldDeceased, validator,
      * password}, en-tête X-CSRF-Token. Mêmes réponses que updatePart().
      */
@@ -232,8 +232,8 @@ final class RecordController
             || preg_match(self::ID_PATTERN, (string) $id) !== 1
             || !is_string($idEpisodeOfCare) && !is_int($idEpisodeOfCare)
             || preg_match(self::ID_PATTERN, (string) $idEpisodeOfCare) !== 1
-            // Une valeur qui n'est ni texte ni nombre (tableau, objet, booléen) n'est jamais interprétée comme un
-            // vidage du champ (relecture adversariale du 2026-11-04 : true effaçait la valeur).
+            // Une valeur qui n'est ni texte ni nombre (tableau, objet, booléen) est refusée : elle ne doit
+            // jamais être interprétée comme un vidage du champ.
             || !self::isPlainValue($value)
             || !self::isPlainValue($oldValue)
         ) {
@@ -249,7 +249,7 @@ final class RecordController
             ]);
             return;
         }
-        // Retours du 2026-11-04 : authentification FACTICE, comme « Modifier » (médecin + mot de passe non vérifié).
+        // Authentification FACTICE, comme « Modifier » (médecin + mot de passe non vérifié).
         $author = $this->sectionService()->inlineAuthor(
             self::text($body['validator'] ?? null),
             self::text($body['password'] ?? null)

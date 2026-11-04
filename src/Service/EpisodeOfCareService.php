@@ -54,26 +54,6 @@ class EpisodeOfCareService
     }
 
     /**
-     * Séjours d'un patient, du plus récent au plus ancien (consultation des séjours précédents).
-     *
-     * @return EpisodeOfCare[]
-     */
-    public function getPatientEpisodesOfCare(int $idPatient): array
-    {
-        return $this->episodeOfCareDao->findByPatient($idPatient);
-    }
-
-    /**
-     * Séjours en cours (sans date de sortie), tous services confondus, du plus ancien au plus récent.
-     *
-     * @return EpisodeOfCare[]
-     */
-    public function getOngoingEpisodesOfCare(): array
-    {
-        return $this->episodeOfCareDao->findOngoing();
-    }
-
-    /**
      * Ouvre un séjour : la date de prise en charge est celle du moment, le numéro est généré.
      * Poids (kg), taille (cm) et précautions sont les mesures relevées à l'admission (AURA-10.1),
      * déjà validées par l'appelant (AdmissionService::validate()), comme le service hospitalier

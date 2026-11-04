@@ -59,8 +59,8 @@ class CareTeamDao
 
     /**
      * Verrouille le service jusqu'à la fin de la transaction (SELECT … FOR UPDATE sur sa ligne) : deux cadres
-     * qui composent des équipes du même service passent l'un après l'autre. Relecture adversariale du
-     * 2026-11-04 : sans verrou, un même patient se retrouvait dans plusieurs équipes de la même vacation.
+     * qui composent des équipes du même service passent l'un après l'autre. Sans verrou, un même patient
+     * pourrait se retrouver dans plusieurs équipes de la même rotation.
      */
     public function lockService(string $idHealthcareService): void
     {

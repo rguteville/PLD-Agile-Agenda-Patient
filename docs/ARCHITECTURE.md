@@ -366,8 +366,8 @@ Six blocs, du domaine aux contrôleurs, pour rester lisibles. Légende commune :
 - `$` (souligné au rendu) : constante ou méthode statique. Les getters sont omis.
 - Une classe vide est détaillée dans un autre bloc.
 - `Transaction` n'est pas reliée pour alléger : `AdmissionService`, `PatientDeletionService`, `RecordEditService`,
-  `RecordSectionService`, `CarePlanService`, `AppointmentService`, `CareTeamService`, `AgendaGenerationService` et
-  `PatientService` la reçoivent et écrivent par `Transaction::run()`.
+  `RecordSectionService`, `CarePlanService`, `AppointmentService`, `CareTeamService` et `AgendaGenerationService` la
+  reçoivent et écrivent par `Transaction::run()`.
 
 ### Domaine
 
@@ -387,7 +387,6 @@ classDiagram
         -?string email
         -array details
         +getDetail(field) ?string
-        +isAnonymous() bool
     }
     class EpisodeOfCare {
         -?int idEpisodeOfCare
@@ -619,7 +618,6 @@ classDiagram
         +findById(id) ?Patient
         +findByIpp(ipp) ?Patient
         +searchByWords(words, limit) array
-        +findByIdentity(lastName, firstName, birthDate) array
         +nextIpp() int
         +insert(patient) int
         +update(patient) void
@@ -768,12 +766,6 @@ classDiagram
         +prepare(idPatient) ?array
         +delete(idPatient) ?string
     }
-    class PatientService {
-        <<non câblé>>
-        +searchExistingPatient(data) ?Patient
-        +registerPatient(data) EpisodeOfCare
-        +admitExistingPatient(idPatient, bedNumber, boxNumber) EpisodeOfCare
-    }
 
     AdmissionService --> PatientDao
     AdmissionService --> EpisodeOfCareService
@@ -796,12 +788,7 @@ classDiagram
     PatientDeletionService --> EpisodeOfCareDao
     PatientDeletionService --> AppointmentDao
     PatientDeletionService --> AuditEventDao
-    PatientService --> PatientDao
-    PatientService --> EpisodeOfCareService
 ```
-
-`PatientService` est la première version de l'admission : il n'est câblé dans aucune route de `public/index.php`,
-seul `tests/Service/PatientServiceTest.php` l'utilise.
 
 ### Services du dossier de séjour
 
@@ -902,7 +889,6 @@ classDiagram
         +linesToPrefill(idPlanDefinition, appliedAt) array
     }
     class AgendaService {
-        +SERVICE_SLOT_HOURS = 2$
         +shiftEnd(now)$ DateTimeImmutable
         +getAgenda(idEpisodeOfCare) array
         +getAgendaService(idHealthcareService) array

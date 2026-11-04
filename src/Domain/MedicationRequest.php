@@ -13,6 +13,8 @@ use DateTimeImmutable;
  * « Important -> », « Consignes pour IDE », « (Dose max) », « Volume de dilution », « Solvant »,
  * « Durée d'administration », motif et germe (si antibiotique), adaptation rénale et son critère,
  * « Motif (si hors GHS) ».
+ *
+ * Accesseurs get*() : un par colonne, sans logique ni validation.
  */
 class MedicationRequest extends RequestLine
 {
@@ -53,6 +55,8 @@ class MedicationRequest extends RequestLine
             $idCarePlan
         );
     }
+
+    /** Clé de la ligne (idMedicationRequest), null tant qu'elle n'est pas enregistrée. */
     public function getIdMedicationRequest(): ?int
     {
         return $this->getId();

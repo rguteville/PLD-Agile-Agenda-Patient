@@ -12,7 +12,7 @@ use DateTimeImmutable;
 
 /**
  * GET /agenda-service (AURA-29) : soins de tous les patients en cours d'un service, pour un jour :
- * tableau des lits avec panneau de détail, ou liste de travail de la rotation (refonte du 2026-11-04).
+ * tableau des lits avec panneau de détail, ou liste de travail de la rotation.
  * Sans identifiant, le premier service du référentiel (par identifiant) est affiché, pour que
  * l'onglet « Agenda service » de la barre du haut mène toujours quelque part.
  */
@@ -53,7 +53,7 @@ final class ServiceController
             $now
         );
 
-        // Refonte du 2026-11-04 : tableau des lits (vue=lits, par défaut) ou liste de travail (vue=liste) ;
+        // Tableau des lits (vue=lits, par défaut) ou liste de travail (vue=liste) ;
         // sejour= (idEpisodeOfCare) choisit le lit détaillé dans le panneau (lien, sans JavaScript).
         $view = ($_GET['vue'] ?? '') === 'liste' ? 'liste' : 'lits';
         $selected = filter_var($_GET['sejour'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);

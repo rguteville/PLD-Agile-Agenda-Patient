@@ -3,11 +3,11 @@
 use Aura\Core\View;
 
 /**
- * Choix des allergies connues à l'admission (retours du 2026-11-02) : une liste filtrable des
+ * Choix des allergies connues à l'admission : une liste filtrable des
  * allergènes du référentiel ; chaque allergène coché reçoit une criticité (non évaluée, faible,
  * élevée). Envoi : allergies[] (identifiants cochés) et allergyCriticality[id] (criticité).
- * Sans JavaScript, tout reste utilisable : le filtre et le compteur sont des conforts
- * (public/js/allergy-picker.js), la criticité s'affiche via CSS dès que la case est cochée.
+ * Sans JavaScript, tout reste utilisable : le filtre est un confort (public/js/allergy-picker.js), la
+ * criticité s'affiche via CSS dès que la case est cochée.
  * Inclus par components/field.php (type « allergy-picker ») dans pages/patient/admission.php.
  *
  * @var string $name nom du champ (allergies)

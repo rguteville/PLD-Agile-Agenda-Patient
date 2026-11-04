@@ -261,7 +261,7 @@ final class AgendaServiceTest extends TestCase
         return [
             'idEpisodeOfCare' => $id, 'lastName' => 'Zz' . $bed, 'firstName' => 'Test', 'bed' => $bed,
             'episodeNumber' => sprintf('2026-%06d', $id), 'referent' => null, 'referentKnown' => true,
-            'deceased' => null, 'allergies' => [], 'items' => ['00:00' => $items],
+            'deceased' => null, 'allergies' => [], 'items' => $items,
         ];
     }
 

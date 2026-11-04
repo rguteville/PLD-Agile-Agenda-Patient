@@ -3,7 +3,7 @@
 use Aura\Core\View;
 
 /**
- * Badge « Ordonnance non validée » cliquable (retours du 2026-11-04) : il mène à l'écran « Nouvelles
+ * Badge « Ordonnance non validée » cliquable : il mène à l'écran « Nouvelles
  * prescriptions » du séjour, sur le bloc de validation de cette ordonnance (ancre #ordonnance-<id>, section
  * « En attente de validation par un médecin »), où un médecin la valide (RG5). Sans ordonnance ni séjour connus,
  * le badge reste un simple badge.

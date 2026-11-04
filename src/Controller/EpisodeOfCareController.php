@@ -151,7 +151,7 @@ final class EpisodeOfCareController
      * Paramètres facultatifs : `date` (AAAA-MM-JJ, aujourd'hui par défaut), `vue=semaine`. Les actions sur
      * un soin ne sont proposées que pour un séjour en cours.
      *
-     * Un `numSejour` mal formé ou inconnu répond 404 (relecture adversariale du 2026-11-04).
+     * Un `numSejour` mal formé ou inconnu répond 404.
      */
     public function getAgenda(): void
     {

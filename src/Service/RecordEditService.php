@@ -16,7 +16,7 @@ use Aura\Domain\EpisodeOfCare;
 use DateTimeImmutable;
 
 /**
- * Édition champ par champ du dossier patient (PR « dossier-patient-edition-inline »).
+ * Édition champ par champ du dossier patient (route POST /sejour/champ/modifier, édition en ligne).
  *
  * Règles :
  *  - liste blanche explicite des champs modifiables par entité (jamais une colonne envoyée par le client) ;
@@ -48,10 +48,9 @@ class RecordEditService
         private EpisodeOfCareDao $episodeOfCareDao,
         private AuditEventDao $auditEventDao,
         private Transaction $transaction,
-        private ?ReferenceDataDao $referenceDataDao = null,
-        ?DateTimeImmutable $today = null
+        private ?ReferenceDataDao $referenceDataDao = null
     ) {
-        $this->fields = new FieldValidationService($today);
+        $this->fields = new FieldValidationService();
     }
 
     /**
@@ -84,7 +83,7 @@ class RecordEditService
                     'label' => 'Service hospitalier', 'type' => 'select',
                     'options' => $this->referenceDataDao?->healthcareServices() ?? [],
                 ],
-                // Médecin référent (retours du 2026-11-03) : un médecin de la liste, vide = à désigner.
+                // Médecin référent : un médecin de la liste, vide = à désigner.
                 'idReferringPractitioner' => [
                     'label' => 'Médecin référent', 'type' => 'select',
                     'options' => $this->referenceDataDao?->doctors() ?? [],
@@ -134,8 +133,8 @@ class RecordEditService
         }
 
         // Depuis le dossier d'un séjour, seuls ce séjour et son patient sont modifiables : l'identifiant envoyé
-        // par le client ne suffit pas (relecture adversariale du 2026-11-04 : le séjour d'un autre patient était
-        // modifiable depuis un dossier). Le patient doit aussi être actif (pas supprimé de la liste).
+        // par le client ne suffit pas (sinon le séjour d'un autre patient serait modifiable depuis un dossier).
+        // Le patient doit aussi être actif (pas supprimé de la liste).
         if ($idEpisodeOfCare !== null) {
             $episodeOfCare = $this->episodeOfCareDao->findById($idEpisodeOfCare);
             $owner = $episodeOfCare === null ? null : $this->patientDao->findById($episodeOfCare->getIdPatient());

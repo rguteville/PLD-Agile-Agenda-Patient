@@ -5,7 +5,7 @@ use Aura\Core\View;
 /**
  * Dialogue d'action sur un soin (AURA-26, AURA-28). Bouton « Valider » : choix « Réalisé » (qui, quand)
  * ou « Non effectué » (motif obligatoire). Bouton « Note » : note seule, le choix est masqué (action
- * « note », radio caché). L'option visible « Note seulement » a été retirée le 2026-11-04.
+ * « note », radio caché).
  * Ouvert par les boutons de components/care_buttons (data-care-action) ; public/js/agenda.js l'envoie en
  * JSON à POST /agenda-patient/soin (en-tête X-CSRF-Token) et recharge la page. Sans JavaScript, le
  * formulaire part en POST classique (champ csrf) et le serveur renvoie à la page d'origine (champ back).
@@ -31,8 +31,8 @@ $back = $back ?? '';
         <input type="hidden" name="appointment" value="">
         <input type="hidden" name="back" value="<?= View::e($back) ?>">
 
-        <?php /* Retours du 2026-11-04 : Réalisé / Non effectué côte à côte ; la note seule s'ouvre par le
-                 bouton « Note » de l'agenda (agenda.js masque alors [data-action-choice]). */ ?>
+        <?php /* Réalisé / Non effectué côte à côte ; la note seule s'ouvre par le bouton « Note » de
+                 l'agenda (agenda.js masque alors [data-action-choice]). */ ?>
         <fieldset class="dialog-field care-actions" data-action-choice>
             <legend>Le soin a été</legend>
             <label><input type="radio" name="action" value="done" checked> Réalisé</label>

@@ -6,7 +6,7 @@ use Aura\Domain\RecordFields;
 use Aura\Service\AdmissionService;
 
 /**
- * Formulaire d'admission (AURA-10, AURA-15) étendu aux champs du SI réel (PR « admission-champs-complets »).
+ * Formulaire d'admission (AURA-10, AURA-15), avec les champs du SI réel de l'hôpital.
  * L'essentiel reste visible en haut (identité, IPP, motif, service, allergies) ; le reste est réparti en
  * sections repliées par défaut (RecordFields::SECTIONS), toutes facultatives.
  * Patient connu sélectionné : son groupe sanguin déjà renseigné n'est pas modifiable ici (donnée vitale,
@@ -112,7 +112,7 @@ $essentials = [
         'options' => $services,
         'empty' => $services === [] ? 'Référentiel indisponible' : 'Non renseigné',
     ],
-    // Médecin référent (responsable de soin, retours des médecins du 2026-11-03) : le médecin de jour qui
+    // Médecin référent (responsable de soin) : le médecin de jour qui
     // admet le patient. Facultatif : admis pendant une garde, le patient reste « à désigner » et un médecin
     // de jour se désigne ensuite depuis le dossier. Le serveur vérifie que c'est un médecin de la liste.
     [

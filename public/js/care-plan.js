@@ -3,9 +3,9 @@
 // (figure 9), puis « OK » ajoute la ligne à l'ordonnance en cours (« Prescriptions non sauvegardées »).
 // L'envoi est fait par form.js et le serveur revérifie tout (CarePlanService::checkInput, prescribe) :
 // les contrôles ici évitent seulement d'apprendre une erreur au moment d'enregistrer.
-// Retours du 2026-11-03 : alerte allergie dès le choix d'un médicament qui contient un allergène du
-// patient, et case « Je prescris malgré l'allergie » tant que l'ordonnance en contient un (le serveur
-// refuse l'ordonnance sans elle).
+// RG2 : alerte allergie dès le choix d'un médicament qui contient un allergène du patient, et case
+// « Je prescris malgré l'allergie » tant que l'ordonnance en contient un (le serveur refuse
+// l'ordonnance sans elle).
 //
 // Chargé par CarePlanController (GET /care-plans/new?idEpisodeOfCare=…, et l'écran réaffiché après un
 // refus). Attend : #care-plan-form (data-lists, JSON), #category (options data-kind), #item,
@@ -76,9 +76,9 @@ if (carePlanForm) {
         return date.toISOString().slice(0, 16);
     }
 
-    // ── Dates des fiches médicament et soin (retours du 2026-11-04) : jour et heure dans deux champs
-    // (#…-date, #…-time). Avant, un champ datetime-local rempli sans l'heure valait « vide » dans le
-    // navigateur : la date de fin disparaissait sans prévenir.
+    // ── Dates des fiches médicament et soin : jour et heure dans deux champs (#…-date, #…-time), car
+    // un champ datetime-local rempli sans l'heure vaut « vide » pour le navigateur (date perdue sans
+    // prévenir).
     function setDateTime(id, value) {
         const [day, time] = value.split('T');
         $(`#${id}-date`).value = day ?? '';

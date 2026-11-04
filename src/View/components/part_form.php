@@ -3,7 +3,7 @@
 use Aura\Core\View;
 
 /**
- * Formulaire de modification d'une partie entière du dossier (retours du 2026-11-02), masqué jusqu'au
+ * Formulaire de modification d'une partie entière du dossier, masqué jusqu'au
  * clic sur le crayon du titre (public/js/part-edit.js). « Enregistrer » ouvre la fenêtre de validation
  * par un médecin, puis part-edit.js envoie la partie en JSON à POST /sejour/partie/modifier ; le serveur
  * valide et trace (RecordSectionService). Les valeurs d'origine (data-old) servent au contrôle de

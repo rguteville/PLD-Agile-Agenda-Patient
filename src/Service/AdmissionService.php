@@ -25,14 +25,13 @@ use PDOException;
  * à la base, aucune dépendance PDO, aucune sortie HTTP.
  * AURA-10.4 : admit() enregistre le patient (ou le retrouve par son IPP) et
  * ouvre son séjour (numéro généré, AURA-10.3) dans une seule transaction.
- * PR « admission-champs-complets » : les champs facultatifs du catalogue RecordFields
- * (antécédents, histoire de la maladie, scores, administratif), le service hospitalier et
- * les allergies choisies dans le référentiel sont validés et enregistrés dans la même
- * transaction. Leur règle de validation vit dans FieldValidationService.
- * Retours des médecins du 2026-11-03 : médecin référent du séjour (responsable de soin), facultatif
- * (« à désigner » pour une admission de garde), choisi dans la liste des médecins.
- * Retours du 2026-11-04 : le groupe sanguin déjà connu d'un patient existant ne se modifie pas à
- * l'admission (LOCKED_FOR_KNOWN_PATIENT) ; il se corrige dans le dossier, validé par un médecin.
+ * Les champs facultatifs du catalogue RecordFields (antécédents, histoire de la maladie, scores,
+ * administratif), le service hospitalier et les allergies choisies dans le référentiel sont validés et
+ * enregistrés dans la même transaction. Leur règle de validation vit dans FieldValidationService.
+ * Médecin référent du séjour (responsable de soin) : facultatif (« à désigner » pour une admission de
+ * garde), choisi dans la liste des médecins.
+ * Le groupe sanguin déjà connu d'un patient existant ne se modifie pas à l'admission
+ * (LOCKED_FOR_KNOWN_PATIENT) ; il se corrige dans le dossier, validé par un médecin.
  */
 class AdmissionService
 {
@@ -81,7 +80,7 @@ class AdmissionService
         private ?AuditEventDao $auditEventDao = null,
         private ?RecordEditService $recordEditService = null
     ) {
-        $this->fields = new FieldValidationService($today);
+        $this->fields = new FieldValidationService();
     }
 
     /**
@@ -96,7 +95,7 @@ class AdmissionService
      * Nouveau patient sans IPP saisi : un IPP est attribué automatiquement (PatientDao::nextIpp()).
      *
      * Patient existant, deux cas :
-     *  - sélectionné dans la recherche (clé idPatient, PR « admission-recherche-patient ») : le
+     *  - sélectionné dans la recherche (clé idPatient) : le
      *    formulaire a été pré-rempli depuis sa fiche ; identité et champs complémentaires modifiés
      *    sont enregistrés sur la fiche existante et tracés champ par champ (AuditEvent), y compris
      *    un champ vidé ;
@@ -274,8 +273,8 @@ class AdmissionService
                         );
                         $rattachement = 'rattachement par IPP saisi';
                     } else {
-                        // Nouveau patient sans IPP saisi : un IPP est attribué automatiquement (retours
-                        // du 2026-11-02), dans la même transaction que l'insertion.
+                        // Nouveau patient sans IPP saisi : un IPP est attribué automatiquement, dans la
+                        // même transaction que l'insertion.
                         $generatedIpp = null;
                         if ($patient->getIpp() === null) {
                             try {
@@ -385,8 +384,8 @@ class AdmissionService
         $idPatient = (int) $existing->getIdPatient();
         $before = self::identity($existing);
         $after = self::identity($entered);
-        // Relecture adversariale du 2026-11-04 : un IPP, une date de naissance ou un sexe connus ne sont jamais
-        // effacés à l'admission (champs masqués à l'écran, donc envoyés vides) ; ils se corrigent dans le dossier.
+        // Un IPP, une date de naissance ou un sexe connus ne sont jamais effacés à l'admission (champs masqués
+        // à l'écran, donc envoyés vides) ; ils se corrigent dans le dossier.
         foreach (['ipp', 'birthDate', 'sex'] as $key) {
             $after[$key] ??= $before[$key];
         }
@@ -433,7 +432,7 @@ class AdmissionService
     }
 
     /**
-     * Relecture adversariale du 2026-11-04 : un patient déclaré décédé n'est pas réadmis (son séjour ne se
+     * Un patient déclaré décédé n'est pas réadmis (son séjour ne se
      * rouvrirait pas à son décès, et ses soins seraient planifiés). Une erreur d'identité se corrige dans le
      * dossier, par un médecin.
      */
@@ -523,7 +522,7 @@ class AdmissionService
     private function completePatient(Patient $existing, array $details): void
     {
         $idPatient = (int) $existing->getIdPatient();
-        // Retours du 2026-11-04 : une donnée vitale déjà connue (groupe sanguin) ne change pas à l'admission ;
+        // Une donnée vitale déjà connue (groupe sanguin) ne change pas à l'admission ;
         // elle se corrige dans le dossier par « Modifier », validée par un médecin et tracée (RecordFields,
         // validatedByDoctor). Vide, elle peut être complétée ici.
         foreach (self::LOCKED_FOR_KNOWN_PATIENT as $field => $label) {
@@ -662,8 +661,7 @@ class AdmissionService
     {
         $errors = [];
 
-        // Relecture adversariale du 2026-11-04 : longueur bornée par les colonnes (VARCHAR(50)), sinon MariaDB
-        // refuse l'insertion et la page plante.
+        // Longueur bornée par les colonnes (VARCHAR(50)), sinon MariaDB refuse l'insertion et la page plante.
         foreach (['lastName' => 'Le nom', 'firstName' => 'Le prénom'] as $key => $label) {
             $value = $this->text($data[$key] ?? null);
             if ($value === '') {
@@ -773,14 +771,14 @@ class AdmissionService
         $height = $this->text($data['height'] ?? null);
         if ($height !== '' && !$this->isStrictlyPositive($height)) {
             $errors['height'] = 'La taille doit être un nombre strictement positif.';
-        } elseif ($height !== '' && !$this->tientDansLaColonne($height)) {
+        } elseif ($height !== '' && !$this->fitsInColumn($height)) {
             $errors['height'] = 'La taille doit être inférieure à 1000 cm.';
         }
 
         $weight = $this->text($data['weight'] ?? null);
         if ($weight !== '' && !$this->isStrictlyPositive($weight)) {
             $errors['weight'] = 'Le poids doit être un nombre strictement positif.';
-        } elseif ($weight !== '' && !$this->tientDansLaColonne($weight)) {
+        } elseif ($weight !== '' && !$this->fitsInColumn($weight)) {
             $errors['weight'] = 'Le poids doit être inférieur à 1000 kg.';
         }
 
@@ -843,7 +841,7 @@ class AdmissionService
     }
 
     /** Une fois arrondie au centième, la valeur tient dans DECIMAL(5,2) (sinon MariaDB la refuse). */
-    private function tientDansLaColonne(string $value): bool
+    private function fitsInColumn(string $value): bool
     {
         return round((float) $value, 2) <= self::MEASURE_MAX;
     }

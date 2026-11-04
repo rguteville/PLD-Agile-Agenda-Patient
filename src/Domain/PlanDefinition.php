@@ -9,6 +9,8 @@ namespace Aura\Domain;
  * l'écran B3 : un modèle d'ordonnance pour une pathologie, dont les lignes (PlanDefinitionAction)
  * pré-remplissent une nouvelle prescription. Un protocole retiré n'est plus proposé (active = false) mais reste en
  * base pour les ordonnances qui en sont issues.
+ *
+ * Accesseurs get*() : un par colonne, sans logique ni validation.
  */
 class PlanDefinition
 {
@@ -46,6 +48,7 @@ class PlanDefinition
         return $this->pathology;
     }
 
+    /** Protocole encore proposé à la prescription (un protocole retiré reste en base). */
     public function isActive(): bool
     {
         return $this->active;

@@ -15,9 +15,8 @@ use LogicException;
 /**
  * Actions sur un soin planifié depuis l'agenda (AURA-26 valider un soin réalisé, AURA-28 note) :
  * « réalisé » (qui, quand, note facultative), « non effectué » (motif obligatoire), ou note seule par
- * le bouton « Note » de l'agenda (ACTION_NOTE ; le dialogue de validation n'a plus de choix « Note
- * seulement » depuis le 2026-11-04). Réalisé ou non effectué : seulement pour un soin prévu avant la fin
- * de la rotation en cours (AgendaService::shiftEnd()). Qui agit est tracé dans AuditEvent (RG10) : la
+ * le bouton « Note » de l'agenda (ACTION_NOTE). Réalisé ou non effectué : seulement pour un soin prévu
+ * avant la fin de la rotation en cours (AgendaService::shiftEnd()). Qui agit est tracé dans AuditEvent (RG10) : la
  * table Appointment n'a pas de colonne « réalisé par », et l'historique existant suffit sans modifier
  * le schéma.
  *
@@ -246,8 +245,8 @@ final class AppointmentService
                 )],
             ];
         }
-        // Relecture adversariale du 2026-11-04 : l'heure de réalisation reste proche de l'heure prévue (au plus
-        // EARLIEST_COMPLETION_HOURS avant, la durée d'une rotation) : un soin « fait en 2020 » est une faute de saisie.
+        // L'heure de réalisation reste proche de l'heure prévue (au plus EARLIEST_COMPLETION_HOURS avant, la
+        // durée d'une rotation) : un soin « fait en 2020 » est une faute de saisie.
         if ($completion !== null && $planned !== null) {
             $earliest = DateTimeImmutable::createFromInterface($planned)
                 ->modify('-' . self::EARLIEST_COMPLETION_HOURS . ' hours');

@@ -11,10 +11,12 @@ use DateTimeImmutable;
  * CareTeamMember, CareTeamPatient) : soignants et patients attribués, pour un service, une date et une
  * rotation (MATIN, APRES_MIDI ou NUIT). Immuable : on recompose en retirant l'équipe.
  *
- * SHIFTS est LA référence des horaires de travail d'AURA (décision de Raphaël du 2026-11-04 : on garde les trois
- * rotations, plus de vacations de 12 h) : équipes et « Mon planning » (CareTeamService), rotations affichées dans
- * l'agenda et fin de la rotation en cours pour la validation anticipée d'un soin (AgendaService::shiftEnd()).
+ * SHIFTS est LA référence des horaires de travail d'AURA (trois rotations de 8 h) : équipes et « Mon planning »
+ * (CareTeamService), rotations affichées dans l'agenda et fin de la rotation en cours pour la validation anticipée
+ * d'un soin (AgendaService::shiftEnd()).
  * Bornes 6 h, 14 h, 22 h : hypothèse à confirmer avec le service.
+ *
+ * Accesseurs get*() : un par colonne, sans logique ni validation.
  */
 final class CareTeam
 {
@@ -61,6 +63,7 @@ final class CareTeam
         return $this->idHealthcareService;
     }
 
+    /** Date du début de la rotation (la nuit du 14 commence le 14 à 22 h). */
     public function getShiftDate(): DateTimeImmutable
     {
         return $this->shiftDate;

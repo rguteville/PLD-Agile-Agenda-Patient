@@ -39,7 +39,8 @@ final class AgendaService
     /**
      * Rotations de l'équipe soignante, en heures (début inclus, fin exclue), dans l'ordre
      * chronologique de la journée civile : la nuit chevauche minuit, elle apparaît donc en deux
-     * tranches. Bornes 6 h / 14 h / 22 h = HYPOTHÈSE à confirmer avec le service (docs/ui.md).
+     * tranches. Mêmes bornes que CareTeam::SHIFTS (6 h, 14 h, 22 h : HYPOTHÈSE à confirmer avec le service),
+     * découpées au jour civil pour l'affichage d'une journée.
      */
     public const SHIFTS = [
         ['key' => 'night-end', 'label' => 'Nuit (fin)', 'hours' => '0 h à 6 h', 'from' => 0, 'to' => 6],
@@ -51,8 +52,8 @@ final class AgendaService
     /**
      * Fin de la rotation en cours à l'instant $now (6 h, 14 h, 22 h, ou 6 h le lendemain pour la nuit
      * commencée à 22 h). Un soin prévu avant cette heure peut être validé ou déclaré non effectué ; un
-     * soin d'une rotation à venir, non (retours du 2026-11-04). Bornes lues dans CareTeam::SHIFTS, la seule
-     * référence des rotations (équipes comprises).
+     * soin d'une rotation à venir, non. Bornes lues dans CareTeam::SHIFTS, la seule référence des rotations
+     * (équipes comprises).
      */
     public static function shiftEnd(DateTimeImmutable $now): DateTimeImmutable
     {
@@ -75,9 +76,6 @@ final class AgendaService
         'ANNULE' => 'cancelled',
         'NON_FAIT' => 'not_done',
     ];
-
-    /** Durée d'un créneau de la vue du service, en heures (0 h, 2 h… 22 h). */
-    public const SERVICE_SLOT_HOURS = 2;
 
     private const DAYS_FR = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
     private const MONTHS_FR = [
@@ -129,7 +127,7 @@ final class AgendaService
                 'firstName' => $patient?->getFirstName() ?? '',
                 'bed' => $episodeOfCare->getBedNumber(),
                 'episodeNumber' => $episodeOfCare->getEpisodeNumber(),
-                // Décès déclaré (retours du 2026-11-03) : visible sur tous les écrans de soins, comme le bandeau.
+                // Décès déclaré : visible sur tous les écrans de soins, comme dans le bandeau.
                 'deceased' => $patient !== null && PatientRecordService::isDeceased($patient)
                     ? PatientRecordService::deceasedLabel($patient->getSex()) : null,
                 // null = allergies non lues (pas de DAO), [] = aucune allergie connue.
@@ -140,7 +138,7 @@ final class AgendaService
                     ],
                     $this->allergyIntoleranceDao->findByPatient($episodeOfCare->getIdPatient())
                 ),
-                // Médecin référent (« Dr Prénom Nom »), null = à désigner (retours du 2026-11-03).
+                // Médecin référent (« Dr Prénom Nom »), null = à désigner.
                 'referent' => PatientRecordService::referent($episodeOfCare),
                 'carePlans' => $this->getAgenda($idEpisodeOfCare),
             ];
@@ -150,29 +148,19 @@ final class AgendaService
 
     /**
      * Vue-modèle du jour de l'agenda du service : jour affiché et navigation, et pour chaque patient
-     * ses soins du jour rangés par créneau de SERVICE_SLOT_HOURS heures. Les retards de tout le service
-     * sont aussi listés (AURA-32). Mêmes règles que presentDay() (retard = calcul d'affichage).
-     * Depuis la refonte du 2026-11-04, l'écran (consolidated-view.php) n'affiche plus la grille
-     * créneaux × patients : il lit ici le jour et la navigation, et presentBoard() part de cette sortie.
+     * ses soins du jour par ordre chronologique (retards de la veille compris). L'écran
+     * (consolidated-view.php) lit ici le jour et la navigation ; presentBoard() construit le tableau des
+     * lits et la liste de travail à partir de cette sortie. Mêmes règles que presentDay().
      * Pure : le jour affiché et l'heure courante sont injectés.
      *
      * @param list<array<string, mixed>> $episodes sortie de getAgendaService()
      * @return array{date: string, dateLabel: string, isToday: bool, previous: string, next: string,
-     *               slots: list<string>, emptySlots: list<string>, currentSlot: ?string, late: int,
-     *               lateItems: list<array<string, mixed>>, patients: list<array<string, mixed>>}
+     *               patients: list<array<string, mixed>>}
      */
     public static function presentService(array $episodes, DateTimeImmutable $day, DateTimeImmutable $now): array
     {
         $day = $day->setTime(0, 0);
-        $slots = [];
-        for ($hour = 0; $hour < 24; $hour += self::SERVICE_SLOT_HOURS) {
-            $slots[] = sprintf('%02d:00', $hour);
-        }
-        $slotOf = static fn (int $hour): string => $slots[intdiv($hour, self::SERVICE_SLOT_HOURS)];
-        $isToday = $day->format('Y-m-d') === $now->format('Y-m-d');
-
         $patients = [];
-        $lateItems = [];
         foreach ($episodes as $episode) {
             // Retards de la veille portés sur aujourd'hui (une dose de 23 h ne disparaît pas à minuit).
             $agenda = self::presentDay($episode['carePlans'] ?? [], $day, $now, carryOverdue: true);
@@ -184,27 +172,6 @@ final class AgendaService
                 $items,
                 static fn (array $a, array $b): int => [$a['datetime'], $a['label']] <=> [$b['datetime'], $b['label']]
             );
-
-            $name = mb_strtoupper((string) $episode['lastName']) . ' ' . $episode['firstName'];
-            $cells = [];
-            $bySlot = [];
-            foreach ($items as $item) {
-                $slot = $slotOf((int) $item['hour']);
-                $cells[$slot][$item['status']] = ($cells[$slot][$item['status']] ?? 0) + 1;
-                $bySlot[$slot][] = $item;
-                if ($item['status'] === 'late') {
-                    $lateItems[] = $item + [
-                        'idEpisodeOfCare' => (int) $episode['idEpisodeOfCare'],
-                        'patient' => $name,
-                        'bed' => $episode['bed'] ?? null,
-                    ];
-                }
-            }
-            // Ordre stable des effectifs d'une case : ce qui demande une action d'abord.
-            foreach ($cells as &$cell) {
-                uksort($cell, static fn (string $a, string $b): int => self::cellRank($a) <=> self::cellRank($b));
-            }
-            unset($cell);
             $patients[] = [
                 'idEpisodeOfCare' => (int) $episode['idEpisodeOfCare'],
                 'lastName' => (string) $episode['lastName'],
@@ -216,45 +183,27 @@ final class AgendaService
                 // Le référent est-il connu de cette source ? (sinon la vue ne dit pas « à désigner » à tort)
                 'referentKnown' => array_key_exists('referent', $episode),
                 'allergies' => $episode['allergies'] ?? null,
-                'late' => $agenda['counts']['late'],
-                'total' => $agenda['counts']['total'],
-                'cells' => $cells,
-                'items' => $bySlot,
+                'items' => $items,
             ];
         }
-        usort($lateItems, static fn (array $a, array $b): int => $a['datetime'] <=> $b['datetime']);
-        // Créneaux sans aucun soin dans le service (audit IHM du 2026-11-04 : affichés resserrés).
-        $emptySlots = array_values(array_filter(
-            $slots,
-            static fn (string $slot): bool => array_filter(
-                $patients,
-                static fn (array $p): bool => ($p['items'][$slot] ?? []) !== []
-            ) === []
-        ));
 
         return [
             'date' => $day->format('Y-m-d'),
             'dateLabel' => self::dayLabel($day),
-            'isToday' => $isToday,
+            'isToday' => $day->format('Y-m-d') === $now->format('Y-m-d'),
             'previous' => $day->modify('-1 day')->format('Y-m-d'),
             'next' => $day->modify('+1 day')->format('Y-m-d'),
-            'slots' => $slots,
-            'emptySlots' => $emptySlots,
-            'currentSlot' => $isToday ? $slotOf((int) $now->format('G')) : null,
-            'late' => count($lateItems),
-            'lateItems' => $lateItems,
             'patients' => $patients,
         ];
     }
 
     /**
-     * Agenda du service, refonte du 2026-11-04 (maquettes A + B choisies par Raphaël) : au lieu de la
-     * grille créneaux × patients, chargée,
+     * Agenda du service, construit sur la sortie de presentService() :
      *  - un TABLEAU DES LITS (une ligne par patient, du plus urgent au moins urgent) avec un PANNEAU DE
      *    DÉTAIL pour le patient choisi ;
      *  - une LISTE DE TRAVAIL du service, façon dossier de soins infirmiers : en retard, doses de lignes
      *    arrêtées à tracer, maintenant (deux heures, dans la rotation), plus tard dans la rotation, réalisés.
-     * Pur (sans base ni HTTP) : construit sur la sortie de presentService().
+     * Pur (sans base ni HTTP).
      *
      * Urgence (HYPOTHÈSE à valider avec les médecins) : nombre de retards, puis le plus ancien retard, puis
      * nombre de soins à faire dans la rotation, puis le prochain soin, puis le lit (sans lit en dernier).
@@ -265,7 +214,7 @@ final class AgendaService
      * jour, le panneau montre toute la journée. Les retards sont toujours listés, quel que soit le jour.
      *
      * RG2 : les allergies de chaque patient suivent ses lignes et ses soins, mais l'écran ne les affiche
-     * que dans le panneau du patient choisi (choix de Raphaël du 2026-11-04).
+     * que dans le panneau du patient choisi.
      *
      * @param array<string, mixed> $service sortie de presentService()
      * @param int|null $selected séjour choisi pour le panneau, paramètre ?sejour= de l'URL (null : le premier
@@ -295,7 +244,7 @@ final class AgendaService
         $worklist = ['late' => [], 'stopped' => [], 'now' => [], 'later' => [], 'done' => []];
         $panels = [];
         foreach ($service['patients'] ?? [] as $patient) {
-            $items = array_merge(...array_values($patient['items'] ?? [])) ?: [];
+            $items = $patient['items'] ?? [];
             usort($items, $byTime);
             $id = (int) $patient['idEpisodeOfCare'];
             // Chaque soin de la liste de travail porte son patient (lit, nom, décès, allergies). La vue
@@ -406,47 +355,37 @@ final class AgendaService
     public function getAgenda(int $idEpisodeOfCare): array
     {
         $response = [];
-        // On récupère les prescriptions associées au Séjour
         $carePlans = $this->carePlanDao->findByEpisodeOfCare($idEpisodeOfCare);
-        // Pour chaque prescription :
         foreach ($carePlans as $carePlan) {
             $idCarePlan = (int) $carePlan->getIdCarePlan();
-            // on initialise la liste des soins et des medicaments
+            // Soins planifiés indexés par identifiant de ligne.
             $serviceAppointments = [];
             $medicationAppointments = [];
 
-            // D'une part, on récupère les Soins associés
+            // Lignes de soin : le libellé affiché est le nom du type de soin.
             $serviceRequests = $this->carePlanDao->findServiceByCarePlan($idCarePlan);
             foreach ($serviceRequests as $serviceRequest) {
-                // Pour chaque soin, on récupère les SoinsPlanifiés (indexés par ligne)
                 $serviceAppointments[$serviceRequest->getIdServiceRequest()] = $this->appointmentDao
                     ->findByRequest((string) $serviceRequest->getIdServiceRequest(), false);
-                //ActivityDefinition
                 $activity = $this->activityDefinitionDao->findById($serviceRequest->getIdActivityDefinition());
                 // Référentiel incomplet (type de soin supprimé ou sans nom) : on garde l'identifiant plutôt
-                // que de planter (relecture adversariale du 2026-11-04).
+                // que de planter.
                 $serviceRequest->setIdActivityDefinition(
                     (string) ($activity?->getName() ?? $serviceRequest->getIdActivityDefinition())
                 );
             }
 
-            // D'autre part, on récupère les Médicaments associés
+            // Lignes de médicament : le libellé affiché est la DCI (repli sur l'identifiant du médicament).
             $medicationRequests = $this->carePlanDao->findMedicationByCarePlan($idCarePlan);
             foreach ($medicationRequests as $medicationRequest) {
-                //Pour chaque Médicament, on récupère les SoinsPlanifiés associés (indexés par ligne)
                 $medicationAppointments[$medicationRequest->getIdMedicationRequest()] = $this->appointmentDao
                     ->findByRequest((string) $medicationRequest->getIdMedicationRequest(), true);
-
-                //Medication
-                // $activity = $this->activityDefinitionDao->findById($medicationRequest->getIdActivityDefinition());
                 $medication = $this->medicationDao->findById($medicationRequest->getIdMedication());
                 $medicationRequest->setIdActivityDefinition(
                     (string) ($medication?->getInn() ?? $medicationRequest->getIdMedication())
                 );
             }
 
-
-            // Assemblage de la réponse HTTP
             $response[] = $this->serializeCarePlan(
                 $carePlan,
                 $serviceRequests,
@@ -599,8 +538,7 @@ final class AgendaService
      * @param list<\Aura\Domain\Appointment> $appointments
      * @return list<array{idAppointment: string, idServiceRequest: ?string, idMedicationRequest: ?string,
      *                    plannedTime: ?DateTimeImmutable, status: ?string,
-     *                    timeOfCompletion: ?DateTimeImmutable, timeRecorded: ?DateTimeImmutable,
-     *                    comment: ?string}> jamais null en pratique
+     *                    timeOfCompletion: ?DateTimeImmutable, comment: ?string}> jamais null en pratique
      */
     public function serializeAppointment(array $appointments): ?array
     {
@@ -613,7 +551,6 @@ final class AgendaService
                 'plannedTime' => $appointment->getPlannedTime(),
                 'status' => $appointment->getStatus(),
                 'timeOfCompletion' => $appointment->getTimeOfCompletion(),
-                'timeRecorded' => $appointment->getTimeRecorded(),
                 'comment' => $appointment->getComment(),
             ];
         }
@@ -644,10 +581,9 @@ final class AgendaService
      * « En retard » = statut PLANIFIE dont l'heure prévue est dépassée : c'est un calcul d'affichage,
      * pas une donnée enregistrée (aucun statut EN_RETARD en base).
      *
-     * $carryOverdue (relecture adversariale du 2026-11-04) : quand le jour affiché est aujourd'hui, les doses
-     * de la veille encore prévues et dépassées sont ajoutées aux retards (clé previousDay vraie). Sans cela,
-     * une dose de 23 h non faite disparaissait de l'agenda à minuit. Désactivé pour la vue Semaine, qui montre
-     * déjà la veille dans sa colonne.
+     * $carryOverdue : quand le jour affiché est aujourd'hui, les doses de la veille encore prévues et
+     * dépassées sont ajoutées aux retards (heure suivie de « (veille) »), pour qu'une dose de 23 h non faite
+     * ne disparaisse pas de l'agenda à minuit. Désactivé pour la vue Semaine, qui montre déjà la veille.
      *
      * @param list<array<string, mixed>> $carePlans sortie de getAgenda()
      * @return array{date: string, dateLabel: string, isToday: bool, previous: string, next: string,
@@ -674,7 +610,7 @@ final class AgendaService
                             $overdue = self::presentItem($appointment, $line, $isMedication, $yesterday, $now, $plan);
                             if ($overdue !== null && $overdue['status'] === 'late') {
                                 // L'heure dit que la dose date de la veille : « 23:00 (veille) ».
-                                $items[] = ['previousDay' => true, 'time' => $overdue['time'] . ' (veille)'] + $overdue;
+                                $items[] = ['time' => $overdue['time'] . ' (veille)'] + $overdue;
                             }
                         }
                     }
@@ -740,8 +676,8 @@ final class AgendaService
             $name = mb_strtoupper((string) $episode['lastName']) . ' ' . $episode['firstName'];
             $own = [];
             // Une vacation de nuit chevauche deux jours civils : on lit chaque jour qu'elle touche.
-            // Relecture adversariale du 2026-11-04 : un retard de la vacation précédente (avant $start) est
-            // repris en tête, sinon il n'est plus visible de personne à la relève. Dédoublonné par soin.
+            // Un retard de la vacation précédente (avant $start) est repris en tête, sinon il n'est plus
+            // visible de personne à la relève. Dédoublonné par soin.
             $seen = [];
             for ($day = $start->setTime(0, 0); $day < $end; $day = $day->modify('+1 day')) {
                 $agenda = self::presentDay($episode['carePlans'] ?? [], $day, $now, carryOverdue: true);
@@ -838,14 +774,6 @@ final class AgendaService
         $add('Arrêtée le', $date($line['stoppedAt'] ?? null));
 
         return $rows;
-    }
-
-    /** Rang d'un statut dans une cellule de la vue du service ; un statut inconnu passe en dernier. */
-    private static function cellRank(string $status): int
-    {
-        $rank = array_search($status, ['late', 'planned', 'done', 'not_done', 'cancelled'], true);
-
-        return $rank === false ? 99 : $rank;
     }
 
     /**
@@ -980,7 +908,6 @@ final class AgendaService
 
         $label = trim((string) ($line['idActivityDefinition'] ?? ''));
         $completion = $appointment['timeOfCompletion'] ?? null;
-        $recorded = $appointment['timeRecorded'] ?? null;
         $comment = trim((string) ($appointment['comment'] ?? ''));
 
         return [
@@ -992,27 +919,23 @@ final class AgendaService
             'kindLabel' => $isMedication ? 'Médicament' : 'Soin',
             'label' => $label !== '' ? $label : ($isMedication ? 'Médicament' : 'Soin'),
             'details' => $details === [] ? null : implode(', ', $details),
-            // Catégorie de personnel : non stockée en base ; l'administration d'un médicament est un
-            // acte IDE, un soin peut revenir à l'IDE ou à l'aide-soignant(e). Hypothèse documentée.
-            'responsible' => $isMedication ? 'IDE' : 'IDE / AS',
             'status' => $status,
             'completedAt' => $completion instanceof DateTimeInterface ? $completion->format('H:i') : null,
-            'recordedAt' => $recorded instanceof DateTimeInterface ? $recorded->format('d/m H:i') : null,
             'comment' => $comment !== '' ? $comment : null,
             // Qui a validé ou marqué non effectué (historique, AURA-26) ; null tant que personne.
             'performedBy' => isset($appointment['performedBy']) ? (string) $appointment['performedBy'] : null,
             // Auteur de la note (AURA-28) ; null pour une note sans trace (données de démo).
             'noteBy' => isset($appointment['noteBy']) ? (string) $appointment['noteBy'] : null,
-            // Carte de la prescription (retours du 2026-11-03 : « + » sur chaque soin de l'agenda).
+            // Carte de la prescription (bouton « + » de chaque soin de l'agenda).
             'prescription' => self::presentPrescription($line, $plan, $isMedication),
             // RG5 / AURA-23 : ordonnance pas encore validée par un médecin (urgence, paramédicale) :
             // ses soins entrent dans l'agenda avec un marqueur visible.
             'notValidated' => $plan !== [] && array_key_exists('validatedAt', $plan) && $plan['validatedAt'] === null,
-            // Ordonnance du soin : le badge « Ordonnance non validée » mène à sa validation (2026-11-04).
+            // Ordonnance du soin : le badge « Ordonnance non validée » mène à sa validation.
             'idCarePlan' => isset($plan['idCarePlan']) ? (string) $plan['idCarePlan'] : null,
-            // Validable : en retard, ou prévu avant la fin de la rotation en cours (retours du 2026-11-04 :
-            // un soin fait en avance doit pouvoir être validé ; la nuit, la dose de minuit aussi), pas un
-            // soin d'une rotation à venir ; une ligne arrêtée se trace si la dose a été faite avant l'arrêt.
+            // Validable : en retard, ou prévu avant la fin de la rotation en cours (un soin fait en avance
+            // doit pouvoir être validé ; la nuit, la dose de minuit aussi), pas un soin d'une rotation à venir ;
+            // une ligne arrêtée se trace si la dose a été faite avant l'arrêt.
             // Même règle au serveur (AppointmentService::apply()).
             'canValidate' => in_array($status, ['late', 'stopped'], true)
                 || ($status === 'planned' && $planned < self::shiftEnd($now)),

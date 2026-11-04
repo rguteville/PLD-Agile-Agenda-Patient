@@ -42,7 +42,7 @@ $weekUrl = static fn (string $date): string => $dayUrl($date) . '&vue=semaine';
 
 <?php
 // Même menu que le dossier : le bouton « Dossier du séjour » est exactement là où se trouve
-// « Agenda du jour » dans le dossier (retours du 2026-11-02).
+// « Agenda du jour » dans le dossier, pour passer de l'un à l'autre sans chercher.
 $recordUrl = '/sejour?id=' . $idEpisodeOfCare;
 ?>
 <div class="record-layout">
@@ -174,7 +174,7 @@ $recordUrl = '/sejour?id=' . $idEpisodeOfCare;
             'text' => 'Les soins apparaissent ici dès qu\'une prescription validée les planifie.',
         ]) ?>
     <?php else : ?>
-        <?php /* Retours du 2026-11-04 : filtres regroupés derrière un bouton (agenda.js). */ ?>
+        <?php /* Filtres regroupés derrière un bouton (agenda.js). */ ?>
         <details class="filter-menu" data-agenda-filters hidden>
             <summary class="button button--secondary">
                 Filtres<span class="filter-menu__state" data-filter-state></span>
@@ -208,7 +208,7 @@ $recordUrl = '/sejour?id=' . $idEpisodeOfCare;
         <?php endif; ?>
 
         <?php foreach ($agenda['shifts'] as $shift) : ?>
-            <?php /* Audit IHM du 2026-11-04 : une rotation sans soin tient sur une ligne discrète. */ ?>
+            <?php /* Une rotation sans soin tient sur une ligne discrète. */ ?>
             <section class="agenda-section<?= $shift['items'] === [] ? ' is-empty' : '' ?>"
                      aria-labelledby="agenda-<?= View::e($shift['key']) ?>-title">
                 <h2 id="agenda-<?= View::e($shift['key']) ?>-title">

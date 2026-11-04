@@ -14,8 +14,8 @@ use Aura\Core\View;
  * @var string $status clé de statut (planned, late, done, to_validate, validated, stopped, cancelled, not_done) ;
  *      une clé inconnue est affichée telle quelle, en neutre
  * @var string|null $label texte affiché à la place du libellé par défaut, aucun par défaut
- * @var string|null $href rend le badge cliquable (lien), aucun par défaut. Retours du 2026-11-04 : « À valider par
- *      un médecin » mène à l'ordonnance à valider (components/to_validate_link calcule l'adresse)
+ * @var string|null $href rend le badge cliquable (lien), aucun par défaut : « À valider par un médecin » mène à
+ *      l'ordonnance à valider (components/to_validate_link calcule l'adresse)
  * @var string|null $title infobulle et nom accessible du lien, en plus du libellé
  */
 $statuses = [

@@ -22,14 +22,6 @@ final class FieldValidationService
     private const PHONE_PATTERN = '/^[0-9 +().-]{6,20}$/';
 
     /**
-     * @param DateTimeImmutable|null $today date de référence, réservée aux règles futures sur les dates
-     *        (aucune borne aujourd'hui : une date de chirurgie peut être programmée, donc future)
-     */
-    public function __construct(private ?DateTimeImmutable $today = null)
-    {
-    }
-
-    /**
      * Valide les valeurs contre le catalogue. Seules les clés du catalogue sont examinées :
      * une clé inconnue est ignorée (jamais une erreur, jamais une donnée écrite).
      *
