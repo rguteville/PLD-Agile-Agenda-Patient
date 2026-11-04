@@ -663,12 +663,12 @@ INSERT INTO Appointment (idAppointment, idServiceRequest, idMedicationRequest, p
     ('SOI221', NULL, '17', '2026-10-15 23:30:00', 'PLANIFIE', NULL                 , NULL                 , NULL);
 
 -- ---------------------------------------------------------------------------
--- Équipes de la vacation de jour du 14 octobre 2026 en réanimation médicale (AURA-30) :
+-- Équipes de la rotation du matin du 14 octobre 2026 en réanimation médicale (AURA-30) :
 --   Équipe A : Thomas Girard (IDE) + Julien Perrin (AS) → Simpson (1) et Skywalker (2)
 --   Équipe B : Inès Rousseau (IDE) → Ripley (8)
 INSERT INTO CareTeam (idCareTeam, idHealthcareService, shiftDate, shift, name) VALUES
-    (1, 'SRV01', '2026-10-14', 'JOUR', 'Équipe A'),
-    (2, 'SRV01', '2026-10-14', 'JOUR', 'Équipe B');
+    (1, 'SRV01', '2026-10-14', 'MATIN', 'Équipe A'),
+    (2, 'SRV01', '2026-10-14', 'MATIN', 'Équipe B');
 
 INSERT INTO CareTeamMember (idCareTeam, idPractitioner) VALUES
     (1, 'PRA04'), (1, 'PRA06'), (2, 'PRA05');
@@ -676,14 +676,14 @@ INSERT INTO CareTeamMember (idCareTeam, idPractitioner) VALUES
 INSERT INTO CareTeamPatient (idCareTeam, idEpisodeOfCare) VALUES
     (1, '1'), (1, '2'), (2, '8');
 
--- Données complémentaires, même vacation : les nouveaux patients de réanimation médicale (séjours 9 à 16).
--- Un patient n'est que dans une équipe par vacation (règle de CareTeamService), un soignant aussi.
+-- Données complémentaires, même rotation : les nouveaux patients de réanimation médicale (séjours 9 à 16).
+-- Un patient n'est que dans une équipe par rotation (règle de CareTeamService), un soignant aussi.
 --   Équipe B : + Everdeen (15) et Poulain (16)
 --   Équipe C : Carla Espinosa (IDE) + Samwise Gamgee (AS) → Wayne (9), Holmes (10), Bourne (11)
 --   Équipe D : Abby Lockhart (IDE) + Mary Poppins (AS) → Targaryen (12), Dumbledore (13), Stark (14)
 INSERT INTO CareTeam (idCareTeam, idHealthcareService, shiftDate, shift, name) VALUES
-    (3, 'SRV01', '2026-10-14', 'JOUR', 'Équipe C'),
-    (4, 'SRV01', '2026-10-14', 'JOUR', 'Équipe D');
+    (3, 'SRV01', '2026-10-14', 'MATIN', 'Équipe C'),
+    (4, 'SRV01', '2026-10-14', 'MATIN', 'Équipe D');
 
 INSERT INTO CareTeamMember (idCareTeam, idPractitioner) VALUES
     (3, 'PRA11'), (3, 'PRA13'), (4, 'PRA12'), (4, 'PRA14');
@@ -692,3 +692,18 @@ INSERT INTO CareTeamPatient (idCareTeam, idEpisodeOfCare) VALUES
     (2, '15'), (2, '16'),
     (3, '9'), (3, '10'), (3, '11'),
     (4, '12'), (4, '13'), (4, '14');
+
+-- Mêmes équipes pour l'après-midi et la nuit du 14 (2026-11-04 : trois rotations) : la démonstration trouve des
+-- équipes et « Mon planning » quelle que soit l'heure. Équipes 5 à 8 (après-midi) et 9 à 12 (nuit).
+INSERT INTO CareTeam (idCareTeam, idHealthcareService, shiftDate, shift, name)
+    SELECT idCareTeam + 4, idHealthcareService, shiftDate, 'APRES_MIDI', name FROM CareTeam WHERE idCareTeam <= 4;
+INSERT INTO CareTeam (idCareTeam, idHealthcareService, shiftDate, shift, name)
+    SELECT idCareTeam + 8, idHealthcareService, shiftDate, 'NUIT', name FROM CareTeam WHERE idCareTeam <= 4;
+INSERT INTO CareTeamMember (idCareTeam, idPractitioner)
+    SELECT idCareTeam + 4, idPractitioner FROM CareTeamMember WHERE idCareTeam <= 4;
+INSERT INTO CareTeamMember (idCareTeam, idPractitioner)
+    SELECT idCareTeam + 8, idPractitioner FROM CareTeamMember WHERE idCareTeam <= 4;
+INSERT INTO CareTeamPatient (idCareTeam, idEpisodeOfCare)
+    SELECT idCareTeam + 4, idEpisodeOfCare FROM CareTeamPatient WHERE idCareTeam <= 4;
+INSERT INTO CareTeamPatient (idCareTeam, idEpisodeOfCare)
+    SELECT idCareTeam + 8, idEpisodeOfCare FROM CareTeamPatient WHERE idCareTeam <= 4;

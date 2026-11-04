@@ -23,6 +23,12 @@ final class CarePlanServicePeriodTest extends TestCase
         self::assertSame('du 20/10/2026 08:00, sans date de fin', CarePlanService::period('20/10/2026 08:00', null));
     }
 
+    /** Retours du 2026-11-04 : une prescription « Une fois » a une date, « le … », pas de « du » sans « au ». */
+    public function testOneOffPrescriptionReadsLe(): void
+    {
+        self::assertSame('le 20/10/2026 08:00', CarePlanService::period('20/10/2026 08:00', null, true));
+    }
+
     public function testGroupCategoryIsCalledProtocols(): void
     {
         self::assertSame('Protocoles', CarePlanService::CATEGORIES['GROUPS']['label']);

@@ -32,9 +32,9 @@ final class PagesHttpTest extends HttpTestCase
         yield 'agenda du service par défaut' => ['/agenda-service', 200, 'Agenda du service'];
         yield 'agenda du service, jour de démo' => ['/agenda-service?date=2026-10-14', 200, 'soins en retard'];
         yield 'service inconnu' => ['/agenda-service?idHealthcareService=ZZZ', 404, 'Service inconnu'];
-        yield 'équipes de la vacation' => ['/equipes?date=2026-10-14&vacation=jour', 200, 'Équipe A'];
+        yield 'équipes de la vacation' => ['/equipes?date=2026-10-14&rotation=matin', 200, 'Équipe A'];
         yield 'mon planning sans soignant' => ['/mon-planning', 200, 'Choisissez votre nom'];
-        yield 'mon planning' => ['/mon-planning?idPractitioner=PRA04&date=2026-10-14&vacation=jour', 200, 'SIMPSON'];
+        yield 'mon planning' => ['/mon-planning?idPractitioner=PRA04&date=2026-10-14&rotation=matin', 200, 'SIMPSON'];
         yield 'confirmation de suppression' => ['/patients/supprimer?id=4', 200, 'Parker'];
         yield 'suppression refusée affichée' => ['/patients/supprimer?id=1', 200, 'séjour en cours'];
         yield 'page inexistante' => ['/page-inexistante', 404, 'Erreur 404'];

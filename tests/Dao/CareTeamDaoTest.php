@@ -62,7 +62,7 @@ final class CareTeamDaoTest extends TestCase
         self::assertSame('Zz équipe', $teams[0]->getName());
         self::assertSame(['PRA05' => 'Inès Rousseau'], $teams[0]->getMembers());
         self::assertSame([2, 8], $teams[0]->getEpisodeIds());
-        self::assertSame([], $this->dao->findForShift('SRV01', $this->date, CareTeam::SHIFT_DAY), 'autre vacation');
+        self::assertSame([], $this->dao->findForShift('SRV01', $this->date, CareTeam::SHIFT_MORNING), 'autre vacation');
         self::assertCount(1, $this->dao->findForPractitioner('PRA05', $this->date, CareTeam::SHIFT_NIGHT));
         self::assertSame([], $this->dao->findForPractitioner('PRA04', $this->date, CareTeam::SHIFT_NIGHT));
 

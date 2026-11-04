@@ -186,3 +186,19 @@ if (dialog && careForm && typeof dialog.showModal === 'function') {
         }
     });
 }
+
+// ---- Agenda du service, onglet « Lits » (retours du 2026-11-04) : un clic n'importe où sur la ligne d'un patient
+// ouvre son panneau à droite, comme le lien sur son nom (qui reste le chemin au clavier et sans JavaScript). ----
+document.querySelectorAll('tr[data-row-link]').forEach(row => {
+    const link = row.querySelector('a[href]');
+    if (!link) {
+        return;
+    }
+    row.addEventListener('click', event => {
+        // Un clic sur un lien ou un bouton de la ligne garde son propre effet ; une sélection de texte n'ouvre rien.
+        if (event.target.closest('a, button, summary') || String(window.getSelection())) {
+            return;
+        }
+        window.location.assign(link.href);
+    });
+});

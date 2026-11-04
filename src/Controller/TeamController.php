@@ -7,20 +7,19 @@ namespace Aura\Controller;
 use Aura\Core\Csrf;
 use Aura\Core\View;
 use Aura\Dao\CareTeamDao;
-use Aura\Domain\CareTeam;
 use Aura\Service\AgendaService;
 use Aura\Service\AppointmentService;
 use Aura\Service\CareTeamService;
 use DateTimeImmutable;
 
 /**
- * Équipes et vacations (AURA-30) et agenda par soignant (AURA-31).
+ * Équipes et rotations (AURA-30) et agenda par soignant (AURA-31).
  *
- * - GET /equipes?idHealthcareService=…&date=AAAA-MM-JJ&vacation=jour|nuit : équipes de la vacation
- *   (vacation en cours par défaut) et formulaire de composition ;
- * - POST /equipes/creer, POST /equipes/retirer : jeton CSRF, puis retour à la vacation (303) ;
- * - GET /mon-planning?idPractitioner=…&date=…&vacation=… : soins des patients des équipes du
- *   soignant pendant la vacation. Sans identification des praticiens (AURA-50), le soignant se
+ * - GET /equipes?idHealthcareService=…&date=AAAA-MM-JJ&rotation=matin|apres-midi|nuit : équipes de la rotation
+ *   (rotation en cours par défaut) et formulaire de composition ;
+ * - POST /equipes/creer, POST /equipes/retirer : jeton CSRF, puis retour à la rotation (303) ;
+ * - GET /mon-planning?idPractitioner=…&date=…&rotation=… : soins des patients des équipes du
+ *   soignant pendant la rotation. Sans identification des praticiens (AURA-50), le soignant se
  *   choisit dans une liste.
  */
 final class TeamController
@@ -41,16 +40,16 @@ final class TeamController
     ) {
     }
 
-    /** GET /equipes : équipes de la vacation demandée (voir context() pour les paramètres) et formulaire. */
+    /** GET /equipes : équipes de la rotation demandée (voir context() pour les paramètres) et formulaire. */
     public function teams(): void
     {
         $this->renderTeams($_GET);
     }
 
     /**
-     * POST /equipes/creer : jeton CSRF, puis CareTeamService::create() (nom unique dans la vacation, au moins
-     * un soignant, un patient dans une seule équipe par vacation). Refus : 422 et formulaire réaffiché avec
-     * la saisie ; succès : 303 vers la vacation. 403 jeton faux, 404 service inconnu.
+     * POST /equipes/creer : jeton CSRF, puis CareTeamService::create() (nom unique dans la rotation, au moins
+     * un soignant, un patient dans une seule équipe par rotation). Refus : 422 et formulaire réaffiché avec
+     * la saisie ; succès : 303 vers la rotation. 403 jeton faux, 404 service inconnu.
      */
     public function create(): void
     {
@@ -81,7 +80,7 @@ final class TeamController
 
     /**
      * POST /equipes/retirer : jeton CSRF, puis suppression logique de l'équipe `idCareTeam` (removedAt) et
-     * retour à la vacation (303). 403 jeton faux, 400 service ou identifiant invalide. Une équipe déjà
+     * retour à la rotation (303). 403 jeton faux, 400 service ou identifiant invalide. Une équipe déjà
      * retirée ou inconnue ne lève pas d'erreur : le retour se fait quand même.
      */
     public function remove(): void
@@ -101,8 +100,8 @@ final class TeamController
     }
 
     /**
-     * GET /mon-planning : soins des patients des équipes du soignant `idPractitioner` pendant la vacation
-     * (`date`, `vacation`), avec les mêmes actions que l'agenda (valider, non effectué, note). Sans soignant
+     * GET /mon-planning : soins des patients des équipes du soignant `idPractitioner` pendant la rotation
+     * (`date`, `rotation`), avec les mêmes actions que l'agenda (valider, non effectué, note). Sans soignant
      * choisi ou avec un identifiant inconnu : la page n'affiche que la liste de choix.
      */
     public function planning(): void
@@ -165,13 +164,14 @@ final class TeamController
             'errors' => $errors,
             'values' => $values,
             'csrfToken' => Csrf::token(),
-        ], 'AURA - Équipes de la vacation', ['/js/confirm.js', '/js/auto-submit.js']);
+        ], 'AURA - Équipes de la rotation', ['/js/confirm.js', '/js/auto-submit.js']);
     }
 
     /**
-     * Service, date et vacation demandés ; par défaut le premier service du référentiel et la vacation
-     * en cours. Paramètres lus : `idHealthcareService`, `date` (AAAA-MM-JJ), `vacation` (jour ou nuit, casse
-     * indifférente). Service inconnu : null en première position.
+     * Service, date et rotation demandés ; par défaut le premier service du référentiel et la rotation
+     * en cours. Paramètres lus : `idHealthcareService`, `date` (AAAA-MM-JJ), `rotation` (matin, apres-midi ou
+     * nuit, casse indifférente ; l'ancien paramètre `vacation` est encore lu). Service inconnu : null en
+     * première position.
      *
      * @param array<string, mixed> $source
      * @return array{0: ?string, 1: DateTimeImmutable, 2: string}
@@ -190,20 +190,17 @@ final class TeamController
 
         $now = new DateTimeImmutable('now');
         $current = CareTeamService::currentShift($now);
-        $shift = CareTeamService::parseShift($source['vacation'] ?? null);
+        $shift = CareTeamService::parseShift($source['rotation'] ?? $source['vacation'] ?? null);
         $date = isset($source['date']) && $source['date'] !== ''
             ? AgendaService::parseDay($source['date'], $now) : $current['date'];
 
         return [$service, $date, $shift ?? $current['shift']];
     }
 
-    /** @return array<string, mixed> vacation affichée et ses voisines, pour la navigation */
+    /** @return array<string, mixed> rotation affichée et ses voisines, pour la navigation */
     private function shiftView(DateTimeImmutable $date, string $shift): array
     {
-        $previous = $shift === CareTeam::SHIFT_DAY
-            ? [$date->modify('-1 day'), CareTeam::SHIFT_NIGHT] : [$date, CareTeam::SHIFT_DAY];
-        $next = $shift === CareTeam::SHIFT_DAY
-            ? [$date, CareTeam::SHIFT_NIGHT] : [$date->modify('+1 day'), CareTeam::SHIFT_DAY];
+        ['previous' => $previous, 'next' => $next] = CareTeamService::neighbours($date, $shift);
 
         return [
             'date' => $date->format('Y-m-d'),
@@ -234,10 +231,10 @@ final class TeamController
         return $labels;
     }
 
-    /** Adresse de la page des équipes pour une vacation (paramètre `vacation` en minuscules : jour, nuit). */
+    /** Adresse de la page des équipes pour une rotation (paramètre `rotation` : matin, apres-midi, nuit). */
     private static function teamsUrl(string $service, DateTimeImmutable $date, string $shift): string
     {
         return '/equipes?idHealthcareService=' . rawurlencode($service) . '&date=' . $date->format('Y-m-d')
-            . '&vacation=' . strtolower($shift);
+            . '&rotation=' . CareTeamService::urlValue($shift);
     }
 }

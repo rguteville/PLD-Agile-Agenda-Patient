@@ -84,8 +84,8 @@ corps du POST). Détail des réponses, des jetons CSRF et de l'authentification 
 | Agenda du patient | `GET /agenda-patient?id=` (ou `?numSejour=`), `&date=AAAA-MM-JJ`, `&vue=semaine` |
 | Action sur un soin | `POST /agenda-patient/soin` (réalisé, non effectué, note) |
 | Agenda du service | `GET /agenda-service?idHealthcareService=&date=&vue=lits\|liste&sejour=` |
-| Équipes de vacation | `GET /equipes`, `POST /equipes/creer`, `POST /equipes/retirer` |
-| Mon planning | `GET /mon-planning?idPractitioner=&date=&vacation=jour\|nuit` |
+| Équipes par rotation | `GET /equipes`, `POST /equipes/creer`, `POST /equipes/retirer` |
+| Mon planning | `GET /mon-planning?idPractitioner=&date=&rotation=matin\|apres-midi\|nuit` |
 
 Toute autre adresse affiche la page 404.
 
@@ -467,9 +467,10 @@ courant (`database/demo-today.sql`, voir l'installation) : les dates ci-dessous 
    (`?sejour=`) ouvre à côté le panneau de ce lit : allergies, référent, soins de la rotation avec « Valider » et
    « Note ». Les allergies ne sont que dans ce panneau. « Liste de travail » (`?vue=liste`) : les soins de tout le
    service en retard, maintenant (deux heures), plus tard (replié), réalisés (replié).
-10. **Équipes et « Mon planning » (AURA-30, AURA-31)** : onglet « Équipes », 14/10/2026, vacation Jour → équipes
-    A et B de démo ; composer une équipe (un patient n'a qu'une équipe par vacation). « Mon planning », Thomas
-    Girard → soins de Simpson et Skywalker pendant la vacation, avec les mêmes actions.
+10. **Équipes et « Mon planning » (AURA-30, AURA-31)** : onglet « Équipes », 14/10/2026, rotation du matin (ou
+    après-midi, ou nuit) → équipes A à D de démo ; composer une équipe (un patient n'a qu'une équipe par
+    rotation). « Mon planning », Thomas Girard → soins de Simpson et Skywalker pendant la rotation, avec les
+    mêmes actions.
 11. **Suppression d'un patient (AURA-12.3)** : `/patients`, « Supprimer » sur la ligne de Peter Parker (séjour
     clos, aucun soin réalisé) → page de confirmation avec son identité → « Confirmer la suppression » → retour à
     la liste, message « Patient supprimé », Parker n'apparaît plus ni dans la liste, ni dans la recherche de

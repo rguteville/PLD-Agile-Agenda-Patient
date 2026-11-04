@@ -109,8 +109,8 @@ final class WorkflowsHttpTest extends HttpTestCase
 
     public function testTeamIsComposedAndRemovedForAShift(): void
     {
-        $context = ['idHealthcareService' => 'SRV01', 'date' => '2031-03-04', 'vacation' => 'nuit'];
-        $page = $this->get('/equipes?idHealthcareService=SRV01&date=2031-03-04&vacation=nuit');
+        $context = ['idHealthcareService' => 'SRV01', 'date' => '2031-03-04', 'rotation' => 'nuit'];
+        $page = $this->get('/equipes?idHealthcareService=SRV01&date=2031-03-04&rotation=nuit');
         $csrf = $this->csrfFrom($page);
         try {
             $team = $context + ['name' => 'Zz équipe', 'members' => ['PRA05'], 'patients' => ['1', '2']];
@@ -122,7 +122,7 @@ final class WorkflowsHttpTest extends HttpTestCase
             self::assertStringContainsString('Zz équipe', $list);
 
             $twice = $this->postForm('/equipes/creer', ['csrf' => $csrf, 'name' => 'Zz autre'] + $team);
-            self::assertSame(422, $twice->status, 'un patient n\'a qu\'une équipe par vacation');
+            self::assertSame(422, $twice->status, 'un patient n\'a qu\'une équipe par rotation');
 
             $id = (int) $this->pdo()->query("SELECT idCareTeam FROM CareTeam WHERE name = 'Zz équipe'")->fetchColumn();
             $removed = $this->postForm('/equipes/retirer', ['csrf' => $csrf, 'idCareTeam' => (string) $id] + $context);
@@ -236,6 +236,41 @@ final class WorkflowsHttpTest extends HttpTestCase
             );
         } finally {
             $this->deletePatients('Zzhttpdeces');
+        }
+    }
+
+    /**
+     * Retours du 2026-11-04 : une modification en ligne du dossier exige l'authentification factice (médecin et
+     * mot de passe) ; l'historique porte le nom du médecin. Par la vraie route, câblage compris.
+     */
+    public function testInlineEditNeedsFactitiousDoctorAuthenticationAndTracesTheDoctor(): void
+    {
+        $csrf = $this->csrfFrom($this->get('/sejour?id=8'));
+        $before = (string) $this->pdo()->query("SELECT precautions FROM EpisodeOfCare WHERE idEpisodeOfCare = '8'")
+            ->fetchColumn();
+        $edit = [
+            'entity' => 'episode', 'id' => '8', 'episodeOfCare' => '8', 'field' => 'precautions',
+            'value' => 'Zz précaution HTTP', 'oldValue' => $before,
+        ];
+        try {
+            $refused = $this->postJson('/sejour/champ/modifier', $edit, $csrf);
+            self::assertSame(422, $refused->status, $refused->body);
+            self::assertTrue($refused->json()['auth'] ?? false, 'sans médecin ni mot de passe');
+
+            $auth = ['validator' => 'PRA01', 'password' => 'x'];
+            $saved = $this->postJson('/sejour/champ/modifier', $edit + $auth, $csrf);
+            self::assertSame(200, $saved->status, $saved->body);
+            self::assertStringContainsString('authentification factice', (string) ($saved->json()['author'] ?? ''));
+            self::assertSame(
+                'Zz précaution HTTP',
+                $this->pdo()->query("SELECT precautions FROM EpisodeOfCare WHERE idEpisodeOfCare = '8'")->fetchColumn()
+            );
+        } finally {
+            $this->pdo()->prepare("UPDATE EpisodeOfCare SET precautions = ? WHERE idEpisodeOfCare = '8'")
+                ->execute([$before === '' ? null : $before]);
+            $this->pdo()->exec(
+                "DELETE FROM AuditEvent WHERE entity = 'EpisodeOfCare' AND entityId = '8' AND field = 'precautions'"
+            );
         }
     }
 

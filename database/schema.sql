@@ -397,16 +397,18 @@ CREATE TABLE AuditEvent(
 -- activeKey rend le nom unique parmi les équipes actives de la vacation (convention de suppression
 -- logique du README). Un patient n'appartient qu'à une équipe par vacation : contrôlé par le service
 -- (CareTeamService), la base ne pouvant l'exprimer sans dupliquer la vacation dans CareTeamPatient.
-CREATE TABLE CareTeam( -- Équipe d'une vacation
+CREATE TABLE CareTeam( -- Équipe d'une rotation
     idCareTeam INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     idHealthcareService VARCHAR(20) NOT NULL,
     shiftDate DATE NOT NULL,
-    shift VARCHAR(5) NOT NULL,
+    -- Rotation (2026-11-04 : les trois rotations de l'agenda font foi) : MATIN 6 h à 14 h, APRES_MIDI 14 h à
+    -- 22 h, NUIT 22 h à 6 h (datée de son début). Voir CareTeam::SHIFTS.
+    shift VARCHAR(10) NOT NULL,
     name VARCHAR(30) NOT NULL,
     removedAt DATETIME,
     activeKey TINYINT AS (IF(removedAt IS NULL, 1, NULL)) STORED,
 
-    CONSTRAINT chk_careteam_shift CHECK (BINARY shift IN ('JOUR', 'NUIT')),
+    CONSTRAINT chk_careteam_shift CHECK (BINARY shift IN ('MATIN', 'APRES_MIDI', 'NUIT')),
     CONSTRAINT uq_careteam_name UNIQUE (idHealthcareService, shiftDate, shift, name, activeKey),
     CONSTRAINT fk_healthcareservice_careteam FOREIGN KEY (idHealthcareService)
         REFERENCES HealthcareService(idHealthcareService)

@@ -4,6 +4,30 @@ Format : une entrée par pull request, de la plus récente à la plus ancienne.
 
 ## 2026-11-04
 
+### Retours du 2026-11-04 (3)
+
+- Agenda du patient : colonne « Responsable » retirée.
+- Admission : plus de compteur « N allergènes cochés ».
+
+- Trois rotations, une seule référence (décision de Raphaël) : les équipes et « Mon planning » suivent les rotations
+  de l'agenda (matin 6 h à 14 h, après-midi 14 h à 22 h, nuit 22 h à 6 h, `CareTeam::SHIFTS`) au lieu de vacations
+  de 12 h. Paramètre `rotation` (l'ancien `vacation` est encore lu). Schéma : `CareTeam.shift` VARCHAR(10), CHECK
+  sur MATIN, APRES_MIDI, NUIT (proposition pour Didac, migration `2026-11-04-trois-rotations.sql`). Démo : équipes
+  pour les trois rotations.
+
+- Édition en ligne du dossier : « Confirmer » passe par la fenêtre de validation par un médecin (authentification
+  factice, comme « Modifier ») ; l'historique porte le nom du médecin au lieu de « non identifié ». La route
+  `/sejour/champ/modifier` est câblée avec le service des parties (l'authentification y est vérifiée).
+
+- Liste des patients : cœur barré à gauche du nom d'un patient décédé.
+- Badge « Ordonnance non validée » cliquable partout où il s'affiche (agendas, Mon planning, liste des
+  prescriptions) : il ouvre l'écran « Nouvelles prescriptions » sur l'ordonnance à valider (#ordonnance-<id>).
+- Agenda du service, onglet « Lits » : toute la ligne d'un patient ouvre son panneau.
+- Prescription « Une fois » : un seul champ « Le » ; « du … au … » seulement pour une prescription récurrente.
+- Correctif : une date de fin saisie sans heure était ignorée (champ datetime-local considéré vide par le
+  navigateur). Jour et heure sont maintenant deux champs ; sans heure, la fin vaut 23 h 59 ce jour-là, le début
+  demande l'heure.
+
 ### Relecture adversariale (`feat/agenda-service-refonte`)
 
 - Trois relectures adversariales (points d'entrée et DAO, services patient et prescription, agendas et

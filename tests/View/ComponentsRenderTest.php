@@ -55,6 +55,24 @@ final class ComponentsRenderTest extends TestCase
         self::assertStringContainsString('Validée par &lt;X&gt;', $html);
     }
 
+    /**
+     * Retours du 2026-11-04 : le badge « Ordonnance non validée » des agendas est un lien vers la validation de
+     * cette ordonnance ; sans ordonnance connue, il reste un simple badge.
+     */
+    public function testToValidateBadgeLinksToTheOrderValidation(): void
+    {
+        $html = View::render('components/to_validate_link', ['idEpisodeOfCare' => 11, 'idCarePlan' => '7']);
+
+        self::assertStringContainsString('<a class="badge badge--to_validate badge--link"', $html);
+        self::assertStringContainsString('href="/care-plans/new?idEpisodeOfCare=11#ordonnance-7"', $html);
+        self::assertStringContainsString('Ordonnance non validée', $html);
+        self::assertStringContainsString('valider l&#039;ordonnance n° 7', $html, 'nom accessible du lien');
+
+        $plain = View::render('components/to_validate_link', ['idEpisodeOfCare' => 11, 'idCarePlan' => null]);
+        self::assertStringNotContainsString('<a ', $plain);
+        self::assertStringContainsString('badge--to_validate', $plain);
+    }
+
     public function testUnknownStatusBadgeShowsValueAsNeutral(): void
     {
         $html = View::render('components/status_badge', ['status' => 'NOUVEAU']);
@@ -266,7 +284,7 @@ final class ComponentsRenderTest extends TestCase
         self::assertStringContainsString('name="allergyCriticality[ALG01]"', $html);
         self::assertMatchesRegularExpression('/<option value="Élevée"\s+selected>/', $html);
         self::assertStringContainsString('Latex &lt;x&gt;', $html);
-        self::assertStringContainsString('1 allergène coché', $html);
+        self::assertStringNotContainsString('allergène coché', $html, 'plus de compteur (retours du 2026-11-04)');
     }
 
     public function testBannerColorsEachAllergyByCriticality(): void

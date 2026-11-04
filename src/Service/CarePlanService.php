@@ -972,10 +972,11 @@ final class CarePlanService
             'frequency' => self::frequencyLabel($line->getFrequencyHours()),
             'startDate' => $line->getStartDate()->format('d/m/Y H:i'),
             'endDate' => $line->getEndDate()?->format('d/m/Y H:i'),
-            // « du 20/10/2026 08:00 au 27/10/2026 08:00 », ou « du …, sans date de fin ».
+            // « du 20/10/2026 08:00 au 27/10/2026 08:00 », « du …, sans date de fin », ou « le … » (une fois).
             'period' => self::period(
                 $line->getStartDate()->format('d/m/Y H:i'),
-                $line->getEndDate()?->format('d/m/Y H:i')
+                $line->getEndDate()?->format('d/m/Y H:i'),
+                !$line->isRecurring()
             ),
             'timeConstraint' => $line->getTimeConstraint(),
             'important' => $line instanceof MedicationRequest ? $line->getImportant() : null,
@@ -1026,9 +1027,16 @@ final class CarePlanService
         return $text;
     }
 
-    /** Période d'une ligne : « du D au F », ou « du D, sans date de fin » si l'arrêt n'est pas prévu. */
-    public static function period(string $start, ?string $end): string
+    /**
+     * Période d'une ligne : « du D au F », « du D, sans date de fin » si l'arrêt n'est pas prévu, ou « le D » pour
+     * une prescription « Une fois » (retours du 2026-11-04 : pas de « du » sans « au »).
+     */
+    public static function period(string $start, ?string $end, bool $once = false): string
     {
+        if ($once) {
+            return sprintf('le %s', $start);
+        }
+
         return $end === null ? sprintf('du %s, sans date de fin', $start) : sprintf('du %s au %s', $start, $end);
     }
 

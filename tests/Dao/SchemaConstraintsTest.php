@@ -659,21 +659,21 @@ final class SchemaConstraintsTest extends TestCase
             'Équipe : même nom parmi les équipes actives de la vacation' => [
                 [],
                 "INSERT INTO CareTeam (idHealthcareService, shiftDate, shift, name) VALUES ('SRV01', '2026-10-14',
-                    'JOUR', 'Équipe A')",
+                    'MATIN', 'Équipe A')",
                 self::DUPLICATE,
                 'uq_careteam_name',
             ],
             'Équipe : service inexistant' => [
                 [],
                 "INSERT INTO CareTeam (idHealthcareService, shiftDate, shift, name) VALUES ('ZZ_INCONNU',
-                    '2030-01-01', 'JOUR', 'Zz')",
+                    '2030-01-01', 'MATIN', 'Zz')",
                 self::NO_PARENT,
                 'fk_healthcareservice_careteam',
             ],
             'Équipe : nom obligatoire' => [
                 [],
                 "INSERT INTO CareTeam (idHealthcareService, shiftDate, shift, name) VALUES ('SRV01', '2030-01-01',
-                    'JOUR', NULL)",
+                    'MATIN', NULL)",
                 self::NOT_NULL,
                 "'name'",
             ],
@@ -884,7 +884,7 @@ final class SchemaConstraintsTest extends TestCase
             ],
             'vacation en minuscules' => [
                 "INSERT INTO CareTeam (idHealthcareService, shiftDate, shift, name) VALUES ('SRV01', '2030-01-01',
-                    'jour', 'Zz')",
+                    'matin', 'Zz')",
                 'chk_careteam_shift',
             ],
             'nature de ligne de protocole en minuscules' => [
@@ -980,13 +980,14 @@ final class SchemaConstraintsTest extends TestCase
             'nom d\'équipe réutilisé après retrait de l\'ancienne (suppression logique)' => [
                 ["UPDATE CareTeam SET removedAt = '2026-10-14 09:00:00' WHERE idCareTeam = 1"],
                 "INSERT INTO CareTeam (idHealthcareService, shiftDate, shift, name) VALUES ('SRV01', '2026-10-14',
-                    'JOUR', 'Équipe A')",
+                    'MATIN', 'Équipe A')",
                 1,
             ],
-            'même nom d\'équipe sur l\'autre vacation' => [
-                [],
-                "INSERT INTO CareTeam (idHealthcareService, shiftDate, shift, name) VALUES ('SRV01', '2026-10-14',
-                    'NUIT', 'Équipe A')",
+            'même nom d\'équipe sur une autre rotation' => [
+                ["INSERT INTO CareTeam (idHealthcareService, shiftDate, shift, name) VALUES ('SRV01', '2030-01-02',
+                    'MATIN', 'Zz même nom')"],
+                "INSERT INTO CareTeam (idHealthcareService, shiftDate, shift, name) VALUES ('SRV01', '2030-01-02',
+                    'NUIT', 'Zz même nom')",
                 1,
             ],
             'suppression d\'un patient sans aucune dépendance' => [
@@ -1014,11 +1015,11 @@ final class SchemaConstraintsTest extends TestCase
         $this->pdo->exec("UPDATE CareTeam SET removedAt = '2026-10-14 09:00:00' WHERE idCareTeam = 1");
         $this->pdo->exec(
             "INSERT INTO CareTeam (idHealthcareService, shiftDate, shift, name, removedAt)
-             VALUES ('SRV01', '2026-10-14', 'JOUR', 'Équipe A', '2026-10-14 10:00:00')"
+             VALUES ('SRV01', '2026-10-14', 'MATIN', 'Équipe A', '2026-10-14 10:00:00')"
         );
 
         $count = (int) $this->pdo->query(
-            "SELECT COUNT(*) FROM CareTeam WHERE shiftDate = '2026-10-14' AND shift = 'JOUR' AND name = 'Équipe A'"
+            "SELECT COUNT(*) FROM CareTeam WHERE shiftDate = '2026-10-14' AND shift = 'MATIN' AND name = 'Équipe A'"
         )->fetchColumn();
 
         self::assertSame(2, $count);

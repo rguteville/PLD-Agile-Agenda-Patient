@@ -5,18 +5,18 @@ use Aura\Domain\CareTeam;
 use Aura\Service\CareTeamService;
 
 /**
- * « Mon planning » (AURA-31) : les soins des patients attribués au soignant pendant la vacation, par
+ * « Mon planning » (AURA-31) : les soins des patients attribués au soignant pendant la rotation, par
  * ordre chronologique, retards en tête d'écran, patients de l'équipe (allergies RG2) et actions sur
  * chaque soin (« Valider » et « Note », components/care_buttons). Le soignant se choisit dans la liste
  * tant que l'identification n'existe pas (AURA-50).
- * Rendue par TeamController::planning() (GET /mon-planning?idPractitioner=…&date=…&vacation=…).
- * Scripts : agenda.js (filtres, dialogue), auto-submit.js (choix du soignant et de la vacation).
+ * Rendue par TeamController::planning() (GET /mon-planning?idPractitioner=…&date=…&rotation=…).
+ * Scripts : agenda.js (filtres, dialogue), auto-submit.js (choix du soignant et de la rotation).
  *
  * @var array<string, string> $practitioners soignants : id => « Prénom Nom (rôle) »
  * @var string|null $idPractitioner soignant affiché
- * @var array<string, mixed> $shiftView vacation affichée (date, shift, label, previous et next :
+ * @var array<string, mixed> $shiftView rotation affichée (date, shift, label, previous et next :
  *      [date, shift])
- * @var list<CareTeam> $teams équipes du soignant pour la vacation, [] par défaut
+ * @var list<CareTeam> $teams équipes du soignant pour la rotation, [] par défaut
  * @var array<string, mixed>|null $planning vue-modèle de AgendaService::presentShift() (items, patients,
  *      counts), null par défaut (aucun soignant choisi)
  * @var bool $validationEnabled boutons d'action + dialogue, false par défaut
@@ -27,7 +27,7 @@ $teams = $teams ?? [];
 $planning = $planning ?? null;
 $validationEnabled = $validationEnabled ?? false;
 $url = static fn (string $date, string $shift): string => '/mon-planning?idPractitioner='
-    . rawurlencode((string) $idPractitioner) . '&date=' . $date . '&vacation=' . strtolower($shift);
+    . rawurlencode((string) $idPractitioner) . '&date=' . $date . '&rotation=' . CareTeamService::urlValue($shift);
 ?>
 <section class="planning-view">
     <div class="page-header">
@@ -41,7 +41,7 @@ $url = static fn (string $date, string $shift): string => '/mon-planning?idPract
     </div>
 
     <form class="agenda-nav" data-auto-submit-form
-          method="get" action="/mon-planning" aria-label="Choisir le soignant et la vacation">
+          method="get" action="/mon-planning" aria-label="Choisir le soignant et la rotation">
         <label for="planning-practitioner">Soignant</label>
         <select id="planning-practitioner" name="idPractitioner">
             <option value="">Choisir</option>
@@ -52,7 +52,7 @@ $url = static fn (string $date, string $shift): string => '/mon-planning?idPract
             <?php endforeach; ?>
         </select>
         <?php if ($idPractitioner !== null) : ?>
-            <a class="nav-day" aria-label="Vacation précédente"
+            <a class="nav-day" aria-label="Rotation précédente"
                href="<?= View::e($url($shiftView['previous']['date'], $shiftView['previous']['shift'])) ?>">
                 <?= View::render('components/icon', ['name' => 'chevron-left']) ?>
             </a>
@@ -62,17 +62,18 @@ $url = static fn (string $date, string $shift): string => '/mon-planning?idPract
             <?= View::e(ucfirst($shiftView['label'])) ?>
         </span>
         <?php if ($idPractitioner !== null) : ?>
-            <a class="nav-day" aria-label="Vacation suivante"
+            <a class="nav-day" aria-label="Rotation suivante"
                href="<?= View::e($url($shiftView['next']['date'], $shiftView['next']['shift'])) ?>">
                 <?= View::render('components/icon', ['name' => 'chevron-right']) ?>
             </a>
         <?php endif; ?>
         <label for="planning-date" class="sr-only">Date</label>
         <input type="date" id="planning-date" name="date" value="<?= View::e($shiftView['date']) ?>">
-        <label for="planning-shift" class="sr-only">Vacation</label>
-        <select id="planning-shift" name="vacation">
+        <label for="planning-shift" class="sr-only">Rotation</label>
+        <select id="planning-shift" name="rotation">
             <?php foreach (CareTeamService::SHIFTS as $key => $shift) : ?>
-                <option value="<?= View::e(strtolower($key)) ?>"<?= $key === $shiftView['shift'] ? ' selected' : '' ?>>
+                <?php $selected = $key === $shiftView['shift'] ? ' selected' : ''; ?>
+                <option value="<?= View::e(CareTeamService::urlValue($key)) ?>"<?= $selected ?>>
                     <?= View::e($shift['label'] . ' (' . $shift['hours'] . ')') ?>
                 </option>
             <?php endforeach; ?>
@@ -83,12 +84,12 @@ $url = static fn (string $date, string $shift): string => '/mon-planning?idPract
     <?php if ($idPractitioner === null) : ?>
         <?= View::render('components/empty_state', [
             'icon' => 'info',
-            'title' => 'Choisissez votre nom pour afficher vos soins de la vacation.',
+            'title' => 'Choisissez votre nom pour afficher vos soins de la rotation.',
         ]) ?>
     <?php elseif ($teams === []) : ?>
         <?= View::render('components/empty_state', [
             'icon' => 'info',
-            'title' => 'Aucune équipe ne vous est attribuée pour cette vacation.',
+            'title' => 'Aucune équipe ne vous est attribuée pour cette rotation.',
             'text' => 'Le cadre compose les équipes dans l\'écran « Équipes ».',
         ]) ?>
     <?php else : ?>
@@ -157,7 +158,7 @@ $url = static fn (string $date, string $shift): string => '/mon-planning?idPract
                 <?php if ($planning['items'] === []) : ?>
                     <?= View::render('components/empty_state', [
                         'icon' => 'calendar',
-                        'title' => 'Aucun soin prévu pour vos patients pendant cette vacation.',
+                        'title' => 'Aucun soin prévu pour vos patients pendant cette rotation.',
                     ]) ?>
                 <?php else : ?>
                     <?php /* Retours du 2026-11-04 : filtres regroupés derrière un bouton (agenda.js). */ ?>
@@ -183,7 +184,7 @@ $url = static fn (string $date, string $shift): string => '/mon-planning?idPract
                     </details>
                     <div class="table-scroll">
                         <table class="agenda-table">
-                            <caption class="sr-only">Soins de la vacation, par heure</caption>
+                            <caption class="sr-only">Soins de la rotation, par heure</caption>
                             <thead>
                                 <tr>
                                     <th scope="col" class="col-time">Heure</th>
@@ -228,9 +229,9 @@ $url = static fn (string $date, string $shift): string => '/mon-planning?idPract
                                                 'status' => $item['status'],
                                             ]) ?>
                                             <?php if ($item['notValidated'] ?? false) : ?>
-                                                <?= View::render('components/status_badge', [
-                                                    'status' => 'to_validate',
-                                                    'label' => 'Ordonnance non validée',
+                                                <?= View::render('components/to_validate_link', [
+                                                    'idEpisodeOfCare' => $item['idEpisodeOfCare'],
+                                                    'idCarePlan' => $item['idCarePlan'] ?? null,
                                                 ]) ?>
                                             <?php endif; ?>
                                             <?php if (($item['performedBy'] ?? null) !== null) : ?>

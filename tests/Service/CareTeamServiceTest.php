@@ -23,11 +23,14 @@ final class CareTeamServiceTest extends TestCase
     /** @return iterable<string, array{string, string, string}> */
     public static function moments(): iterable
     {
-        yield 'matin' => ['2026-10-14 09:00:00', '2026-10-14', 'JOUR'];
-        yield 'début de jour' => ['2026-10-14 08:00:00', '2026-10-14', 'JOUR'];
-        yield 'soir' => ['2026-10-14 21:30:00', '2026-10-14', 'NUIT'];
+        // Trois rotations (décision du 2026-11-04) : 6 h, 14 h, 22 h ; la nuit est datée de son début.
+        yield 'début du matin' => ['2026-10-14 06:00:00', '2026-10-14', 'MATIN'];
+        yield 'matin' => ['2026-10-14 09:00:00', '2026-10-14', 'MATIN'];
+        yield 'début d\'après-midi' => ['2026-10-14 14:00:00', '2026-10-14', 'APRES_MIDI'];
+        yield 'soir' => ['2026-10-14 21:59:00', '2026-10-14', 'APRES_MIDI'];
+        yield 'début de nuit' => ['2026-10-14 22:00:00', '2026-10-14', 'NUIT'];
         yield 'nuit après minuit' => ['2026-10-15 03:00:00', '2026-10-14', 'NUIT'];
-        yield 'fin de nuit' => ['2026-10-15 07:59:00', '2026-10-14', 'NUIT'];
+        yield 'fin de nuit' => ['2026-10-15 05:59:00', '2026-10-14', 'NUIT'];
     }
 
     #[DataProvider('moments')]
@@ -43,16 +46,42 @@ final class CareTeamServiceTest extends TestCase
     {
         [$start, $end] = CareTeamService::window(new DateTimeImmutable('2026-10-14'), CareTeam::SHIFT_NIGHT);
 
-        self::assertSame('2026-10-14 20:00', $start->format('Y-m-d H:i'));
-        self::assertSame('2026-10-15 08:00', $end->format('Y-m-d H:i'));
+        self::assertSame('2026-10-14 22:00', $start->format('Y-m-d H:i'));
+        self::assertSame('2026-10-15 06:00', $end->format('Y-m-d H:i'));
+    }
+
+    /** Navigation : avant le matin, la nuit de la veille ; après la nuit, le matin du lendemain. */
+    public function testNeighboursCycleThroughTheThreeShifts(): void
+    {
+        $day = new DateTimeImmutable('2026-10-14');
+        $fmt = static fn (array $at): string => $at[0]->format('Y-m-d') . ' ' . $at[1];
+
+        $morning = CareTeamService::neighbours($day, CareTeam::SHIFT_MORNING);
+        self::assertSame('2026-10-13 NUIT', $fmt($morning['previous']));
+        self::assertSame('2026-10-14 APRES_MIDI', $fmt($morning['next']));
+        $night = CareTeamService::neighbours($day, CareTeam::SHIFT_NIGHT);
+        self::assertSame('2026-10-14 APRES_MIDI', $fmt($night['previous']));
+        self::assertSame('2026-10-15 MATIN', $fmt($night['next']));
+    }
+
+    /** Une seule référence : la fin de rotation de l'agenda suit les rotations des équipes. */
+    public function testAgendaShiftEndUsesTheSameRotations(): void
+    {
+        foreach (CareTeamService::SHIFTS as $shift => $definition) {
+            [$start, $end] = CareTeamService::window(new DateTimeImmutable('2026-10-14'), $shift);
+            self::assertEquals($end, AgendaService::shiftEnd($start), $shift);
+        }
     }
 
     public function testShiftIsReadCaseInsensitively(): void
     {
         self::assertSame('NUIT', CareTeamService::parseShift('nuit'));
-        self::assertSame('JOUR', CareTeamService::parseShift(' Jour '));
-        self::assertNull(CareTeamService::parseShift('soir'));
-        self::assertNull(CareTeamService::parseShift(['JOUR']));
+        self::assertSame('MATIN', CareTeamService::parseShift(' Matin '));
+        self::assertSame('APRES_MIDI', CareTeamService::parseShift('apres-midi'));
+        self::assertSame('APRES_MIDI', CareTeamService::parseShift('après-midi'));
+        self::assertSame('apres-midi', CareTeamService::urlValue(CareTeam::SHIFT_AFTERNOON));
+        self::assertNull(CareTeamService::parseShift('jour'), 'l\'ancienne vacation de jour n\'existe plus');
+        self::assertNull(CareTeamService::parseShift(['MATIN']));
     }
 
     public function testCompleteTeamGivesNoError(): void
@@ -78,7 +107,7 @@ final class CareTeamServiceTest extends TestCase
     #[DataProvider('invalidTeams')]
     public function testInvalidTeamGivesErrorOnThatField(array $input, string $field): void
     {
-        $existing = [new CareTeam(1, 'SRV01', new DateTimeImmutable('2026-10-14'), 'JOUR', 'Équipe A', [], [1])];
+        $existing = [new CareTeam(1, 'SRV01', new DateTimeImmutable('2026-10-14'), 'MATIN', 'Équipe A', [], [1])];
 
         $errors = CareTeamService::validate($input, self::PRACTITIONERS, self::EPISODES, $existing);
 

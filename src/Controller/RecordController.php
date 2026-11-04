@@ -241,13 +241,36 @@ final class RecordController
             return;
         }
 
+        // Le décès se déclare par son bouton : il termine le séjour et annule les soins (POST /sejour/deces).
+        if ($field === 'deceased') {
+            $this->respond(422, [
+                'ok' => false,
+                'message' => 'Le décès se déclare avec le bouton « Déclarer le décès ».',
+            ]);
+            return;
+        }
+        // Retours du 2026-11-04 : authentification FACTICE, comme « Modifier » (médecin + mot de passe non vérifié).
+        $author = $this->sectionService()->inlineAuthor(
+            self::text($body['validator'] ?? null),
+            self::text($body['password'] ?? null)
+        );
+        if ($author === null) {
+            $this->respond(422, [
+                'ok' => false,
+                'auth' => true,
+                'message' => 'Choisissez le médecin qui valide et saisissez son mot de passe.',
+            ]);
+            return;
+        }
+
         $result = $this->recordEditService->update(
             $entity,
             (int) $id,
             $field,
             $value,
             $oldValue,
-            idEpisodeOfCare: (int) $idEpisodeOfCare
+            $author,
+            (int) $idEpisodeOfCare
         );
 
         $status = self::HTTP_STATUS[$result['status']] ?? 500;
@@ -258,6 +281,7 @@ final class RecordController
             'message' => $result['message'],
             'value' => $result['value'],
             'display' => $result['display'],
+            'author' => $author,
         ]);
     }
 

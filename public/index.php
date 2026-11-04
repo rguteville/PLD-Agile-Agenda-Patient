@@ -362,7 +362,6 @@ try {
     $router->get('/sejour', static fn () => $episodeOfCareController()->show());
     $router->post('/sejour/allergies/ajouter', static fn () => $episodeOfCareController()->addAllergy());
     $router->post('/sejour/allergies/retirer', static fn () => $episodeOfCareController()->removeAllergy());
-    $router->post('/sejour/champ/modifier', static fn () => (new RecordController($recordEditService()))->update());
     // Retours du 2026-11-02 : modification d'une partie entière du dossier et fin de séjour, validées par
     // un médecin (authentification factice en attendant AURA-18).
     $recordController = static function () use ($recordEditService): RecordController {
@@ -383,6 +382,8 @@ try {
         );
     };
     $router->post('/sejour/partie/modifier', static fn () => $recordController()->updatePart());
+    // Édition en ligne d'un champ : même contrôleur que les parties, pour l'authentification factice (2026-11-04).
+    $router->post('/sejour/champ/modifier', static fn () => $recordController()->update());
     $router->post('/sejour/cloturer', static fn () => $recordController()->endStay());
     $router->post('/sejour/deces', static fn () => $recordController()->declareDeath());
     $router->get('/care-plans', static fn () => $carePlans()->list());

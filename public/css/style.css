@@ -5448,7 +5448,7 @@ form.form--columns .form-lead > .form-row {
 /* Liste des patients : décès signalé par le seul cœur barré à côté du nom (libellé en infobulle). */
 .patient-list td .deceased-tag--icon {
     display: inline-flex;
-    margin: 0 0 0 var(--sp-1);
+    margin: 0 var(--sp-1) 0 0;
     vertical-align: middle;
 }
 
@@ -5467,4 +5467,44 @@ form.form--columns .form-lead > .form-row {
     margin: 0 0 var(--sp-3);
     color: var(--st-alert-fg);
     font-weight: 600;
+}
+
+/* ===== Retours du 2026-11-04 (3) : badge cliquable, ligne de lit cliquable, date et heure séparées ===== */
+.badge--link {
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.badge--link:hover,
+.badge--link:focus-visible {
+    text-decoration: underline;
+}
+
+/* Ordonnance ouverte depuis le badge d'un agenda : mise en évidence. */
+.b3-pending:target {
+    outline: 3px solid var(--accent);
+    outline-offset: 2px;
+}
+
+.board-row[data-row-link] {
+    cursor: pointer;
+}
+
+.board-row[data-row-link]:hover {
+    background: var(--accent-soft);
+}
+
+.b3-datetime {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-2);
+    min-width: 0;
+}
+
+.b3-datetime input {
+    min-width: 0;
+}
+
+.b3-grid > [data-row][hidden] {
+    display: none;
 }

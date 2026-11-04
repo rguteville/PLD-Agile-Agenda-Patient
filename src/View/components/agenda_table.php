@@ -10,7 +10,7 @@ use Aura\Core\View;
  * data-status et data-care-label, lus par les filtres de public/js/agenda.js.
  *
  * @var list<array<string, mixed>> $items lignes de AgendaService::presentDay() (id, time, datetime,
- *      kindLabel, label, details, responsible, status, notValidated, completedAt, performedBy, comment,
+ *      kindLabel, label, details, status, notValidated, completedAt, performedBy, comment,
  *      noteBy, prescription, canValidate)
  * @var string $caption titre du tableau lu par les lecteurs d'écran (visuellement masqué)
  * @var bool $validationEnabled colonne d'actions (dialogue components/validation_dialog), false par défaut
@@ -27,7 +27,6 @@ $idEpisodeOfCare = $idEpisodeOfCare ?? null;
                 <th scope="col" class="col-time">Heure</th>
                 <th scope="col" class="col-kind">Type</th>
                 <th scope="col">Soin / médicament</th>
-                <th scope="col">Responsable</th>
                 <th scope="col" class="col-status">Statut</th>
                 <th scope="col">Notes</th>
                 <?php if ($validationEnabled) : ?>
@@ -53,13 +52,12 @@ $idEpisodeOfCare = $idEpisodeOfCare ?? null;
                             <span class="item-details"><?= View::e($item['details']) ?></span>
                         <?php endif; ?>
                     </td>
-                    <td><?= View::e($item['responsible']) ?></td>
                     <td class="col-status">
                         <?= View::render('components/status_badge', ['status' => $item['status']]) ?>
                         <?php if ($item['notValidated'] ?? false) : ?>
-                            <?= View::render('components/status_badge', [
-                                'status' => 'to_validate',
-                                'label' => 'Ordonnance non validée',
+                            <?= View::render('components/to_validate_link', [
+                                'idEpisodeOfCare' => $idEpisodeOfCare ?? null,
+                                'idCarePlan' => $item['idCarePlan'] ?? null,
                             ]) ?>
                         <?php endif; ?>
                         <?php if ($item['completedAt'] !== null) : ?>

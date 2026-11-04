@@ -68,12 +68,13 @@ $deleted = $deleted ?? false;
             <?php foreach ($patients as $p) : ?>
                 <?php $name = $p['lastName'] . ' ' . $p['firstName']; ?>
                 <tr<?= $p['current'] !== null ? ' class="patient-list__row--current"' : '' ?>>
-                    <td><?= View::e($p['lastName']) ?><?= $p['deceased']
-                        ? ' ' . View::render('components/deceased_tag', [
+                    <?php /* Décès (2026-11-04) : cœur barré À GAUCHE du nom, libellé en infobulle et alternative. */ ?>
+                    <td><?= $p['deceased']
+                        ? View::render('components/deceased_tag', [
                             'label' => $p['deceasedLabel'],
                             'iconOnly' => true,
-                        ])
-                        : '' ?></td>
+                        ]) . ' '
+                        : '' ?><?= View::e($p['lastName']) ?></td>
                     <td><?= View::e($p['firstName']) ?></td>
                     <td><?= View::e($p['ipp'] ?? 'sans IPP') ?></td>
                     <td><?= View::e($p['birthDate'] ?? 'non renseignée') ?></td>

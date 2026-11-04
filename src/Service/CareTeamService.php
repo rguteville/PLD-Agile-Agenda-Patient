@@ -12,21 +12,20 @@ use LogicException;
 use PDOException;
 
 /**
- * Équipes et vacations (AURA-30) : au début de chaque vacation, le cadre compose les équipes et leur
- * attribue les patients du service. Deux vacations par jour (backlog : « 2 rotations par jour ») :
- * JOUR de 8 h à 20 h et NUIT de 20 h à 8 h le lendemain, bornes = HYPOTHÈSE à confirmer avec le service.
- * La vacation de nuit porte la date de son début : à 3 h le 15, on est dans la nuit du 14.
- * À ne pas confondre avec les rotations de l'agenda (AgendaService::SHIFTS : 6 h, 14 h, 22 h), autre
- * hypothèse, qui bornent la validation anticipée d'un soin.
+ * Équipes par rotation (AURA-30) : au début de chaque rotation, le cadre compose les équipes et leur attribue
+ * les patients du service. Trois rotations par jour, celles de l'agenda (décision de Raphaël du 2026-11-04 :
+ * un seul découpage fait foi, CareTeam::SHIFTS) : matin de 6 h à 14 h, après-midi de 14 h à 22 h, nuit de
+ * 22 h à 6 h le lendemain. La rotation de nuit porte la date de son début : à 3 h le 15, on est dans la nuit
+ * du 14.
  */
 final class CareTeamService
 {
-    /** Vacations : code (CareTeam.shift) => libellé, heures affichées et heure de début. */
+    /** Rotations : code (CareTeam.shift) => libellé, heures affichées et heure de début (CareTeam::SHIFTS). */
     public const SHIFTS = [
-        CareTeam::SHIFT_DAY => ['label' => 'Jour', 'hours' => '8 h à 20 h', 'from' => 8],
-        CareTeam::SHIFT_NIGHT => ['label' => 'Nuit', 'hours' => '20 h à 8 h', 'from' => 20],
+        CareTeam::SHIFT_MORNING => ['label' => 'Matin', 'hours' => '6 h à 14 h', 'from' => 6],
+        CareTeam::SHIFT_AFTERNOON => ['label' => 'Après-midi', 'hours' => '14 h à 22 h', 'from' => 14],
+        CareTeam::SHIFT_NIGHT => ['label' => 'Nuit', 'hours' => '22 h à 6 h', 'from' => 22],
     ];
-    private const SHIFT_HOURS = 12;
 
     /** Longueur maximale du nom d'une équipe (colonne CareTeam.name VARCHAR(30)). */
     public const NAME_MAX = 30;
@@ -41,7 +40,7 @@ final class CareTeamService
     }
 
     /**
-     * Vacation en cours à cet instant.
+     * Rotation en cours à cet instant (avant 6 h : la nuit commencée la veille).
      *
      * @return array{date: DateTimeImmutable, shift: string}
      */
@@ -49,18 +48,21 @@ final class CareTeamService
     {
         $hour = (int) $now->format('G');
         $today = $now->setTime(0, 0);
-        if ($hour < self::SHIFTS[CareTeam::SHIFT_DAY]['from']) {
-            return ['date' => $today->modify('-1 day'), 'shift' => CareTeam::SHIFT_NIGHT];
-        }
-        if ($hour < self::SHIFTS[CareTeam::SHIFT_NIGHT]['from']) {
-            return ['date' => $today, 'shift' => CareTeam::SHIFT_DAY];
+        $current = null;
+        foreach (self::SHIFTS as $shift => $definition) {
+            if ($hour >= $definition['from']) {
+                $current = $shift;
+            }
         }
 
-        return ['date' => $today, 'shift' => CareTeam::SHIFT_NIGHT];
+        // Avant la première rotation du jour (6 h) : la dernière rotation, commencée la veille.
+        return $current === null
+            ? ['date' => $today->modify('-1 day'), 'shift' => array_key_last(self::SHIFTS)]
+            : ['date' => $today, 'shift' => $current];
     }
 
     /**
-     * Début (inclus) et fin (exclue) d'une vacation.
+     * Début (inclus) et fin (exclue) d'une rotation : CareTeam::SHIFT_HOURS heures après son début.
      *
      * @return array{0: DateTimeImmutable, 1: DateTimeImmutable}
      */
@@ -68,25 +70,55 @@ final class CareTeamService
     {
         $start = $date->setTime(self::SHIFTS[$shift]['from'], 0);
 
-        return [$start, $start->modify('+' . self::SHIFT_HOURS . ' hours')];
+        return [$start, $start->modify('+' . CareTeam::SHIFT_HOURS . ' hours')];
     }
 
-    /** Vacation lue dans l'URL (JOUR / NUIT, insensible à la casse) ; null si absente ou inconnue. */
+    /**
+     * Rotation précédente et suivante (navigation) : avant le matin, la nuit de la veille ; après la nuit, le
+     * matin du lendemain.
+     *
+     * @return array{previous: array{0: DateTimeImmutable, 1: string}, next: array{0: DateTimeImmutable, 1: string}}
+     */
+    public static function neighbours(DateTimeImmutable $date, string $shift): array
+    {
+        $order = array_keys(self::SHIFTS);
+        $i = (int) array_search($shift, $order, true);
+        $last = count($order) - 1;
+
+        return [
+            'previous' => $i === 0 ? [$date->modify('-1 day'), $order[$last]] : [$date, $order[$i - 1]],
+            'next' => $i === $last ? [$date->modify('+1 day'), $order[0]] : [$date, $order[$i + 1]],
+        ];
+    }
+
+    /** Valeur de l'URL d'une rotation : « matin », « apres-midi », « nuit ». */
+    public static function urlValue(string $shift): string
+    {
+        return strtolower(str_replace('_', '-', $shift));
+    }
+
+    /**
+     * Rotation lue dans l'URL (« matin », « apres-midi », « après-midi », « nuit », casse indifférente) ; null si
+     * absente ou inconnue.
+     */
     public static function parseShift(mixed $value): ?string
     {
-        $shift = is_string($value) ? strtoupper(trim($value)) : '';
+        if (!is_string($value)) {
+            return null;
+        }
+        $shift = strtoupper(str_replace(['-', ' ', 'è', 'È'], ['_', '_', 'E', 'E'], trim($value)));
 
         return isset(self::SHIFTS[$shift]) ? $shift : null;
     }
 
     /**
-     * Contrôle d'une équipe, PUR : nom (unique parmi les équipes de la vacation), au moins un soignant
-     * de la liste, des patients du service, chacun dans une seule équipe de la vacation.
+     * Contrôle d'une équipe, PUR : nom (unique parmi les équipes de la rotation), au moins un soignant
+     * de la liste, des patients du service, chacun dans une seule équipe de la rotation.
      *
      * @param array<string, mixed> $input name, members (liste d'identifiants), patients (liste de séjours)
      * @param array<string, string> $practitioners soignants proposés : id => libellé
      * @param array<int, string> $episodes séjours en cours du service : id => libellé
-     * @param list<CareTeam> $teams équipes déjà composées pour la vacation
+     * @param list<CareTeam> $teams équipes déjà composées pour la rotation
      * @return array<string, string> erreurs indexées par champ
      */
     public static function validate(array $input, array $practitioners, array $episodes, array $teams): array
@@ -100,7 +132,7 @@ final class CareTeamService
         } else {
             foreach ($teams as $team) {
                 if (mb_strtolower($team->getName()) === mb_strtolower($name)) {
-                    $errors['name'] = 'Une équipe porte déjà ce nom pour cette vacation.';
+                    $errors['name'] = 'Une équipe porte déjà ce nom pour cette rotation.';
                 }
             }
         }
@@ -125,7 +157,7 @@ final class CareTeamService
             foreach ($patients as $idEpisode) {
                 if (isset($taken[$idEpisode])) {
                     $errors['patients'] = sprintf(
-                        '%s est déjà dans l\'%s : un patient n\'a qu\'une équipe par vacation.',
+                        '%s est déjà dans l\'%s : un patient n\'a qu\'une équipe par rotation.',
                         $episodes[(int) $idEpisode],
                         mb_strtolower($taken[$idEpisode])
                     );
@@ -167,7 +199,7 @@ final class CareTeamService
             $episodes
         ): array {
             // Verrou du service puis relecture : deux cadres qui composent en même temps passent l'un après
-            // l'autre et le second voit l'équipe du premier (un patient, une équipe par vacation).
+            // l'autre et le second voit l'équipe du premier (un patient, une équipe par rotation).
             $this->careTeamDao->lockService($idHealthcareService);
             $teams = $this->careTeamDao->findForShift($idHealthcareService, $date, $shift);
             $errors = self::validate($input, $practitioners, $episodes, $teams);

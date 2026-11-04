@@ -1,26 +1,19 @@
 // Liste des allergies de l'admission (components/allergy_picker.php) : filtre par libellé (sans tenir
-// compte des accents ni de la casse) et compteur d'allergènes cochés, annoncé aux lecteurs d'écran.
+// compte des accents ni de la casse). Plus de compteur « N allergènes cochés » (retours du 2026-11-04).
 // La criticité de chaque allergène coché s'affiche par CSS ; ce script ne fait que du confort :
 // le serveur valide les identifiants et les criticités (AdmissionService::validate()).
 // Chargé par l'admission (GET /, PatientController::SCRIPTS_ADMISSION). Attend : [data-allergy-picker]
-// avec [data-allergy-filter], [data-allergy-count], [data-allergy-empty] et .allergy-option
+// avec [data-allergy-filter], [data-allergy-empty] et .allergy-option
 // (data-allergy-label) ; écoute aura:allergies-filled (admission-search.js). Aucun appel réseau.
 
 (function () {
     document.querySelectorAll('[data-allergy-picker]').forEach(picker => {
         const filter = picker.querySelector('[data-allergy-filter]');
-        const count = picker.querySelector('[data-allergy-count]');
         const empty = picker.querySelector('[data-allergy-empty]');
         const options = [...picker.querySelectorAll('.allergy-option')];
 
         // Texte comparable : sans accents, en minuscules.
         const fold = text => text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
-
-        function updateCount() {
-            const n = picker.querySelectorAll('input[type="checkbox"]:checked').length;
-            const plural = n > 1 ? 's' : '';
-            count.textContent = `${n} allergène${plural} coché${plural}`;
-        }
 
         function applyFilter() {
             const query = fold(filter.value);
@@ -37,7 +30,6 @@
 
         picker.addEventListener('change', event => {
             if (event.target.matches('input[type="checkbox"]')) {
-                updateCount();
                 // Un allergène décoché perd sa criticité : rien d'incohérent n'est envoyé.
                 if (!event.target.checked) {
                     const select = event.target.closest('.allergy-option').querySelector('select');
@@ -55,10 +47,6 @@
             }
         });
         // Le formulaire peut être rempli par la recherche de patient : on se resynchronise.
-        picker.closest('form')?.addEventListener('aura:allergies-filled', () => {
-            updateCount();
-            applyFilter();
-        });
-        updateCount();
+        picker.closest('form')?.addEventListener('aura:allergies-filled', applyFilter);
     });
 })();
